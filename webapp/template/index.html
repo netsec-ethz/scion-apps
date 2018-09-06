@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SCIONLab Go Tests</title>
+<style>
+</style>
+<link rel="stylesheet" type="text/css"
+ href="static/css/bootstrap.min.css" />
+<link rel="stylesheet" type="text/css"
+ href="static/css/pretty-checkbox.min.css" />
+<link rel="stylesheet" type="text/css" href="static/css/animation.css" />
+<link rel="stylesheet" type="text/css" href="static/css/style.css" />
+<script type="text/javascript" src="static/js/jquery-2.2.0.min.js"></script>
+<script type="text/javascript" src="static/js/jquery.knob.min.js"></script>
+<script type="text/javascript" src="static/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="static/js/d3.v3.min.js"></script>
+<script type="text/javascript" src="static/js/highcharts.js"></script>
+<script type="text/javascript" src="static/js/webapp.js"></script>
+</head>
+<body>
+ <h1>SCIONLab Go Tests</h1>
+ <p>
+  This Go web server wraps several SCION test client apps and provides
+  an interface for any text and/or image output received. <a
+   href='http://github.com/perrig/scionlab'>SCIONLab Apps</a> are on
+  Github.
+ <p>
+ <form action="/files" method="post">
+  <input type="submit" id="button_fs" value="Browse File System" /> <span
+   id="error_text"></span>
+ </form>
+ <p>
+ <form action="/command" method="post" id="command-form"
+  onreset="setDefaults();" onsubmit="return command(false);">
+  <div class="row">
+   <div id="col-left" class="column-ia">
+
+    <!-- SCION CLIENT CONTENT -->
+    <div class="title-ia">Client</div>
+    <div id="svg-client">
+     <svg class="svg-ia" width="200px" height="300px">
+       <circle cx="100" cy="150" r="98" />
+     </svg>
+    </div>
+    <div id="in-client" class="scion-ia">
+     <select name="sel_cli" id="sel_cli" style="width: 120px;"></select><br>IA:
+     <input type="text" name="ia_cli" id="ia_cli" required
+      placeholder="1-11" pattern="^[0-9]+-[0-9a-fA-F_:\/]+$"
+      style="width: 120px;"><br>Host: <input type="text"
+      name="addr_cli" id="addr_cli" required placeholder="127.0.0.3"
+      pattern="((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){4}$"
+      style="width: 125px;"><br>Port: <input
+      name="port_cli" id="port_cli" type="number" required
+      placeholder=30001 style="width: 75px;" min="1">
+    </div>
+   </div>
+   <div id="col-center" class="column-center">
+
+    <!-- SVG DEFINITIONS -->
+    <svg class="svg-ia">
+        <defs>
+          <marker id="cs-arrowhead" markerWidth="0.31"
+      markerHeight="1.25" refX="0.01" refY="0.62" orient="auto">
+            <polygon points="0 0, 0.31 0.62, 0 1.25" />
+          </marker>
+          <marker id="sc-arrowhead" markerWidth="0.31"
+      markerHeight="1.25" refX="0.01" refY="0.62" orient="auto">
+            <polygon points="0 0, 0.31 0.62, 0 1.25" />
+          </marker>
+        </defs>
+     </svg>
+
+    <!-- APP DEFINITIONS -->
+    <ul class="nav nav-tabs">
+     <li class="active"><a data-toggle="tab" name="bwtester"
+      href="#bwtester">bwtester</a></li>
+     <li><a data-toggle="tab" name="camerapp" href="#camerapp">camerapp</a></li>
+     <li><a data-toggle="tab" name="sensorapp" href="#sensorapp">sensorapp</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+     <!-- BANDWIDTH TEST APP CONTENT -->
+     <div id="bwtester" class="tab-pane fade in active">
+
+      <div id="bwtest_text"></div>
+
+      <div id="bwtest-cs" class="bwtest-control">
+
+       <div id="svg-cs" class="bwtest-svg">
+        <svg class="svg-dials" viewBox="0 0 300 150">
+        <line x1="10" y1="42" x2="279" y2="42" stroke-width="70"
+          marker-end="url(#cs-arrowhead)" />
+        </svg>
+       </div>
+
+       <div id="dials-cs" class="bwtest-dials">
+
+        <div class="bwtest-dial">
+         <label for="dial-cs-sec" class="label-dial">seconds</label><input
+          type="text" class="dial" id="dial-cs-sec" name="dial-cs-sec"
+          value="3">
+        </div>
+
+        <div class="bwtest-dial">
+         <div class="pretty p-svg p-curve p-pulse">
+          <input type="radio" id="cs-radio-size" name="cs-dial"
+           value="size" checked>
+          <div class="state">
+           <img class="svg" src="static/img/lock-locked.svg"> <label>pkt
+            size (b)</label>
+          </div>
+         </div>
+         <input type="text" class="dial" id="dial-cs-size"
+          name="dial-cs-size" value="1000">
+        </div>
+
+        <div class="bwtest-dial div-pkt">
+         <div class="pretty p-svg p-curve p-pulse">
+          <input type="radio" id="cs-radio-pkt" name="cs-dial"
+           value="pkt">
+          <div class="state">
+           <img class="svg" src="static/img/lock-locked.svg"> <label>packets</label>
+          </div>
+         </div>
+         <input type="text" class="dial" id="dial-cs-pkt"
+          name="dial-cs-pkt" value="30">
+        </div>
+
+        <div class="bwtest-dial">
+         <div class="pretty p-svg p-curve p-pulse">
+          <input type="radio" id="cs-radio-bw" name="cs-dial" value="bw">
+          <div class="state">
+           <img class="svg" src="static/img/lock-locked.svg"> <label>bw
+            (mbps)</label>
+          </div>
+         </div>
+         <input type="text" class="dial" id="dial-cs-bw"
+          name="dial-cs-bw" value="0.08">
+        </div>
+
+       </div>
+
+      </div>
+      <!-- CS END -->
+
+      <div id="bwtest-sc" class="bwtest-control">
+
+       <div id="svg-sc" class="bwtest-svg">
+        <svg class="svg-dials" viewBox="0 0 300 150">
+        <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
+          marker-end="url(#sc-arrowhead)" />
+        </svg>
+       </div>
+
+       <div id="dials-sc" class="bwtest-dials">
+
+        <div class="bwtest-dial">
+         <label for="dial-sc-sec" class="label-dial">seconds</label><input
+          type="text" class="dial" id="dial-sc-sec" name="dial-sc-sec"
+          value="3">
+        </div>
+
+        <div class="bwtest-dial">
+         <div class="pretty p-svg p-curve p-pulse">
+          <input type="radio" id="sc-radio-size" name="sc-dial"
+           value="size" checked>
+          <div class="state">
+           <img class="svg" src="static/img/lock-locked.svg"> <label>pkt
+            size (b)</label>
+          </div>
+         </div>
+         <input type="text" class="dial" id="dial-sc-size"
+          name="dial-sc-size" value="1000">
+        </div>
+
+        <div class="bwtest-dial div-pkt">
+         <div class="pretty p-svg p-curve p-pulse">
+          <input type="radio" id="sc-radio-pkt" name="sc-dial"
+           value="pkt">
+          <div class="state">
+           <img class="svg" src="static/img/lock-locked.svg"> <label>packets</label>
+          </div>
+         </div>
+         <input type="text" class="dial" id="dial-sc-pkt"
+          name="dial-sc-pkt" value="30">
+        </div>
+
+        <div class="bwtest-dial">
+         <div class="pretty p-svg p-curve p-pulse">
+          <input type="radio" id="sc-radio-bw" name="sc-dial" value="bw">
+          <div class="state">
+           <img class="svg" src="static/img/lock-locked.svg"> <label>bw
+            (mbps)</label>
+          </div>
+         </div>
+         <input type="text" class="dial" id="dial-sc-bw"
+          name="dial-sc-bw" value="0.08">
+        </div>
+
+       </div>
+
+      </div>
+      <!-- SC END -->
+
+     </div>
+
+     <!-- CAMERA FETCHER APP CONTENT -->
+     <div id="camerapp" class="tab-pane fade">
+
+      <div id="svg-sc" class="bwtest-svg">
+       <svg class="svg-dials" viewBox="0 0 300 150">
+        <line x1="290" y1="90" x2="21" y2="90" stroke-width="70"
+         marker-end="url(#sc-arrowhead)" />
+        </svg>
+      </div>
+
+      <div id="image_text"></div>
+      <div id="images"></div>
+
+     </div>
+
+     <!-- SENSOR FETCHER APP CONTENT -->
+     <div id="sensorapp" class="tab-pane fade">
+
+      <div id="svg-sc" class="bwtest-svg">
+       <svg class="svg-dials" viewBox="0 0 300 150">
+        <line x1="290" y1="90" x2="21" y2="90" stroke-width="70"
+         marker-end="url(#sc-arrowhead)" />
+        </svg>
+      </div>
+
+      <div id="stats_text"></div>
+     </div>
+
+    </div>
+
+   </div>
+   <div id="col-right" class="column-ia">
+
+    <!-- SCION SERVER CONTENT -->
+    <div class="title-ia">Server</div>
+    <div id="svg-server" class="svg-ia">
+     <svg class="svg-ia" width="200px" height="300px">
+       <circle cx="100" cy="150" r="98" />
+     </svg>
+    </div>
+    <div id="in-server" class="scion-ia">
+     <select name="sel_ser" id="sel_ser" style="width: 120px;"></select><br>IA:
+     <input type="text" name="ia_ser" id="ia_ser" required
+      placeholder="1-12" pattern="^[0-9]+-[0-9a-fA-F_:\/]+$"
+      style="width: 120px;"> <br>Host: <input type="text"
+      name="addr_ser" id="addr_ser" required placeholder="127.0.0.2"
+      pattern="((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){4}$"
+      style="width: 125px;"> <br>Port: <input
+      name="port_ser" id="port_ser" type="number" required
+      placeholder=30002 style="width: 75px;" min="1">
+    </div>
+   </div>
+
+  </div>
+
+  <!-- COMMAND OPTIONS -->
+  <div id="cmd_config">
+   <input type="submit" id="button_cmd" value="Execute Test" /> <input
+    type="reset" id="button_reset" value="Reset Fields">
+   Additional Argument: <span
+    tooltip="Use the equal sign, '=', between argument and parameter."><input
+    type="text" id="addl_opt" name="addl_opt" style="width: 200px;">
+   </span>
+  </div>
+
+ </form>
+
+ <!-- BWTEST GRAPHING -->
+ <div id="bwtest-graphs">
+  <p>
+  <div class="pretty p-switch p-fill">
+   <input id="switch_cont" type="checkbox" />
+   <div class="state p-success">
+    <label>Continuous Bandwidth Test</label>
+   </div>
+  </div>
+  Interval: <input name="bwtest_sec" id="bwtest_sec" type="number"
+   placeholder="10 sec" style="width: 75px;" min="3" max="11" value="4">
+  seconds.
+  <div class="pretty p-switch">
+   <input id="switch_utc" type="checkbox" checked />
+   <div class="state">
+    <label>UTC</label>
+   </div>
+  </div>
+  <!--   Export:<input id="bwtest-file" type="file" webkitdirectory directory /> -->
+  <span id="bwgraphs_text"></span>
+  <p>
+  <div id="bwtest-continuous">
+   <div id="cs-bwtest-graph" class="chart"></div>
+   <div id="sc-bwtest-graph" class="chart"></div>
+  </div>
+
+ </div>
+
+ <!-- COMMAND OUTPUT -->
+ <div class="stdout">
+  <div id="results"></div>
+ </div>
+ <script type="text/javascript">
+
+    </script>
+ <noscript>This form requires that you have javascript
+  enabled to work properly please enable javascript in your browser.</noscript>
+</body>
+</html>

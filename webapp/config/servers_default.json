@@ -1,0 +1,74 @@
+{
+ "bwtester": [
+  {
+   "name": "17-ffaa:0:1102 ETHZ",
+   "isdas": "17-ffaa:0:1102",
+   "addr": "192.33.93.177",
+   "port": 30100
+  },
+  {
+   "name": "17-ffaa:1:f",
+   "isdas": "17-ffaa:1:f",
+   "addr": "10.0.2.15",
+   "port": 30100
+  },
+  {
+   "name": "17-ffaa:1:13",
+   "isdas": "17-ffaa:1:13",
+   "addr": "192.168.1.111",
+   "port": 30100
+  },
+  {
+   "name": "19-ffaa:1:22",
+   "isdas": "19-ffaa:1:22",
+   "addr": "141.44.25.146",
+   "port": 30100
+  },
+  {
+   "name": "17-ffaa:0:1107 Attachment Point",
+   "isdas": "17-ffaa:0:1107",
+   "addr": "10.0.8.1",
+   "port": 30100
+  },
+  {
+   "name": "18-ffaa:0:1202 Attachment Point",
+   "isdas": "18-ffaa:0:1202",
+   "addr": "10.0.8.1",
+   "port": 30100
+  },
+  {
+   "name": "19-ffaa:0:1303 Attachment Point",
+   "isdas": "19-ffaa:0:1303",
+   "addr": "10.0.8.1",
+   "port": 30100
+  },
+  {
+   "name": "20-ffaa:0:1404 Attachment Point",
+   "isdas": "20-ffaa:0:1404",
+   "addr": "10.0.8.1",
+   "port": 30100
+  }
+ ],
+ "camerapp": [
+  {
+   "name": "17-ffaa:0:1102 ETHZ",
+   "isdas": "17-ffaa:0:1102",
+   "addr": "192.33.93.166",
+   "port": 42002
+  }
+ ],
+ "sensorapp": [
+  {
+   "name": "17-ffaa:0:1102 ETHZ",
+   "isdas": "17-ffaa:0:1102",
+   "addr": "192.33.93.177",
+   "port": 42003
+  },
+  {
+   "name": "17-ffaa:1:13",
+   "isdas": "17-ffaa:1:13",
+   "addr": "192.168.1.111",
+   "port": 42003
+  }
+ ]
+}

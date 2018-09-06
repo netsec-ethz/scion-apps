@@ -1,0 +1,196 @@
+/* GENERAL */
+body {
+ background: #fefefe;
+ width: 900px;
+ margin: 0 auto;
+}
+
+#error_text.enable {
+ margin-top: 25px;
+ text-align: center;
+ color: #f00;
+ animation: fadeout_err 10s;
+}
+
+svg.svg-ia {
+ position: absolute;
+ z-index: -1;
+}
+
+svg.svg-dials {
+ width: 500px;
+ position: absolute;
+ z-index: -1;
+}
+
+.svg-ia circle {
+ stroke: #666;
+ stroke-width: 2px;
+}
+
+#svg-client circle {
+ fill: #6f6;
+}
+
+#svg-cs line {
+ stroke: #afa;
+}
+
+#cs-arrowhead {
+ fill: #afa;
+}
+
+#svg-server circle {
+ fill: #3cf;
+}
+
+#svg-sc line {
+ stroke: #6ef;
+}
+
+#sc-arrowhead {
+ fill: #6ef;
+}
+
+/* TABS GENERAL */
+.column-center {
+ float: left;
+ width: 500px;
+ height: 300px;
+}
+
+.row:after {
+ content: "";
+ display: table;
+ clear: both;
+ overflow: scroll;
+}
+
+/* TAB BWTESTER */
+.bwtest-dial {
+ width: 100px;
+ display: inline-block;
+ margin-top: 15px;
+}
+
+.bwtest-dials {
+ height: 140px;
+ width: 500px;
+ margin: 0 auto;
+ text-align: center;
+}
+
+.label-dial {
+ text-align: center;
+ width: 100px;
+ font-weight: normal;
+}
+
+.pretty .state label:before {
+ background-color: #fff;
+}
+
+#bwtest-continuous .chart {
+ height: 140px;
+ width: 450px;
+ overflow: hidden;
+ float: left;
+}
+
+/* TAB CAMERAPP */
+#images {
+ max-height: 280px;
+ overflow: hidden;
+}
+
+#image_text {
+ max-height: 20px;
+}
+
+img {
+ max-width: 80%;
+ height: auto;
+ display: block;
+ margin-left: auto;
+ margin-right: auto;
+}
+
+/* CLIENT / SERVER */
+.column-ia {
+ float: left;
+ width: 200px;
+ height: 342px;
+}
+
+.scion-ia {
+ width: 200px;
+ height: 300px;
+ text-align: center;
+ display: table-cell;
+ vertical-align: middle;
+}
+
+.title-ia {
+ height: 42px;
+ text-align: center;
+ vertical-align: middle;
+ line-height: 42px;
+}
+
+/* COMMAND OUTPUT */
+.stdout {
+ font-family: monospace;
+ white-space: pre-line;
+ height: 200px;
+ overflow: auto;
+ overflow-x: hidden;
+ border-style: solid;
+ border-radius: 5px;
+ border-width: 2px;
+ border-color: #666;
+ background-color: #eee;
+ margin-top: 5px;
+ overflow-wrap: break-word;
+}
+
+/* TOOLTIPS */
+[tooltip] {
+ position: relative;
+}
+
+[tooltip]:before {
+ border-bottom: 5px solid #333;
+ border-left: 5px solid transparent;
+ border-right: 5px solid transparent;
+ content: '';
+ display: none;
+ font-size: 0;
+ height: 0;
+ left: 35px;
+ line-height: 0;
+ position: absolute;
+ top: 30px;
+ width: 0;
+ z-index: 8;
+}
+
+[tooltip]:after {
+ background: #333;
+ border-radius: 5px;
+ color: #fff;
+ content: attr(tooltip);
+ display: none;
+ height: 28px;
+ left: 0px;
+ line-height: 18px;
+ padding: 5px 8px;
+ position: absolute;
+ top: 35px;
+ white-space: nowrap;
+ word-wrap: normal;
+ z-index: 9;
+}
+
+[tooltip]:hover:before, [tooltip]:hover:after {
+ display: block;
+}

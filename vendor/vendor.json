@@ -1,0 +1,49 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "2sj/DbXoXdnPAfjAEyhS0Jj5QL0=",
+			"license": "APL 2.0",
+			"path": "github.com/go-stack/stack",
+			"revision": "100eb0c0a9c5b306ca2fb4f165df21d80ada4b82",
+			"revisionTime": "2016-05-14T03:44:11Z"
+		},
+		{
+			"checksumSHA1": "S1lxMekj2Rxqp/lA47z9UGeNHjs=",
+			"license": "APL 2.0",
+			"path": "github.com/inconshreveable/log15",
+			"revision": "944cbfb97b448e4f63f0bdb69c2850e3de1aeae9",
+			"revisionTime": "2016-10-13T18:12:40Z"
+		},
+		{
+			"checksumSHA1": "Mt2PUVPAERF1/eO3rTBs1RlkD+k=",
+			"license": "APL 2.0",
+			"path": "github.com/inconshreveable/log15/ext",
+			"revision": "944cbfb97b448e4f63f0bdb69c2850e3de1aeae9",
+			"revisionTime": "2016-10-13T18:12:40Z"
+		},
+		{
+			"checksumSHA1": "AidYU0XoFoluUaN+rxYePHWJo5E=",
+			"license": "APL 2.0",
+			"path": "github.com/inconshreveable/log15/term",
+			"revision": "944cbfb97b448e4f63f0bdb69c2850e3de1aeae9",
+			"revisionTime": "2016-10-13T18:12:40Z"
+		},
+		{
+			"checksumSHA1": "eiKZJz+wsoOmDZQ7xdpX+sqQte4=",
+			"license": "APL 2.0",
+			"path": "github.com/kormat/fmt15",
+			"revision": "aeb535ae78961b7591ea7f7740b74fc6560c88a8",
+			"revisionTime": "2016-11-22T15:41:03Z"
+		},
+		{
+			"checksumSHA1": "ugnSryGF6VPBb5s87QgoRH6730g=",
+			"license": "MIT",
+			"path": "github.com/mattn/go-colorable",
+			"revision": "6c903ff4aa50920ca86087a280590b36b3152b9c",
+			"revisionTime": "2016-09-30T08:41:57Z"
+		}
+	],
+	"rootPath": "github.com/perrig/scionlab"
+}
