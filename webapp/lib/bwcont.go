@@ -4,7 +4,7 @@ import (
     "encoding/csv"
     "encoding/json"
     "fmt"
-    model "github.com/perrig/scionlab/webapp/models"
+    model "github.com/netsec-ethz/scion-apps/webapp/models"
     "io"
     "log"
     "net/http"

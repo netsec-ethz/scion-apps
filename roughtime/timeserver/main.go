@@ -7,7 +7,7 @@ import (
     "time"
 
     "golang.org/x/crypto/ed25519"
-	"github.com/perrig/scionlab/roughtime/utils"
+	"github.com/netsec-ethz/scion-apps/roughtime/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 	"roughtime.googlesource.com/go/protocol"
 

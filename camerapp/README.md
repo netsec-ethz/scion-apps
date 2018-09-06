@@ -3,7 +3,7 @@
 
 This file contains information on the camerapp code itself. Check here
 for [setup and installation
-instructions](https://github.com/perrig/scionlab/blob/master/README.md).
+instructions](https://github.com/netsec-ethz/scion-apps/blob/master/README.md).
 
 The camerapp application is based on the SCION UDP socket written in
 Go. Since UDP is not reliable, we construct a very simple reliability

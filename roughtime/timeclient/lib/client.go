@@ -18,7 +18,7 @@ import (
 
     "github.com/scionproto/scion/go/lib/snet"
 
-    "github.com/perrig/scionlab/roughtime/utils"
+    "github.com/netsec-ethz/scion-apps/roughtime/utils"
 )
 
 const (

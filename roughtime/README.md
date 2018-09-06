@@ -18,7 +18,7 @@ git clone https://roughtime.googlesource.com/roughtime roughtime.googlesource.co
 Build server:
 
 ```
-cd $GOPATH/src/github.com/perrig/scionlab/roughtime/timeserver
+cd $GOPATH/src/github.com/netsec-ethz/scion-apps/roughtime/timeserver
 go get
 go build
 ```
@@ -26,7 +26,7 @@ go build
 Build client:
 
 ```
-cd $GOPATH/src/github.com/perrig/scionlab/roughtime/timeclient
+cd $GOPATH/src/github.com/netsec-ethz/scion-apps/roughtime/timeclient
 go get
 go build
 ```

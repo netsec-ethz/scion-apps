@@ -1,7 +1,7 @@
 // bwtestserver application
 // For more documentation on the application see:
-// https://github.com/perrig/scionlab/blob/master/README.md
-// https://github.com/perrig/scionlab/blob/master/bwtester/README.md
+// https://github.com/netsec-ethz/scion-apps/blob/master/README.md
+// https://github.com/netsec-ethz/scion-apps/blob/master/bwtester/README.md
 package main
 
 import (
@@ -17,7 +17,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/kormat/fmt15"
 
-	. "github.com/perrig/scionlab/bwtester/bwtestlib"
+	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )

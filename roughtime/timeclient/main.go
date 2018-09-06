@@ -8,8 +8,8 @@ import (
 
 
     "gopkg.in/alecthomas/kingpin.v2"
-    "github.com/perrig/scionlab/roughtime/utils"
-    "github.com/perrig/scionlab/roughtime/timeclient/lib"
+    "github.com/netsec-ethz/scion-apps/roughtime/utils"
+    "github.com/netsec-ethz/scion-apps/roughtime/timeclient/lib"
     "roughtime.googlesource.com/go/client/monotime"
 )
 

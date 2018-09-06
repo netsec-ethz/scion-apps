@@ -1,7 +1,7 @@
 // imagefetcher application
 // For more documentation on the application see:
-// https://github.com/perrig/scionlab/blob/master/README.md
-// https://github.com/perrig/scionlab/blob/master/camerapp/README.md
+// https://github.com/netsec-ethz/scion-apps/blob/master/README.md
+// https://github.com/netsec-ethz/scion-apps/blob/master/camerapp/README.md
 package main
 
 import (

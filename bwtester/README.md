@@ -1,7 +1,7 @@
 
 # bwtester
 
-The bandwidth testing application `bwtester` enables a variety of bandwidth tests on the SCION network. This document describes the design of the code and protocol. Instructions on the installation and usage are described in the main [README.md](https://github.com/perrig/scionlab/blob/master/README.md).
+The bandwidth testing application `bwtester` enables a variety of bandwidth tests on the SCION network. This document describes the design of the code and protocol. Instructions on the installation and usage are described in the main [README.md](https://github.com/netsec-ethz/scion-apps/blob/master/README.md).
 
 ## Protocol design
 

@@ -1,6 +1,6 @@
 // sensorserver application
 // For documentation on how to setup and run the application see:
-// https://github.com/perrig/scionlab/blob/master/README.md
+// https://github.com/netsec-ethz/scion-apps/blob/master/README.md
 package main
 
 import (

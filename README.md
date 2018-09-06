@@ -10,7 +10,7 @@ More information on [SCION](https://www.scion-architecture.net/), and [tutorials
 
 ## camerapp
 
-Camerapp contains image fetcher and server applications, using the SCION network. Documentation on the code is available in the [README.md](https://github.com/perrig/scionlab/blob/master/camerapp/README.md)
+Camerapp contains image fetcher and server applications, using the SCION network. Documentation on the code is available in the [README.md](https://github.com/netsec-ethz/scion-apps/blob/master/camerapp/README.md)
 
 Installation and usage information is available on the [SCION Tutorials web page for camerapp](https://netsec-ethz.github.io/scion-tutorials/sample_projects/access_camera/).
 
@@ -28,6 +28,6 @@ Installation and usage information is available on the [SCION Tutorials web page
 
 The bandwidth testing application `bwtester` enables a variety of bandwidth tests on the SCION network.
 
-Documentation of the code and protocol are described in the [bwtester README](https://github.com/perrig/scionlab/blob/master/bwtester/README.md).
+Documentation of the code and protocol are described in the [bwtester README](https://github.com/netsec-ethz/scion-apps/blob/master/bwtester/README.md).
 
 Installation and usage information is available on the [SCION Tutorials web page for bwtester](https://netsec-ethz.github.io/scion-tutorials/sample_projects/bwtester/).

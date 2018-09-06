@@ -6,8 +6,8 @@ import (
     "flag"
     "fmt"
     _ "github.com/mattn/go-sqlite3"
-    lib "github.com/perrig/scionlab/webapp/lib"
-    model "github.com/perrig/scionlab/webapp/models"
+    lib "github.com/netsec-ethz/scion-apps/webapp/lib"
+    model "github.com/netsec-ethz/scion-apps/webapp/models"
     "io"
     "io/ioutil"
     "log"
@@ -261,7 +261,7 @@ func getClientLocationBin(app string) string {
 
 // Parses html selection and returns location of app source.
 func getClientLocationSrc(app string) string {
-    slroot := "src/github.com/perrig/scionlab"
+    slroot := "src/github.com/netsec-ethz/scion-apps"
     var filepath string
     switch app {
     case "sensorapp":
