@@ -487,7 +487,6 @@ function handleEndCmdDisplay(resp) {
 function enableTestControls(enable) {
     $("#button_cmd").prop('disabled', !enable);
     $("#button_reset").prop('disabled', !enable);
-    $("#addl_opt").prop('disabled', !enable);
 }
 
 function lockTab(href) {
