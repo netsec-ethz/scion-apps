@@ -21,7 +21,7 @@ var feedback = {};
 var nodes = {};
 
 var granularity = 5;
-var xAxisSec = 20;
+var xAxisSec = 60;
 var ticks = xAxisSec * granularity;
 var tickMs = 1000 / granularity;
 var xLeftTrimMs = 1000 / granularity;
