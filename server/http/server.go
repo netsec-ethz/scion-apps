@@ -1,95 +1,66 @@
 package shttp
 
 import (
-	"context"
-	"net"
-	"time"
+	"fmt"
+	"io/ioutil"
+	"log"
 
-	quic "github.com/scionproto/scion/go/lib/snet/squic"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/squic"
+	"gihtub.com/chaehni/scion-http/utils/utils"
 )
 
-// Server is a  SCION HTTP server
 type Server struct {
-	Addr    snet.Addr
-	network snet.SCIONNetwork
-
-	Handler Handler
-
-	//Timeouts
-	ReadTimeout       time.Duration
-	ReadHeaderTimeout time.Duration
-	WriteTimeout      time.Duration
-	IdleTimeout       time.Duration
-	MaxHeaderBytes    int
+	AddrString String
+	Addr       snet.Addr
 }
 
-// ListenAndServe creates a HTTP server and listens to requests
-func ListenAndServe(addr snet.Addr, handler Handler) error {
-	server := &Server{Addr: addr, Handler: handler}
-	return server.ListenAndServe()
-}
+func (srv *Server) ListenAndServe() {
 
-func (srv *Server) Close() error
-func (srv *Server) ListenAndServe() error
-func (srv *Server) RegisterOnShutdown(f func())
-func (srv *Server) Serve(l net.Listener) error
-func (srv *Server) SetKeepAlivesEnabled(v bool)
-func (srv *Server) Shutdown(ctx context.Context) error
+	srv.initSCIONConnection()
 
-func (srv *Server) Serve(l net.Listener) error {
-	if fn := testHookServerServe; fn != nil {
-		fn(srv, l) // call hook with unwrapped listener
-	}
+	li, err := squic.ListenSCION(nil, srv.Addr)
+	defer li.Close()
 
-	l = &onceCloseListener{Listener: l}
-	defer l.Close()
-
-	if err := srv.setupHTTP2_Serve(); err != nil {
-		return err
-	}
-
-	if !srv.trackListener(&l, true) {
-		return ErrServerClosed
-	}
-	defer srv.trackListener(&l, false)
-
-	var tempDelay time.Duration     // how long to sleep on accept failure
-	baseCtx := context.Background() // base is always background, per Issue 16220
-	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
-	for {
-		rw, e := l.Accept()
-		if e != nil {
-			select {
-			case <-srv.getDoneChan():
-				return ErrServerClosed
-			default:
-			}
-			if ne, ok := e.(net.Error); ok && ne.Temporary() {
-				if tempDelay == 0 {
-					tempDelay = 5 * time.Millisecond
-				} else {
-					tempDelay *= 2
-				}
-				if max := 1 * time.Second; tempDelay > max {
-					tempDelay = max
-				}
-				srv.logf("http: Accept error: %v; retrying in %v", e, tempDelay)
-				time.Sleep(tempDelay)
-				continue
-			}
-			return e
-		}
-		tempDelay = 0
-		c := srv.newConn(rw)
-		c.setState(c.rwc, StateNew) // before Serve can return
-		go c.serve(ctx)
-	}
-}
-
-func (srv *Server) ListenAndServe() error {
-	ln, err := quic.ListenScion(nil, srv.laddr)
 	if err != nil {
-		return err
+		log.Fatal("Failed to listen on %v: %v", srv.Addr, err)
 	}
-	return srv.Serve(ln)
+
+	for {
+		c, err := li.Accept()
+		defer c.Close()
+
+		if err != nil {
+			log.Printf(err.Error())
+		}
+
+		bs, err := ioutil.ReadAll(c)
+		if err != nil {
+			log.Printf(err.Error())
+		}
+		fmt.Println(string(bs))
+	}
+}
+
+func (srv *Server) initSCIONConnection(serverAddress, tlsCertFile, tlsKeyFile string) (*snet.Addr, error) {
+
+	log.Println("Initializing SCION connection")
+
+	Srv.Addr, err := snet.AddrFromString(srv.AddrString)
+	if err != nil {
+		return nil, err
+	}
+
+	err = snet.Init(srv.Addr.IA, utils.GetSciondAddr(srv.Addr), utils.GetDispatcherAddr(srv.Addr))
+	if err != nil {
+		return srv.Addr, err
+	}
+
+	err = squic.Init(tlsKeyFile, tlsCertFile)
+	if err != nil {
+		return serverCCAddr, err
+	}
+
+	return serverCCAddr, nil
+
 }
