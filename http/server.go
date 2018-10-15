@@ -7,18 +7,22 @@ import (
 	"net"
 	"strings"
 
-	"github.com/chaehni/scion-http/utils/utils"
+	"github.com/chaehni/scion-http/quicconn"
+	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 type Server struct {
-	AddrString String
+	AddrString string
 	Addr       snet.Addr
+	TLSCertFile string
+	TLSKeyFile string
 }
 
 func (srv *Server) ListenAndServe() {
 
+	// Initialize the SCION/QUIC network connection
 	srv.initSCIONConnection()
 
 	li, err := squic.ListenSCION(nil, srv.Addr)
@@ -46,11 +50,11 @@ func (srv *Server) ListenAndServe() {
 		}
 
 		// Handle connection
-		go handle(stream)
+		go handle(&quiconn.QuicConn{sess, stream})
 	}
 }
 
-// TODO: create dummy type that wraps session and adds missing methods to make it a net.Conn
+
 func handle(conn net.Conn) {
 	defer conn.Close()
 
@@ -62,26 +66,26 @@ func handle(conn net.Conn) {
 
 }
 
-func (srv *Server) initSCIONConnection(serverAddress, tlsCertFile, tlsKeyFile string) (*snet.Addr, error) {
+func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
 
 	log.Println("Initializing SCION connection")
 
-	Srv.Addr, err = snet.AddrFromString(srv.AddrString)
+	srv.Addr, err = snet.AddrFromString(srv.AddrString)
 	if err != nil {
 		return nil, err
 	}
 
 	err = snet.Init(srv.Addr.IA, utils.GetSciondAddr(srv.Addr), utils.GetDispatcherAddr(srv.Addr))
 	if err != nil {
-		return srv.Addr, err
+		return nil, err
 	}
 
-	err = squic.Init(tlsKeyFile, tlsCertFile)
+	err = squic.Init(srv.TLSKeyFilesKeyFile, srv.TLSCertFile)
 	if err != nil {
-		return Srv.Addr, err
+		return nil, err
 	}
 
-	return Srv.Addr, nil
+	return srv.Addr, nil
 
 }
 
