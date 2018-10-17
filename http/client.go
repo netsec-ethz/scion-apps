@@ -1,6 +1,8 @@
 package shttp
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
 
 	"github.com/chaehni/scion-http/quicconn"
@@ -14,22 +16,30 @@ type Client struct {
 	Addr       snet.Addr
 }
 
-func (c *Client) Get(serverAddress string) {
+func (c *Client) Get(serverAddress string) string {
 	// Initialize the SCION/QUIC network connection
 	srvAddr, cAddr, err := c.initSCIONConnection(serverAddress)
 
 	// Establish QUIC connection to server
 	sess, err := squic.DialSCION(nil, cAddr, srvAddr)
+	defer sess.Close()
 	if err != nil {
 		log.panicf("Error dialing SCION: %v", err)
 	}
 
 	stream, err = sess.OpenStreamSync()
+	defer stream.Close()
 	if err != nil {
 		log.Panicf("Error opening stream: %v", err)
 	}
 
 	qc := &quicconn.QuicConn{sess, stream}
+
+	fmt.Fprint(qc, "GET /hello_world.html HTTP/1.1\r\n")
+	fmt.Fprint(qc, "Content-Type: text/html\r\n")
+	fmt.Fprint(qc, "\r\n")
+
+	return ioutil.ReadAll(qc).String()
 
 }
 
