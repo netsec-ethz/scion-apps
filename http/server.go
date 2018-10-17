@@ -14,46 +14,46 @@ import (
 )
 
 type Server struct {
-	AddrString string
-	Addr       snet.Addr
+	AddrString  string
+	Addr        *snet.Addr
 	TLSCertFile string
-	TLSKeyFile string
+	TLSKeyFile  string
 }
 
-func (srv *Server) ListenAndServe() {
+func (srv *Server) ListenAndServe() error {
 
 	// Initialize the SCION/QUIC network connection
-	srv.initSCIONConnection()
+	if _, err := srv.initSCIONConnection(); err != nil {
+		return err
+	}
 
 	li, err := squic.ListenSCION(nil, srv.Addr)
 	defer li.Close()
 
 	if err != nil {
-		log.Fatal("Failed to listen on %v: %v", srv.Addr, err)
+		return fmt.Errorf("Failed to listen on %v: %v", srv.Addr, err)
 	}
 
 	for {
 		// wait for new sessions
 		sess, err := li.Accept()
-		defer sess.Close()
-
+		defer sess.Close(nil) // Why does it take an error?
 		if err != nil {
-			log.Printf(err.Error())
+			log.Printf("Failed to accept incoming connection: %v", err)
 			continue
 		}
 
 		// get stream of session
 		stream, err := sess.AcceptStream()
 		if err != nil {
-			log.Printf("Failed to accept incoming stream (%s)", err)
+			log.Printf("Failed to accept incoming stream: %v", err)
 			continue
 		}
 
 		// Handle connection
-		go handle(&quiconn.QuicConn{sess, stream})
+		go handle(&quicconn.QuicConn{sess, stream})
 	}
 }
-
 
 func handle(conn net.Conn) {
 	defer conn.Close()
@@ -70,6 +70,7 @@ func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
 
 	log.Println("Initializing SCION connection")
 
+	var err error
 	srv.Addr, err = snet.AddrFromString(srv.AddrString)
 	if err != nil {
 		return nil, err
@@ -77,13 +78,17 @@ func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
 
 	err = snet.Init(srv.Addr.IA, utils.GetSciondAddr(srv.Addr), utils.GetDispatcherAddr(srv.Addr))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Unable to initialize SCION network:", err)
 	}
 
-	err = squic.Init(srv.TLSKeyFilesKeyFile, srv.TLSCertFile)
+	log.Println("Initialized SCION network")
+
+	err = squic.Init(srv.TLSKeyFile, srv.TLSCertFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Unable to initialize QUIC network:", err)
 	}
+
+	log.Println("Initialized SCION/QUIC network")
 
 	return srv.Addr, nil
 
@@ -108,13 +113,13 @@ func request(conn net.Conn) {
 	}
 }
 
-func respond(conn net.Conn){
+func respond(conn net.Conn) {
 	body := `<!DOCTYPE html><html lang="en"><head><meta
 		charset="UTF-8"><title>sample server</title></head>
 		<body><strong>Hello World></strong></body></html>`
-	
+
 	fmt.Fprint(conn, "HTTP/1.1 200 OK\r\n")
-	fmt.Fprintf(conn "Content-Length: %d\r\n", len(body))
+	fmt.Fprintf(conn, "Content-Length: %d\r\n", len(body))
 	fmt.Fprint(conn, "Content-Type: text/html\r\n")
 	fmt.Fprint(conn, "\r\n")
 	fmt.Fprint(conn, body)

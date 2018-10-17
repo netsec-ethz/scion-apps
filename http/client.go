@@ -13,24 +13,28 @@ import (
 
 type Client struct {
 	AddrString string
-	Addr       snet.Addr
+	Addr       *snet.Addr
 }
 
-func (c *Client) Get(serverAddress string) string {
+func (c *Client) Get(serverAddress string) (string, error) {
+
 	// Initialize the SCION/QUIC network connection
 	srvAddr, cAddr, err := c.initSCIONConnection(serverAddress)
+	if err != nil {
+		return "", err
+	}
 
 	// Establish QUIC connection to server
 	sess, err := squic.DialSCION(nil, cAddr, srvAddr)
-	defer sess.Close()
+	defer sess.Close(nil)
 	if err != nil {
-		log.panicf("Error dialing SCION: %v", err)
+		return "", fmt.Errorf("Error dialing SCION: %v", err)
 	}
 
-	stream, err = sess.OpenStreamSync()
+	stream, err := sess.OpenStreamSync()
 	defer stream.Close()
 	if err != nil {
-		log.Panicf("Error opening stream: %v", err)
+		return "", fmt.Errorf("Error opening stream: %v", err)
 	}
 
 	qc := &quicconn.QuicConn{sess, stream}
@@ -39,7 +43,8 @@ func (c *Client) Get(serverAddress string) string {
 	fmt.Fprint(qc, "Content-Type: text/html\r\n")
 	fmt.Fprint(qc, "\r\n")
 
-	return ioutil.ReadAll(qc).String()
+	buf, _ := ioutil.ReadAll(qc)
+	return string(buf), nil
 
 }
 
@@ -59,8 +64,10 @@ func (c *Client) initSCIONConnection(serverAddress string) (*snet.Addr, *snet.Ad
 
 	err = snet.Init(c.Addr.IA, utils.GetSciondAddr(c.Addr), utils.GetDispatcherAddr(c.Addr))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("Unable to initialize SCION network:", err)
 	}
+
+	log.Println("Initialized SCION network")
 
 	return srvAddr, c.Addr, nil
 

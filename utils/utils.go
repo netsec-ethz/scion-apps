@@ -10,10 +10,12 @@ import (
 var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
 
 func GetSciondAddr(scionAddr *snet.Addr) string {
-	return fmt.Sprintf("/run/shm/sciond/sd%d-%d.sock", scionAddr.IA.I, scionAddr.IA.A)
+	//return fmt.Sprintf("/run/shm/sciond/sd%d-%d.sock", scionAddr.IA.I, scionAddr.IA.A)
+	return "/run/shm/sciond/default.sock"
 }
 
 func GetDispatcherAddr(scionAddr *snet.Addr) string {
+	//return "/run/shm/dispatcher/default.sock"
 	return "/run/shm/dispatcher/default.sock"
 }
 
