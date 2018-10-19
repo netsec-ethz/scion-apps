@@ -35,7 +35,26 @@ func main() {
 		log.Fatal("Get request failed: ", err)
 	}
 
-	log.Println("Get request succeeded:")
+	log.Println("1st GET request succeeded:")
+	log.Println("Status: ", resp.Status)
+	log.Println("Content-Length: ", resp.ContentLength)
+	log.Println("Content-Type: ", resp.Header.Get("Content-Type"))
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Print(err)
+	}
+	log.Println("Body: ", string(body))
+
+	// Make another request
+	resp, err := c.Get("http://testserver")
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		log.Fatal("Get request failed: ", err)
+	}
+
+	log.Println("2nd GET request succeeded:")
 	log.Println("Status: ", resp.Status)
 	log.Println("Content-Length: ", resp.ContentLength)
 	log.Println("Content-Type: ", resp.Header.Get("Content-Type"))

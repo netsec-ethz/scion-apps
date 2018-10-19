@@ -73,22 +73,18 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	fmt.Println("a")
 	// write request to conn
 	err = req.Write(conn)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("a")
 	br := bufio.NewReader(conn)
 
-	fmt.Println("a")
 	resp, err := http.ReadResponse(br, req)
 	if err != nil {
 		return nil, fmt.Errorf("we fail here: %v", err)
 	}
-	fmt.Println("a")
 	return resp, nil
 
 }
