@@ -7,6 +7,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+//TODO: needed?
 var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
 
 func GetSciondAddr(scionAddr *snet.Addr) string {

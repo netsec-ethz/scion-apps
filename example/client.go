@@ -2,19 +2,29 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/chaehni/scion-http/http"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func main() {
 
-	client := shttp.Client{}
-	client.AddrString = "17-ffaa:1:c2,[127.0.0.1]:0"
+	// Make a map from URLs to *snet.Addr
+	dns := make(map[string]*snet.Addr)
+	dns["testserver"] = snet.AddrFromString("17-ffaa:1:c2,[127.0.0.1]:40002")
 
-	response, err := client.Get("17-ffaa:1:c2,[127.0.0.1]:40002")
-	if err != nil {
-		log.Fatal(err)
+	c := &http.Client{
+		Transport: &shttp.Transport{
+			Dns: dns,
+		},
 	}
 
-	log.Println(response)
+	resp, err := c.Get("testserver")
+	if err != nil {
+		log.Fatal("Get request failed: ", err)
+	}
+	log.Println("e")
+
+	log.Println(resp.Body)
 }
