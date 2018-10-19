@@ -20,6 +20,10 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
+var (
+	networkInitialized bool
+)
+
 type Transport struct {
 	LAddr *snet.Addr
 	DNS   map[string]*snet.Addr // map from services to SCION addresses
@@ -72,6 +76,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 
 	// write request to conn
 	err = req.Write(conn)
@@ -83,26 +88,14 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	resp, err := http.ReadResponse(br, req)
 	if err != nil {
-		return nil, fmt.Errorf("we fail here: %v", err)
+		return nil, err
 	}
 	return resp, nil
 
 }
 
 func validMethod(method string) bool {
-	/*
-	     Method         = "OPTIONS"                ; Section 9.2
-	                    | "GET"                    ; Section 9.3
-	                    | "HEAD"                   ; Section 9.4
-	                    | "POST"                   ; Section 9.5
-	                    | "PUT"                    ; Section 9.6
-	                    | "DELETE"                 ; Section 9.7
-	                    | "TRACE"                  ; Section 9.8
-	                    | "CONNECT"                ; Section 9.9
-	                    | extension-method
-	   extension-method = token
-	     token          = 1*<any CHAR except CTLs or separators>
-	*/
+
 	m := map[string]bool{
 		"OPTIONS": true,
 		"GET":     true,
@@ -127,9 +120,12 @@ func closeBody(r *http.Request) {
 func dial(lAddr, rAddr *snet.Addr) (net.Conn, error) {
 
 	// Initialize the SCION/QUIC network connection
-	err := initSCIONConnection(rAddr)
-	if err != nil {
-		return nil, err
+	if !networkInitialized {
+		err := initSCION(lAddr)
+		if err != nil {
+			return nil, err
+		}
+		networkInitialized = true
 	}
 
 	// Establish QUIC connection to server
@@ -151,14 +147,7 @@ func dial(lAddr, rAddr *snet.Addr) (net.Conn, error) {
 
 }
 
-func initSCIONConnection(rAddr *snet.Addr) error {
+func initSCION(lAddr *snet.Addr) error {
 
-	err := snet.Init(rAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
-	if err != nil {
-		return err
-	}
-
-	log.Println("Initialized SCION network")
-
-	return nil
+	return snet.Init(lAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 }

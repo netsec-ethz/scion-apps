@@ -1,11 +1,10 @@
 package shttp
 
 import (
-	"bufio"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
-	"strings"
 
 	"github.com/chaehni/scion-http/quicconn"
 	"github.com/chaehni/scion-http/utils"
@@ -95,7 +94,8 @@ func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
 }
 
 func request(conn net.Conn) {
-	i := 0
+	/* i := 0
+	body := false
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		ln := scanner.Text()
@@ -107,10 +107,19 @@ func request(conn net.Conn) {
 		}
 		if ln == "" {
 			// headers are done
-			break
+			body = true
+		}
+		if body {
+			fmt.Println(ln)
 		}
 		i++
+	} */
+
+	req, err := ioutil.ReadAll(conn)
+	if err != nil {
+		fmt.Print(string(req))
 	}
+
 }
 
 func respond(conn net.Conn) {

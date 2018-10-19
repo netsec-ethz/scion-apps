@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/chaehni/scion-http/http"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -27,15 +28,17 @@ func main() {
 	}
 
 	// Make a get request
+	start := time.Now()
 	resp, err := c.Get("http://testserver")
 	if resp != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		log.Fatal("Get request failed: ", err)
+		log.Fatal("GET request failed: ", err)
 	}
+	end := time.Now()
 
-	log.Println("1st GET request succeeded:")
+	log.Printf("GET request succeeded in %v seconds:", end.Sub(start).Seconds())
 	log.Println("Status: ", resp.Status)
 	log.Println("Content-Length: ", resp.ContentLength)
 	log.Println("Content-Type: ", resp.Header.Get("Content-Type"))
@@ -46,19 +49,29 @@ func main() {
 	log.Println("Body: ", string(body))
 
 	// Make another request
-	resp, err := c.Get("http://testserver")
+
+	c = &http.Client{
+		Transport: &shttp.Transport{
+			DNS:   dns,
+			LAddr: lAddr,
+		},
+	}
+
+	start = time.Now()
+	resp, err = c.Post("http://testserver", "text/html", resp.Body)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		log.Fatal("Get request failed: ", err)
+		log.Fatal("POST request failed: ", err)
 	}
+	end = time.Now()
 
-	log.Println("2nd GET request succeeded:")
+	log.Printf("2st POST request succeeded in %v seconds:", end.Sub(start).Seconds())
 	log.Println("Status: ", resp.Status)
 	log.Println("Content-Length: ", resp.ContentLength)
 	log.Println("Content-Type: ", resp.Header.Get("Content-Type"))
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Print(err)
 	}
