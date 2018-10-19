@@ -27,7 +27,7 @@ func (c *Client) initSCIONConnection(serverAddress string) (*snet.Addr, *snet.Ad
 		return nil, nil, err
 	}
 
-	err = snet.Init(c.Addr.IA, utils.GetSciondAddr(c.Addr), utils.GetDispatcherAddr(c.Addr))
+	err = snet.Init(c.Addr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 	if err != nil {
 		return nil, nil, fmt.Errorf("Unable to initialize SCION network:", err)
 	}

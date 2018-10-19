@@ -19,7 +19,8 @@ import (
 )
 
 type Transport struct {
-	Dns map[string]*snet.Addr // map from services to SCION addresses
+	LAddr *snet.Addr
+	DNS   map[string]*snet.Addr // map from services to SCION addresses
 }
 
 // roundTrip implements a RoundTripper over HTTP
@@ -64,85 +65,52 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	} */
 
-	/* str := `HTTP/2 200
-		server: nginx/1.13.6
-	date: Thu, 18 Oct 2018 16:25:36 GMT
-	content-type: text/plain;charset=UTF-8
-	vary: Accept-Encoding
-	access-control-allow-origin: *
-	x-frame-options: SAMEORIGIN
-	x-xss-protection: 1; mode=block
-	x-content-type-options: nosniff
-
-	213.55.184.236`
-
-		log.Println("a")
-		sr := strings.NewReader(str) // returns strings.Reader which implements io.Reader
-		log.Println("b")
-		br := bufio.NewReader(sr) // returns bufio.Reader
-		log.Println("c") */
-
 	log.Println(req.URL.String())
 
-	initSCIONConnection(req.URL.String())
-
-	conn, err := Get(Dns[req.URL.String()])
+	conn, err := dial(t.LAddr, t.DNS[req.URL.String()])
 	if err != nil {
 		return nil, err
 	}
 
-	br, err := bufio.NewReader(conn)
+	// write request to conn
+	err = req.Write(conn)
 	if err != nil {
 		return nil, err
 	}
+
+	br := bufio.NewReader(conn)
 
 	resp, err := http.ReadResponse(br, req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("we fail here: %v", err)
 	}
-
-	log.Println("d")
 
 	return resp, nil
 
-	/* pconn, err := t.getConn(treq, cm)
-	resp, err := pconn.roundTrip(treq) */
-
 }
 
-// getConn dials and creates a new persistConn to the target as specified in the connectMethod
-// This includes setting up SCION/QUIC. If this doesn't return an error, persistConn is readty
-// to written requests to
-/* func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistConn, error) {
-
-} */
-
-func Get(serverAddress string) (net.Conn, error) {
+func dial(lAddr, rAddr *snet.Addr) (net.Conn, error) {
 
 	// Initialize the SCION/QUIC network connection
-	err := c.initSCIONConnection(serverAddress)
+	err := initSCIONConnection(rAddr)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Establish QUIC connection to server
-	sess, err := squic.DialSCION(nil, cAddr, srvAddr)
-	defer sess.Close(nil)
+	sess, err := squic.DialSCION(nil, lAddr, rAddr)
+	//defer sess.Close(nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error dialing SCION: %v", err)
 	}
 
 	stream, err := sess.OpenStreamSync()
-	defer stream.Close()
+	//defer stream.Close()
 	if err != nil {
 		return nil, fmt.Errorf("Error opening stream: %v", err)
 	}
 
 	qc := &quicconn.QuicConn{sess, stream}
-
-	fmt.Fprint(qc, "GET /hello_world.html HTTP/1.1\r\n")
-	fmt.Fprint(qc, "Content-Type: text/html\r\n")
-	fmt.Fprint(qc, "\r\n")
 
 	return qc, nil
 
@@ -150,7 +118,7 @@ func Get(serverAddress string) (net.Conn, error) {
 
 func initSCIONConnection(rAddr *snet.Addr) error {
 
-	err = snet.Init(rAddr.IA, utils.GetSciondAddr(rAddr), utils.GetDispatcherAddr(rAddr))
+	err := snet.Init(rAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 	if err != nil {
 		return err
 	}

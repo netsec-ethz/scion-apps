@@ -56,7 +56,7 @@ func (srv *Server) ListenAndServe() error {
 }
 
 func handle(conn net.Conn) {
-	defer conn.Close()
+	//defer conn.Close()
 
 	// read request
 	request(conn)
@@ -76,7 +76,7 @@ func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
 		return nil, err
 	}
 
-	err = snet.Init(srv.Addr.IA, utils.GetSciondAddr(srv.Addr), utils.GetDispatcherAddr(srv.Addr))
+	err = snet.Init(srv.Addr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 	if err != nil {
 		return nil, fmt.Errorf("Unable to initialize SCION network:", err)
 	}
@@ -114,9 +114,7 @@ func request(conn net.Conn) {
 }
 
 func respond(conn net.Conn) {
-	body := `<!DOCTYPE html><html lang="en"><head><meta
-		charset="UTF-8"><title>sample server</title></head>
-		<body><strong>Hello World></strong></body></html>`
+	body := `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>sample server</title></head><body><strong>Hello World></strong></body></html>`
 
 	fmt.Fprint(conn, "HTTP/1.1 200 OK\r\n")
 	fmt.Fprintf(conn, "Content-Length: %d\r\n", len(body))
