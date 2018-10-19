@@ -16,7 +16,7 @@ func main() {
 
 	// Make a map from URL to *snet.Addr
 	dns := make(map[string]*snet.Addr)
-	dns["testserver"] = rAddr
+	dns["http://testserver"] = rAddr
 
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// Make a get request
-	resp, err := c.Get("testserver")
+	resp, err := c.Get("http://testserver")
 	if resp != nil {
 		defer resp.Body.Close()
 	}
