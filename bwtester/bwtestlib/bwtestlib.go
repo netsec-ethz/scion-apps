@@ -76,7 +76,7 @@ func LogFatal(msg string, a ...interface{}) {
 }
 
 // TODO: make it more generic: func LogPanicAndRestart(f func(a ...interface{}), a ...interface{}) {
-func LogPanicAndRestart(f func(a *snet.Conn, b string, c []byte, d []byte), CCConn *snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
+func LogPanicAndRestart(f func(a snet.Conn, b string, c []byte, d []byte), CCConn snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
 	if msg := recover(); msg != nil {
 		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 		log.Debug("Recovering from panic.")
@@ -162,7 +162,7 @@ func DecodeBwtestParameters(buf []byte) (*BwtestParameters, int, error) {
 	return &v, is - bb.Len(), err
 }
 
-func HandleDCConnSend(bwp *BwtestParameters, udpConnection *snet.Conn) {
+func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
 	sb := make([]byte, bwp.PacketSize)
 	var i int64 = 0
 	t0 := time.Now()
@@ -203,7 +203,7 @@ func HandleDCConnSend(bwp *BwtestParameters, udpConnection *snet.Conn) {
 	}
 }
 
-func HandleDCConnReceive(bwp *BwtestParameters, udpConnection *snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
+func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
 	resLock.Lock()
 	finish := res.ExpectedFinishTime
 	resLock.Unlock()

@@ -254,14 +254,14 @@ func main() {
 		// Address of server control channel (CC)
 		serverCCAddr *snet.Addr
 		// Control channel connection
-		CCConn *snet.Conn
+		CCConn snet.Conn
 
 		// Address of client data channel (DC)
 		clientDCAddr *snet.Addr
 		// Address of server data channel (DC)
 		serverDCAddr *snet.Addr
 		// Data channel connection
-		DCConn *snet.Conn
+		DCConn snet.Conn
 
 		clientBwpStr string
 		clientBwp    BwtestParameters
@@ -333,8 +333,7 @@ func main() {
 		}
 		serverCCAddr.Path = spath.New(pathEntry.Path.FwdPath)
 		serverCCAddr.Path.InitOffsets()
-		serverCCAddr.NextHopHost = pathEntry.HostInfo.Host()
-		serverCCAddr.NextHopPort = pathEntry.HostInfo.Port
+		serverCCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
 	}
 
 	CCConn, err = snet.DialSCION("udp4", clientCCAddr, serverCCAddr)
@@ -375,12 +374,9 @@ func main() {
 	if !serverDCAddr.IA.Eq(clientDCAddr.IA) {
 		serverDCAddr.Path = spath.New(pathEntry.Path.FwdPath)
 		serverDCAddr.Path.InitOffsets()
-		serverDCAddr.NextHopHost = pathEntry.HostInfo.Host()
-		// log.Debug("Client DC", "Next Hop", serverDCAddr.NextHopHost, "Server Host",
-		// 	serverDCAddr.Host, "Server Port", serverDCAddr.L4Port)
-		fmt.Printf("Client DC \tNext Hop %v\tServer Host %v\t Server Port %v\n",
-			serverDCAddr.NextHopHost, serverDCAddr.Host, serverDCAddr.L4Port)
-		serverDCAddr.NextHopPort = pathEntry.HostInfo.Port
+		serverDCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
+		fmt.Printf("Client DC \tNext Hop %v\tServer Host %v\n",
+			serverDCAddr.NextHop, serverDCAddr.Host)
 	}
 
 	// Data channel connection
