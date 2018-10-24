@@ -36,6 +36,7 @@ var (
 	InferedPktSize int64
 	sciondAddr     *string
 	sciondFromIA   *bool
+	overlayType    string
 )
 
 func prepareAESKey() []byte {
@@ -269,6 +270,7 @@ func main() {
 		serverBwp    BwtestParameters
 		interactive  bool
 		pathAlgo     string
+		useIPv6      bool
 
 		err   error
 		tzero time.Time // initialized to "zero" time
@@ -286,6 +288,7 @@ func main() {
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
 	flag.BoolVar(&interactive, "i", false, "Interactive mode")
 	flag.StringVar(&pathAlgo, "pathAlgo", "", "Path selection algorithm / metric (\"shortest\", \"mtu\")")
+	flag.BoolVar(&useIPv6, "6", false, "Use IPv6")
 
 	flag.Parse()
 	flagset := make(map[string]bool)
@@ -298,6 +301,11 @@ func main() {
 		os.Exit(0)
 	}
 
+	if useIPv6 {
+		overlayType = "udp6"
+	} else {
+		overlayType = "udp4"
+	}
 	// Create SCION UDP socket
 	if len(clientCCAddrStr) > 0 {
 		clientCCAddr, err = snet.AddrFromString(clientCCAddrStr)
@@ -336,7 +344,7 @@ func main() {
 		serverCCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
 	}
 
-	CCConn, err = snet.DialSCION("udp4", clientCCAddr, serverCCAddr)
+	CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
 	Check(err)
 	// fmt.Println("clientCCAddr -> serverCCAddr", clientCCAddr, "->", serverCCAddr)
 
@@ -380,7 +388,7 @@ func main() {
 	}
 
 	// Data channel connection
-	DCConn, err = snet.DialSCION("udp4", clientDCAddr, serverDCAddr)
+	DCConn, err = snet.DialSCION(overlayType, clientDCAddr, serverDCAddr)
 	Check(err)
 
 	// update default packet size to max MTU on the selected path
