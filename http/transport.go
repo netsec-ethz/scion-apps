@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -27,6 +28,19 @@ var (
 type Transport struct {
 	LAddr *snet.Addr
 	DNS   map[string]*snet.Addr // map from services to SCION addresses
+}
+
+// Body wraps io.Readcloser together with a connection
+// Like this we can override the Close() method to also close connection
+// after client consume a response body
+type Body struct {
+	io.ReadCloser
+	conn net.Conn
+}
+
+func (b *Body) Close() error {
+	b.conn.Close()
+	return b.ReadCloser.Close()
 }
 
 // RoundTrip makes a single HTTP roundtrip
@@ -69,14 +83,18 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("shttp: no Host in request URL")
 
 	}
-	fmt.Println("a")
-	log.Println(req.URL.String())
+	log.Println("connecting to ", req.URL.String())
+	log.Println("Host is: ", req.URL.Host)
 
-	conn, err := dial(t.LAddr, t.DNS[req.URL.String()])
+	addr, ok := t.DNS[req.URL.Host]
+	if !ok {
+		log.Fatal("shttp: Host not found in DNS map")
+	}
+
+	conn, err := dial(t.LAddr, addr)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	// write request to conn
 	err = req.Write(conn)
@@ -90,6 +108,11 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Replace response body with custom Body type that closes connection
+	// when client closes response body is closed
+	resp.Body = &Body{resp.Body, conn}
+
 	return resp, nil
 
 }
@@ -130,13 +153,11 @@ func dial(lAddr, rAddr *snet.Addr) (net.Conn, error) {
 
 	// Establish QUIC connection to server
 	sess, err := squic.DialSCION(nil, lAddr, rAddr)
-	//defer sess.Close(nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error dialing SCION: %v", err)
 	}
 
 	stream, err := sess.OpenStreamSync()
-	//defer stream.Close()
 	if err != nil {
 		return nil, fmt.Errorf("Error opening stream: %v", err)
 	}
