@@ -1,11 +1,11 @@
 # HTTP over SCION/QUIC
 
-This repository contains a client/server implementation of HTTP over SCION/QUIC
+This repository contains a client/server implementation of HTTP over SCION/QUIC.
 
-The Client is a standard net/http client with a custom RoundTripper implementation.
+### The Client is a standard net/http client with a custom RoundTripper implementation.
 
-```
 First, create a client:
+```
 client := &http.Client{
     Transport: &shttp.Transport{
         DNS: make(map[string]*snet.Addr),
@@ -22,12 +22,12 @@ resp, err := client.Get("http://example.com/download)
 ```
 
 
-The Server is designed to work similar to the standard net/http server. It supports:
+### The Server is designed to work similar to the standard net/http server. It supports:
 
 * concurrent handling of clients
 * standard net/http handlers
 * standard net/http helpers such as http.ServeFile, http.Error, http.ServeMux, etc
-* detection of Content-Type and Content-Length and setting headers accordingly
+* detection of Content-Type and Content-Length and setting of headers accordingly
 
 First, create a NewServeMux:
 ```
