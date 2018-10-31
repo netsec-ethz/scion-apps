@@ -92,7 +92,7 @@ func (rw *RespWriter) write(lenData int, dataB []byte, dataS string) (n int, err
 		rw.sendHeader.Set("Content-Type", http.DetectContentType(data))
 	}
 
-	// write headers infered from data
+	// write headers inferred from data
 	// exclude the headers already sent
 	rw.sendHeader.WriteSubset(rw.conn, rw.excludeHeaders)
 	rw.conn.Write(crlf)

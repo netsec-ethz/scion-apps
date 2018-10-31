@@ -21,7 +21,7 @@ func main() {
 	m.HandleFunc("/image", func(w http.ResponseWriter, r *http.Request) {
 		// serve the sample JPG file
 		// Status 200 OK will be set implicitly
-		// Conent-Length will be infered by server
+		// Conent-Length will be inferred by server
 		// Content-Type will be detected by server
 		http.ServeFile(w, r, "examples/image_server/dog.jpg")
 	})
