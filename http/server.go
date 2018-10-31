@@ -42,6 +42,9 @@ type RespWriter struct {
 	handlerHeader http.Header
 	// denotes wheter the sendHeader has been (logically) written
 	wroteHeader bool
+	// denotes wheter a header finalizing CRLF has been sent
+	// this is for the case where Write is never called (e.g. 204)
+	headerFinalized bool
 	// headers to exclude from writing on call to Write()
 	// have been written already on call to WriteHeader()
 	excludeHeaders map[string]bool
@@ -93,6 +96,7 @@ func (rw *RespWriter) write(lenData int, dataB []byte, dataS string) (n int, err
 	// exclude the headers already sent
 	rw.sendHeader.WriteSubset(rw.conn, rw.excludeHeaders)
 	rw.conn.Write(crlf)
+	rw.headerFinalized = true
 
 	// write data to conn
 	n, err = rw.conn.Write(data)
@@ -191,7 +195,7 @@ func (srv *Server) ListenAndServe() error {
 	for {
 		// wait for new sessions
 		sess, err := li.Accept()
-		defer sess.Close(nil) // Why does it take an error?
+		defer sess.Close(nil) // TODO: Why does it take an error?
 		if err != nil {
 			log.Printf("Failed to accept incoming connection: %v", err)
 			continue
@@ -216,7 +220,6 @@ func (srv *Server) handle(conn net.Conn) {
 
 	// respond to reques
 	srv.respond(req, conn)
-
 }
 
 func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
@@ -267,4 +270,7 @@ func (srv *Server) respond(req *http.Request, conn net.Conn) {
 		excludeHeaders: make(map[string]bool),
 	}
 	srv.Mux.ServeHTTP(rw, req)
+	if !rw.headerFinalized {
+		conn.Write(crlf)
+	}
 }

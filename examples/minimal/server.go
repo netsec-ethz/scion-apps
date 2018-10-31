@@ -28,12 +28,12 @@ func main() {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	m.HandleFunc("/helloworld", func(w http.ResponseWriter, r *http.Request) {
+	m.HandleFunc("/downlaod", func(w http.ResponseWriter, r *http.Request) {
 		// serve the sample HTML file
 		// Status 200 OK will be set implicitly
 		// Conent-Length will be infered by server
 		// Content-Type will be detected by server
-		http.ServeFile(w, r, "example/sample.html")
+		http.ServeFile(w, r, "sample.html")
 	})
 
 	server := &shttp.Server{

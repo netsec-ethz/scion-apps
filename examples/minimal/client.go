@@ -37,7 +37,7 @@ func main() {
 
 	// Make a get request
 	start := time.Now()
-	resp, err := c.Get("http://testserver.com/helloworld")
+	resp, err := c.Get("http://testserver.com/download")
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
