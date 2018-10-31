@@ -4,12 +4,12 @@ First, it issues a GET request and downloads an HTML file. Afterwards it sends d
 
 To run the example, first start the server like this
 
-```
+```Go
 go run server.go -local 17-ffaa:1:c2,[127.0.0.1]:40002 -cert tls.pem -key tls.key
 ```
 
 Then, start the client:
-```
+```Go
 go run client.go -local 17-ffaa:1:c2,[127.0.0.1]:0 -remote 17-ffaa:1:c2,[127.0.0.1]:40002
 ```
 

@@ -256,7 +256,7 @@ func request(conn net.Conn) *http.Request {
 
 	req, err := http.ReadRequest(br)
 	if err != nil {
-		log.Println("failed to parse request")
+		log.Println("shttp: Failed to parse request")
 	}
 	return req
 }

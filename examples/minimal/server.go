@@ -31,7 +31,7 @@ func main() {
 	m.HandleFunc("/downlaod", func(w http.ResponseWriter, r *http.Request) {
 		// serve the sample HTML file
 		// Status 200 OK will be set implicitly
-		// Conent-Length will be infered by server
+		// Conent-Length will be inferred by server
 		// Content-Type will be detected by server
 		http.ServeFile(w, r, "sample.html")
 	})

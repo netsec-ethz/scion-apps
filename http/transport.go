@@ -51,11 +51,11 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// check request health
 	if req.URL == nil {
 		closeBody(req)
-		return nil, errors.New("http: nil Request.Header")
+		return nil, errors.New("shttp: nil Request.Header")
 	}
 	if req.Header == nil {
 		closeBody(req)
-		return nil, errors.New("http: nil Request.Header")
+		return nil, errors.New("shttp: nil Request.Header")
 	}
 	scheme := req.URL.Scheme
 	isHTTP := scheme == "http" || scheme == "https"
@@ -73,10 +73,10 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	if !isHTTP {
 		closeBody(req)
-		return nil, fmt.Errorf("unsupported protocol scheme %v", scheme)
+		return nil, fmt.Errorf("shttp: unsupported protocol scheme %v", scheme)
 	}
 	if req.Method != "" && !validMethod(req.Method) {
-		return nil, fmt.Errorf("snet/shttp: invalid method %q", req.Method)
+		return nil, fmt.Errorf("shttp: invalid method %q", req.Method)
 	}
 	if req.URL.Host == "" {
 		closeBody(req)
