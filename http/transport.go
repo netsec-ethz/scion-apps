@@ -83,8 +83,6 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("shttp: no Host in request URL")
 
 	}
-	log.Println("connecting to ", req.URL.String())
-	log.Println("Host is: ", req.URL.Host)
 
 	addr, ok := t.DNS[req.URL.Host]
 	if !ok {
