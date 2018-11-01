@@ -28,7 +28,7 @@ func main() {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	m.HandleFunc("/downlaod", func(w http.ResponseWriter, r *http.Request) {
+	m.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
 		// serve the sample HTML file
 		// Status 200 OK will be set implicitly
 		// Conent-Length will be inferred by server
