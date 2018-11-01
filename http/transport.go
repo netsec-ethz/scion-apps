@@ -168,5 +168,8 @@ func dial(lAddr, rAddr *snet.Addr) (net.Conn, error) {
 
 func initSCION(lAddr *snet.Addr) error {
 
+	if snet.DefNetwork != nil {
+		return nil
+	}
 	return snet.Init(lAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 }
