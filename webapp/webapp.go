@@ -8,6 +8,7 @@ import (
     _ "github.com/mattn/go-sqlite3"
     lib "github.com/netsec-ethz/scion-apps/webapp/lib"
     model "github.com/netsec-ethz/scion-apps/webapp/models"
+    "html/template"
     "io"
     "io/ioutil"
     "log"
@@ -28,6 +29,7 @@ var cmdBufLen = 1024
 var browserAddr = "127.0.0.1"
 var rootmarker = ".webapp"
 var srcpath string
+var myIa string
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -55,12 +57,15 @@ func main() {
     // generate client/server default
     lib.GenClientNodeDefaults(srcpath)
     lib.GenServerNodeDefaults(srcpath)
+    myIa = lib.GetLocalIa()
     refreshRootDirectory()
     appsBuildCheck("bwtester")
     appsBuildCheck("camerapp")
     appsBuildCheck("sensorapp")
 
     http.HandleFunc("/", mainHandler)
+    http.HandleFunc("/about", aboutHandler)
+    http.HandleFunc("/apps", appsHandler)
     fsStatic := http.FileServer(http.Dir(path.Join(srcpath, "static")))
     http.Handle("/static/", http.StripPrefix("/static/", fsStatic))
     fsImageFetcher := http.FileServer(http.Dir("."))
@@ -73,6 +78,7 @@ func main() {
     http.HandleFunc("/txtlast", findImageInfoHandler)
     http.HandleFunc("/getnodes", getNodesHandler)
     http.HandleFunc("/getbwbytime", getBwByTimeHandler)
+    http.HandleFunc("/healthcheck", healthCheckHandler)
 
     log.Printf("Browser access at http://%s:%d.\n", browserAddr, *port)
     log.Printf("File browser root: %s\n", *root)
@@ -80,20 +86,32 @@ func main() {
     log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), nil))
 }
 
-// Handles loading index.html for user at root.
-func mainHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "text/html")
-    w.WriteHeader(http.StatusOK)
+var templates = template.Must(template.ParseFiles(
+    "template/index.html",
+    "template/header.html",
+    "template/footer.html",
+    "template/health.html",
+    "template/about.html"))
 
-    filepath := path.Join(srcpath, "template/index.html")
-    data, err := ioutil.ReadFile(filepath)
-    if err != nil {
-        log.Fatal("ioutil.ReadFile() error: " + err.Error())
-        http.Error(w, err.Error(), http.StatusNotFound)
-        return
-    }
-    w.Header().Set("Content-Length", fmt.Sprint(len(data)))
-    fmt.Fprint(w, string(data))
+type Page struct {
+    Title string
+    MyIA  string
+}
+
+func display(w http.ResponseWriter, tmpl string, data interface{}) {
+    templates.ExecuteTemplate(w, tmpl, data)
+}
+
+func mainHandler(w http.ResponseWriter, r *http.Request) {
+    display(w, "health", &Page{Title: "SCIONLab Health", MyIA: myIa})
+}
+
+func aboutHandler(w http.ResponseWriter, r *http.Request) {
+    display(w, "about", &Page{Title: "SCIONLab About", MyIA: myIa})
+}
+
+func appsHandler(w http.ResponseWriter, r *http.Request) {
+    display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: myIa})
 }
 
 func parseRequest2BwtestItem(r *http.Request, appSel string) *model.BwTestItem {
@@ -324,6 +342,10 @@ func writeCmdOutput(w http.ResponseWriter, pr *io.PipeReader, d *model.BwTestIte
     if nF != len(jsonBuf) {
         fmt.Println("failed to write data")
     }
+}
+
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+    lib.HealthCheckHandler(w, r, srcpath)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {

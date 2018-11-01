@@ -1,0 +1,47 @@
+{{define "health"}} {{template "header" .}}
+<div class="content">
+
+ <h2>SCIONLab Health Check</h2>
+ <p>
+  If all tests have passed, please continue to <a href="/apps">Apps</a>
+  in the menu to use SCIONLab. <span id="test-complete"></span>
+
+ </p>
+ <ul id="health-list">
+ </ul>
+ <p>
+  Some tests take a few seconds to succeed, click <a href="/health">Health</a>
+  to test again.
+ </p>
+
+</div>
+
+<script>
+    $.post("/healthcheck", null, function(json) {
+        var now = new Date();
+        d = JSON.parse(json);
+        console.info('resp:', JSON.stringify(d));
+        // parse results into html
+        $("#health-list").empty();
+        var test;
+        for (test in d) {
+            if (d.hasOwnProperty(test)) {
+                var a = $('<a>').attr('href', "#hc-" + test).attr('class',
+                        "panel-title").attr('data-toggle', "collapse").append(
+                        d[test].desc + " ");
+                var span = $('<span>').attr('class',
+                        "label label-" + (d[test].pass ? "success" : "danger"))
+                        .append(d[test].pass ? "Passed" : "Failed");
+                var div = $('<div>').attr('id', "hc-" + test).attr('class',
+                        "collapse").append(d[test].reason);
+                var li = $('<li>').append(a).append(span).append(div);
+                $("#health-list").append(li);
+            }
+        }
+        $("#test-complete").text(
+                "Check last completed " + now.toLocaleTimeString() + " "
+                        + now.toLocaleDateString() + ".");
+    });
+</script>
+
+{{template "footer" .}} {{end}}

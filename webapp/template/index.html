@@ -1,35 +1,8 @@
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>SCIONLab Go Tests</title>
-<style>
-</style>
-<link rel="stylesheet" type="text/css"
- href="static/css/bootstrap.min.css" />
-<link rel="stylesheet" type="text/css"
- href="static/css/pretty-checkbox.min.css" />
-<link rel="stylesheet" type="text/css" href="static/css/animation.css" />
-<link rel="stylesheet" type="text/css" href="static/css/style.css" />
-<script type="text/javascript" src="static/js/jquery-2.2.0.min.js"></script>
-<script type="text/javascript" src="static/js/jquery.knob.min.js"></script>
-<script type="text/javascript" src="static/js/bootstrap.min.js"></script>
-<script type="text/javascript" src="static/js/d3.v3.min.js"></script>
-<script type="text/javascript" src="static/js/highcharts.js"></script>
-<script type="text/javascript" src="static/js/webapp.js"></script>
-</head>
-<body>
- <h1>SCIONLab Go Tests</h1>
- <p>
-  This Go web server wraps several SCION test client apps and provides
-  an interface for any text and/or image output received. <a
-   href='http://github.com/netsec-ethz/scion-apps'>SCIONLab Apps</a> are on
-  Github.
- <p>
- <form action="/files" method="post">
-  <input type="submit" id="button_fs" value="Browse File System" /> <span
-   id="error_text"></span>
- </form>
+{{define "apps"}} {{template "header" .}}
+
+<div class="content">
+
+ <h2>SCIONLab Apps</h2>
  <p>
  <form action="/command" method="post" id="command-form"
   onreset="setDefaults();" onsubmit="return command(false);">
@@ -130,7 +103,8 @@
 
         <div class="bwtest-dial">
          <div class="pretty p-svg p-curve p-pulse">
-          <input type="radio" id="cs-radio-bw" name="cs-dial" value="bw">
+          <input type="radio" id="cs-radio-bw" name="cs-dial"
+           value="bw">
           <div class="state">
            <img class="svg" src="static/img/lock-locked.svg"> <label>bw
             (mbps)</label>
@@ -189,7 +163,8 @@
 
         <div class="bwtest-dial">
          <div class="pretty p-svg p-curve p-pulse">
-          <input type="radio" id="sc-radio-bw" name="sc-dial" value="bw">
+          <input type="radio" id="sc-radio-bw" name="sc-dial"
+           value="bw">
           <div class="state">
            <img class="svg" src="static/img/lock-locked.svg"> <label>bw
             (mbps)</label>
@@ -283,8 +258,8 @@
    </div>
   </div>
   Interval: <input name="bwtest_sec" id="bwtest_sec" type="number"
-   placeholder="10 sec" style="width: 75px;" min="3" max="11" value="4">
-  seconds.
+   placeholder="10 sec" style="width: 75px;" min="3" max="11"
+   value="4"> seconds.
   <div class="pretty p-switch">
    <input id="switch_utc" type="checkbox" checked />
    <div class="state">
@@ -305,10 +280,17 @@
  <div class="stdout">
   <div id="results"></div>
  </div>
- <script type="text/javascript">
 
-    </script>
- <noscript>This form requires that you have javascript
-  enabled to work properly please enable javascript in your browser.</noscript>
-</body>
-</html>
+
+</div>
+
+<link rel="stylesheet" type="text/css"
+ href="static/css/pretty-checkbox.min.css" />
+<link rel="stylesheet" type="text/css" href="static/css/animation.css" />
+<link rel="stylesheet" type="text/css" href="static/css/style.css" />
+<script type="text/javascript" src="static/js/jquery.knob.min.js"></script>
+<script type="text/javascript" src="static/js/d3.v3.min.js"></script>
+<script type="text/javascript" src="static/js/highcharts.js"></script>
+<script type="text/javascript" src="static/js/webapp.js"></script>
+
+{{template "footer" .}} {{end}}
