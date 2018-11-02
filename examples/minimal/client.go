@@ -22,13 +22,16 @@ func main() {
 
 	flag.Parse()
 
-	rAddr, _ := snet.AddrFromString(*remote)
-	lAddr, _ := snet.AddrFromString(*local)
+	rAddr, err := snet.AddrFromString(*remote)
+	lAddr, err2 := snet.AddrFromString(*local)
 	sciondPath := utils.GetSCIOND()
 	dispatcherPath := utils.GetDispatcher()
+	if err != nil || err2 != nil {
+		log.Fatal(err)
+	}
 
 	if *interactive {
-		utils.ChoosePath(lAddr, rAddr, sciondPath, dispatcherPath) 
+		utils.ChoosePath(lAddr, rAddr, sciondPath, dispatcherPath)
 	}
 
 	// Make a map from URL to *snet.Addr

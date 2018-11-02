@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -17,11 +18,21 @@ func main() {
 
 	var remote = flag.String("remote", "", "The address on which the server will be listening")
 	var local = flag.String("local", "", "The address on which the server will be listening")
+	var interactive = flag.Bool("i", false, "Wether to use interactive mode for path selection")
 
 	flag.Parse()
 
-	rAddr, _ := snet.AddrFromString(*remote)
-	lAddr, _ := snet.AddrFromString(*local)
+	rAddr, err := snet.AddrFromString(*remote)
+	lAddr, err2 := snet.AddrFromString(*local)
+	sciondPath := utils.GetSCIOND()
+	dispatcherPath := utils.GetDispatcher()
+	if err != nil || err2 != nil {
+		log.Fatal(err)
+	}
+
+	if *interactive {
+		utils.ChoosePath(lAddr, rAddr, sciondPath, dispatcherPath)
+	}
 
 	// Make a map from URL to *snet.Addr
 	dns := make(map[string]*snet.Addr)
