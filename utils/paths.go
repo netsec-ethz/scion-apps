@@ -1,18 +1,27 @@
 package utils
 
-import(
-	"log"
-	"fmt"
-	"os"
-	"strconv"
+import (
 	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"regexp"
+	"strconv"
 
+	"github.com/bclicn/color"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
+// ChoosePath presents the user a selection of paths to choose from
 func ChoosePath(local *snet.Addr, remote *snet.Addr, sciondPath string, dispatcherPath string) {
+
+	re := regexp.MustCompile(`\d{2}-ffaa:\d:([a-z]|\d)+`)
+
+	repl := func(in string) string {
+		return color.LightYellow(in)
+	}
 
 	err := snet.Init(local.IA, sciondPath, dispatcherPath)
 	if err != nil {
@@ -32,7 +41,7 @@ func ChoosePath(local *snet.Addr, remote *snet.Addr, sciondPath string, dispatch
 	i := 0
 	for _, path := range pathSet {
 		appPaths = append(appPaths, path)
-		fmt.Printf("[%2d] %s\n", i, path.Entry.Path.String())
+		fmt.Printf("[%2d] %s\n", i, re.ReplaceAllStringFunc(path.Entry.Path.String(), repl))
 		i++
 	}
 
@@ -50,10 +59,10 @@ func ChoosePath(local *snet.Addr, remote *snet.Addr, sciondPath string, dispatch
 	}
 
 	entry := selectedPath.Entry
-	fmt.Printf("Using path:\n %s\n", entry.Path.String())
+	fmt.Printf("Using path:\n %s\n", re.ReplaceAllStringFunc(entry.Path.String(), repl))
 
 	remote.Path = spath.New(entry.Path.FwdPath)
 	remote.Path.InitOffsets()
-	remote.NextHopHost = entry.HostInfo.Host() 
+	remote.NextHopHost = entry.HostInfo.Host()
 	remote.NextHopPort = entry.HostInfo.Port
 }
