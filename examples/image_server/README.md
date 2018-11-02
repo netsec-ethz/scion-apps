@@ -1,6 +1,4 @@
-This example application makes two requests from the client to the server.
-
-First, it issues a GET request and downloads an HTML file. Afterwards it sends data to the server via POST.
+This example application fetches a JPEG image from the server and saves it to the disk.
 
 To run the example, first start the server like this
 ```Go
