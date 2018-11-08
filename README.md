@@ -2,6 +2,19 @@
 
 This repository contains a client/server implementation of HTTP over SCION/QUIC.
 
+### Setup
+
+SCION infrastructure must be installed and running on your machine. Instructions on how to set this up can be found [here](https://github.com/netsec-ethz/netsec-scion).
+Clone the repository and install the dependencies:
+
+```
+govendor init
+govendor add +e
+govendor fetch +m
+```
+
+Refer to the individual examples to see how to run them.
+
 ### The Client is a standard net/http client with a custom RoundTripper implementation.
 
 First, create a client:
