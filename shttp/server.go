@@ -10,7 +10,6 @@ import (
 	"github.com/chaehni/scion-http/utils"
 	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 type Server struct { // TODO: make public?
@@ -79,12 +78,12 @@ func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) e
 	}
 
 	network := snet.DefNetwork
-	conn, err := network.ListenSCION("udp4", laddr)
+	sconn, err := network.ListenSCION("udp4", laddr)
 	if err != nil {
 		return err
 	}
 
-	return scionServer.srv.Serve(conn)
+	return scionServer.srv.Serve(sconn)
 }
 
 func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
@@ -104,10 +103,10 @@ func (srv *Server) initSCIONConnection() (*snet.Addr, error) {
 
 	log.Println("Initialized SCION network")
 
-	err = squic.Init(srv.TLSKeyFile, srv.TLSCertFile)
+	/* err = squic.Init(srv.TLSKeyFile, srv.TLSCertFile)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to initialize QUIC network: %v", err)
-	}
+	} */
 
 	log.Println("Initialized SCION/QUIC network")
 

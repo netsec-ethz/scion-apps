@@ -7,6 +7,7 @@ import (
 	quic "github.com/lucas-clemente/quic-go"
 )
 
+// QuicConn wraps quic.Session and quic.Stream to implement net.Conn
 type QuicConn struct {
 	Session quic.Session
 	Stream  quic.Stream
