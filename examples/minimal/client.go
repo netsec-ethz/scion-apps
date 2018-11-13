@@ -39,7 +39,7 @@ func main() {
 	dns["testserver.com"] = rAddr
 
 	// Create a standard server with our custom RoundTripper
-	c := &shttp.Client{
+	c := &http.Client{
 		Transport: &shttp.Transport{
 			DNS:   dns,
 			LAddr: lAddr,

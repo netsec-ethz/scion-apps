@@ -36,7 +36,7 @@ func main() {
 		http.ServeFile(w, r, "sample.html")
 	})
 
-	err := shttp.ListenAndServeSCION(local, tlsCert, tlsKey)
+	err := shttp.ListenAndServeSCION(*local, *tlsCert, *tlsKey, m)
 	if err != nil {
 		log.Fatal(err)
 	}
