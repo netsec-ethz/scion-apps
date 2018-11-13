@@ -10,30 +10,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lucas-clemente/quic-go/h2quic"
-
-	"github.com/scionproto/scion/go/lib/snet/squic"
-
-	"github.com/lucas-clemente/quic-go"
-
-	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 )
-
-var remote string
-var local string
 
 func main() {
 
-	remote = *flag.String("remote", "", "The address on which the server will be listening")
-	local = *flag.String("local", "", "The address on which the server will be listening")
+	remote := flag.String("remote", "", "The address on which the server will be listening")
+	local := flag.String("local", "", "The clients local address")
 	var interactive = flag.Bool("i", false, "Wether to use interactive mode for path selection")
 
 	flag.Parse()
 
-	rAddr, err := snet.AddrFromString(remote)
-	lAddr, err2 := snet.AddrFromString(local)
+	fmt.Printf("remote is %v", *remote)
+
+	rAddr, err := snet.AddrFromString(*remote)
+	lAddr, err2 := snet.AddrFromString(*local)
 	sciondPath := utils.GetSCIOND()
 	dispatcherPath := utils.GetDispatcher()
 	if err != nil || err2 != nil {
@@ -49,10 +44,16 @@ func main() {
 	dns["testserver.com"] = rAddr
 
 	// Create a standard server with our custom RoundTripper
-	c := &http.Client{
+	/* c := &http.Client{
 		Transport: &shttp.Transport{
 			DNS:   dns,
 			LAddr: lAddr,
+		},
+	} */
+
+	c := &http.Client{
+		Transport: &h2quic.RoundTripper{
+			Dial: dial,
 		},
 	}
 
@@ -83,14 +84,14 @@ func main() {
 	}
 
 	start = time.Now()
-	resp, err = c.Post("http://testserver.com/upload", "text/html", strings.NewReader("Sample payload for POST request"))
+	resp, err = c.Post("https://testserver.com/upload", "text/plain", strings.NewReader("Sample payload for POST request"))
 	if err != nil {
 		log.Fatal("POST request failed: ", err)
 	}
 	defer resp.Body.Close()
 	end = time.Now()
 
-	log.Printf("2st POST request succeeded in %v seconds", end.Sub(start).Seconds())
+	log.Printf("POST request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp, false)
 }
 
@@ -112,8 +113,8 @@ func printResponse(resp *http.Response, hasBody bool) {
 
 func dial(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
 
-	rAddr, err := snet.AddrFromString(remote)
-	lAddr, err2 := snet.AddrFromString(local)
+	rAddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:40002")
+	lAddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:0")
 
 	if snet.DefNetwork == nil {
 		snet.Init(lAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
