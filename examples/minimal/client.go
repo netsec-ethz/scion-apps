@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -39,7 +39,7 @@ func main() {
 	dns["testserver.com"] = rAddr
 
 	// Create a standard server with our custom RoundTripper
-	c := &http.Client{
+	c := &shttp.Client{
 		Transport: &shttp.Transport{
 			DNS:   dns,
 			LAddr: lAddr,
@@ -83,7 +83,7 @@ func printResponse(resp *http.Response, hasBody bool) {
 	log.Println("Content-Length: ", resp.ContentLength)
 	log.Println("Content-Type: ", resp.Header.Get("Content-Type"))
 	if !hasBody {
-		fmt.Println("\n\n")
+		fmt.Print("\n\n")
 		return
 	}
 	body, err := ioutil.ReadAll(resp.Body)
@@ -91,5 +91,5 @@ func printResponse(resp *http.Response, hasBody bool) {
 		log.Print(err)
 	}
 	log.Println("Body: ", string(body))
-	fmt.Println("\n\n")
+	fmt.Print("\n\n")
 }

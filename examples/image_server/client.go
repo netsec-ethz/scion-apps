@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 )

@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 )
 
 func main() {
@@ -36,16 +36,8 @@ func main() {
 		http.ServeFile(w, r, "sample.html")
 	})
 
-	server := &shttp.Server{
-		AddrString:  *local,
-		TLSCertFile: *tlsCert,
-		TLSKeyFile:  *tlsKey,
-		Mux:         m,
-	}
-
-	err := server.ListenAndServe()
+	err := shttp.ListenAndServeSCION(local, tlsCert, tlsKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }

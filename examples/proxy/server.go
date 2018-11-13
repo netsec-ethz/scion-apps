@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 )
 
 func main() {

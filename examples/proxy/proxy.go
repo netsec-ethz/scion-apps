@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -47,7 +47,7 @@ func main() {
 		log.Printf("Fetching: %v", r.URL.String())
 		resp, err := c.Get(r.URL.String())
 		if err != nil {
-			log.Printf("GET request failed: ", err)
+			log.Print("GET request failed: ", err)
 		}
 		defer resp.Body.Close()
 

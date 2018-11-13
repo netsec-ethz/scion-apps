@@ -32,12 +32,13 @@ type Transport struct {
 
 // Body wraps io.Readcloser together with a connection
 // Like this we can override the Close() method to also close connection
-// after client consume a response body
+// after client consumed a response body
 type Body struct {
 	io.ReadCloser
 	conn net.Conn
 }
 
+// Close closes the request's response body and its underlying connection
 func (b *Body) Close() error {
 	b.conn.Close()
 	return b.ReadCloser.Close()
@@ -108,7 +109,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	// Replace response body with custom Body type that closes connection
-	// when client closes response body is closed
+	// when client closes response body
 	resp.Body = &Body{resp.Body, conn}
 
 	return resp, nil
@@ -160,7 +161,7 @@ func dial(lAddr, rAddr *snet.Addr) (net.Conn, error) {
 		return nil, fmt.Errorf("Error opening stream: %v", err)
 	}
 
-	qc := &quicconn.QuicConn{sess, stream}
+	qc := &quicconn.QuicConn{Session: sess, Stream: stream}
 
 	return qc, nil
 
