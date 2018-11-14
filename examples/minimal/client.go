@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -10,22 +9,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 func main() {
 
 	remote := flag.String("remote", "", "The address on which the server will be listening")
 	local := flag.String("local", "", "The clients local address")
-	var interactive = flag.Bool("i", false, "Wether to use interactive mode for path selection")
+	interactive := flag.Bool("i", false, "Wether to use interactive mode for path selection")
 
 	flag.Parse()
-
-	fmt.Printf("remote is %v", *remote)
 
 	rAddr, err := snet.AddrFromString(*remote)
 	lAddr, err2 := snet.AddrFromString(*local)
@@ -44,16 +39,10 @@ func main() {
 	dns["testserver.com"] = rAddr
 
 	// Create a standard server with our custom RoundTripper
-	/* c := &http.Client{
+	c := &http.Client{
 		Transport: &shttp.Transport{
 			DNS:   dns,
 			LAddr: lAddr,
-		},
-	} */
-
-	c := &http.Client{
-		Transport: &h2quic.RoundTripper{
-			Dial: dial,
 		},
 	}
 
@@ -69,17 +58,10 @@ func main() {
 	log.Printf("GET request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp, true)
 
-	// Make another request with a new client
-	/* c = &http.Client{
+	c = &http.Client{
 		Transport: &shttp.Transport{
 			DNS:   dns,
 			LAddr: lAddr,
-		},
-	} */
-
-	c = &http.Client{
-		Transport: &h2quic.RoundTripper{
-			Dial: dial,
 		},
 	}
 
@@ -96,9 +78,11 @@ func main() {
 }
 
 func printResponse(resp *http.Response, hasBody bool) {
-	log.Println("Status: ", resp.Status)
-	log.Println("Content-Length: ", resp.ContentLength)
-	log.Println("Content-Type: ", resp.Header.Get("Content-Type"))
+	fmt.Println("\n***Printing Response***")
+	fmt.Println("Status: ", resp.Status)
+	fmt.Println("Protocol:", resp.Proto)
+	fmt.Println("Content-Length: ", resp.ContentLength)
+	fmt.Println("Content-Type: ", resp.Header.Get("Content-Type"))
 	if !hasBody {
 		fmt.Print("\n\n")
 		return
@@ -107,18 +91,6 @@ func printResponse(resp *http.Response, hasBody bool) {
 	if err != nil {
 		log.Print(err)
 	}
-	log.Println("Body: ", string(body))
+	fmt.Println("Body: ", string(body))
 	fmt.Print("\n\n")
-}
-
-func dial(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
-
-	rAddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:40002")
-	lAddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:0")
-
-	if snet.DefNetwork == nil {
-		snet.Init(lAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
-	}
-
-	return squic.DialSCION(nil, lAddr, rAddr)
 }

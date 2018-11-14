@@ -19,8 +19,6 @@ type Server struct {
 	s *h2quic.Server
 }
 
-/* Start of public methods */
-
 // ListenAndServeSCION listens for HTTPS connections on the SCION address addr and calls ServeSCION
 // with handler to handle requests
 func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) error {
@@ -46,8 +44,8 @@ func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) e
 	return ServeSCION(sconn, handler, certFile, keyFile)
 }
 
-// ServeSCION creates a listener on conn and listens for HTTPS connections
-// a new goroutine handles each request using handler
+// ServeSCION creates a listener on conn and listens for HTTPS connections.
+// A new goroutine handles each request using handler
 func ServeSCION(conn net.PacketConn, handler http.Handler, certFile, keyFile string) error {
 
 	scionServer := &Server{
