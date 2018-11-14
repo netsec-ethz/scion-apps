@@ -12,8 +12,8 @@ import (
 func main() {
 
 	var local = flag.String("local", "", "The address on which the server will be listening")
-	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
 	var tlsCert = flag.String("cert", "tls.pem", "Path to TLS pemfile")
+	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
 
 	flag.Parse()
 

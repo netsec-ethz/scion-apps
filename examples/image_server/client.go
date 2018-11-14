@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// Make a get request
-	resp, err := c.Get("http://testserver.com/image")
+	resp, err := c.Get("https://testserver.com/image")
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
