@@ -14,19 +14,6 @@ govendor add +e
 
 Refer to the individual examples to see how to run them.
 
-### Setup
-
-SCION infrastructure must be installed and running on your machine. Instructions on how to set this up can be found [here](https://github.com/netsec-ethz/netsec-scion).
-Clone the repository and install the dependencies:
-
-```
-govendor init
-govendor add +e
-govendor fetch +m
-```
-
-Refer to the individual examples to see how to run them.
-
 ### The Client is a standard net/http client with a custom RoundTripper implementation.
 
 First, create a client:
@@ -44,7 +31,6 @@ Then, make requests as usual:
 ```Go
 resp, err := client.Get("http://example.com/download)
 ```
-
 
 ### The Server is a full HTTP/2 server designed to work similar to the standard net/http implementation. It supports:
 
