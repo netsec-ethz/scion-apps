@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/chaehni/scion-http/utils"
 	quic "github.com/lucas-clemente/quic-go"
@@ -21,6 +22,8 @@ type Transport struct {
 	DNS   map[string]*snet.Addr // map from services to SCION addresses
 
 	rt *h2quic.RoundTripper
+
+	mutex sync.Mutex
 }
 
 // RoundTrip does a single round trip; retreiving a response for a given request
@@ -32,39 +35,34 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 // RoundTripOpt is the same as RoundTrip but takes additional options
 func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*http.Response, error) {
 
-	// initialize the SCION/QUIC network connection
+	t.mutex.Lock()
+	// initialize the SCION network connection
 	if snet.DefNetwork == nil {
-		err := initSCION(t.LAddr)
+		err := snet.Init(t.LAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
-		raddr, ok := t.DNS[req.URL.Host]
-		if !ok {
-			log.Fatal("shttp: Host not found in DNS map")
+	if t.rt == nil {
+		dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
+			raddr, ok := t.DNS[req.URL.Host]
+			if !ok {
+				log.Fatal("shttp: Host not found in DNS map")
+			}
+			return squic.DialSCION(nil, t.LAddr, raddr)
 		}
-		return squic.DialSCION(nil, t.LAddr, raddr)
-	}
 
-	t.rt = &h2quic.RoundTripper{
-		Dial: dial,
+		t.rt = &h2quic.RoundTripper{
+			Dial: dial,
+		}
 	}
+	t.mutex.Unlock()
 
 	return t.rt.RoundTripOpt(req, opt)
-
 }
 
 // Close closes the QUIC connections that this RoundTripper has used
 func (t *Transport) Close() error {
 	return t.rt.Close()
-}
-
-func initSCION(lAddr *snet.Addr) error {
-
-	if snet.DefNetwork != nil {
-		return nil
-	}
-	return snet.Init(lAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 }

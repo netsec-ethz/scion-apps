@@ -57,7 +57,8 @@ func main() {
 		log.Fatal("Received status ", resp.Status)
 	}
 
-	log.Print("Content-Type: ", resp.Header.Get("Content-Type"))
+	fmt.Println("Content-Length: ", resp.ContentLength)
+	fmt.Println("Content-Type: ", resp.Header.Get("Content-Type"))
 
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {

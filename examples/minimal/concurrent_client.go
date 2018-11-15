@@ -6,12 +6,17 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
+)
+
+var (
+	wg    sync.WaitGroup
+	mutex sync.Mutex
 )
 
 func main() {
@@ -39,52 +44,45 @@ func main() {
 	dns["testserver.com"] = rAddr
 
 	// Create a standard server with our custom RoundTripper
-	c := &http.Client{
-		Transport: &shttp.Transport{
-			DNS:   dns,
-			LAddr: lAddr,
-		},
+	t := &shttp.Transport{
+		DNS:   dns,
+		LAddr: lAddr,
 	}
 
-	// Make a get request
+	c := &http.Client{
+		Transport: t,
+	}
+
+	fmt.Println()
+
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go makeRequest(c, i)
+	}
+	wg.Wait()
+}
+
+func makeRequest(c *http.Client, i int) {
+	defer wg.Done()
+
 	start := time.Now()
 	resp, err := c.Get("https://testserver.com/download")
+	end := time.Now()
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
 	defer resp.Body.Close()
-	end := time.Now()
 
-	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	log.Printf("GET request %v succeeded in %v seconds", i, end.Sub(start).Seconds())
 	printResponse(resp, true)
-
-	// close the transport to free address/port from dispatcher
-	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
-	t, _ := c.Transport.(*shttp.Transport)
-	t.Close()
-
-	// create a new client using the same address/port combination which is now free again
-	c = &http.Client{
-		Transport: &shttp.Transport{
-			DNS:   dns,
-			LAddr: lAddr,
-		},
-	}
-
-	start = time.Now()
-	resp, err = c.Post("https://testserver.com/upload", "text/plain", strings.NewReader("Sample payload for POST request"))
-	if err != nil {
-		log.Fatal("POST request failed: ", err)
-	}
-	defer resp.Body.Close()
-	end = time.Now()
-
-	log.Printf("POST request succeeded in %v seconds", end.Sub(start).Seconds())
-	printResponse(resp, false)
 }
 
 func printResponse(resp *http.Response, hasBody bool) {
-	fmt.Println("\n***Printing Response***")
+
+	fmt.Println("***Printing Response***")
 	fmt.Println("Status: ", resp.Status)
 	fmt.Println("Protocol:", resp.Proto)
 	fmt.Println("Content-Length: ", resp.ContentLength)

@@ -2,10 +2,9 @@ package shttp
 
 import (
 	"crypto/tls"
-	"fmt"
-	"log"
 	"net"
 	"net/http"
+	"sync"
 
 	"github.com/chaehni/scion-http/utils"
 	"github.com/lucas-clemente/quic-go/h2quic"
@@ -19,6 +18,8 @@ type Server struct {
 	s *h2quic.Server
 }
 
+var mutex sync.Mutex
+
 // ListenAndServeSCION listens for HTTPS connections on the SCION address addr and calls ServeSCION
 // with handler to handle requests
 func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) error {
@@ -28,12 +29,14 @@ func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) e
 		return err
 	}
 
+	mutex.Lock()
 	if snet.DefNetwork == nil {
-		_, err := initSCIONConnection(addr)
+		err := snet.Init(laddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 		if err != nil {
 			return err
 		}
 	}
+	mutex.Unlock()
 
 	network := snet.DefNetwork
 	sconn, err := network.ListenSCION("udp4", laddr)
@@ -68,12 +71,14 @@ func (srv *Server) ListenAndServeSCION(certFile, keyFile string) error {
 		return err
 	}
 
+	mutex.Lock()
 	if snet.DefNetwork == nil {
-		_, err := initSCIONConnection(srv.Addr)
+		err := snet.Init(laddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 		if err != nil {
 			return err
 		}
 	}
+	mutex.Unlock()
 
 	network := snet.DefNetwork
 	sconn, err := network.ListenSCION("udp4", laddr)
@@ -111,24 +116,4 @@ func (srv *Server) ServeSCION(conn net.PacketConn, certFile, keyFile string) err
 // Close in combination with ListenAndServeSCION (instead of ServeSCION) may race if it is called before a UDP socket is established
 func (srv *Server) Close() error {
 	return srv.s.Close()
-}
-
-func initSCIONConnection(addr string) (*snet.Addr, error) {
-
-	log.Println("Initializing SCION connection")
-
-	var err error
-	laddr, err := snet.AddrFromString(addr)
-	if err != nil {
-		return nil, err
-	}
-
-	err = snet.Init(laddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
-	if err != nil {
-		return nil, fmt.Errorf("Unable to initialize SCION network: %v", err)
-	}
-
-	log.Println("Initialized SCION network")
-
-	return laddr, nil
 }
