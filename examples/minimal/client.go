@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func main() {
 
-	var remote = flag.String("remote", "", "The address on which the server will be listening")
-	var local = flag.String("local", "", "The address on which the server will be listening")
-	var interactive = flag.Bool("i", false, "Wether to use interactive mode for path selection")
+	remote := flag.String("remote", "", "The address on which the server will be listening")
+	local := flag.String("local", "", "The clients local address")
+	interactive := flag.Bool("i", false, "Wether to use interactive mode for path selection")
 
 	flag.Parse()
 
@@ -48,17 +48,22 @@ func main() {
 
 	// Make a get request
 	start := time.Now()
-	resp, err := c.Get("http://testserver.com/download")
+	resp, err := c.Get("https://testserver.com/download")
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
 	defer resp.Body.Close()
 	end := time.Now()
 
-	log.Printf("GET request succeeded in %v seconds", end.Sub(start).Seconds())
+	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp, true)
 
-	// Make another request with a new client
+	// close the transport to free address/port from dispatcher
+	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
+	t, _ := c.Transport.(*shttp.Transport)
+	t.Close()
+
+	// create a new client using the same address/port combination which is now free again
 	c = &http.Client{
 		Transport: &shttp.Transport{
 			DNS:   dns,
@@ -67,29 +72,31 @@ func main() {
 	}
 
 	start = time.Now()
-	resp, err = c.Post("http://testserver.com/upload", "text/html", strings.NewReader("Sample payload for POST request"))
+	resp, err = c.Post("https://testserver.com/upload", "text/plain", strings.NewReader("Sample payload for POST request"))
 	if err != nil {
 		log.Fatal("POST request failed: ", err)
 	}
 	defer resp.Body.Close()
 	end = time.Now()
 
-	log.Printf("2st POST request succeeded in %v seconds", end.Sub(start).Seconds())
+	log.Printf("POST request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp, false)
 }
 
 func printResponse(resp *http.Response, hasBody bool) {
-	log.Println("Status: ", resp.Status)
-	log.Println("Content-Length: ", resp.ContentLength)
-	log.Println("Content-Type: ", resp.Header.Get("Content-Type"))
+	fmt.Println("\n***Printing Response***")
+	fmt.Println("Status: ", resp.Status)
+	fmt.Println("Protocol:", resp.Proto)
+	fmt.Println("Content-Length: ", resp.ContentLength)
 	if !hasBody {
-		fmt.Println("\n\n")
+		fmt.Print("\n\n")
 		return
 	}
+	fmt.Println("Content-Type: ", resp.Header.Get("Content-Type"))
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Print(err)
 	}
-	log.Println("Body: ", string(body))
-	fmt.Println("\n\n")
+	fmt.Println("Body: ", string(body))
+	fmt.Print("\n\n")
 }

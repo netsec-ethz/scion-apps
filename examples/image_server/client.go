@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 	"github.com/chaehni/scion-http/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	// Make a get request
-	resp, err := c.Get("http://testserver.com/image")
+	resp, err := c.Get("https://testserver.com/image")
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
@@ -57,7 +57,8 @@ func main() {
 		log.Fatal("Received status ", resp.Status)
 	}
 
-	log.Print("Content-Type: ", resp.Header.Get("Content-Type"))
+	fmt.Println("Content-Length: ", resp.ContentLength)
+	fmt.Println("Content-Type: ", resp.Header.Get("Content-Type"))
 
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {

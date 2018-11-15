@@ -5,35 +5,26 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 )
 
 func main() {
 
 	var local = flag.String("local", "", "The address on which the server will be listening")
-	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
 	var tlsCert = flag.String("cert", "tls.pem", "Path to TLS pemfile")
+	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
 
 	flag.Parse()
 
-	m := http.NewServeMux()
-
-	m.HandleFunc("/image", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/image", func(w http.ResponseWriter, r *http.Request) {
 		// serve the sample JPG file
 		// Status 200 OK will be set implicitly
 		// Conent-Length will be inferred by server
 		// Content-Type will be detected by server
-		http.ServeFile(w, r, "examples/image_server/dog.jpg")
+		http.ServeFile(w, r, "dog.jpg")
 	})
 
-	server := &shttp.Server{
-		AddrString:  *local,
-		TLSCertFile: *tlsCert,
-		TLSKeyFile:  *tlsKey,
-		Mux:         m,
-	}
-
-	err := server.ListenAndServe()
+	err := shttp.ListenAndServeSCION(*local, *tlsCert, *tlsKey, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

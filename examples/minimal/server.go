@@ -6,14 +6,14 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chaehni/scion-http/http"
+	"github.com/chaehni/scion-http/shttp"
 )
 
 func main() {
 
 	var local = flag.String("local", "", "The address on which the server will be listening")
-	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
 	var tlsCert = flag.String("cert", "tls.pem", "Path to TLS pemfile")
+	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
 
 	flag.Parse()
 
@@ -36,16 +36,8 @@ func main() {
 		http.ServeFile(w, r, "sample.html")
 	})
 
-	server := &shttp.Server{
-		AddrString:  *local,
-		TLSCertFile: *tlsCert,
-		TLSKeyFile:  *tlsKey,
-		Mux:         m,
-	}
-
-	err := server.ListenAndServe()
+	err := shttp.ListenAndServeSCION(*local, *tlsCert, *tlsKey, m)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
