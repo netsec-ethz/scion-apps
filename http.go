@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/astaxie/bat/httplib"
+	"github.com/chaehni/bat/httplib"
 )
 
 var defaultSetting = httplib.BeegoHttpSettings{

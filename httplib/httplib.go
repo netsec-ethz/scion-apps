@@ -87,9 +87,9 @@ func NewBeegoRequest(rawurl, method string) *BeegoHttpRequest {
 		URL:        u,
 		Method:     method,
 		Header:     make(http.Header),
-		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
+		Proto:      "HTTP/2.0",
+		ProtoMajor: 2,
+		ProtoMinor: 0,
 	}
 	return &BeegoHttpRequest{rawurl, &req, map[string]string{}, map[string]string{}, defaultSetting, &resp, nil, nil}
 }
@@ -217,10 +217,10 @@ func (b *BeegoHttpRequest) SetHost(host string) *BeegoHttpRequest {
 }
 
 // Set the protocol version for incoming requests.
-// Client requests always use HTTP/1.1.
+// Client requests always use HTTP/2.0.
 func (b *BeegoHttpRequest) SetProtocolVersion(vers string) *BeegoHttpRequest {
 	if len(vers) == 0 {
-		vers = "HTTP/1.1"
+		vers = "HTTP/2.0"
 	}
 
 	major, minor, ok := http.ParseHTTPVersion(vers)

@@ -32,6 +32,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/chaehni/scion-http/shttp"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -108,6 +111,16 @@ func parsePrintOption(s string) {
 }
 
 func main() {
+
+	raddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:40002")
+	dns := map[string]*snet.Addr{"testserver.com": raddr}
+	laddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:0")
+	t := &shttp.Transport{
+		DNS:   dns,
+		LAddr: laddr,
+	}
+	defaultSetting.Transport = t
+
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
 	flag.Usage = usage
 	flag.Parse()
