@@ -64,7 +64,7 @@ var (
 	benchC           int
 	isjson           = flag.Bool("json", true, "Send the data as a JSON object")
 	method           = flag.String("method", "GET", "HTTP method")
-	route            = flag.String("url", "", "HTTP request URL")
+	route            = flag.String("route", "", "HTTP request route")
 	URL              *string
 	jsonmap          map[string]interface{}
 	contentJsonRegex = `application/(.*)json`
@@ -406,6 +406,8 @@ Usage:
 	bat [flags] [METHOD] URL [ITEM [ITEM]]
 
 flags:
+  -r						  Remote SCION address of web server
+  -l                          Local SCION address, for VMs this can be omitted
   -a, -auth=USER[:PASS]       Pass a username:password pair as the argument
   -b, -bench=false            Sends bench requests to URL
   -b.N=1000                   Number of requests to run
@@ -426,9 +428,9 @@ flags:
 METHOD:
   bat defaults to either GET (if there is no request data) or POST (with request data).
 
-URL:
-  The only information needed to perform a request is a URL. The default scheme is http://,
-  which can be omitted from the argument; example.org works just fine.
+Route:
+  The route on the server to access (e.g. /api/upload).
+  The route flag can be omitted.
 
 ITEM:
   Can be any of:
