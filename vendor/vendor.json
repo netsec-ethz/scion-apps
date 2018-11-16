@@ -9,11 +9,442 @@
 			"revisionTime": "2018-07-11T05:19:46Z"
 		},
 		{
+			"checksumSHA1": "U6Xb8fxRhdSrxoWzL5ehTRk/704=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/bifurcation/mint",
+			"path": "github.com/bifurcation/mint",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "yZuFJmLUlFHTDWyCLxcDqif/H/w=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/bifurcation/mint/syntax",
+			"path": "github.com/bifurcation/mint/syntax",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "xj4mD9zvKTtUzlFvULcWwPTs524=",
+			"path": "github.com/chaehni/scion-http/shttp",
+			"revision": "560cb6a3a4bdfa54cade09aebec994771f3f5ab2",
+			"revisionTime": "2018-11-15T12:37:50Z"
+		},
+		{
+			"checksumSHA1": "aouwiMmWcbLOzXsZZqq5DCeiFME=",
+			"path": "github.com/chaehni/scion-http/utils",
+			"revision": "560cb6a3a4bdfa54cade09aebec994771f3f5ab2",
+			"revisionTime": "2018-11-15T12:37:50Z"
+		},
+		{
+			"checksumSHA1": "PYXuf7wvcj492uWhjvmXlyyQUYc=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/cheekybits/genny/generic",
+			"path": "github.com/cheekybits/genny/generic",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "s8t6UaijV8WMK0RMdX00OPI5z0o=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/dchest/cmac",
+			"path": "github.com/dchest/cmac",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "2sj/DbXoXdnPAfjAEyhS0Jj5QL0=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/go-stack/stack",
+			"path": "github.com/go-stack/stack",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "zYWRs1ulJNrF3bmnRQAEA2WnPQs=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/google/gopacket",
+			"path": "github.com/google/gopacket",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "GV4QgbWjIWIAIhOlNAJDt8+MtE4=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/google/gopacket/layers",
+			"path": "github.com/google/gopacket/layers",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "UquR8kc0nKU285HwLbkievlLQz4=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/hashicorp/golang-lru",
+			"path": "github.com/hashicorp/golang-lru",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "8Z637dcPkbR5HdLQQBp/9jTbx9Y=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/hashicorp/golang-lru/simplelru",
+			"path": "github.com/hashicorp/golang-lru/simplelru",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "S1lxMekj2Rxqp/lA47z9UGeNHjs=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/inconshreveable/log15",
+			"path": "github.com/inconshreveable/log15",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "Mt2PUVPAERF1/eO3rTBs1RlkD+k=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/inconshreveable/log15/ext",
+			"path": "github.com/inconshreveable/log15/ext",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "AidYU0XoFoluUaN+rxYePHWJo5E=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/inconshreveable/log15/term",
+			"path": "github.com/inconshreveable/log15/term",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "eiKZJz+wsoOmDZQ7xdpX+sqQte4=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/kormat/fmt15",
+			"path": "github.com/kormat/fmt15",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "2RFzGcdTeQrFkkhT70WhQcMWF6c=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/aes12",
+			"path": "github.com/lucas-clemente/aes12",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "cSBXv/4jH3rW01oeFg7WLyT9J0U=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go",
+			"path": "github.com/lucas-clemente/quic-go",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "OA9E+y7g05x/mWJJHmA7oPxWKQo=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go-certificates",
+			"path": "github.com/lucas-clemente/quic-go-certificates",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
 			"checksumSHA1": "6ywDKjG7el8tcWG76H/Xh8PugiA=",
 			"path": "github.com/lucas-clemente/quic-go/h2quic",
 			"revision": "5e82335005e9fca83846f46e252031708def8708",
 			"revisionTime": "2018-04-03T10:17:31Z",
 			"tree": true
+		},
+		{
+			"checksumSHA1": "dTYiy5TEH7AUVcOvpq9VGOxhQ1k=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/ackhandler",
+			"path": "github.com/lucas-clemente/quic-go/internal/ackhandler",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "fgR0+53I1EVdnNitOUoBSfvrs8Q=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/congestion",
+			"path": "github.com/lucas-clemente/quic-go/internal/congestion",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "z5LMbu1cMUmDvp/L0ayFhxF9EJU=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/crypto",
+			"path": "github.com/lucas-clemente/quic-go/internal/crypto",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "ruhHXEvJ1rJKekXb9nv5h1jmYa0=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/flowcontrol",
+			"path": "github.com/lucas-clemente/quic-go/internal/flowcontrol",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "TRZ6SSq1nsZDcGFmUCc5/ZZFnM0=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/handshake",
+			"path": "github.com/lucas-clemente/quic-go/internal/handshake",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "2fOOJgJgtDfl4b5h+SbUxw0EoNs=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/protocol",
+			"path": "github.com/lucas-clemente/quic-go/internal/protocol",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "Ic0zAQD4P+oIM1qZrDWp8nUek8s=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/utils",
+			"path": "github.com/lucas-clemente/quic-go/internal/utils",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "Kk2fcnF/GOTBsxh6mtKUrbH0/Cw=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/internal/wire",
+			"path": "github.com/lucas-clemente/quic-go/internal/wire",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "RDQseWt5/NQ/e+ycN8Q7Ifmj0Nw=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/lucas-clemente/quic-go/qerr",
+			"path": "github.com/lucas-clemente/quic-go/qerr",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "ugnSryGF6VPBb5s87QgoRH6730g=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/mattn/go-colorable",
+			"path": "github.com/mattn/go-colorable",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "U6lX43KDDlNOn+Z0Yyww+ZzHfFo=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/mattn/go-isatty",
+			"path": "github.com/mattn/go-isatty",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "SQi5yeNb9HnAMRpEhQgcv9x9yKc=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/patrickmn/go-cache",
+			"path": "github.com/patrickmn/go-cache",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "FGg99nQ56Fo3radSCuU1AeEUJug=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/pierrec/lz4",
+			"path": "github.com/pierrec/lz4",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "zPWRjzsPeXCoqmidIcJtHbvrvRs=",
+			"origin": "github.com/scionproto/scion/go/vendor/github.com/pierrec/xxHash/xxHash32",
+			"path": "github.com/pierrec/xxHash/xxHash32",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "qMOAMArXJWEc/XPtb8mVfeKzUY0=",
+			"path": "github.com/scionproto/scion/go/lib/addr",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "sWlwbRcBj5NFJS1b4VGwUOIJsOw=",
+			"path": "github.com/scionproto/scion/go/lib/assert",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "f7kL7lDIJJyxm4W6Hk1Dfz92DME=",
+			"path": "github.com/scionproto/scion/go/lib/common",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "d6ZFiaGalh3jfJ4Bz0K7MzK6yg0=",
+			"path": "github.com/scionproto/scion/go/lib/crypto",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "KbXSKoF1vAjIMlxFz8ZI2AgnYbc=",
+			"path": "github.com/scionproto/scion/go/lib/crypto/cert",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "PwTONhsCNhUcBxt5ChTgJ+YSp/c=",
+			"path": "github.com/scionproto/scion/go/lib/crypto/trc",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "cYxhIJ/RbLpnmbT+974pQFV8VUA=",
+			"path": "github.com/scionproto/scion/go/lib/ctrl/cert_mgmt",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "04HwWMkQzmiGx26NAxdHJPjldok=",
+			"path": "github.com/scionproto/scion/go/lib/ctrl/path_mgmt",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "+2QmLPY9TBCFNsH5FuAw/Zd9TWY=",
+			"path": "github.com/scionproto/scion/go/lib/ctrl/seg",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "1COZdzopwuhufqAgszpH5lKzUq0=",
+			"path": "github.com/scionproto/scion/go/lib/hpkt",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "2kOjgVgUDUoxbefd4+lCqFKsPNE=",
+			"path": "github.com/scionproto/scion/go/lib/infra",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "1chk8x7mF1gYKx1eO2D17Pd3ido=",
+			"path": "github.com/scionproto/scion/go/lib/infra/disp",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "iD3lAO46mYYMqHzMBFIhMtjE6Yk=",
+			"path": "github.com/scionproto/scion/go/lib/infra/transport",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "ka7hsCra98b+64t4pAGoY8rBR8U=",
+			"path": "github.com/scionproto/scion/go/lib/l4",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "pdFroi3v63bF3lQrUMXo/0bZXS4=",
+			"path": "github.com/scionproto/scion/go/lib/log",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "HxU2d2xVQ0hdw48gPuAB55IxKQ0=",
+			"path": "github.com/scionproto/scion/go/lib/overlay",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "oBvq1Zgq2TRnuBbQCYE3ET3iLbU=",
+			"path": "github.com/scionproto/scion/go/lib/pathmgr",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "Qoa6BngDTMRIseqqxc4Id1DpeDU=",
+			"path": "github.com/scionproto/scion/go/lib/pktcls",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "uB7oysY+umHOe9Y0YMep/5odAKc=",
+			"path": "github.com/scionproto/scion/go/lib/sciond",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "o5PN79+c0NPwMQdfNCF5oIbw6KQ=",
+			"path": "github.com/scionproto/scion/go/lib/scmp",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "YQ/RVrJGX1oNQj7RWXTjK6AlW1g=",
+			"path": "github.com/scionproto/scion/go/lib/snet",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "a2Qc0KVLHMOZYCBMJZzy/J8oBO8=",
+			"path": "github.com/scionproto/scion/go/lib/snet/squic",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "3SGH8kApf2N256T/XX66LZyC9Ig=",
+			"path": "github.com/scionproto/scion/go/lib/sock/reliable",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "11MtK7oBD6vp9QJXqMoIqoaX94o=",
+			"path": "github.com/scionproto/scion/go/lib/spath",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "Iyua8px51AzrB8GtObUJVxPLb/o=",
+			"path": "github.com/scionproto/scion/go/lib/spath/spathmeta",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "lt7DWkOmXGkD6UZZO1zD3wH0L0c=",
+			"path": "github.com/scionproto/scion/go/lib/spkt",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "yfAZTyJGbBFNHjNkvYCGNUjE90w=",
+			"path": "github.com/scionproto/scion/go/lib/util",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "nD52JoarON2cDMd5QgP5otlTy24=",
+			"path": "github.com/scionproto/scion/go/lib/xtest/graph",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "TRkSy5mWWd0hA9ntKWbANAwDOEE=",
+			"path": "github.com/scionproto/scion/go/proto",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "IQkUIOnvlf0tYloFx9mLaXSvXWQ=",
+			"origin": "github.com/scionproto/scion/go/vendor/golang.org/x/crypto/curve25519",
+			"path": "golang.org/x/crypto/curve25519",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "1hwn8cgg4EVXhCpJIqmMbzqnUo0=",
+			"origin": "github.com/scionproto/scion/go/vendor/golang.org/x/crypto/ed25519",
+			"path": "golang.org/x/crypto/ed25519",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "LXFcVx8I587SnWmKycSDEq9yvK8=",
+			"origin": "github.com/scionproto/scion/go/vendor/golang.org/x/crypto/ed25519/internal/edwards25519",
+			"path": "golang.org/x/crypto/ed25519/internal/edwards25519",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "4D8hxMIaSDEW5pCQk22Xj4DcDh4=",
+			"origin": "github.com/scionproto/scion/go/vendor/golang.org/x/crypto/hkdf",
+			"path": "golang.org/x/crypto/hkdf",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
+			"origin": "github.com/scionproto/scion/go/vendor/golang.org/x/net/context",
+			"path": "golang.org/x/net/context",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
 		},
 		{
 			"checksumSHA1": "pCY4YtdNKVBYRbNvODjx8hj0hIs=",
@@ -44,6 +475,13 @@
 			"path": "golang.org/x/net/lex/httplex",
 			"revision": "640f4622ab692b87c2f3a94265e6f579fe38263d",
 			"revisionTime": "2018-05-02T16:14:02Z"
+		},
+		{
+			"checksumSHA1": "tY+5thYxjKDUQyQXYcBqogmMS5U=",
+			"origin": "github.com/scionproto/scion/go/vendor/golang.org/x/sys/unix",
+			"path": "golang.org/x/sys/unix",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
 		},
 		{
 			"checksumSHA1": "+K+WZz6GkrEt+ZyMR4zipwV7LqM=",
@@ -140,7 +578,84 @@
 			"path": "golang.org/x/text/unicode/rangetable",
 			"revision": "6f44c5a2ea40ee3593d98cdcc905cc1fdaa660e2",
 			"revisionTime": "2018-10-29T18:00:05Z"
+		},
+		{
+			"checksumSHA1": "dsQ5n+qfjPnd1P5wA0y9LSwbs4A=",
+			"origin": "github.com/scionproto/scion/go/vendor/gopkg.in/natefinch/lumberjack.v2",
+			"path": "gopkg.in/natefinch/lumberjack.v2",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "zav1xiLjmIxwLLCAr7UTs/35BQc=",
+			"origin": "github.com/scionproto/scion/go/vendor/gopkg.in/restruct.v1",
+			"path": "gopkg.in/restruct.v1",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "12GqsW8PiRPnezDDy0v4brZrndM=",
+			"origin": "github.com/scionproto/scion/go/vendor/gopkg.in/yaml.v2",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "TWP33d++n6qiPec924JViJ2YEro=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2",
+			"path": "zombiezen.com/go/capnproto2",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "TWTekr4so+vaCg8268ipVzcMkrY=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2/encoding/text",
+			"path": "zombiezen.com/go/capnproto2/encoding/text",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "MOa29pkoxG4yBKT8FE8ymqe6H4w=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2/internal/nodemap",
+			"path": "zombiezen.com/go/capnproto2/internal/nodemap",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "vB29giYgHSGCBm7NSNc9VwxJA2k=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2/internal/packed",
+			"path": "zombiezen.com/go/capnproto2/internal/packed",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "Uo53qAOG17jIbMj3ddouH4b90uk=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2/internal/schema",
+			"path": "zombiezen.com/go/capnproto2/internal/schema",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "dr6VwSy7P+vIus+lLI/nM95IVyg=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2/internal/strquote",
+			"path": "zombiezen.com/go/capnproto2/internal/strquote",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "AlukbnaY7GtcgbGRLQfMkXyWZTA=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2/pogs",
+			"path": "zombiezen.com/go/capnproto2/pogs",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
+		},
+		{
+			"checksumSHA1": "zCLg7a8uDO2MS3Ypp4+kdarpDBk=",
+			"origin": "github.com/scionproto/scion/go/vendor/zombiezen.com/go/capnproto2/schemas",
+			"path": "zombiezen.com/go/capnproto2/schemas",
+			"revision": "0336818c24907ac60b73ba45bf4f69b528a870ed",
+			"revisionTime": "2018-11-05T09:32:18Z"
 		}
 	],
-	"rootPath": "github.com/chaehni/scion-http"
+	"rootPath": "github.com/chaehni/bat"
 }

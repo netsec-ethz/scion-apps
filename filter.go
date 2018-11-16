@@ -34,7 +34,11 @@ func filter(args []string) []string {
 	if len(args) <= i {
 		log.Fatal("Miss the URL")
 	}
-	*URL = args[i]
+
+	// TODO: revert when RAINS is deployed
+	//*URL = args[i]
+	*route = args[i]
 	i++
+
 	return args[i:]
 }

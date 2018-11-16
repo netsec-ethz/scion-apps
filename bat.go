@@ -46,11 +46,14 @@ const (
 )
 
 var (
+	interactive      bool
 	ver              bool
 	form             bool
 	pretty           bool
 	download         bool
 	insecureSSL      bool
+	local            string // TODO: remove as soon as dispatcher supports nil local address
+	remote           string // TODO: remove as soon as RAINS is deployed
 	auth             string
 	proxy            string
 	printV           string
@@ -61,12 +64,15 @@ var (
 	benchC           int
 	isjson           = flag.Bool("json", true, "Send the data as a JSON object")
 	method           = flag.String("method", "GET", "HTTP method")
-	URL              = flag.String("url", "", "HTTP request URL")
+	route            = flag.String("url", "", "HTTP request URL")
+	URL              *string
 	jsonmap          map[string]interface{}
 	contentJsonRegex = `application/(.*)json`
 )
 
 func init() {
+
+	flag.BoolVar(&interactive, "in", false, "Lets user choose the path to destination")
 	flag.BoolVar(&ver, "v", false, "Print Version Number")
 	flag.BoolVar(&ver, "version", false, "Print Version Number")
 	flag.BoolVar(&pretty, "pretty", true, "Print Json Pretty Format")
@@ -78,6 +84,8 @@ func init() {
 	flag.BoolVar(&download, "d", false, "Download the url content as file")
 	flag.BoolVar(&insecureSSL, "insecure", false, "Allow connections to SSL sites without certs")
 	flag.BoolVar(&insecureSSL, "i", false, "Allow connections to SSL sites without certs")
+	flag.StringVar(&local, "l", "", "local SCION address")
+	flag.StringVar(&remote, "r", "", "remote SCION address")
 	flag.StringVar(&auth, "auth", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&auth, "a", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&proxy, "proxy", "", "Proxy host and port, PROXY_URL")
@@ -87,6 +95,30 @@ func init() {
 	flag.IntVar(&benchC, "b.C", 100, "Number of requests to run concurrently.")
 	flag.StringVar(&body, "body", "", "Raw data send as body")
 	jsonmap = make(map[string]interface{})
+
+	// parse flags
+	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
+	flag.Usage = usage
+	flag.Parse()
+
+	// SCION: add shttp Transport to defaultSetting
+	// use a dummy.com for pointing to remote
+	// TODO: get rid of this as soon as RAINS is deployed
+	raddr, err := snet.AddrFromString(remote)
+	laddr, err2 := snet.AddrFromString(local)
+	if err != nil || err2 != nil {
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Fatal(err2)
+	}
+
+	dns := map[string]*snet.Addr{"dummy.com": raddr}
+
+	defaultSetting.Transport = &shttp.Transport{
+		DNS:   dns,
+		LAddr: laddr,
+	}
 }
 
 func parsePrintOption(s string) {
@@ -112,18 +144,6 @@ func parsePrintOption(s string) {
 
 func main() {
 
-	raddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:40002")
-	dns := map[string]*snet.Addr{"testserver.com": raddr}
-	laddr, _ := snet.AddrFromString("17-ffaa:1:c2,[10.0.2.15]:0")
-	t := &shttp.Transport{
-		DNS:   dns,
-		LAddr: laddr,
-	}
-	defaultSetting.Transport = t
-
-	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
-	flag.Usage = usage
-	flag.Parse()
 	args := flag.Args()
 	if len(args) > 0 {
 		args = filter(args)
@@ -150,9 +170,19 @@ func main() {
 		}
 	}
 
-	if *URL == "" {
+	// TODO: uncomment when RAINS is deployed and remove belows URL creation
+	/* if *URL == "" {
+		usage()
+	} */
+
+	/* start of URL creation: Remove when RAINS is deployed*/
+	if *route == "" {
 		usage()
 	}
+	temp := strings.Join([]string{"https://dummy.com", *route}, "")
+	URL = &temp
+	/* end of URL creation*/
+
 	if strings.HasPrefix(*URL, ":") {
 		urlb := []byte(*URL)
 		if *URL == ":" {
@@ -164,7 +194,7 @@ func main() {
 		}
 	}
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
-		*URL = "http://" + *URL
+		*URL = "https://" + *URL
 	}
 	u, err := url.Parse(*URL)
 	if err != nil {
