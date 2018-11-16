@@ -43,6 +43,12 @@
 			"path": "github.com/mattn/go-colorable",
 			"revision": "6c903ff4aa50920ca86087a280590b36b3152b9c",
 			"revisionTime": "2016-09-30T08:41:57Z"
+		},
+		{
+			"checksumSHA1": "tTx90HHLD8waQ+mlpd7kRzp9kyY=",
+			"path": "github.com/mattn/go-sqlite3",
+			"revision": "b3511bfdd742af558b54eb6160aca9446d762a19",
+			"revisionTime": "2018-07-18T00:29:43Z"
 		}
 	],
 	"rootPath": "github.com/netsec-ethz/scion-apps"
