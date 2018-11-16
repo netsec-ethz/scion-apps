@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -77,4 +80,14 @@ func FormatBytes(i int64) (result string) {
 	}
 	result = strings.Trim(result, " ")
 	return
+}
+
+func readIsdAS() (string, error) {
+	spath := os.Getenv("SC")
+	ia, err := ioutil.ReadFile(filepath.Join(spath, "gen/ia"))
+	if err != nil {
+		return "", err
+	}
+	repl := strings.Replace(string(ia), "_", ":", -1)
+	return strings.Join([]string{repl, ",[10.0.2.15]:0"}, ""), nil
 }

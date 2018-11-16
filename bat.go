@@ -104,6 +104,15 @@ func init() {
 	// SCION: add shttp Transport to defaultSetting
 	// use a dummy.com for pointing to remote
 	// TODO: get rid of this as soon as RAINS is deployed
+
+	if local == "" {
+		var err error
+		local, err = readIsdAS()
+		if err != nil {
+			log.Fatal("Cannot infer local address. Please provide it using the -l flag.")
+		}
+	}
+
 	raddr, err := snet.AddrFromString(remote)
 	laddr, err2 := snet.AddrFromString(local)
 	if err != nil || err2 != nil {
