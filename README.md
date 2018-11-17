@@ -22,25 +22,25 @@ In contrast to the original tool, we require a remote SCION address and a URL pa
 For example:
 
 ```
-bat -r ISD/AS,[IP]:port GET /api/download
+bat -r ISD-AS,[IP]:port GET /api/download
 ```
 
-bat tries to infer your local SCION address for installations in VMs. In case this fails, provide the local address using the ```-l``` flag:
+If you're running bat in a VM, your local address can be inferred. In case this fails or you are running a different setup, provide the local address using the ```-l``` flag:
 
 ```
-bat -l ISD/AS,[IP]:port -r ISD/AS,[IP]:port GET /api/download
+bat -l ISD-AS,[IP]:port -r ISD-AS,[IP]:port GET /api/download
 ```
 
-As the original, the HTTP method defaults to GET in case there is no data to be sent and to POST otherwise.
+The HTTP method defaults to GET in case there is no data to be sent and to POST otherwise.
 
 ### Examples
 
 ```
-bat -r ISD/AS,[IP]:port /api/download
+bat -r ISD-AS,[IP]:port /api/download
 
-bat -r ISD/AS,[IP]:port /api/upload foo=bar
+bat -r ISD-AS,[IP]:port /api/upload foo=bar
 
-bat -r ISD/AS,[IP]:port -f /api/upload foo=bar
+bat -r ISD-AS,[IP]:port -f /api/upload foo=bar
 
-bat -r ISD/AS,[IP]:port -body "Hello World" POST /api/upload
+bat -r ISD-AS,[IP]:port -body "Hello World" POST /api/upload
 ```
