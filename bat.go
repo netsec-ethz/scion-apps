@@ -117,9 +117,9 @@ func init() {
 	laddr, err2 := snet.AddrFromString(local)
 	if err != nil || err2 != nil {
 		if err != nil {
-			log.Fatal(err)
+			usage()
 		}
-		log.Fatal(err2)
+		usage()
 	}
 
 	dns := map[string]*snet.Addr{"dummy.com": raddr}
