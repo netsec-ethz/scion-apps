@@ -9,6 +9,18 @@
 			"revisionTime": "2018-07-11T05:19:46Z"
 		},
 		{
+			"checksumSHA1": "xj4mD9zvKTtUzlFvULcWwPTs524=",
+			"path": "github.com/chaehni/scion-http/shttp",
+			"revision": "560cb6a3a4bdfa54cade09aebec994771f3f5ab2",
+			"revisionTime": "2018-11-15T12:37:50Z"
+		},
+		{
+			"checksumSHA1": "aouwiMmWcbLOzXsZZqq5DCeiFME=",
+			"path": "github.com/chaehni/scion-http/utils",
+			"revision": "560cb6a3a4bdfa54cade09aebec994771f3f5ab2",
+			"revisionTime": "2018-11-15T12:37:50Z"
+		},
+		{
 			"checksumSHA1": "6ywDKjG7el8tcWG76H/Xh8PugiA=",
 			"path": "github.com/lucas-clemente/quic-go/h2quic",
 			"revision": "5e82335005e9fca83846f46e252031708def8708",
