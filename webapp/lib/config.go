@@ -40,7 +40,7 @@ func GetLocalIa() string {
         log.Println("ioutil.ReadFile() error: " + err.Error())
         return ""
     }
-    return string(b)
+    return strings.Replace(strings.TrimSpace(string(b)), "_", ":", -1)
 }
 
 // Makes interfaces sortable, by preferred name
