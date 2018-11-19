@@ -114,7 +114,7 @@ func appsHandler(w http.ResponseWriter, r *http.Request) {
     display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: myIa})
 }
 
-func parseRequest2BwtestItem(r *http.Request, appSel string) *model.BwTestItem {
+func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem, string) {
     d := new(model.BwTestItem)
     d.SIa = r.PostFormValue("ia_ser")
     d.CIa = r.PostFormValue("ia_cli")
@@ -122,6 +122,7 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) *model.BwTestItem {
     d.CAddr = r.PostFormValue("addr_cli")
     d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
     d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
+    addl_opt := r.PostFormValue("addl_opt")
     if appSel == "bwtester" {
         d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
         d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
@@ -134,7 +135,7 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) *model.BwTestItem {
         d.SCBandwidth = d.SCPackets * d.SCPktSize / d.SCDuration * 8
         d.SCDuration = d.SCDuration * 1000 // final storage in ms
     }
-    return d
+    return d, addl_opt
 }
 
 func parseBwTest2Cmd(d *model.BwTestItem, appSel string) []string {
@@ -187,8 +188,9 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
         }
     } else {
         // single run
-        d := parseRequest2BwtestItem(r, appSel)
+        d, addl_opt := parseRequest2BwtestItem(r, appSel)
         command := parseBwTest2Cmd(d, appSel)
+        command = append(command, addl_opt)
 
         // execute scion go client app with client/server commands
         log.Printf("Executing: %s\n", strings.Join(command, " "))
@@ -218,8 +220,9 @@ func continuousBwTest() {
         r := bwRequest
         r.ParseForm()
         appSel := r.PostFormValue("apps")
-        d := parseRequest2BwtestItem(r, appSel)
+        d, addl_opt := parseRequest2BwtestItem(r, appSel)
         command := parseBwTest2Cmd(d, appSel)
+        command = append(command, addl_opt)
 
         log.Printf("Executing: %s\n", strings.Join(command, " "))
         cmd := exec.Command(command[0], command[1:]...)
