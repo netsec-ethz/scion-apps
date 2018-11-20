@@ -4,16 +4,13 @@
 # define threshold
 min_sec=15
 
-ntp_offset=$(ntpq -pn | \
-     /usr/bin/awk 'BEGIN { offset=1000 } $1 ~ /\*/ { offset=$9 } END { print offset }')
-echo "Network time offset is $ntp_offset seconds."
-
-# compare ntp offset to threshold
-off=$(awk 'BEGIN {print ("'${ntp_offset#-}'" > "'${min_sec}'")}')
-
-if [ "$off" -eq "1" ]; then
+echo "Checking time using google.com now:"
+tl=$(date '+%s')
+ts=$(date '+%s' --date="$(curl -sI google.com | sed -n  '/Date:\s*/s///p')")
+diff=$((ts-tl))
+diff=${diff#-} # abs(diff)
+echo Time diff: "$diff"s
+if [ $diff -gt $min_sec ]; then
     echo "Offset must be within $min_sec seconds."
-    exit $off
+    exit 1
 fi
-
-exit $?
