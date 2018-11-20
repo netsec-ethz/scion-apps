@@ -11,13 +11,13 @@
 		{
 			"checksumSHA1": "xj4mD9zvKTtUzlFvULcWwPTs524=",
 			"path": "github.com/chaehni/scion-http/shttp",
-			"revision": "560cb6a3a4bdfa54cade09aebec994771f3f5ab2",
+			"revision": "b7d08c81a6d57456365f8ff79ce34ba5ff7e3833",
 			"revisionTime": "2018-11-15T12:37:50Z"
 		},
 		{
 			"checksumSHA1": "aouwiMmWcbLOzXsZZqq5DCeiFME=",
 			"path": "github.com/chaehni/scion-http/utils",
-			"revision": "560cb6a3a4bdfa54cade09aebec994771f3f5ab2",
+			"revision": "b7d08c81a6d57456365f8ff79ce34ba5ff7e3833",
 			"revisionTime": "2018-11-15T12:37:50Z"
 		},
 		{
