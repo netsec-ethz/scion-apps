@@ -36,6 +36,7 @@ func main() {
 				Message: "success",
 			}
 			resp, _ := json.Marshal(data)
+			w.Header().Set("Content-Type", "text/json")
 			fmt.Fprint(w, string(resp))
 		} else {
 			http.Error(w, "wrong method: "+r.Method, http.StatusForbidden)
@@ -46,14 +47,17 @@ func main() {
 	http.HandleFunc("/form", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			r.ParseForm()
-			fmt.Fprint(w, "received following data\n:")
+			w.Header().Set("Content-Type", "text/plain")
+			fmt.Fprint(w, "received following data:\n")
 			for s := range r.PostForm {
-				fmt.Fprint(w, s, "\n")
+				fmt.Fprint(w, s, "=", r.PostFormValue(s), "\n")
 			}
 		} else {
 			http.Error(w, "wrong method: "+r.Method, http.StatusForbidden)
 		}
 	})
+
+	/*** end of public routes ***/
 
 	err := shttp.ListenAndServeSCION(*local, *tlsCert, *tlsKey, nil)
 	if err != nil {
