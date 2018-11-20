@@ -18,7 +18,10 @@ type Server struct {
 	s *h2quic.Server
 }
 
-var mutex sync.Mutex
+var (
+	initOnce sync.Once
+	initErr  error
+)
 
 // ListenAndServeSCION listens for HTTPS connections on the SCION address addr and calls ServeSCION
 // with handler to handle requests
@@ -29,14 +32,15 @@ func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) e
 		return err
 	}
 
-	mutex.Lock()
-	if snet.DefNetwork == nil {
-		err := snet.Init(laddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
-		if err != nil {
-			return err
+	// initialize SCION
+	initOnce.Do(func() {
+		if snet.DefNetwork == nil {
+			initErr = snet.Init(laddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 		}
+	})
+	if initErr != nil {
+		return initErr
 	}
-	mutex.Unlock()
 
 	network := snet.DefNetwork
 	sconn, err := network.ListenSCION("udp4", laddr)
@@ -52,6 +56,7 @@ func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) e
 func ServeSCION(conn net.PacketConn, handler http.Handler, certFile, keyFile string) error {
 
 	scionServer := &Server{
+		Addr: conn.LocalAddr().String(),
 		s: &h2quic.Server{
 			Server: &http.Server{
 				Handler: handler,
@@ -71,14 +76,15 @@ func (srv *Server) ListenAndServeSCION(certFile, keyFile string) error {
 		return err
 	}
 
-	mutex.Lock()
-	if snet.DefNetwork == nil {
-		err := snet.Init(laddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
-		if err != nil {
-			return err
+	// initialize SCION
+	initOnce.Do(func() {
+		if snet.DefNetwork == nil {
+			initErr = snet.Init(laddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 		}
+	})
+	if initErr != nil {
+		return initErr
 	}
-	mutex.Unlock()
 
 	network := snet.DefNetwork
 	sconn, err := network.ListenSCION("udp4", laddr)

@@ -23,7 +23,7 @@ type Transport struct {
 
 	rt *h2quic.RoundTripper
 
-	mutex sync.Mutex
+	dialOnce sync.Once
 }
 
 // RoundTrip does a single round trip; retreiving a response for a given request
@@ -35,16 +35,18 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 // RoundTripOpt is the same as RoundTrip but takes additional options
 func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*http.Response, error) {
 
-	t.mutex.Lock()
-	// initialize the SCION network connection
-	if snet.DefNetwork == nil {
-		err := snet.Init(t.LAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
-		if err != nil {
-			return nil, err
+	// initialize the SCION networking context once for all Transports
+	initOnce.Do(func() {
+		if snet.DefNetwork == nil {
+			initErr = snet.Init(t.LAddr.IA, utils.GetSCIOND(), utils.GetDispatcher())
 		}
+	})
+	if initErr != nil {
+		return nil, initErr
 	}
 
-	if t.rt == nil {
+	// set the dial function once for each Transport
+	t.dialOnce.Do(func() {
 		dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
 			raddr, ok := t.DNS[req.URL.Host]
 			if !ok {
@@ -52,12 +54,10 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			}
 			return squic.DialSCION(nil, t.LAddr, raddr)
 		}
-
 		t.rt = &h2quic.RoundTripper{
 			Dial: dial,
 		}
-	}
-	t.mutex.Unlock()
+	})
 
 	return t.rt.RoundTripOpt(req, opt)
 }
