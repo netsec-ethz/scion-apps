@@ -1,0 +1,14 @@
+{{define "footer"}}
+<script>
+    $(document).ready(
+            // highlight the current link so user can be reminded of location
+            function() {
+                $('#myNavbar li.active').removeClass('active');
+                $('a[href="' + location.pathname + '"]').closest('li')
+                        .addClass('active');
+            });
+</script>
+<noscript>This form requires that you have javascript
+ enabled to work properly please enable javascript in your browser.</noscript>
+</html>
+{{end}}

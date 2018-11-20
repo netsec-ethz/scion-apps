@@ -1,0 +1,14 @@
+{
+ "tests": [
+  {
+   "label": "timecheck",
+   "script": "timecheck.sh",
+   "desc": "Network time synchronization test"
+  },
+  {
+   "label": "checkbeacons",
+   "script": "beaconstest.sh",
+   "desc": "Receiving beacons test"
+  }
+ ]
+}
