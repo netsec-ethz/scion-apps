@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chaehni/scion-http/shttp"
+	"github.com/netsec-ethz/scion-apps/lib/shttp"
 )
 
 func main() {

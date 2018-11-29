@@ -1,4 +1,4 @@
-package utils
+package path
 
 import (
 	"bufio"
@@ -20,7 +20,7 @@ func ChoosePath(local *snet.Addr, remote *snet.Addr, sciondPath string, dispatch
 	re := regexp.MustCompile(`\d{2}-ffaa:\d:([a-z]|\d)+`)
 
 	repl := func(in string) string {
-		return color.LightYellow(in)
+		return color.Purple(in)
 	}
 
 	err := snet.Init(local.IA, sciondPath, dispatcherPath)

@@ -9,8 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chaehni/scion-http/shttp"
-	"github.com/chaehni/scion-http/utils"
+	"github.com/netsec-ethz/scion-apps/lib/path"
+	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	"github.com/netsec-ethz/scion-apps/lib/util"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -24,14 +25,14 @@ func main() {
 
 	rAddr, err := snet.AddrFromString(*remote)
 	lAddr, err2 := snet.AddrFromString(*local)
-	sciondPath := utils.GetSCIOND()
-	dispatcherPath := utils.GetDispatcher()
+	sciondPath := util.GetSCIOND()
+	dispatcherPath := util.GetDispatcher()
 	if err != nil || err2 != nil {
 		log.Fatal(err)
 	}
 
 	if *interactive {
-		utils.ChoosePath(lAddr, rAddr, sciondPath, dispatcherPath)
+		path.ChoosePath(lAddr, rAddr, sciondPath, dispatcherPath)
 	}
 
 	// Make a map from URL to *snet.Addr

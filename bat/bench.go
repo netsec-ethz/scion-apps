@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chaehni/bat/httplib"
+	"github.com/netsec-ethz/scion-apps/bat/httplib"
 )
 
 type result struct {

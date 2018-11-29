@@ -9,18 +9,6 @@
 			"revisionTime": "2018-07-11T05:19:46Z"
 		},
 		{
-			"checksumSHA1": "xj4mD9zvKTtUzlFvULcWwPTs524=",
-			"path": "github.com/chaehni/scion-http/shttp",
-			"revision": "b7d08c81a6d57456365f8ff79ce34ba5ff7e3833",
-			"revisionTime": "2018-11-15T12:37:50Z"
-		},
-		{
-			"checksumSHA1": "aouwiMmWcbLOzXsZZqq5DCeiFME=",
-			"path": "github.com/chaehni/scion-http/utils",
-			"revision": "b7d08c81a6d57456365f8ff79ce34ba5ff7e3833",
-			"revisionTime": "2018-11-15T12:37:50Z"
-		},
-		{
 			"checksumSHA1": "6ywDKjG7el8tcWG76H/Xh8PugiA=",
 			"path": "github.com/lucas-clemente/quic-go/h2quic",
 			"revision": "5e82335005e9fca83846f46e252031708def8708",
@@ -154,5 +142,5 @@
 			"revisionTime": "2018-10-29T18:00:05Z"
 		}
 	],
-	"rootPath": "github.com/chaehni/scion-http"
+	"rootPath": "github.com/netsec-ethz/scion-apps/bat"
 }

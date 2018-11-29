@@ -35,7 +35,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chaehni/scion-http/shttp"
+	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
