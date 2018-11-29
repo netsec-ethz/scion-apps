@@ -406,7 +406,7 @@ Usage:
 	bat [flags] [METHOD] URL [ITEM [ITEM]]
 
 flags:
-  -r						  Remote SCION address of web server
+  -r                          Remote SCION address of web server
   -l                          Local SCION address, for VMs this can be omitted
   -a, -auth=USER[:PASS]       Pass a username:password pair as the argument
   -b, -bench=false            Sends bench requests to URL

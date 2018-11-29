@@ -36,7 +36,7 @@ func main() {
 				Message: "success",
 			}
 			resp, _ := json.Marshal(data)
-			w.Header().Set("Content-Type", "text/json")
+			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, string(resp))
 		} else {
 			http.Error(w, "wrong method: "+r.Method, http.StatusForbidden)
