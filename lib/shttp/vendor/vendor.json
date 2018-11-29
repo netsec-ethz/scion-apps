@@ -142,5 +142,5 @@
 			"revisionTime": "2018-10-29T18:00:05Z"
 		}
 	],
-	"rootPath": "github.com/chaehni/scion-http"
+	"rootPath": "github.com/netsec-ethz/scion-apps/lib/shttp"
 }
