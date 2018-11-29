@@ -29,6 +29,9 @@
 //	fmt.Println(str)
 //
 //  more docs http://beego.me/docs/module/httplib.md
+
+// This file has been modified to make it compatible with SCION
+
 package httplib
 
 import (

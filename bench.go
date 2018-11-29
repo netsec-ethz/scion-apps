@@ -1,3 +1,5 @@
+// This file has been modified to make it compatible with SCION
+
 package main
 
 import (

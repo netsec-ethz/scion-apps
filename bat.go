@@ -14,6 +14,8 @@
 
 // Bat is a Go implemented CLI cURL-like tool for humans
 // bat [flags] [METHOD] URL [ITEM [ITEM]]
+
+// This file has been modified to make it compatible with SCION
 package main
 
 import (
@@ -441,9 +443,9 @@ ITEM:
 
 Example:
 
-	bat beego.me
+	bat -r 17-ffaa:1:1 /download
 
-more help information please refer to https://github.com/astaxie/bat
+For more help information please refer to https://github.com/chaehni/bat
 `
 
 func usage() {
