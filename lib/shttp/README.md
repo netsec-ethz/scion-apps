@@ -64,7 +64,7 @@ http.Handle("/download", handler)
 
 Finally, start the server:
 ```Go
-err := server.ListenAndServeSCION(local, tlsCert, tlsKey)
+err := server.ListenAndServeSCION(local, tlsCert, tlsKey, mux)
 if err != nil {
 	log.Fatal(err)
 }
