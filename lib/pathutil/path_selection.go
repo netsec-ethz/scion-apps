@@ -21,7 +21,7 @@ import (
 func ChoosePath(interactive bool, pathAlgo string, local, remote *snet.Addr) *sciond.PathReplyEntry {
 	re := regexp.MustCompile(`\d{2}-ffaa:\d:([a-z]|\d)+`)
 	repl := func(in string) string {
-		return color.Purple(in)
+		return color.Cyan(in)
 	}
 
 	if snet.DefNetwork == nil {
