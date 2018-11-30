@@ -3,12 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "i8pc+jtTfCtBiVqnoTOKUGJJOZs=",
-			"path": "github.com/bclicn/color",
-			"revision": "108f2023dc84f1f9e64f246fa3997993971b2706",
-			"revisionTime": "2018-07-11T05:19:46Z"
-		},
-		{
 			"checksumSHA1": "6ywDKjG7el8tcWG76H/Xh8PugiA=",
 			"path": "github.com/lucas-clemente/quic-go/h2quic",
 			"revision": "5e82335005e9fca83846f46e252031708def8708",

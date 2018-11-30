@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/lucas-clemente/quic-go/h2quic"
-	"github.com/netsec-ethz/scion-apps/lib/util"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -35,7 +35,7 @@ func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) e
 	// initialize SCION
 	initOnce.Do(func() {
 		if snet.DefNetwork == nil {
-			initErr = snet.Init(laddr.IA, util.GetSCIOND(), util.GetDispatcher())
+			initErr = scionutil.InitSCION(laddr)
 		}
 	})
 	if initErr != nil {
@@ -79,7 +79,7 @@ func (srv *Server) ListenAndServeSCION(certFile, keyFile string) error {
 	// initialize SCION
 	initOnce.Do(func() {
 		if snet.DefNetwork == nil {
-			initErr = snet.Init(laddr.IA, util.GetSCIOND(), util.GetDispatcher())
+			initErr = scionutil.InitSCION(laddr)
 		}
 	})
 	if initErr != nil {

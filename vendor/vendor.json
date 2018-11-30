@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "i8pc+jtTfCtBiVqnoTOKUGJJOZs=",
+			"path": "github.com/bclicn/color",
+			"revision": "108f2023dc84f1f9e64f246fa3997993971b2706",
+			"revisionTime": "2018-07-11T05:19:46Z"
+		},
+		{
 			"checksumSHA1": "2sj/DbXoXdnPAfjAEyhS0Jj5QL0=",
 			"license": "APL 2.0",
 			"path": "github.com/go-stack/stack",

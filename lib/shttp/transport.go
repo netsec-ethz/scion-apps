@@ -11,7 +11,7 @@ import (
 
 	quic "github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/h2quic"
-	"github.com/netsec-ethz/scion-apps/lib/util"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
@@ -38,7 +38,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 	// initialize the SCION networking context once for all Transports
 	initOnce.Do(func() {
 		if snet.DefNetwork == nil {
-			initErr = snet.Init(t.LAddr.IA, util.GetSCIOND(), util.GetDispatcher())
+			initErr = scionutil.InitSCION(t.LAddr)
 		}
 	})
 	if initErr != nil {
