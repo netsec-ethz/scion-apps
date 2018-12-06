@@ -445,7 +445,7 @@ Example:
 
 	bat -r 17-ffaa:1:1 /download
 
-For more help information please refer to https://github.com/chaehni/bat
+For more help information please refer to https://github.com/netsec-ethz/scion-apps/bat
 `
 
 func usage() {

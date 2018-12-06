@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/chaehni/scion-http/shttp"
+	"github.com/netsec-ethz/scion-apps/lib/shttp"
 )
 
 func main() {
