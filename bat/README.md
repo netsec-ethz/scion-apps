@@ -16,6 +16,10 @@ govendor add +e
 go install
 ```
 
+If you experience problems with the `govendor` commands above:
+* Remove the contents and leave only the `vendor.json` file in the `vendor` folders in `scion-apps` and `bat` itself.
+* Go to the `scion-apps` directory and run `govendor sync`. You can now follow the instructions above again.
+
 ### Usage
 
 In contrast to the original tool, we require a remote SCION address and a URL path instead of a full URL.
