@@ -5,9 +5,6 @@ package main
 import (
     "flag"
     "fmt"
-    _ "github.com/mattn/go-sqlite3"
-    lib "github.com/netsec-ethz/scion-apps/webapp/lib"
-    model "github.com/netsec-ethz/scion-apps/webapp/models"
     "html/template"
     "io"
     "io/ioutil"
@@ -20,6 +17,10 @@ import (
     "strconv"
     "strings"
     "time"
+
+    _ "github.com/mattn/go-sqlite3"
+    lib "github.com/netsec-ethz/scion-apps/webapp/lib"
+    model "github.com/netsec-ethz/scion-apps/webapp/models"
 )
 
 var addr = flag.String("a", "0.0.0.0", "server host address")
@@ -37,13 +38,23 @@ var maxContTimeout = time.Duration(10) * time.Minute
 var bwRequest *http.Request
 var bwActive bool
 var bwInterval int
+var bwPathNum string
 var bwTimeKeepAlive time.Time
 var bwChanDone = make(chan bool)
+
+var templates *template.Template
+
+type Page struct {
+    Title string
+    MyIA  string
+}
 
 func main() {
     flag.Parse()
     _, srcfile, _, _ := runtime.Caller(0)
     srcpath = path.Dir(srcfile)
+    // prepare templates
+    templates = prepareTemplates(srcpath)
     // open and manage database
     dbpath := path.Join(srcpath, "webapp.db")
     model.InitDB(dbpath)
@@ -63,9 +74,13 @@ func main() {
     appsBuildCheck("camerapp")
     appsBuildCheck("sensorapp")
 
+    serveExact("/favicon.ico", "./favicon.ico")
     http.HandleFunc("/", mainHandler)
     http.HandleFunc("/about", aboutHandler)
     http.HandleFunc("/apps", appsHandler)
+    http.HandleFunc("/astopo", astopoHandler)
+    http.HandleFunc("/crt", crtHandler)
+    http.HandleFunc("/trc", trcHandler)
     fsStatic := http.FileServer(http.Dir(path.Join(srcpath, "static")))
     http.Handle("/static/", http.StripPrefix("/static/", fsStatic))
     fsImageFetcher := http.FileServer(http.Dir("."))
@@ -75,10 +90,21 @@ func main() {
 
     http.HandleFunc("/command", commandHandler)
     http.HandleFunc("/imglast", findImageHandler)
-    http.HandleFunc("/txtlast", findImageInfoHandler)
+    http.HandleFunc("/txtlast", lib.FindImageInfoHandler)
     http.HandleFunc("/getnodes", getNodesHandler)
     http.HandleFunc("/getbwbytime", getBwByTimeHandler)
     http.HandleFunc("/healthcheck", healthCheckHandler)
+    http.HandleFunc("/dirview", dirViewHandler)
+
+    //ported from scion-viz
+    http.HandleFunc("/config", lib.ConfigHandler)
+    http.HandleFunc("/labels", lib.LabelsHandler)
+    http.HandleFunc("/locations", lib.LocationsHandler)
+    http.HandleFunc("/geolocate", lib.GeolocateHandler)
+    http.HandleFunc("/getpathtopo", lib.PathTopoHandler)
+    http.HandleFunc("/getastopo", lib.AsTopoHandler)
+    http.HandleFunc("/getcrt", lib.CrtHandler)
+    http.HandleFunc("/gettrc", lib.TrcHandler)
 
     log.Printf("Browser access at http://%s:%d.\n", browserAddr, *port)
     log.Printf("File browser root: %s\n", *root)
@@ -86,16 +112,25 @@ func main() {
     log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), nil))
 }
 
-var templates = template.Must(template.ParseFiles(
-    "template/index.html",
-    "template/header.html",
-    "template/footer.html",
-    "template/health.html",
-    "template/about.html"))
+func prepareTemplates(srcpath string) *template.Template {
+    return template.Must(template.ParseFiles(
+        path.Join(srcpath, "template/index.html"),
+        path.Join(srcpath, "template/header.html"),
+        path.Join(srcpath, "template/footer.html"),
+        path.Join(srcpath, "template/files.html"),
+        path.Join(srcpath, "template/error.html"),
+        path.Join(srcpath, "template/health.html"),
+        path.Join(srcpath, "template/about.html"),
+        path.Join(srcpath, "template/astopo.html"),
+        path.Join(srcpath, "template/crt.html"),
+        path.Join(srcpath, "template/trc.html"),
+    ))
+}
 
-type Page struct {
-    Title string
-    MyIA  string
+func serveExact(pattern string, filename string) {
+    http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+        http.ServeFile(w, r, filename)
+    })
 }
 
 func display(w http.ResponseWriter, tmpl string, data interface{}) {
@@ -103,7 +138,20 @@ func display(w http.ResponseWriter, tmpl string, data interface{}) {
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
+    if r.URL.Path != "/" {
+        errorHandler(w, r, http.StatusNotFound)
+        return
+    }
     display(w, "health", &Page{Title: "SCIONLab Health", MyIA: myIa})
+}
+
+func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
+    w.WriteHeader(status)
+    display(w, "error", &Page{Title: "SCIONLab Error", MyIA: myIa})
+}
+
+func dirViewHandler(w http.ResponseWriter, r *http.Request) {
+    display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: myIa})
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
@@ -114,6 +162,18 @@ func appsHandler(w http.ResponseWriter, r *http.Request) {
     display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: myIa})
 }
 
+func astopoHandler(w http.ResponseWriter, r *http.Request) {
+    display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: myIa})
+}
+
+func crtHandler(w http.ResponseWriter, r *http.Request) {
+    display(w, "crt", &Page{Title: "SCIONLab Cert", MyIA: myIa})
+}
+
+func trcHandler(w http.ResponseWriter, r *http.Request) {
+    display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: myIa})
+}
+
 func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem, string) {
     d := new(model.BwTestItem)
     d.SIa = r.PostFormValue("ia_ser")
@@ -122,7 +182,7 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem,
     d.CAddr = r.PostFormValue("addr_cli")
     d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
     d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
-    addl_opt := r.PostFormValue("addl_opt")
+    addlOpt := r.PostFormValue("addlOpt")
     if appSel == "bwtester" {
         d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
         d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
@@ -135,23 +195,34 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem,
         d.SCBandwidth = d.SCPackets * d.SCPktSize / d.SCDuration * 8
         d.SCDuration = d.SCDuration * 1000 // final storage in ms
     }
-    return d, addl_opt
+    return d, addlOpt
 }
 
-func parseBwTest2Cmd(d *model.BwTestItem, appSel string) []string {
-    optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
-    optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
+func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathNum string) []string {
+    var command []string
     binname := getClientLocationBin(appSel)
-    command := []string{binname, optServer, optClient}
-    if appSel == "bwtester" {
-        bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
-            d.CSPackets, d.CSBandwidth)
-        bwSC := fmt.Sprintf("-sc=%d,%d,%d,%dbps", d.SCDuration/1000, d.SCPktSize,
-            d.SCPackets, d.SCBandwidth)
-        command = append(command, []string{bwCS, bwSC}...)
+    switch appSel {
+    case "bwtester", "camerapp", "sensorapp":
+        optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
+        optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
+        log.Printf("optServer %s", optServer)
+        command = append(command, binname, optServer, optClient)
+        if appSel == "bwtester" {
+            bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
+                d.CSPackets, d.CSBandwidth)
+            bwSC := fmt.Sprintf("-sc=%d,%d,%d,%dbps", d.SCDuration/1000, d.SCPktSize,
+                d.SCPackets, d.SCBandwidth)
+            command = append(command, bwCS, bwSC)
+            if len(pathNum) != 0 {
+                // if path choice provided, use interactive mode
+                command = append(command, "-i")
+            }
+        }
     }
-    if len(lib.GetLocalIa()) == 0 {
-        command = append(command, []string{"-sciondFromIA"}...)
+    isdCli, _ := strconv.Atoi(strings.Split(d.CIa, "-")[0])
+    if isdCli < 16 {
+        // -sciondFromIA is better for localhost testing, with test isds
+        command = append(command, "-sciondFromIA")
     }
     return command
 }
@@ -163,9 +234,14 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
     appSel := r.PostFormValue("apps")
     continuous, _ := strconv.ParseBool(r.PostFormValue("continuous"))
     interval, _ := strconv.Atoi(r.PostFormValue("interval"))
+    segNum := r.PostFormValue("segNum")
+    segType := r.PostFormValue("segType")
     if appSel == "" {
         fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
         return
+    }
+    if segType == "PATH" {
+        bwPathNum = segNum
     }
     if continuous || bwActive {
         // continuous run
@@ -188,19 +264,34 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
         }
     } else {
         // single run
-        d, addl_opt := parseRequest2BwtestItem(r, appSel)
-        command := parseBwTest2Cmd(d, appSel)
-        command = append(command, addl_opt)
+        d, addlOpt := parseRequest2BwtestItem(r, appSel)
+        command := parseBwTest2Cmd(d, appSel, bwPathNum)
+        command = append(command, addlOpt)
 
         // execute scion go client app with client/server commands
         log.Printf("Executing: %s\n", strings.Join(command, " "))
         cmd := exec.Command(command[0], command[1:]...)
 
+        stdin, err := cmd.StdinPipe()
+        if err != nil {
+            fmt.Println(err)
+        }
+
         pipeReader, pipeWriter := io.Pipe()
         cmd.Stdout = pipeWriter
         cmd.Stderr = pipeWriter
+
         go writeCmdOutput(w, pipeReader, d, appSel)
-        cmd.Run()
+
+        if err = cmd.Start(); err != nil {
+            fmt.Println(err)
+        }
+
+        in := []byte(bwPathNum + "\n")
+        fmt.Println("Writing: " + string(in))
+        stdin.Write(in)
+        cmd.Wait()
+
         pipeWriter.Close()
     }
 }
@@ -220,12 +311,18 @@ func continuousBwTest() {
         r := bwRequest
         r.ParseForm()
         appSel := r.PostFormValue("apps")
-        d, addl_opt := parseRequest2BwtestItem(r, appSel)
-        command := parseBwTest2Cmd(d, appSel)
-        command = append(command, addl_opt)
+        d, addlOpt := parseRequest2BwtestItem(r, appSel)
+        command := parseBwTest2Cmd(d, appSel, bwPathNum)
+        command = append(command, addlOpt)
 
+        // execute scion go client app with client/server commands
         log.Printf("Executing: %s\n", strings.Join(command, " "))
         cmd := exec.Command(command[0], command[1:]...)
+
+        stdin, err := cmd.StdinPipe()
+        if err != nil {
+            fmt.Println(err)
+        }
 
         pipeReader, pipeWriter := io.Pipe()
         cmd.Stdout = pipeWriter
@@ -233,7 +330,16 @@ func continuousBwTest() {
 
         go writeCmdOutput(nil, pipeReader, d, appSel)
         start := time.Now()
-        cmd.Run()
+
+        if err = cmd.Start(); err != nil {
+            fmt.Println(err)
+        }
+
+        in := []byte(bwPathNum + "\n")
+        fmt.Println("Writing: " + string(in))
+        stdin.Write(in)
+        cmd.Wait()
+
         pipeWriter.Close()
         // block on cmd output finish
         <-bwChanDone
@@ -276,6 +382,10 @@ func getClientLocationBin(app string) string {
         binname = "imagefetcher"
     case "bwtester":
         binname = "bwtestclient"
+    case "echo", "traceroute":
+        binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/scmp")
+    case "pingpong":
+        binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/pingpong")
     }
     return binname
 }
@@ -318,6 +428,7 @@ func writeCmdOutput(w http.ResponseWriter, pr *io.PipeReader, d *model.BwTestIte
             break
         }
         output := buf[0:n]
+        fmt.Println(string(output))
         jsonBuf = append(jsonBuf, output...)
         // http write response
         if w != nil {
@@ -353,11 +464,6 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
     lib.GetBwByTimeHandler(w, r, bwActive, srcpath)
-}
-
-// Handles locating most recent image and writing text info data about it.
-func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {
-    lib.FindImageInfoHandler(w, r)
 }
 
 // Handles locating most recent image formatting it for graphic display in response.

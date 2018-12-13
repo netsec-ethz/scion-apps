@@ -4,7 +4,6 @@ import (
     "encoding/csv"
     "encoding/json"
     "fmt"
-    model "github.com/netsec-ethz/scion-apps/webapp/models"
     "io"
     "log"
     "net/http"
@@ -14,6 +13,8 @@ import (
     "strconv"
     "strings"
     "time"
+
+    model "github.com/netsec-ethz/scion-apps/webapp/models"
 )
 
 var logBufLen = 1024

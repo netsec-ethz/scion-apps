@@ -9,6 +9,7 @@ import (
     "net/http"
     "os/exec"
     "path"
+    "path/filepath"
     "strconv"
     "strings"
 )
@@ -40,7 +41,8 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
         pass := true
         fmt.Println(tests.Tests[i].Script + ": " + tests.Tests[i].Desc)
         // execute script
-        cmd := exec.Command("bash", "./tests/health/"+tests.Tests[i].Script)
+        cmd := exec.Command("bash", tests.Tests[i].Script)
+        cmd.Dir = filepath.Dir(fp)
         var stdout, stderr bytes.Buffer
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr

@@ -1,0 +1,22 @@
+{{define "dirview"}} {{template "header" .}}
+
+<div class="content">
+
+ <script type="text/javascript">
+        //TODO: needs rework to supply url within page frame
+        $.ajax({
+            url : 'files',
+            type : 'get',
+            success : function(data, textStatus, jqXHR) {
+                console.info(JSON.stringify(data));
+                $(".content").append(data);
+            },
+            error : function(jqXHR, textStatus, errorThrown) {
+                console.error(textStatus, errorThrown)
+            },
+        });
+    </script>
+
+</div>
+
+{{template "footer" .}} {{end}}

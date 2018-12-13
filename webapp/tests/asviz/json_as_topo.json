@@ -1,0 +1,99 @@
+{
+ "nodes": [
+  {
+   "mtu": 1472,
+   "group": 0,
+   "is_core_as": false,
+   "name": "1-ff00:0:112",
+   "type": "root",
+   "icon": "ISD-AS"
+  },
+  {
+   "group": 6,
+   "addr": "[127.0.0.1]:2181",
+   "icon": "ZOOKEEPER",
+   "name": "zk-1",
+   "type": "server"
+  },
+  {
+   "group": 3,
+   "icon": "CERTIFICATE",
+   "name": "cs1-ff00_0_112-1",
+   "type": "server",
+   "addr": "127.0.0.27",
+   "port": 30050
+  },
+  {
+   "group": 4,
+   "icon": "PATH",
+   "name": "ps1-ff00_0_112-1",
+   "type": "server",
+   "addr": "127.0.0.28",
+   "port": 30092
+  },
+  {
+   "group": 1,
+   "icon": "BORDER",
+   "name": "br1-ff00_0_112-1",
+   "type": "router",
+   "if_id": 66,
+   "addr": "127.0.0.25",
+   "port": 30095
+  },
+  {
+   "public port": 50000,
+   "group": 0,
+   "public addr": "127.0.0.7",
+   "remote port": 50000,
+   "type": "interface",
+   "remote addr": "127.0.0.6",
+   "icon": "ISD_AS",
+   "mtu": 1472,
+   "overlay": "UDP/IPv4",
+   "to_if_id": 0,
+   "name": "1-ff00:0:110",
+   "bandwidth": 500,
+   "link_type": "parent"
+  },
+  {
+   "group": 2,
+   "icon": "BEACON",
+   "name": "bs1-ff00_0_112-1",
+   "type": "server",
+   "addr": "127.0.0.26",
+   "port": 30095
+  }
+ ],
+ "links": [
+  {
+   "source": "1-ff00:0:112",
+   "target": "zk-1",
+   "type": "as-in"
+  },
+  {
+   "source": "1-ff00:0:112",
+   "target": "cs1-ff00_0_112-1",
+   "type": "as-in"
+  },
+  {
+   "source": "1-ff00:0:112",
+   "target": "ps1-ff00_0_112-1",
+   "type": "as-in"
+  },
+  {
+   "source": "1-ff00:0:112",
+   "target": "br1-ff00_0_112-1",
+   "type": "as-in"
+  },
+  {
+   "source": "br1-ff00_0_112-1",
+   "target": "1-ff00:0:110",
+   "type": "as-parent"
+  },
+  {
+   "source": "1-ff00:0:112",
+   "target": "bs1-ff00_0_112-1",
+   "type": "as-in"
+  }
+ ]
+}

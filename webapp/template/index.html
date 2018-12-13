@@ -1,29 +1,45 @@
 {{define "apps"}} {{template "header" .}}
 
+<script type="text/javascript" src="static/js/jquery.knob.min.js"></script>
+<script type="text/javascript" src="static/js/cola.v3.min.js"></script>
+<script type="text/javascript" src="static/js/d3.v3.min.js"></script>
+<script type="text/javascript" src="static/js/topojson.min.js"></script>
+<script type="text/javascript" src="static/js/highcharts.js"></script>
+<script type="text/javascript" src="static/js/topology.js"></script>
+<script type="text/javascript" src="static/js/tab-topocola.js"></script>
+<script type="text/javascript" src="static/js/location.js"></script>
+<script type="text/javascript" src="static/js/tab-g-maps.js"></script>
+<script type="text/javascript" src="static/js/asviz.js"></script>
+<script type="text/javascript" src="static/js/tab-paths.js"></script>
+<script type="text/javascript" src="static/js/webapp.js"></script>
+
 <div class="content">
 
  <h2>SCIONLab Apps</h2>
 
- <div id="webapp">
+ <div id='webapp'>
+
+  <div id='as-error'></div>
 
   <form action="/command" method="post" id="command-form"
    onreset="setDefaults();" onsubmit="return command(false);">
-   <div class="row">
+
+   <div id="row-apps" class="row">
     <div id="col-left" class="column-ia">
 
      <!-- SCION CLIENT CONTENT -->
-     <div class="title-ia">Client</div>
      <div id="svg-client">
       <svg class="svg-ia" width="200px" height="300px">
-       <circle cx="100" cy="150" r="98" />
+       <circle cx="100" cy="100" r="98" />
      </svg>
      </div>
      <div id="in-client" class="scion-ia">
-      <select name="sel_cli" id="sel_cli" style="width: 120px;"></select><br>IA:
-      <input type="text" name="ia_cli" id="ia_cli" required
-       placeholder="1-11" pattern="^[0-9]+-[0-9a-fA-F_:\/]+$"
-       style="width: 120px;"><br>Host: <input type="text"
-       name="addr_cli" id="addr_cli" required placeholder="127.0.0.3"
+      <span>Source</span><br> <select name="sel_cli" id="sel_cli"
+       style="width: 120px;"></select><br>IA: <input type="text"
+       name="ia_cli" id="ia_cli" required placeholder="1-11"
+       pattern="^[0-9]+-[0-9a-fA-F_:\/]+$" style="width: 120px;"><br>Host:
+      <input type="text" name="addr_cli" id="addr_cli" required
+       placeholder="127.0.0.3"
        pattern="((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){4}$"
        style="width: 125px;"><br>Port: <input
        name="port_cli" id="port_cli" type="number" required
@@ -46,20 +62,29 @@
         </defs>
      </svg>
 
-     <!-- APP DEFINITIONS -->
+     <!-- APPS TABS DEFINITIONS -->
      <ul class="nav nav-tabs">
       <li class="active"><a data-toggle="tab" name="bwtester"
        href="#bwtester">bwtester</a></li>
       <li><a data-toggle="tab" name="camerapp" href="#camerapp">camerapp</a></li>
       <li><a data-toggle="tab" name="sensorapp" href="#sensorapp">sensorapp</a></li>
      </ul>
-
-     <div class="tab-content">
+     <div id="tab-content-apps" class="tab-content">
 
       <!-- BANDWIDTH TEST APP CONTENT -->
       <div id="bwtester" class="tab-pane fade in active">
 
-       <div id="bwtest_text"></div>
+       <span id="bwtest_text"></span> Interval: <input
+        name="bwtest_sec" id="bwtest_sec" type="number"
+        style="width: 45px;" min="3" max="11" value="4"> sec.
+
+       <!-- <span id="bwgraphs_text"></span> -->
+
+       Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_opt" name="addl_opt"
+        style="width: 200px;"> </span>
+
 
        <div id="bwtest-cs" class="bwtest-control">
 
@@ -120,6 +145,7 @@
 
        </div>
        <!-- CS END -->
+
 
        <div id="bwtest-sc" class="bwtest-control">
 
@@ -188,12 +214,16 @@
 
        <div id="svg-sc" class="bwtest-svg">
         <svg class="svg-dials" viewBox="0 0 300 150">
-        <line x1="290" y1="90" x2="21" y2="90" stroke-width="70"
+        <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
           marker-end="url(#sc-arrowhead)" />
         </svg>
        </div>
 
        <div id="image_text"></div>
+       Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_optca" name="addl_optca"
+        style="width: 200px;"> </span>
        <div id="images"></div>
 
       </div>
@@ -203,12 +233,17 @@
 
        <div id="svg-sc" class="bwtest-svg">
         <svg class="svg-dials" viewBox="0 0 300 150">
-        <line x1="290" y1="90" x2="21" y2="90" stroke-width="70"
+        <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
           marker-end="url(#sc-arrowhead)" />
         </svg>
        </div>
 
        <div id="stats_text"></div>
+       Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_optsa" name="addl_optsa"
+        style="width: 200px;"> </span>
+
       </div>
 
      </div>
@@ -217,15 +252,15 @@
     <div id="col-right" class="column-ia">
 
      <!-- SCION SERVER CONTENT -->
-     <div class="title-ia">Server</div>
      <div id="svg-server" class="svg-ia">
       <svg class="svg-ia" width="200px" height="300px">
-       <circle cx="100" cy="150" r="98" />
+       <circle cx="100" cy="100" r="98" />
      </svg>
      </div>
      <div id="in-server" class="scion-ia">
-      <select name="sel_ser" id="sel_ser" style="width: 120px;"></select><br>IA:
-      <input type="text" name="ia_ser" id="ia_ser" required
+      <span>Destination</span><br> <select name="sel_ser"
+       id="sel_ser" style="width: 120px;"></select><br>IA: <input
+       type="text" name="ia_ser" id="ia_ser" required
        placeholder="1-12" pattern="^[0-9]+-[0-9a-fA-F_:\/]+$"
        style="width: 120px;"> <br>Host: <input
        type="text" name="addr_ser" id="addr_ser" required
@@ -236,66 +271,127 @@
        placeholder=30002 style="width: 75px;" min="1">
      </div>
     </div>
-
    </div>
 
-   <!-- COMMAND OPTIONS -->
-   <div id="cmd_config">
-    <input type="submit" id="button_cmd" value="Execute Test" /> <input
-     type="reset" id="button_reset" value="Reset Fields">
-    Additional Argument: <span
-     tooltip="Use the equal sign, '=', between argument and parameter."><input
-     type="text" id="addl_opt" name="addl_opt" style="width: 200px;">
-    </span>
+   <div id="row-paths">
+
+    <!-- PATHS TABS DEFINITIONS -->
+    <ul class="nav nav-tabs">
+     <li class="active"><a data-toggle="tab" name="as-graphs"
+      href="#as-graphs">Execute</a></li>
+     <li><a data-toggle="tab" name="as-tab-pathtopo"
+      href="#as-tab-pathtopo">Paths</a></li>
+    </ul>
+    <div id="tab-content-paths" class="tab-content">
+
+     <div id="as-graphs" class="tab-pane fade in active">
+
+      <!-- COMMAND OPTIONS -->
+      <div id="cmd_config">
+       <input type="submit" id="button_cmd" value="Run Once" />
+
+       <div class="pretty p-switch p-fill">
+        <input id="switch_cont" type="checkbox" />
+        <div class="state p-success">
+         <label>Run Continuous</label>
+        </div>
+       </div>
+
+       <div class="pretty p-switch">
+        <input id="switch_utc" type="checkbox" checked />
+        <div class="state">
+         <label>UTC</label>
+        </div>
+       </div>
+
+      </div>
+
+      <div id="webapp-console-graph">
+
+       <!-- BWTEST GRAPHING -->
+       <div id="bwtest-continuous">
+        <div id="cs-bwtest-graph" class="chart"></div>
+        <div id="sc-bwtest-graph" class="chart"></div>
+       </div>
+
+       <!-- COMMAND OUTPUT -->
+       <!--      <div class="stdout" style="display: none;">-->
+       <div class="stdout">
+        <div id="results"></div>
+       </div>
+
+      </div>
+
+     </div>
+
+     <div id="as-tab-pathtopo" class="tab-pane fade in">
+
+      <div id="as-pathgraphs" style="position: relative;">
+
+       <div id="as-pathopt">
+        <div>
+         <div id="div_as_names" class="pretty p-switch">
+          <input id="switch_as_names" type="checkbox" />
+          <div class="state">
+           <label>AS Names</label>
+          </div>
+         </div>
+         <div id="div_as_numbers" class="pretty p-switch">
+          <input id="switch_as_numbers" type="checkbox" />
+          <div class="state">
+           <label>AS Numbers</label>
+          </div>
+         </div>
+         <div class="pretty p-switch">
+          <input id="radio_pathTopo" type="radio" name="radioPaths"
+           checked="checked">
+          <div class="state">
+           <label>Topology</label>
+          </div>
+         </div>
+         <div class="pretty p-switch">
+          <input id="radio_pathMap" type="radio" name="radioPaths">
+          <div class="state">
+           <label>Map</label>
+          </div>
+         </div>
+        </div>
+       </div>
+       <div id="as-pathtopo"></div>
+
+      </div>
+
+     </div>
+
+    </div>
+
+    <div id="as-iflist">
+     <h2>Selected Path Interfaces</h2>
+     <input type="button" value="Update Paths"
+      onclick="requestPaths();" />
+     <p>
+     <p id="path-info"></p>
+    </div>
    </div>
 
   </form>
-
-  <!-- BWTEST GRAPHING -->
-  <div id="bwtest-graphs">
-   <p>
-   <div class="pretty p-switch p-fill">
-    <input id="switch_cont" type="checkbox" />
-    <div class="state p-success">
-     <label>Continuous Bandwidth Test</label>
-    </div>
-   </div>
-   Interval: <input name="bwtest_sec" id="bwtest_sec" type="number"
-    placeholder="10 sec" style="width: 75px;" min="3" max="11"
-    value="4"> seconds.
-   <div class="pretty p-switch">
-    <input id="switch_utc" type="checkbox" checked />
-    <div class="state">
-     <label>UTC</label>
-    </div>
-   </div>
-   <!--   Export:<input id="bwtest-file" type="file" webkitdirectory directory /> -->
-   <span id="bwgraphs_text"></span>
-   <p>
-   <div id="bwtest-continuous">
-    <div id="cs-bwtest-graph" class="chart"></div>
-    <div id="sc-bwtest-graph" class="chart"></div>
-   </div>
-
-  </div>
-
-  <!-- COMMAND OUTPUT -->
-  <div class="stdout">
-   <div id="results"></div>
-  </div>
-
 
  </div>
 
 </div>
 
-<link rel="stylesheet" type="text/css"
- href="static/css/pretty-checkbox.min.css" />
-<link rel="stylesheet" type="text/css" href="static/css/animation.css" />
-<link rel="stylesheet" type="text/css" href="static/css/style.css" />
-<script type="text/javascript" src="static/js/jquery.knob.min.js"></script>
-<script type="text/javascript" src="static/js/d3.v3.min.js"></script>
-<script type="text/javascript" src="static/js/highcharts.js"></script>
-<script type="text/javascript" src="static/js/webapp.js"></script>
+<script type="text/javascript">
+    $(document).ready(function() {
+        // nodes setup
+        initNodes();
+        // dials setup
+        initDials('cs');
+        initDials('sc');
+        $('.dial').trigger('configure', dial_prop_all);
+        initBwGraphs();
+
+        setDefaults();
+    });
+</script>
 
 {{template "footer" .}} {{end}}

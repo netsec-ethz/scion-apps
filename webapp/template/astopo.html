@@ -1,0 +1,57 @@
+{{define "astopo"}} {{template "header" .}}
+
+<script type="text/javascript" src="static/js/cola.v3.min.js"></script>
+<script type="text/javascript" src="static/js/d3.v3.min.js"></script>
+<script type="text/javascript" src="static/js/topojson.min.js"></script>
+<script type="text/javascript" src="static/js/asviz.js"></script>
+
+<div class="content">
+
+ <div id='as-error'></div>
+
+ <div id="as-tab-astopo">
+  <div id="as-astopo"></div>
+  <div id="as-svclist">
+   <h2>AS {{.MyIA}} Topology Services</h2>
+   <p id="as-selection"></p>
+   <table id='service_table'>
+    <thead>
+     <tr>
+      <th id='key'></th>
+      <th id='value'></th>
+     </tr>
+    </thead>
+    <tbody>
+    </tbody>
+   </table>
+  </div>
+ </div>
+
+</div>
+
+<script type="text/javascript">
+    $.ajax({
+        url : 'getastopo',
+        type : 'post',
+        dataType : "json",
+        data : {
+            "src" : "{{.MyIA}}"
+        },
+        success : function(data, textStatus, jqXHR) {
+            console.info(JSON.stringify(data));
+            showError(data.err);
+
+            var json_as_topo = get_json_as_topo(data);
+            // add AS topology layout
+            var width = $("#as-astopo").width();
+            var height = $("#as-astopo").height();
+            drawAsTopo("as-astopo", json_as_topo, width, height);
+            $("#as-selection").html("Click on a service");
+        },
+        error : function(jqXHR, textStatus, errorThrown) {
+            showError(this.url + ' ' + textStatus + ': ' + errorThrown);
+        },
+    });
+</script>
+
+{{template "footer" .}} {{end}}

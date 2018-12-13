@@ -1,6 +1,6 @@
 # scion-apps
 
-This repo contains demo applications using the SCION protocol. 
+This repo contains demo applications using the SCION protocol.
 
 The applications are written in Go, with some supporting code in Python. A SCION Internet connection (for instance via SCIONLab) is required to run these applications.
 
@@ -33,6 +33,13 @@ Installation and usage information is available on the [SCION Tutorials web page
 ## roughtime
 
 Implementation of server and client applications, running the "roughtime" protocol over the SCION network. Roughtime is a project that aims to provide secure time synchronisation. More information on the project can be found on the [original repository](https://roughtime.googlesource.com/roughtime)
+
+
+## webapp
+
+Webapp is a Go application that will serve up a static web portal to make it easy to experiment with SCIONLab test apps on a virtual machine.
+
+Installation and usage information is available on the [SCION Tutorials web page for webapp](https://netsec-ethz.github.io/scion-tutorials/as_visualization/webapp/).
 
 
 ## helloworld

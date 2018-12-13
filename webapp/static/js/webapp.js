@@ -5,6 +5,7 @@
 // https://github.com/lokesh-coder/pretty-checkbox
 // https://github.com/iconic/open-iconic
 // https://code.highcharts.com
+// https://github.com/dezento/bootstrap-dynamic-menu
 
 var commandProg;
 var intervalGraphTick;
@@ -59,22 +60,6 @@ var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
 
-$(document).ready(function() {
-    $.ajaxSetup({
-        cache : false,
-        timeout : 30000,
-    });
-    // nodes setup
-    initNodes();
-    // dials setup
-    initDials('cs');
-    initDials('sc');
-    $('.dial').trigger('configure', dial_prop_all);
-    initBwGraphs();
-
-    setDefaults();
-});
-
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
     var checked = $('#switch_cont').prop('checked');
@@ -122,11 +107,26 @@ function initBwGraphs() {
     manageTestData();
 }
 
+function showOnlyConsoleGraphs(activeApp) {
+    $('#bwtest-continuous').css("display",
+            (activeApp == "bwtester") ? "block" : "none");
+    var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
+            || activeApp == "sensorapp" || activeApp == "echo"
+            || activeApp == "traceroute" || activeApp == "pingpong");
+    $('.stdout').css("display", isConsole ? "block" : "none");
+    $('#traceroute-continuous').css("display",
+            (activeApp == "traceroute") ? "block" : "none");
+    $('#echo-continuous').css("display",
+            (activeApp == "echo") ? "block" : "none");
+    $('#pingpong-continuous').css("display",
+            (activeApp == "pingpong") ? "block" : "none");
+}
+
 function handleSwitchTabs() {
     var activeApp = $('.nav-tabs .active > a').attr('name');
     var isBwtest = (activeApp == "bwtester");
     // show/hide graphs for bwtester
-    $('#bwtest-graphs').css("display", isBwtest ? "block" : "none");
+    showOnlyConsoleGraphs(activeApp);
     var checked = $('#switch_cont').prop('checked');
     if (checked && !isBwtest) {
         $("#switch_cont").prop('checked', false);
@@ -428,6 +428,12 @@ function command(continuous) {
         }, {
             name : "interval",
             value : getIntervalMax()
+        }, {
+            name : "segType",
+            value : self.segType
+        }, {
+            name : "segNum",
+            value : self.segNum
         });
     }
     if (activeApp == "camerapp") {
@@ -579,6 +585,8 @@ function initNodes() {
     });
     $('#sel_ser').change(function() {
         updateNode('ser');
+        // server node change complete, update paths
+        requestPaths();
     });
 }
 
@@ -605,6 +613,9 @@ function loadNodes(node, list) {
         if (node == 'cli') {
             // after client selection, update server options
             loadServerNodes();
+        } else {
+            // server node change complete, update paths
+            requestPaths();
         }
     });
 }
@@ -765,7 +776,7 @@ function onchange(dir, name, v) {
     }
 }
 
-function update(dir, name, val, min, max) {
+function update_dial(dir, name, val, min, max) {
     var valid = (val <= max && val >= min);
     if (valid) {
         setTimeout(function() {
@@ -919,22 +930,22 @@ function onchange_bw(dir, v, min, max, lock) {
 
 function update_sec(dir) {
     var val = parseInt(get_sec(dir) / 1000000);
-    return update(dir, 'sec', val, secMin, secMax);
+    return update_dial(dir, 'sec', val, secMin, secMax);
 }
 
 function update_size(dir) {
     var val = parseInt(get_size(dir) * 1000000);
-    return update(dir, 'size', val, sizeMin, sizeMax);
+    return update_dial(dir, 'size', val, sizeMin, sizeMax);
 }
 
 function update_pkt(dir) {
     var val = parseInt(get_pkt(dir) * 1000000);
-    return update(dir, 'pkt', val, pktMin, pktMax);
+    return update_dial(dir, 'pkt', val, pktMin, pktMax);
 }
 
 function update_bw(dir) {
     var val = parseFloat(get_bw(dir) / 1000000);
-    return update(dir, 'bw', val, bwMin, bwMax);
+    return update_dial(dir, 'bw', val, bwMin, bwMax);
 }
 
 function get_sec(dir) {
