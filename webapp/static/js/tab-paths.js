@@ -58,6 +58,7 @@ function ajaxConfig() {
         type : 'get',
         dataType : "json",
         data : g,
+        timeout : 30000,
         success : isConfigComplete,
         error : function(jqXHR, textStatus, errorThrown) {
             showError(this.url + ' ' + textStatus + ': ' + errorThrown);
@@ -71,6 +72,7 @@ function ajaxLabels(data) {
         type : 'get',
         dataType : "json",
         data : data,
+        timeout : 10000,
         error : function(jqXHR, textStatus, errorThrown) {
             showError(this.url + ' ' + textStatus + ': ' + errorThrown);
         },
@@ -83,6 +85,7 @@ function ajaxLocations(data) {
         type : 'get',
         dataType : "xml",
         data : data,
+        timeout : 10000,
         error : function(jqXHR, textStatus, errorThrown) {
             showError(this.url + ' ' + textStatus + ': ' + errorThrown);
         },
@@ -95,6 +98,7 @@ function ajaxGeoLocate(data) {
         type : 'get',
         dataType : "json",
         data : data,
+        timeout : 15000,
         success : isGeolocateComplete,
         error : function(jqXHR, textStatus, errorThrown) {
             showError(this.url + ' ' + textStatus + ': ' + errorThrown);
@@ -274,7 +278,15 @@ function handleMapTopologySwitch(topologyUpdate) {
     var topoMap = $('#radio_pathMap').prop('checked');
     console.log("map checked", topoMap);
     if (topologyUpdate) {
-        $("#as-pathtopo").children("svg").remove();
+        // for new topology, reset each view
+        if ($("#as-pathtopo").children("svg").length != 0) {
+            // topo svg should redraw from scratch
+            $("#as-pathtopo").children("svg").remove();
+        }
+        if ($("#as-pathtopo").children("iframe").length != 0) {
+            // map should reuse its previous canvas to prevent reloads
+            drawMap(g.src, g.dst, iaGeoLoc);
+        }
     }
     if (topoMap) {
         $("#as-pathtopo").children("svg").hide();
@@ -285,9 +297,6 @@ function handleMapTopologySwitch(topologyUpdate) {
             drawMap(g.src, g.dst, iaGeoLoc);
         } else {
             $("#as-pathtopo").children("iframe").show();
-            if (topologyUpdate) {
-                drawMap(g.src, g.dst, iaGeoLoc);
-            }
             handleAsLabelSwitch();
         }
     } else {

@@ -3,6 +3,7 @@
 package main
 
 import (
+    "bufio"
     "flag"
     "fmt"
     "html/template"
@@ -13,6 +14,7 @@ import (
     "os"
     "os/exec"
     "path"
+    "regexp"
     "runtime"
     "strconv"
     "strings"
@@ -38,7 +40,6 @@ var maxContTimeout = time.Duration(10) * time.Minute
 var bwRequest *http.Request
 var bwActive bool
 var bwInterval int
-var bwPathNum string
 var bwTimeKeepAlive time.Time
 var bwChanDone = make(chan bool)
 
@@ -59,7 +60,7 @@ func main() {
     dbpath := path.Join(srcpath, "webapp.db")
     model.InitDB(dbpath)
     defer model.CloseDB()
-    model.CreateBwTestTable()
+    model.LoadBwTestTable()
     go model.MaintainDatabase()
     dataDirPath := path.Join(srcpath, "data")
     if _, err := os.Stat(dataDirPath); os.IsNotExist(err) {
@@ -198,7 +199,7 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem,
     return d, addlOpt
 }
 
-func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathNum string) []string {
+func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []string {
     var command []string
     binname := getClientLocationBin(appSel)
     switch appSel {
@@ -213,7 +214,7 @@ func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathNum string) []strin
             bwSC := fmt.Sprintf("-sc=%d,%d,%d,%dbps", d.SCDuration/1000, d.SCPktSize,
                 d.SCPackets, d.SCBandwidth)
             command = append(command, bwCS, bwSC)
-            if len(pathNum) != 0 {
+            if len(pathStr) > 0 {
                 // if path choice provided, use interactive mode
                 command = append(command, "-i")
             }
@@ -234,14 +235,9 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
     appSel := r.PostFormValue("apps")
     continuous, _ := strconv.ParseBool(r.PostFormValue("continuous"))
     interval, _ := strconv.Atoi(r.PostFormValue("interval"))
-    segNum := r.PostFormValue("segNum")
-    segType := r.PostFormValue("segType")
     if appSel == "" {
         fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
         return
-    }
-    if segType == "PATH" {
-        bwPathNum = segNum
     }
     if continuous || bwActive {
         // continuous run
@@ -264,35 +260,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
         }
     } else {
         // single run
-        d, addlOpt := parseRequest2BwtestItem(r, appSel)
-        command := parseBwTest2Cmd(d, appSel, bwPathNum)
-        command = append(command, addlOpt)
-
-        // execute scion go client app with client/server commands
-        log.Printf("Executing: %s\n", strings.Join(command, " "))
-        cmd := exec.Command(command[0], command[1:]...)
-
-        stdin, err := cmd.StdinPipe()
-        if err != nil {
-            fmt.Println(err)
-        }
-
-        pipeReader, pipeWriter := io.Pipe()
-        cmd.Stdout = pipeWriter
-        cmd.Stderr = pipeWriter
-
-        go writeCmdOutput(w, pipeReader, d, appSel)
-
-        if err = cmd.Start(); err != nil {
-            fmt.Println(err)
-        }
-
-        in := []byte(bwPathNum + "\n")
-        fmt.Println("Writing: " + string(in))
-        stdin.Write(in)
-        cmd.Wait()
-
-        pipeWriter.Close()
+        executeCommand(w, r)
     }
 }
 
@@ -309,38 +277,9 @@ func continuousBwTest() {
             break
         }
         r := bwRequest
-        r.ParseForm()
-        appSel := r.PostFormValue("apps")
-        d, addlOpt := parseRequest2BwtestItem(r, appSel)
-        command := parseBwTest2Cmd(d, appSel, bwPathNum)
-        command = append(command, addlOpt)
-
-        // execute scion go client app with client/server commands
-        log.Printf("Executing: %s\n", strings.Join(command, " "))
-        cmd := exec.Command(command[0], command[1:]...)
-
-        stdin, err := cmd.StdinPipe()
-        if err != nil {
-            fmt.Println(err)
-        }
-
-        pipeReader, pipeWriter := io.Pipe()
-        cmd.Stdout = pipeWriter
-        cmd.Stderr = pipeWriter
-
-        go writeCmdOutput(nil, pipeReader, d, appSel)
         start := time.Now()
+        executeCommand(nil, r)
 
-        if err = cmd.Start(); err != nil {
-            fmt.Println(err)
-        }
-
-        in := []byte(bwPathNum + "\n")
-        fmt.Println("Writing: " + string(in))
-        stdin.Write(in)
-        cmd.Wait()
-
-        pipeWriter.Close()
         // block on cmd output finish
         <-bwChanDone
         end := time.Now()
@@ -355,6 +294,39 @@ func continuousBwTest() {
             "ms, sleeping for remaining interval:", remaining.Nanoseconds()/1e6, "ms")
         time.Sleep(remaining)
     }
+}
+
+func executeCommand(w http.ResponseWriter, r *http.Request) {
+    r.ParseForm()
+    appSel := r.PostFormValue("apps")
+    pathStr := r.PostFormValue("pathStr")
+    d, addlOpt := parseRequest2BwtestItem(r, appSel)
+    command := parseBwTest2Cmd(d, appSel, pathStr)
+    command = append(command, addlOpt)
+
+    // execute scion go client app with client/server commands
+    log.Printf("Executing: %s\n", strings.Join(command, " "))
+    cmd := exec.Command(command[0], command[1:]...)
+
+    fmt.Println("Chosen Path: " + pathStr)
+
+    cmd.Stderr = os.Stderr
+    stdin, err := cmd.StdinPipe()
+    if nil != err {
+        log.Fatalf("Error obtaining stdin: %s", err.Error())
+    }
+    stdout, err := cmd.StdoutPipe()
+    if nil != err {
+        log.Fatalf("Error obtaining stdout: %s", err.Error())
+    }
+    reader := bufio.NewReader(stdout)
+
+    err = cmd.Start()
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Failed to start err=%v", err)
+    }
+    go writeCmdOutput(w, reader, stdin, d, appSel, pathStr)
+    cmd.Wait()
 }
 
 func appsBuildCheck(app string) {
@@ -382,10 +354,6 @@ func getClientLocationBin(app string) string {
         binname = "imagefetcher"
     case "bwtester":
         binname = "bwtestclient"
-    case "echo", "traceroute":
-        binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/scmp")
-    case "pingpong":
-        binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/pingpong")
     }
     return binname
 }
@@ -406,7 +374,14 @@ func getClientLocationSrc(app string) string {
 }
 
 // Handles piping command line output to logs, database, and http response writer.
-func writeCmdOutput(w http.ResponseWriter, pr *io.PipeReader, d *model.BwTestItem, appSel string) {
+func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteCloser, d *model.BwTestItem, appSel string, pathStr string) {
+    // regex to find matching path in interactive mode
+    rePathStr := `\[(.*?)\].*` + regexp.QuoteMeta(pathStr)
+    interactive := len(pathStr) > 0
+    if interactive {
+        fmt.Println("Searching: " + rePathStr)
+    }
+
     start := time.Now()
     logpath := path.Join(srcpath, "webapp.log")
     file, err := os.Create(logpath)
@@ -420,27 +395,34 @@ func writeCmdOutput(w http.ResponseWriter, pr *io.PipeReader, d *model.BwTestIte
     }()
 
     jsonBuf := []byte(``)
-    buf := make([]byte, cmdBufLen)
-    for {
-        n, err := pr.Read(buf)
-        if err != nil {
-            pr.Close()
-            break
-        }
-        output := buf[0:n]
-        fmt.Println(string(output))
-        jsonBuf = append(jsonBuf, output...)
+
+    scanner := bufio.NewScanner(reader)
+    for scanner.Scan() {
+        // read each line from stdout
+        line := scanner.Text()
+        fmt.Println(line)
+
+        jsonBuf = append(jsonBuf, []byte(line+"\n")...)
         // http write response
         if w != nil {
-            w.Write(output)
-            if f, ok := w.(http.Flusher); ok {
-                f.Flush()
+            w.Write([]byte(line + "\n"))
+        }
+
+        if interactive {
+            // search stdout for matching path
+            match, _ := regexp.MatchString(rePathStr, line)
+            if match {
+                // write matching number to stdin
+                re := regexp.MustCompile(rePathStr)
+                num := re.FindStringSubmatch(line)[1]
+                pathNum, _ := strconv.Atoi(strings.TrimSpace(num))
+                answer := fmt.Sprintf("%d\n", pathNum)
+                log.Printf("Writing stdin: %s", answer)
+                stdin.Write([]byte(answer))
             }
         }
-        for i := 0; i < n; i++ {
-            buf[i] = 0
-        }
     }
+
     if appSel == "bwtester" {
         // parse bwtester data/error
         lib.ExtractBwtestRespData(string(jsonBuf), d, start)

@@ -7,6 +7,7 @@
         $.ajax({
             url : 'files',
             type : 'get',
+            timeout : 10000,
             success : function(data, textStatus, jqXHR) {
                 console.info(JSON.stringify(data));
                 $(".content").append(data);

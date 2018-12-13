@@ -74,7 +74,7 @@
       <!-- BANDWIDTH TEST APP CONTENT -->
       <div id="bwtester" class="tab-pane fade in active">
 
-       <span id="bwtest_text"></span> Interval: <input
+       <span id="bwtest_text"></span><br> Interval: <input
         name="bwtest_sec" id="bwtest_sec" type="number"
         style="width: 45px;" min="3" max="11" value="4"> sec.
 
@@ -384,12 +384,12 @@
     $(document).ready(function() {
         // nodes setup
         initNodes();
+        // nodes first load will request initial paths based on src/dst loaded
         // dials setup
         initDials('cs');
         initDials('sc');
         $('.dial').trigger('configure', dial_prop_all);
         initBwGraphs();
-
         setDefaults();
     });
 </script>

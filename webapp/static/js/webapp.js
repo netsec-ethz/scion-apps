@@ -110,16 +110,8 @@ function initBwGraphs() {
 function showOnlyConsoleGraphs(activeApp) {
     $('#bwtest-continuous').css("display",
             (activeApp == "bwtester") ? "block" : "none");
-    var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
-            || activeApp == "sensorapp" || activeApp == "echo"
-            || activeApp == "traceroute" || activeApp == "pingpong");
+    var isConsole = (activeApp == "bwtester" || activeApp == "camerapp" || activeApp == "sensorapp");
     $('.stdout').css("display", isConsole ? "block" : "none");
-    $('#traceroute-continuous').css("display",
-            (activeApp == "traceroute") ? "block" : "none");
-    $('#echo-continuous').css("display",
-            (activeApp == "echo") ? "block" : "none");
-    $('#pingpong-continuous').css("display",
-            (activeApp == "pingpong") ? "block" : "none");
 }
 
 function handleSwitchTabs() {
@@ -242,7 +234,8 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
 function formatTooltip() {
     var tooltip = '<b>' + this.series.name + '</b><br/>'
             + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
-            + Highcharts.numberFormat(this.y, 2) + ' mbps';
+            + Highcharts.numberFormat(this.y, 2) + ' mbps<br/><i>'
+            + this.point.path + '</i>';
     if (this.point.error != null) {
         tooltip += '<br/><b>' + this.point.error + '</b>';
     }
@@ -321,10 +314,12 @@ function manageTestData() {
                             'cs' : {
                                 'bandwidth' : d.graph[i].CSBandwidth,
                                 'throughput' : d.graph[i].CSThroughput,
+                                'path' : d.graph[i].Path,
                             },
                             'sc' : {
                                 'bandwidth' : d.graph[i].SCBandwidth,
                                 'throughput' : d.graph[i].SCThroughput,
+                                'path' : d.graph[i].Path,
                             },
                         };
                         // update with errors, if any
@@ -389,6 +384,7 @@ function updateBwChart(chart, dataDir, time) {
         chart.series[0].addPoint({
             x : time,
             y : bw,
+            path : dataDir.path,
             error : dataDir.error,
             color : '#f00',
             marker : {
@@ -396,10 +392,18 @@ function updateBwChart(chart, dataDir, time) {
             }
         }, draw, shift);
     } else {
-        chart.series[0].addPoint([ time, bw ], draw, shift);
+        chart.series[0].addPoint({
+            x : time,
+            y : bw,
+            path : dataDir.path,
+        }, draw, shift);
     }
     if (tp > 0) {
-        chart.series[1].addPoint([ time, tp ], draw, shift);
+        chart.series[1].addPoint({
+            x : time,
+            y : tp,
+            path : dataDir.path,
+        }, draw, shift);
     }
 }
 
@@ -429,11 +433,8 @@ function command(continuous) {
             name : "interval",
             value : getIntervalMax()
         }, {
-            name : "segType",
-            value : self.segType
-        }, {
-            name : "segNum",
-            value : self.segNum
+            name : "pathStr",
+            value : formatPathString(resPath, self.segNum, self.segType)
         });
     }
     if (activeApp == "camerapp") {
@@ -608,14 +609,18 @@ function loadNodes(node, list) {
     console.info(JSON.stringify(data));
     $('#sel_' + node).load('/getnodes', data, function(resp, status, jqXHR) {
         console.info('resp:', resp);
-        nodes[node] = JSON.parse(resp);
-        updateNodeOptions(node);
-        if (node == 'cli') {
-            // after client selection, update server options
-            loadServerNodes();
+        if (status == "success") {
+            nodes[node] = JSON.parse(resp);
+            updateNodeOptions(node);
+            if (node == 'cli') {
+                // after client selection, update server options
+                loadServerNodes();
+            } else {
+                // server node change complete, update paths
+                requestPaths();
+            }
         } else {
-            // server node change complete, update paths
-            requestPaths();
+            console.error("Error: " + jqXHR.status + ": " + jqXHR.statusText);
         }
     });
 }

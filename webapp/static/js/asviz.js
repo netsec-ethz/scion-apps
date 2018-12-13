@@ -87,6 +87,34 @@ function setPaths(type, idx, open) {
 }
 
 /*
+ * Produces a formatted path string for purposes of matching like: [1-ff00:0:111
+ * 76>49 1-ff00:0:110 49>53 1-ff00:0:112]. Returns empty string for no path.
+ */
+function formatPathString(res, idx, type) {
+    if (typeof idx === 'undefined') {
+        return '';
+    }
+    var hops = res.if_lists[idx].interfaces;
+    if (hops === 0 || type != 'PATH') {
+        return '';
+    }
+    var path = "[";
+    for (var i = 0; i < hops.length; i += 2) {
+        var prev = hops[i];
+        var next = hops[i + 1];
+        if (i > 0) {
+            path += ' ';
+        }
+        path += prev.ISD + '-' + prev.AS + ' ' + prev.IFID + '>' + next.IFID;
+        if (i == (hops.length - 2)) {
+            path += ' ' + next.ISD + '-' + next.AS;
+        }
+    }
+    path += "]";
+    return path;
+}
+
+/*
  * Adds D3 forwarding path links with arrows and a title to paths graph.
  */
 function addPaths(res, idx, num, color, type) {
@@ -396,7 +424,12 @@ function get_json_as_topo(data) {
     var nodes = [];
     var links = [];
     var gidx = 0;
-
+    if (typeof data.as_info === 'undefined') {
+        return {
+            "nodes" : [],
+            "links" : []
+        };
+    }
     var a = data.as_info.Entries[0];
     var ia = iaRaw2Read(a.RawIsdas);
     var iaf = iaRaw2File(a.RawIsdas);
