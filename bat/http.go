@@ -1,3 +1,4 @@
+// Modifications copyright 2018 ETH Zurich
 // This file has been modified to make it compatible with SCION
 
 package main
@@ -5,7 +6,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -112,7 +112,6 @@ func formatResponseBody(res *http.Response, httpreq *httplib.BeegoHttpRequest, p
 	if err != nil {
 		log.Fatalln("can't get the url", err)
 	}
-	fmt.Println("")
 	match, err := regexp.MatchString(contentJsonRegex, res.Header.Get("Content-Type"))
 	if err != nil {
 		log.Fatalln("failed to compile regex", err)

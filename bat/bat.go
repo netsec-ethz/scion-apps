@@ -1,4 +1,5 @@
 // Copyright 2015 bat authors
+// Modifications copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License"): you may
 // not use this file except in compliance with the License. You may obtain
@@ -36,6 +37,7 @@ import (
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	slog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -104,7 +106,7 @@ func init() {
 	flag.Parse()
 
 	// SCION: add shttp Transport to defaultSetting
-	// use a dummy.com for pointing to remote
+	// use dummy.com for pointing to remote
 	// TODO: get rid of this as soon as RAINS is deployed
 
 	if local == "" {
@@ -130,6 +132,9 @@ func init() {
 		DNS:   dns,
 		LAddr: laddr,
 	}
+
+	// redirect SCION log to a log file
+	slog.SetupLogFile("scion", "log", "info", 10, 10, 0)
 }
 
 func parsePrintOption(s string) {
@@ -329,24 +334,20 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		if fi.Mode()&os.ModeDevice == os.ModeDevice {
-			var dumpHeader, dumpBody []byte
+		if fi.Mode()&os.ModeDevice == os.ModeDevice { // console output
+			var dumpHeader, dumpBody string
 			dump := httpreq.DumpRequest()
-			dps := strings.Split(string(dump), "\n")
-			for i, line := range dps {
-				if len(strings.Trim(line, "\r\n ")) == 0 {
-					dumpHeader = []byte(strings.Join(dps[:i], "\n"))
-					dumpBody = []byte(strings.Join(dps[i:], "\n"))
-					break
-				}
-			}
+			dps := strings.Split(string(dump), "\r\n\r\n")
+			dumpHeader = dps[0]
+			dumpBody = dps[1]
+
 			if printOption&printReqHeader == printReqHeader {
-				fmt.Println(ColorfulRequest(string(dumpHeader)))
+				fmt.Println(ColorfulRequest(dumpHeader))
 				fmt.Println("")
 			}
 			if printOption&printReqBody == printReqBody {
-				if string(dumpBody) != "\r\n" {
-					fmt.Println(string(dumpBody))
+				if dumpBody != "" {
+					fmt.Println(dumpBody)
 					fmt.Println("")
 				}
 			}
@@ -361,7 +362,7 @@ func main() {
 				body := formatResponseBody(res, httpreq, pretty)
 				fmt.Println(ColorfulResponse(body, res.Header.Get("Content-Type")))
 			}
-		} else {
+		} else { // IO file redirect
 			body := formatResponseBody(res, httpreq, pretty)
 			_, err = os.Stdout.WriteString(body)
 			if err != nil {
@@ -369,22 +370,18 @@ func main() {
 			}
 		}
 	} else {
-		var dumpHeader, dumpBody []byte
+		var dumpHeader, dumpBody string
 		dump := httpreq.DumpRequest()
-		dps := strings.Split(string(dump), "\n")
-		for i, line := range dps {
-			if len(strings.Trim(line, "\r\n ")) == 0 {
-				dumpHeader = []byte(strings.Join(dps[:i], "\n"))
-				dumpBody = []byte(strings.Join(dps[i:], "\n"))
-				break
-			}
-		}
+		dps := strings.Split(string(dump), "\r\n\r\n")
+		dumpHeader = dps[0]
+		dumpBody = dps[1]
+
 		if printOption&printReqHeader == printReqHeader {
-			fmt.Println(string(dumpHeader))
+			fmt.Println(dumpHeader)
 			fmt.Println("")
 		}
 		if printOption&printReqBody == printReqBody {
-			fmt.Println(string(dumpBody))
+			fmt.Println(dumpBody)
 			fmt.Println("")
 		}
 		if printOption&printRespHeader == printRespHeader {
@@ -415,6 +412,7 @@ flags:
   -b.N=1000                   Number of requests to run
   -b.C=100                    Number of requests to run concurrently
   -body=""                    Send RAW data as body
+  -d	                      Fetch a large file in download mode, provides a progress bar
   -f, -form=false             Submitting the data as a form
   -j, -json=true              Send the data in a JSON object
   -p, -pretty=true            Print Json Pretty Format
