@@ -1,3 +1,4 @@
+// Modifications copyright 2018 ETH Zurich
 // This file has been modified to make it compatible with SCION
 
 package main
