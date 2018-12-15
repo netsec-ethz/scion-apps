@@ -68,8 +68,7 @@ var (
 	benchC           int
 	isjson           = flag.Bool("json", true, "Send the data as a JSON object")
 	method           = flag.String("method", "GET", "HTTP method")
-	route            = flag.String("route", "", "HTTP request route")
-	URL              *string
+	URL              = flag.String("url", "", "HTTP request URL")
 	jsonmap          map[string]interface{}
 	contentJsonRegex = `application/(.*)json`
 )
@@ -117,19 +116,12 @@ func init() {
 		}
 	}
 
-	raddr, err := snet.AddrFromString(remote)
-	laddr, err2 := snet.AddrFromString(local)
-	if err != nil || err2 != nil {
-		if err != nil {
-			usage()
-		}
+	laddr, err := snet.AddrFromString(local)
+	if err != nil {
 		usage()
 	}
 
-	dns := map[string]*snet.Addr{"dummy.com": raddr}
-
 	defaultSetting.Transport = &shttp.Transport{
-		DNS:   dns,
 		LAddr: laddr,
 	}
 
@@ -186,27 +178,18 @@ func main() {
 		}
 	}
 
-	// TODO: uncomment when RAINS is deployed and remove belows URL creation
-	/* if *URL == "" {
-		usage()
-	} */
-
-	/* start of URL creation: Remove when RAINS is deployed*/
-	if *route == "" {
+	if *URL == "" {
 		usage()
 	}
-	temp := strings.Join([]string{"https://dummy.com", *route}, "")
-	URL = &temp
-	/* end of URL creation*/
 
 	if strings.HasPrefix(*URL, ":") {
 		urlb := []byte(*URL)
 		if *URL == ":" {
-			*URL = "http://localhost/"
+			*URL = "https://localhost/"
 		} else if len(*URL) > 1 && urlb[1] != '/' {
-			*URL = "http://localhost" + *URL
+			*URL = "https://localhost" + *URL
 		} else {
-			*URL = "http://localhost" + string(urlb[1:])
+			*URL = "https://localhost" + string(urlb[1:])
 		}
 	}
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
@@ -271,7 +254,7 @@ func main() {
 	}
 	res, err := httpreq.Response()
 	if err != nil {
-		log.Fatalln("can't get the url", err)
+		log.Fatalln("Error", err)
 	}
 
 	// download file
@@ -405,7 +388,6 @@ Usage:
 	bat [flags] [METHOD] URL [ITEM [ITEM]]
 
 flags:
-  -r                          Remote SCION address of web server
   -l                          Local SCION address, for VMs this can be omitted
   -a, -auth=USER[:PASS]       Pass a username:password pair as the argument
   -b, -bench=false            Sends bench requests to URL
@@ -428,10 +410,6 @@ flags:
 METHOD:
   bat defaults to either GET (if there is no request data) or POST (with request data).
 
-Route:
-  The route on the server to access (e.g. /api/upload).
-  The route flag can be omitted.
-
 ITEM:
   Can be any of:
     Query string   key=value
@@ -441,7 +419,8 @@ ITEM:
 
 Example:
 
-	bat -r 17-ffaa:1:1 /download
+	bat -l 17-ffaa:1:1[IP]:0 https://server:8080/download
+	The protocol can be omitted, bat defaults to HTTPS
 
 For more help information please refer to https://github.com/netsec-ethz/scion-apps/bat
 `
