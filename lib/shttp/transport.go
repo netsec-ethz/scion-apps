@@ -19,7 +19,7 @@ package shttp
 
 import (
 	"crypto/tls"
-	"log"
+	"net"
 	"net/http"
 	"sync"
 
@@ -33,7 +33,6 @@ import (
 // Transport wraps a h2quic.RoundTripper and makes it compatible with SCION
 type Transport struct {
 	LAddr *snet.Addr
-	DNS   map[string]*snet.Addr // map from services to SCION addresses
 
 	rt *h2quic.RoundTripper
 
@@ -62,9 +61,13 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 	// set the dial function once for each Transport
 	t.dialOnce.Do(func() {
 		dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
-			raddr, ok := t.DNS[req.URL.Host]
-			if !ok {
-				log.Fatal("shttp: Host not found in DNS map")
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, err
+			}
+			raddr, err := scionutil.GetHostByName(host, port)
+			if err != nil {
+				return nil, err
 			}
 			return squic.DialSCION(nil, t.LAddr, raddr, nil)
 		}
