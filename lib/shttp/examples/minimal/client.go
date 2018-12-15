@@ -30,39 +30,36 @@ import (
 
 func main() {
 
-	remote := flag.String("remote", "", "The address on which the server will be listening")
 	local := flag.String("local", "", "The clients local address")
 	interactive := flag.Bool("i", false, "Wether to use interactive mode for path selection")
 
 	flag.Parse()
 
-	rAddr, err := snet.AddrFromString(*remote)
-	lAddr, err2 := snet.AddrFromString(*local)
-	if err != nil || err2 != nil {
+	lAddr, err := snet.AddrFromString(*local)
+	if err != nil {
 		log.Fatal(err)
 	}
 
+	rAddr, err := scionutil.GetHostByName("minimal-server", "40002")
+	if err != nil {
+		log.Fatal(err)
+	}
 	if *interactive {
 		scionutil.ChoosePathInteractive(lAddr, rAddr)
 	} else {
 		scionutil.ChoosePathByMetric(scionutil.Shortest, lAddr, rAddr)
 	}
 
-	// Make a map from URL to *snet.Addr
-	dns := make(map[string]*snet.Addr)
-	dns["testserver.com"] = rAddr
-
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
 		Transport: &shttp.Transport{
-			DNS:   dns,
 			LAddr: lAddr,
 		},
 	}
 
 	// Make a get request
 	start := time.Now()
-	resp, err := c.Get("https://testserver.com/download")
+	resp, err := c.Get("https://minimal-server:40002/download")
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
@@ -80,13 +77,12 @@ func main() {
 	// create a new client using the same address/port combination which is now free again
 	c = &http.Client{
 		Transport: &shttp.Transport{
-			DNS:   dns,
 			LAddr: lAddr,
 		},
 	}
 
 	start = time.Now()
-	resp, err = c.Post("https://testserver.com/upload", "text/plain", strings.NewReader("Sample payload for POST request"))
+	resp, err = c.Post("https://minimal-server:40002/upload", "text/plain", strings.NewReader("Sample payload for POST request"))
 	if err != nil {
 		log.Fatal("POST request failed: ", err)
 	}

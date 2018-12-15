@@ -1,5 +1,7 @@
 # bat
 
+![](images/bat_output.png "sample output of bat application")
+
 Go implemented CLI cURL-like tool for humans. Bat can be used for testing, debugging, and generally interacting with HTTP servers.
 
 This repository is a fork of [astaxie/bat](https://github.com/astaxie/bat) making it available for SCION/QUIC.
@@ -22,29 +24,35 @@ If you experience problems with the `govendor` commands above:
 
 ### Usage
 
-In contrast to the original tool, we require a remote SCION address and a URL path instead of a full URL.
-For example:
+In contrast to the original tool, we require a local SCION address.
+If you're running bat in a VM, your local address can be inferred:
 
 ```
-bat -r ISD-AS,[IP]:port GET /api/download
+bat GET https://server/api/download
 ```
 
-If you're running bat in a VM, your local address can be inferred. In case this fails or you are running a different setup, provide the local address using the ```-l``` flag:
+In case this fails or you are running a different setup, provide the local address using the ```-l``` flag:
 
 ```
-bat -l ISD-AS,[IP]:port -r ISD-AS,[IP]:port GET /api/download
+bat -l ISD-AS,[IP]:port GET https://server/api/download
 ```
 
-The HTTP method defaults to GET in case there is no data to be sent and to POST otherwise.
+The scheme defaults to HTTPS. The method defaults to GET in case there is no data to be sent and to POST otherwise.
+
+Hostnames are resolved by parsing the `/etc/hosts` file. Known hosts can be added by adding lines like this:
+
+```
+# The following lines are SCION hosts
+17-ffaa:1:10,[10.0.8.100]	server1
+18-ffaa:0:11,[10.0.8.120]	server2
+```
 
 ### Examples
 
-```
-bat -r ISD-AS,[IP]:port /api/download
-
-bat -r ISD-AS,[IP]:port /api/upload foo=bar
-
-bat -r ISD-AS,[IP]:port -f /api/upload foo=bar
-
-bat -r ISD-AS,[IP]:port -body "Hello World" POST /api/upload
-```
+| Request                                             | Explanation                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------------ |
+| bat server:8080/api/download                        | HTTPS GET request to server:8080/download                          |
+| bat -b server:8080/api/download                     | Run a benchmark against server:8080/download                       |
+| bat server:8080/api/upload foo=bar                  | HTTPS POST request with JSON encoded data<br>to server:8080/upload |
+| bat -f server:8080/api/upload foo=bar               | HTTPS POST request with URL encoded data<br>to server:8080/upload  |
+| bat -body "Hello World" POST server:8080/api/upload | HTTPS POST request with raw data<br>to server:8080/upload          |
