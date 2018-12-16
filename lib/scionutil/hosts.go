@@ -11,15 +11,13 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-const hostFilePath = "/etc/hosts"
-
 var (
-	hosts    map[string]string // hostname -> SCION address
-	revHosts map[string]string // SCION address w/o port -> hostname
+	hostFilePath = "/etc/hosts"
+	hosts        map[string]string   // hostname -> SCION address
+	revHosts     map[string][]string // SCION address w/o port -> hostnames
 )
 
 func init() {
-	var hostsFile []byte
 	hostsFile, err := readHostsFile()
 	if err != nil {
 		hostsFile = []byte{}
@@ -31,21 +29,18 @@ func init() {
 }
 
 // AddHost adds a host the the map of known hosts
-// An error is returned if either the hostname or the address is already known or
-// the address has an invalid format
+// An error is returned if the address has a wrong format or
+// the hostname already exists
 func AddHost(hostname, address string) error {
-	if addr, ok := hosts[hostname]; ok {
-		return fmt.Errorf("Host %q already exists, address is: %v", hostname, addr)
-	}
-	if host, ok := revHosts[address]; ok {
-		return fmt.Errorf("A host with address %q already exists: %v", address, host)
+	if addrs, ok := hosts[hostname]; ok {
+		return fmt.Errorf("Host %q already exists, address(es): %v", hostname, addrs)
 	}
 	_, err := snet.AddrFromString(fmt.Sprintf("%s:%s", address, "0"))
 	if err != nil {
 		return fmt.Errorf("Cannot add host %q: %v", hostname, err)
 	}
 	hosts[hostname] = address
-	revHosts[address] = hostname
+	revHosts[address] = append(revHosts[address], hostname)
 
 	return nil
 }
@@ -63,12 +58,12 @@ func GetHostByName(hostname, port string) (*snet.Addr, error) {
 	return scionAddr, nil
 }
 
-// GetHostnameByAddress returns the hostname corresponding to address
+// GetHostnamesByAddress returns the hostnames corresponding to address
 // Port must be removed from the address, e.g. 17-ffaa:0:1102
-func GetHostnameByAddress(address string) (string, error) {
+func GetHostnamesByAddress(address string) ([]string, error) {
 	host, ok := revHosts[address]
 	if !ok {
-		return "", fmt.Errorf("Hostname for address %q not found", address)
+		return []string{}, fmt.Errorf("Hostname for address %q not found", address)
 	}
 	return host, nil
 }
@@ -81,17 +76,19 @@ func readHostsFile() ([]byte, error) {
 	return bs, nil
 }
 
-func parseHostsFile(hostfile []byte) error {
+func parseHostsFile(hostsFile []byte) error {
 	hosts = make(map[string]string)
-	revHosts = make(map[string]string)
-	lines := bytes.Split(hostfile, []byte("\n"))
+	revHosts = make(map[string][]string)
+	lines := bytes.Split(hostsFile, []byte("\n"))
 	for _, line := range lines {
 		if matched, err := regexp.Match(`\d{2}-ffaa:\d:([a-z]|\d)+`, line); err != nil {
 			return err
 		} else if matched {
 			fields := strings.Fields(string(line))
-			hosts[fields[1]] = fields[0]
-			revHosts[fields[0]] = fields[1]
+			if _, ok := hosts[fields[1]]; !ok {
+				hosts[fields[1]] = fields[0]
+				revHosts[fields[0]] = append(revHosts[fields[0]], fields[1])
+			}
 		}
 	}
 	return nil
