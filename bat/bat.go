@@ -105,9 +105,6 @@ func init() {
 	flag.Parse()
 
 	// SCION: add shttp Transport to defaultSetting
-	// use dummy.com for pointing to remote
-	// TODO: get rid of this as soon as RAINS is deployed
-
 	if local == "" {
 		var err error
 		local, err = readIsdAS()
