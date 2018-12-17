@@ -1,3 +1,17 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package scionutil
 
 import (
@@ -13,6 +27,7 @@ import (
 
 var (
 	hostFilePath = "/etc/hosts"
+	regExp       = `\d{2}-ffaa:\d:([a-z]|\d)+,\[(\d{1,3}\.){3}\d{1,3}\]`
 	hosts        map[string]string   // hostname -> SCION address
 	revHosts     map[string][]string // SCION address w/o port -> hostnames
 )
@@ -59,9 +74,10 @@ func GetHostByName(hostname, port string) (*snet.Addr, error) {
 }
 
 // GetHostnamesByAddress returns the hostnames corresponding to address
-// Port must be removed from the address, e.g. 17-ffaa:0:1102
 func GetHostnamesByAddress(address string) ([]string, error) {
-	host, ok := revHosts[address]
+	re := regexp.MustCompile(regExp)
+	match := re.FindString(address)
+	host, ok := revHosts[match]
 	if !ok {
 		return []string{}, fmt.Errorf("Hostname for address %q not found", address)
 	}
@@ -81,7 +97,7 @@ func parseHostsFile(hostsFile []byte) error {
 	revHosts = make(map[string][]string)
 	lines := bytes.Split(hostsFile, []byte("\n"))
 	for _, line := range lines {
-		if matched, err := regexp.Match(`\d{2}-ffaa:\d:([a-z]|\d)+`, line); err != nil {
+		if matched, err := regexp.Match(regExp, line); err != nil {
 			return err
 		} else if matched {
 			fields := strings.Fields(string(line))
