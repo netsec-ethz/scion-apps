@@ -90,7 +90,10 @@ function initBwGraphs() {
 
     // charts update on tab switch
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
-        handleSwitchTabs();
+        var name = $(e.target).attr("name");
+        if (name != "as-graphs" && name != "as-tab-pathtopo") {
+            handleSwitchTabs();
+        }
     });
     // setup charts
     var csColAch = $('#svg-client circle').css("fill");
@@ -577,7 +580,10 @@ function updateBwErrors(dataDir, dir, err) {
 function initNodes() {
     loadNodes('cli', 'clients_default');
     $("a[data-toggle='tab']").on('shown.bs.tab', function(e) {
-        updateNodeOptions('ser');
+        var name = $(e.target).attr("name");
+        if (name != "as-graphs" && name != "as-tab-pathtopo") {
+            updateNodeOptions('ser');
+        }
     });
     $('#sel_cli').change(function() {
         updateNode('cli');

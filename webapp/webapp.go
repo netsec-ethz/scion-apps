@@ -313,11 +313,11 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
     cmd.Stderr = os.Stderr
     stdin, err := cmd.StdinPipe()
     if nil != err {
-        log.Fatalf("Error obtaining stdin: %s", err.Error())
+        log.Printf("Error obtaining stdin: %s", err.Error())
     }
     stdout, err := cmd.StdoutPipe()
     if nil != err {
-        log.Fatalf("Error obtaining stdout: %s", err.Error())
+        log.Printf("Error obtaining stdout: %s", err.Error())
     }
     reader := bufio.NewReader(stdout)
 
