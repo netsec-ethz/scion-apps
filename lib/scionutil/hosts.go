@@ -27,7 +27,7 @@ import (
 
 var (
 	hostFilePath = "/etc/hosts"
-	regExp       = `\d{2}-ffaa:\d:([a-z]|\d)+,\[(\d{1,3}\.){3}\d{1,3}\]`
+	addrRegexp   = regexp.MustCompile(`\d{1,4}-([0-9a-f]{1,4}:){2}[0-9a-f]{1,4},\[[^]]+\]`)
 	hosts        map[string]string   // hostname -> SCION address
 	revHosts     map[string][]string // SCION address w/o port -> hostnames
 )
@@ -43,7 +43,7 @@ func init() {
 	}
 }
 
-// AddHost adds a host the the map of known hosts
+// AddHost adds a host to the map of known hosts
 // An error is returned if the address has a wrong format or
 // the hostname already exists
 func AddHost(hostname, address string) error {
@@ -60,13 +60,14 @@ func AddHost(hostname, address string) error {
 	return nil
 }
 
-// GetHostByName returns the SCION address corresponding to hostname
-func GetHostByName(hostname, port string) (*snet.Addr, error) {
+// GetHostByName returns the SCION address corresponding to hostname.
+// The port is set to the default zero value.
+func GetHostByName(hostname string) (*snet.Addr, error) {
 	addr, ok := hosts[hostname]
 	if !ok {
 		return nil, fmt.Errorf("Address for host %q not found", hostname)
 	}
-	scionAddr, err := snet.AddrFromString(fmt.Sprintf("%s:%s", addr, port))
+	scionAddr, err := snet.AddrFromString(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -75,8 +76,7 @@ func GetHostByName(hostname, port string) (*snet.Addr, error) {
 
 // GetHostnamesByAddress returns the hostnames corresponding to address
 func GetHostnamesByAddress(address string) ([]string, error) {
-	re := regexp.MustCompile(regExp)
-	match := re.FindString(address)
+	match := addrRegexp.FindString(address)
 	host, ok := revHosts[match]
 	if !ok {
 		return []string{}, fmt.Errorf("Hostname for address %q not found", address)
@@ -97,15 +97,19 @@ func parseHostsFile(hostsFile []byte) error {
 	revHosts = make(map[string][]string)
 	lines := bytes.Split(hostsFile, []byte("\n"))
 	for _, line := range lines {
-		if matched, err := regexp.Match(regExp, line); err != nil {
-			return err
-		} else if matched {
-			fields := strings.Fields(string(line))
-			if _, ok := hosts[fields[1]]; !ok {
-				hosts[fields[1]] = fields[0]
-				revHosts[fields[0]] = append(revHosts[fields[0]], fields[1])
+		fields := strings.Fields(string(line))
+		if len(fields) == 0 {
+			continue
+		}
+		if match := addrRegexp.FindString(fields[0]); len(match) == len(fields[0]) {
+			for _, field := range fields[1:] {
+				if _, ok := hosts[field]; !ok {
+					hosts[field] = fields[0]
+					revHosts[fields[0]] = append(revHosts[fields[0]], field)
+				}
 			}
 		}
+
 	}
 	return nil
 }

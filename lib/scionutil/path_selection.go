@@ -51,7 +51,7 @@ func ChoosePathInteractive(local, remote *snet.Addr) *sciond.PathReplyEntry {
 		return nil
 	}
 
-	re := regexp.MustCompile(`\d{2}-ffaa:\d:([a-z]|\d)+`)
+	re := regexp.MustCompile(`\d{1,4}-([0-9a-f]{1,4}:){2}[0-9a-f]{1,4}`)
 	fmt.Printf("Available paths to %v\n", remote.IA)
 	i := 0
 	for _, path := range pathSet {
