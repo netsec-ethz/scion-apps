@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 
 	quic "github.com/lucas-clemente/quic-go"
@@ -65,10 +66,15 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			if err != nil {
 				return nil, err
 			}
-			raddr, err := scionutil.GetHostByName(host, port)
+			raddr, err := scionutil.GetHostByName(host)
 			if err != nil {
 				return nil, err
 			}
+			p, err := strconv.ParseUint(port, 10, 16)
+			if err != nil {
+				p = 443
+			}
+			raddr.L4Port = uint16(p)
 			return squic.DialSCION(nil, t.LAddr, raddr, nil)
 		}
 		t.rt = &h2quic.RoundTripper{

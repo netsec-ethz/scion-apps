@@ -30,18 +30,18 @@ func init() {
 
 func TestCount(t *testing.T) {
 	count := len(hosts)
-	if count != 3 {
-		t.Errorf("wrong number of hosts in map, expected: %v, got: %v", 3, count)
+	if count != 5 {
+		t.Errorf("wrong number of hosts in map, expected: %v, got: %v", 5, count)
 	}
 
 	count = len(revHosts["17-ffaa:0:1,[192.168.1.1]"])
-	if count != 2 {
-		t.Errorf("wrong number of address in list, expected: %v, got: %v", 3, count)
+	if count != 3 {
+		t.Errorf("wrong number of addresses in list, expected: %v, got: %v", 3, count)
 	}
 }
 
 func TestAddingHost(t *testing.T) {
-	host := "host4"
+	host := "host5"
 	addr := "20-ffaa:3:4,[12.34.56.0]"
 
 	// can add new host/addr
@@ -57,7 +57,7 @@ func TestAddingHost(t *testing.T) {
 	}
 
 	// can add different host with same address
-	host = "host5"
+	host = "host6"
 	err = AddHost(host, addr)
 	if err != nil {
 		t.Error(err)
@@ -65,12 +65,27 @@ func TestAddingHost(t *testing.T) {
 }
 
 func TestReadHosts(t *testing.T) {
-	addr, err := GetHostByName("host1", "555")
+	addr, err := GetHostByName("host1.2")
 	if err != nil {
 		t.Error(err)
 	}
-	if addr.String() != "17-ffaa:0:1,[192.168.1.1]:555" {
-		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "17-ffaa:0:1,[192.168.1.1]:555", addr)
+	if addr.String() != "17-ffaa:0:1,[192.168.1.1]:0" {
+		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "17-ffaa:0:1,[192.168.1.1]:0", addr)
+	}
+
+	// works with IPv6 SCION hosts
+	addr, err = GetHostByName("host4")
+	if err != nil {
+		t.Error(err)
+	}
+	if addr.String() != "20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0" {
+		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0", addr)
+	}
+
+	// does not parse commented hosts
+	addr, err = GetHostByName("commented")
+	if err == nil {
+		t.Error("read commented host")
 	}
 }
 
@@ -88,7 +103,16 @@ func TestReadAddresses(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(addrs) != 2 || addrs[0] != "host1" || addrs[1] != "host3" {
+	if len(addrs) != 3 || addrs[0] != "host1.1" || addrs[1] != "host1.2" || addrs[2] != "host3" {
 		t.Errorf("address resolved to wrong hostnames, expected: %v, received: %v", []string{"host1", "host3"}, addrs)
+	}
+
+	// pass address with IPv6
+	addrs, err = GetHostnamesByAddress("20-ffaa:c0ff:ee12,[0:0:0ff1:ce00:dead:10cc:baad:f00d]")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(addrs) != 1 || addrs[0] != "host4" {
+		t.Errorf("address resolved to wrong hostnames, expected: %v, received: %v", []string{"host4"}, addrs)
 	}
 }
