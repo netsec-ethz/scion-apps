@@ -521,10 +521,10 @@ function get_json_as_topo(data) {
 }
 
 function json2html(json, root) {
-    // var html = "<ul" + (root ? "class='tree'" : "") + ">";
-    var html = "<ul class='tree'>";
+    var html = "<ul" + (root ? " class='tree'" : "") + ">";
+    // var html = "<ul class='tree'>";
     jQuery.each(json, function(key, value) {
-        html += "<li><a href='#'><b>" + key + "</b>";
+        html += "<li><a href='#'><b>" + key + "</b></a>";
         if (typeof value !== "object") {
             if (key.includes("Time")) {
                 // make time readable
@@ -538,7 +538,6 @@ function json2html(json, root) {
         } else {
             html += json2html(value, false);
         }
-        html += "</a>";
     })
     return html + "</ul>";
 }

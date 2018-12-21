@@ -75,7 +75,7 @@ a:hover {
  font-size: 12px;
  width: 700px;
  height: 30px;
- padding: 5px;
+ padding: 2px;
  /* border: 1px solid #ccc; */
  position: relative;
 }
@@ -90,7 +90,7 @@ a:hover {
  font-size: 12px;
  width: 700px;
  height: 25px;
- padding: 5px;
+ padding: 4px;
  /* border: 1px solid #ccc; */
  position: absolute;
 }

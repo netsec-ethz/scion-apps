@@ -26,9 +26,10 @@
             timeout : 10000,
             success : function(data, textStatus, jqXHR) {
                 console.info(JSON.stringify(data));
-                showError(data.err);
-
-                $('#json-crt').html(json2html(data));
+                if (data.err) {
+                    showError(data.err);
+                }
+                $('#json-crt').html(json2html(data, true));
                 setupListTree();
             },
             error : function(jqXHR, textStatus, errorThrown) {

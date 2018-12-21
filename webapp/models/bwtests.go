@@ -209,8 +209,8 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         SCArrAvg,
         SCArrMin,
         SCArrMax,
-        Path,
-        Error
+        Error,
+        Path
     ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     stmt, err := db.Prepare(sqlInsert)
@@ -246,8 +246,8 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         bwtest.SCArrAvg,
         bwtest.SCArrMin,
         bwtest.SCArrMax,
-        bwtest.Path,
-        bwtest.Error)
+        bwtest.Error,
+        bwtest.Path)
     if err2 != nil {
         panic(err2)
     }
@@ -283,8 +283,8 @@ func ReadBwTestItemsAll() []BwTestItem {
         SCArrAvg,
         SCArrMin,
         SCArrMax,
-        Path,
-        Error
+        Error,
+        Path
     FROM bwtests
     ORDER BY datetime(Inserted) DESC
     `
@@ -324,8 +324,8 @@ func ReadBwTestItemsAll() []BwTestItem {
             &bwtest.SCArrAvg,
             &bwtest.SCArrMin,
             &bwtest.SCArrMax,
-            &bwtest.Path,
-            &bwtest.Error)
+            &bwtest.Error,
+            &bwtest.Path)
         if err2 != nil {
             panic(err2)
         }
@@ -345,8 +345,8 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
         CSThroughput,
         SCBandwidth,
         SCThroughput,
-        Path,
-        Error
+        Error,
+        Path
     FROM bwtests
     WHERE Inserted > ?
     ORDER BY datetime(Inserted) DESC
@@ -367,8 +367,8 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
             &bwtest.CSThroughput,
             &bwtest.SCBandwidth,
             &bwtest.SCThroughput,
-            &bwtest.Path,
-            &bwtest.Error)
+            &bwtest.Error,
+            &bwtest.Path)
         if err2 != nil {
             panic(err2)
         }

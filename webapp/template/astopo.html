@@ -40,8 +40,9 @@
         timeout : 10000,
         success : function(data, textStatus, jqXHR) {
             console.info(JSON.stringify(data));
-            showError(data.err);
-
+            if (data.err) {
+                showError(data.err);
+            }
             var json_as_topo = get_json_as_topo(data);
             // add AS topology layout
             var width = $("#as-astopo").width();

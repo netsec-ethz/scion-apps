@@ -42,9 +42,11 @@ var bwActive bool
 var bwInterval int
 var bwTimeKeepAlive time.Time
 var bwChanDone = make(chan bool)
+var pathChoiceTimeout = time.Duration(1000) * time.Millisecond
 
 var templates *template.Template
 
+// Page holds default fields for html template expansion for each page.
 type Page struct {
     Title string
     MyIA  string
@@ -325,7 +327,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         fmt.Fprintf(os.Stderr, "Failed to start err=%v", err)
     }
-    go writeCmdOutput(w, reader, stdin, d, appSel, pathStr)
+    go writeCmdOutput(w, reader, stdin, d, appSel, pathStr, cmd)
     cmd.Wait()
 }
 
@@ -374,8 +376,11 @@ func getClientLocationSrc(app string) string {
 }
 
 // Handles piping command line output to logs, database, and http response writer.
-func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteCloser, d *model.BwTestItem, appSel string, pathStr string) {
+func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteCloser, d *model.BwTestItem, appSel string, pathStr string, cmd *exec.Cmd) {
     // regex to find matching path in interactive mode
+    var errMsg string
+    // reAvailPath := `(?i:\[ *[0-9]*\] hops:)`
+    reAvailPath := `(?i:available paths to)`
     rePathStr := `\[(.*?)\].*` + regexp.QuoteMeta(pathStr)
     interactive := len(pathStr) > 0
     if interactive {
@@ -388,14 +393,15 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
     if err != nil {
         fmt.Println(err)
     }
+
     defer func() {
         // monitor end of test here
         go func() { bwChanDone <- true }()
         file.Close()
     }()
 
+    pathsAvail := false
     jsonBuf := []byte(``)
-
     scanner := bufio.NewScanner(reader)
     for scanner.Scan() {
         // read each line from stdout
@@ -409,9 +415,28 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
         }
 
         if interactive {
-            // search stdout for matching path
-            match, _ := regexp.MatchString(rePathStr, line)
+            // To prevent indefinite wait for stdin when no match is found, timeout
+            match, _ := regexp.MatchString(reAvailPath, line)
             if match {
+                pathsAvail = match
+                // start stdin wait timer
+                go func() {
+                    time.Sleep(pathChoiceTimeout)
+                    if pathsAvail {
+                        // no match found by timeout, kill, throw err
+                        errMsg = "Path no longer available: " + pathStr
+                        fmt.Println(errMsg)
+                        fmt.Println("Terminating " + appSel + "...")
+                        if err := cmd.Process.Kill(); err != nil {
+                            fmt.Println(err)
+                        }
+                    }
+                }()
+            }
+            // search stdout for matching path
+            match, _ = regexp.MatchString(rePathStr, line)
+            if match {
+                pathsAvail = false
                 // write matching number to stdin
                 re := regexp.MustCompile(rePathStr)
                 num := re.FindStringSubmatch(line)[1]
@@ -426,6 +451,9 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
     if appSel == "bwtester" {
         // parse bwtester data/error
         lib.ExtractBwtestRespData(string(jsonBuf), d, start)
+        if len(errMsg) > 0 {
+            d.Error = errMsg
+        }
         // store in database
         model.StoreBwTestItem(d)
         lib.WriteBwtestCsv(d, srcpath)

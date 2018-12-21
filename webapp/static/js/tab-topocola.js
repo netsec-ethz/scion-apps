@@ -14,12 +14,6 @@
  * limitations under the License.
  */
 
-/*
- * TODO (mwfarb): topology.js and tab-topocola.js are used in more then one
- * web project and should therefore eventually be moved to a central
- * maintenance location to avoid duplication.
- */
-
 var graphPath;
 var colorPath;
 var colaPath;

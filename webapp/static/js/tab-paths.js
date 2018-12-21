@@ -423,8 +423,9 @@ function requestPaths() {
         data : form_data,
         success : function(data, textStatus, jqXHR) {
             console.info(JSON.stringify(data));
-            showError(data.err);
-
+            if (data.err) {
+                showError(data.err);
+            }
             resSegs = get_json_seg_topo(data.paths);
             resCore = resSegs.core_segments;
             resUp = resSegs.up_segments;

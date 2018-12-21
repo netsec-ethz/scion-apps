@@ -5,7 +5,6 @@
 // https://github.com/lokesh-coder/pretty-checkbox
 // https://github.com/iconic/open-iconic
 // https://code.highcharts.com
-// https://github.com/dezento/bootstrap-dynamic-menu
 
 var commandProg;
 var intervalGraphTick;

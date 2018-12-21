@@ -20,6 +20,13 @@ import (
     "github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
+// Configuations to save. Zeroing out any of these placeholders will cause the
+// webserver to request a fresh external copy to keep locally.
+var cConfig string
+var cLabels string
+var cNodes string
+var cGeoLoc string
+
 func returnError(w http.ResponseWriter, err error) {
     log.Println("error: " + err.Error())
     fmt.Fprintf(w, `{"err":`+strconv.Quote(err.Error())+`}`)
@@ -27,6 +34,7 @@ func returnError(w http.ResponseWriter, err error) {
 
 // sciond data sources and calls
 
+// PathTopoHandler handles requests for paths, returning results from sciond.
 func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     SIa := r.PostFormValue("ia_ser")
@@ -61,7 +69,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 
     paths := getPaths(*clientCCAddr, *serverCCAddr)
     if len(paths) == 0 {
-        returnError(w, fmt.Errorf("No paths from %s to %s!", clientCCAddr.IA,
+        returnError(w, fmt.Errorf("No paths from %s to %s", clientCCAddr.IA,
             serverCCAddr.IA))
         return
     }
@@ -82,29 +90,27 @@ func getPaths(local snet.Addr, remote snet.Addr) []*spathmeta.AppPath {
     return appPaths
 }
 
+// AsTopoHandler handles requests for AS data, returning results from sciond.
 func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     CIa := r.PostFormValue("src")
-    CAddr := "120.0.0.1" // TODO debug r.PostFormValue("addr_cli")
-    CPort, _ := 2, ""    // TODO debug strconv.Atoi(r.PostFormValue("port_cli"))
-    optClient := fmt.Sprintf("%s,[%s]:%d", CIa, CAddr, CPort)
-
-    log.Println("optClient: " + optClient)
-
-    clientCCAddr, _ := snet.AddrFromString(optClient)
-
+    ia, err := addr.IAFromString(CIa)
+    if err != nil {
+        returnError(w, err)
+        return
+    }
     if snet.DefNetwork == nil {
         dispatcherPath := "/run/shm/dispatcher/default.sock"
 
         var sciondPath string
         isdCli, _ := strconv.Atoi(strings.Split(CIa, "-")[0])
         if isdCli < 16 {
-            sciondPath = sciond.GetDefaultSCIONDPath(&clientCCAddr.IA)
+            sciondPath = sciond.GetDefaultSCIONDPath(&ia)
         } else {
             sciondPath = sciond.GetDefaultSCIONDPath(nil)
         }
 
-        err := snet.Init(clientCCAddr.IA, sciondPath, dispatcherPath)
+        err := snet.Init(ia, sciondPath, dispatcherPath)
         if err != nil {
             returnError(w, err)
             return
@@ -148,10 +154,11 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
         ajsonInfo, ijsonInfo, sjsonInfo))
 }
 
+// TrcHandler handles requests for all local trust root data.
 func TrcHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     CIa := r.PostFormValue("src")
-    raw, err := loadJsonCerts(CIa, "*.trc")
+    raw, err := loadJSONCerts(CIa, "*.trc")
     if err != nil {
         returnError(w, err)
         return
@@ -162,10 +169,11 @@ func TrcHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, string(raw))
 }
 
+// CrtHandler handles requests for all local certificate data.
 func CrtHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     CIa := r.PostFormValue("src")
-    raw, err := loadJsonCerts(CIa, "*.crt")
+    raw, err := loadJSONCerts(CIa, "*.crt")
     if err != nil {
         returnError(w, err)
         return
@@ -176,7 +184,7 @@ func CrtHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, string(raw))
 }
 
-func loadJsonCerts(src, pattern string) ([]byte, error) {
+func loadJSONCerts(src, pattern string) ([]byte, error) {
     ia, err := addr.IAFromString(src)
     certDir := path.Join(GOPATH, SCIONROOT,
         fmt.Sprintf("gen/ISD%d/AS%s/endhost/certs", ia.I, ia.A.FileFmt()))
@@ -189,10 +197,28 @@ func loadJsonCerts(src, pattern string) ([]byte, error) {
     if err != nil {
         return nil, err
     }
+    filesJSON, _ := loadJSONFiles(files)
+    cachedJSON, _ := loadJSONFiles(cachedFiles)
 
-    idx := 0
     jsonBuf := []byte(`{ `)
-    for _, file := range append(files, cachedFiles...) {
+    jsonBuf = append(jsonBuf, filesJSON...)
+    if len(filesJSON) > 0 && len(cachedJSON) > 0 {
+        jsonBuf = append(jsonBuf, []byte(`, `)...)
+    }
+    if len(cachedJSON) > 0 {
+        jsonBuf = append(jsonBuf, []byte(`"Cache": {`)...)
+        jsonBuf = append(jsonBuf, cachedJSON...)
+        jsonBuf = append(jsonBuf, []byte(` }`)...)
+    }
+    jsonBuf = append(jsonBuf, []byte(`}`)...)
+
+    return jsonBuf, nil
+}
+
+func loadJSONFiles(files []string) ([]byte, error) {
+    idx := 0
+    var jsonBuf []byte
+    for _, file := range files {
         raw, err := ioutil.ReadFile(file)
         if err != nil {
             return nil, err
@@ -205,95 +231,110 @@ func loadJsonCerts(src, pattern string) ([]byte, error) {
         jsonBuf = append(jsonBuf, raw...)
         idx++
     }
-    jsonBuf = append(jsonBuf, []byte(` }`)...)
     return jsonBuf, nil
 }
 
 // remote data files and services
 
+// ConfigHandler handles requests for configurable, centralized data sources.
 func ConfigHandler(w http.ResponseWriter, r *http.Request) {
+    r.ParseForm()
+    debug, _ := strconv.ParseBool(strings.Join(r.Form["debug"], ""))
     projectID := "my-project-1470640410708"
     url := fmt.Sprintf("https://%s.appspot.com/getconfig", projectID)
-    buf := new(bytes.Buffer)
-    resp, err := http.Post(url, "application/json", buf)
-    if err != nil {
-        returnError(w, err)
-        return
+    if len(cConfig) == 0 {
+        if debug {
+            raw := loadTestFile("tests/asviz/config-d.json")
+            cConfig = string(raw)
+        } else {
+            buf := new(bytes.Buffer)
+            resp, err := http.Post(url, "application/json", buf)
+            if err != nil {
+                returnError(w, err)
+                return
+            }
+            defer resp.Body.Close()
+            body, _ := ioutil.ReadAll(resp.Body)
+            cConfig = string(body)
+        }
     }
-    defer resp.Body.Close()
-    body, _ := ioutil.ReadAll(resp.Body)
-    jsonResp := string(body)
-    fmt.Println(jsonResp)
-    fmt.Fprintf(w, jsonResp)
+    fmt.Println(cConfig)
+    fmt.Fprintf(w, cConfig)
 }
 
+// LabelsHandler handles AS label requests, using exernal request when needed.
 func LabelsHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     debug, _ := strconv.ParseBool(strings.Join(r.Form["debug"], ""))
     url := strings.Join(r.Form["labels_json_url"], "")
-    var jsonResp string
-    if debug {
-        raw := loadTestFile("tests/asviz/labels-d.json")
-        jsonResp = string(raw)
-    } else {
-        resp, err := http.Get(url)
-        if err != nil {
-            returnError(w, err)
-            return
+    if len(cLabels) == 0 {
+        if debug {
+            raw := loadTestFile("tests/asviz/labels-d.json")
+            cLabels = string(raw)
+        } else {
+            resp, err := http.Get(url)
+            if err != nil {
+                returnError(w, err)
+                return
+            }
+            defer resp.Body.Close()
+            body, _ := ioutil.ReadAll(resp.Body)
+            cLabels = string(body)
         }
-        defer resp.Body.Close()
-        body, _ := ioutil.ReadAll(resp.Body)
-        jsonResp = string(body)
     }
-    fmt.Println(jsonResp)
-    fmt.Fprintf(w, jsonResp)
+    fmt.Println(cLabels)
+    fmt.Fprintf(w, cLabels)
 }
 
+// LocationsHandler handles AS location requests, using exernal request when needed.
 func LocationsHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     debug, _ := strconv.ParseBool(strings.Join(r.Form["debug"], ""))
     url := strings.Join(r.Form["nodes_xml_url"], "")
-    var jsonResp string
-    if debug {
-        raw := loadTestFile("tests/asviz/nodes-d.xml")
-        jsonResp = string(raw)
-    } else {
-        resp, err := http.Get(url)
-        if err != nil {
-            returnError(w, err)
-            return
+    if len(cNodes) == 0 {
+        if debug {
+            raw := loadTestFile("tests/asviz/nodes-d.xml")
+            cNodes = string(raw)
+        } else {
+            resp, err := http.Get(url)
+            if err != nil {
+                returnError(w, err)
+                return
+            }
+            defer resp.Body.Close()
+            body, _ := ioutil.ReadAll(resp.Body)
+            cNodes = string(body)
         }
-        defer resp.Body.Close()
-        body, _ := ioutil.ReadAll(resp.Body)
-        jsonResp = string(body)
     }
-    fmt.Println(jsonResp)
-    fmt.Fprintf(w, jsonResp)
+    fmt.Println(cNodes)
+    fmt.Fprintf(w, cNodes)
 }
 
+// GeolocateHandler handles geolocation requests, using exernal request when needed.
 func GeolocateHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     debug, _ := strconv.ParseBool(strings.Join(r.Form["debug"], ""))
     geoAPIKey := strings.Join(r.Form["google_geolocation_apikey"], "")
     url := fmt.Sprintf(
         "https://www.googleapis.com/geolocation/v1/geolocate?key=%s", geoAPIKey)
-    var jsonResp string
-    if debug {
-        raw := loadTestFile("tests/asviz/geolocate-d.json")
-        jsonResp = string(raw)
-    } else {
-        buf := new(bytes.Buffer)
-        resp, err := http.Post(url, "application/json", buf)
-        if err != nil {
-            returnError(w, err)
-            return
+    if len(cGeoLoc) == 0 {
+        if debug {
+            raw := loadTestFile("tests/asviz/geolocate-d.json")
+            cGeoLoc = string(raw)
+        } else {
+            buf := new(bytes.Buffer)
+            resp, err := http.Post(url, "application/json", buf)
+            if err != nil {
+                returnError(w, err)
+                return
+            }
+            defer resp.Body.Close()
+            body, _ := ioutil.ReadAll(resp.Body)
+            cGeoLoc = string(body)
         }
-        defer resp.Body.Close()
-        body, _ := ioutil.ReadAll(resp.Body)
-        jsonResp = string(body)
     }
-    fmt.Println(jsonResp)
-    fmt.Fprintf(w, jsonResp)
+    fmt.Println(cGeoLoc)
+    fmt.Fprintf(w, cGeoLoc)
 }
 
 func loadTestFile(testpath string) []byte {
