@@ -9,6 +9,11 @@
    "label": "checkbeacons",
    "script": "beaconstest.sh",
    "desc": "Receiving beacons test"
+  },
+  {
+   "label": "troubleshooter",
+   "script": "troubleshooter.sh",
+   "desc": "Tests for available memory, VPN, and SCION running status."
   }
  ]
 }
