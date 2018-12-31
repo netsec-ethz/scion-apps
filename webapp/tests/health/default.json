@@ -11,9 +11,19 @@
    "desc": "Receiving beacons test"
   },
   {
-   "label": "troubleshooter",
-   "script": "troubleshooter.sh",
-   "desc": "Tests for available memory, VPN, and SCION running status."
-  }
+   "label": "checkmemory",
+   "script": "testAvailMem.sh",
+   "desc": "Tests for available memory"
+  },
+  {
+   "label": "checkVPN",
+   "script": "testVPN.sh",
+   "desc": "Tests for VPN configuration"
+  },
+  {
+   "label": "checkrunnngstatus",
+   "script": "testSCIONRunning.sh",
+   "desc": "Tests for SCION Running status"
+  },
  ]
 }
