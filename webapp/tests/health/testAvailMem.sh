@@ -8,13 +8,13 @@ error_exit()
 }
 
 # get the available memory for this virtual machine
-availMem=$(df -h | grep '/' -w | tr -s ' ' | cut -d ' ' -f4 | cut -d '.' -f1)
+availMem=$(df | grep '/dev/sda1' -w | tr -s ' ' | cut -d ' ' -f4)
 
 # test if the available memory is greater than 2G
-if [ "$availMem" -lt 2 ]; then
+if [ "$availMem" -lt 2097152 ]; then
     error_exit "Error: Available Memory less than 2G, please destroy your virtual machine and create a new one"
 else
-    echo "Test for available memory succeeds."
+    echo "Test for available memory succeeds. Size of available memory: $((availMem / 1048576))G."
     exit 0
 fi
 

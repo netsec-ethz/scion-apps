@@ -24,6 +24,6 @@
    "label": "checkrunnngstatus",
    "script": "testSCIONRunning.sh",
    "desc": "Tests for SCION Running status"
-  },
+  }
  ]
 }
