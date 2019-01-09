@@ -45,4 +45,5 @@ $ rm -r user@example.com_17-ffaa_1_64
 Now check in the Coordinator webpage that your AS is correctly attached to your AP of choice, and that you are using the right tarball file. If in doubt, you can always click on Re-download my SCIONLab AS Configuration to get it again. Re-download does not configure the AS, but returns the latest configuration the Coordinator has for it. Wait 15 minutes (the reason being sometimes the attachment point needs 15 minutes to process your request). You should have received an email stating the success of your request. In the hopefully successful state, start again from the checking tarbal step. If after waiting these 15 minutes you did not receive the success email, or you received it but still don't see the same IP address in the tun0 interface as in the topology file, contact us."
 fi
 
+echo "VPN tun0 interface found at $ipAddress matching public and binding addresses for AS $isd_as"
 echo "Test for VPN succeeds."

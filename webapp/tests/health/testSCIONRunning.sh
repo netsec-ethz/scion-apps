@@ -7,12 +7,20 @@ error_exit()
     exit 1
 }
 
+
 # check if "./scion.sh status" returns anything, fail if it does
+if [[ -d $SC ]]
+then
+    echo "Variable $SC is set correctly."
+else
+    error_exit "Variable $SC is not properly set."
+fi
+    
 cd $SC
 status="$(bash $SC/scion.sh status 2>&1)"
 if [[ $status ]]
 then
-    echo "hello"
+    echo "SCION status has reported a problem: $status."
     error_exit "Stop and start SCION again as following then retry the test:
 
 ubuntu@ubuntu-xenial:~$ cd $SC
@@ -36,6 +44,8 @@ as17-ffaa_1_64:ps17-ffaa_1_64-1: started
 
 if the test still fails, please contact us and copy the following msg:
 $status"
+else
+    echo "SCION running status is normal."
 fi
 
 # check if /gen and /gen/ia and /run/shm/sciond and /run/shm/dispatcher directories are present and if they contain a default.sock file, fail if not
@@ -44,10 +54,16 @@ fi
 check_presence(){   
 if [[ ! -d "$1" ]]
 then
-    error_exit "directory $1 doesn't exist, please contact us."
-elif [[ ! -f "$1/$2" ]]
+    error_exit "Directory $1 doesn't exist, please contact us."
+else
+    echo "Directory $1 found."
+fi
+
+if [[ ! -f "$1/$2" ]]
 then
-    error_exit "file $1/$2 doesn't exist, please contact us."
+    error_exit "File $1/$2 doesn't exist, please contact us."
+else
+    echo "File $1/$2 found."
 fi
 }
 
