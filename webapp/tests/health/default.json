@@ -24,6 +24,11 @@
    "label": "checkrunnngstatus",
    "script": "testSCIONRunning.sh",
    "desc": "Tests for SCION Running status"
+  },
+  {
+   "label": "checkrepo",
+   "script": "testVersion.sh",
+   "desc": "Tests to check if git repo scion and scion-apps are up to date"
   }
  ]
 }
