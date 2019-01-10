@@ -68,6 +68,7 @@ var yearMs = hourMs * 24;
  * paths to spread out for better viewing.
  */
 function topoSetup(msg, width, height) {
+    setup = {};
     if (graphPath == undefined) {
         console.error("No graphPath to add setup!!");
         return;
@@ -114,6 +115,7 @@ function topoSetup(msg, width, height) {
  * Post rendering method to assign colors to path node links and labels.
  */
 function topoColor(msg) {
+    colors = {};
     for (key in msg) {
         colors[key] = msg[key];
 
@@ -172,6 +174,12 @@ function drawTopology(div_id, original_json_data, segs, width, height) {
     colorPath = null;
     colaPath = null;
     svgPath = null;
+    setup = {};
+    colors = {};
+    pageBounds = null;
+    circlesg = null;
+    linesg = null;
+
     if (original_json_data.length == 0) {
         console.error("No data to draw topology!!");
         return;
@@ -634,6 +642,9 @@ function drawPath(res, path, color) {
  */
 function restorePath() {
 
+    topoSetup({
+        "path1" : {}
+    });
     topoColor({
         "path1" : "none"
     });

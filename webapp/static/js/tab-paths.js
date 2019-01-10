@@ -282,6 +282,7 @@ function handleMapTopologySwitch(topologyUpdate) {
         if ($("#as-pathtopo").children("svg").length != 0) {
             // topo svg should redraw from scratch
             $("#as-pathtopo").children("svg").remove();
+            drawTopo(g.src, g.dst, jTopo, resSegs);
         }
         if ($("#as-pathtopo").children("iframe").length != 0) {
             // map should reuse its previous canvas to prevent reloads
@@ -304,21 +305,25 @@ function handleMapTopologySwitch(topologyUpdate) {
         // only load svg once
         if ($("#as-pathtopo").children("svg").length == 0) {
             // load path topology
-            var width = $("#as-pathtopo").width();
-            var height = $("#as-pathtopo").height();
-            drawTopology("as-pathtopo", jTopo, resSegs, width, height);
-            // add endpoint labels
-            var open = typeof self.segType !== 'undefined';
-            setPaths(self.segType, self.segNum, open);
-            topoSetup({
-                "source" : g.src,
-                "destination" : g.dst,
-            }, width, height);
+            drawTopo(g.src, g.dst, jTopo, resSegs);
         } else {
             $("#as-pathtopo").children("svg").show();
         }
         handleAsLabelSwitch();
     }
+}
+
+function drawTopo(src, dst, paths, segs) {
+    var width = $("#as-pathtopo").width();
+    var height = $("#as-pathtopo").height();
+    drawTopology("as-pathtopo", paths, segs, width, height);
+    // add endpoint labels
+    var open = typeof self.segType !== 'undefined';
+    setPaths(self.segType, self.segNum, open);
+    topoSetup({
+        "source" : src,
+        "destination" : dst,
+    }, width, height);
 }
 
 function get_path_info(paths) {
