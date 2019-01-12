@@ -8,7 +8,7 @@ error_exit()
 }
 
 # get the available memory for this virtual machine
-availMem=$(df | grep '/dev/sda1' -w | tr -s ' ' | cut -d ' ' -f4)
+availMem=$(df | grep '/' -w | tr -s ' ' | cut -d ' ' -f4)
 
 # test if the available memory is greater than 2G
 if [ "$availMem" -lt 2097152 ]; then

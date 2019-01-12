@@ -11,9 +11,9 @@ error_exit()
 # check if "./scion.sh status" returns anything, fail if it does
 if [[ -d $SC ]]
 then
-    echo "Variable $SC is set correctly."
+    echo "Variable \$SC is set correctly."
 else
-    error_exit "Variable $SC is not properly set."
+    error_exit "Variable \$SC is not properly set."
 fi
     
 cd $SC
