@@ -10,9 +10,9 @@ error_exit()
 # check if variable $GOPATH is properly defined, we already know from previous health check that $SC is properly defined, so we ignore the test for $SC here
 if [[ -d $GOPATH ]]
 then
-    echo "Variable $GOPATH is set correctly."
+    echo "Variable \$GOPATH is set correctly."
 else
-    error_exit "Variable $GOPATH is not properly set."
+    error_exit "Variable \$GOPATH is not properly set."
 fi
 
 # check if the scion and scion-apps repo exist and are up to date
