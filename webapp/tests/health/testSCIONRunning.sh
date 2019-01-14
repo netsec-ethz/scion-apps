@@ -23,24 +23,10 @@ then
     echo "SCION status has reported a problem: $status."
     error_exit "Stop and start SCION again as following then retry the test:
 
-ubuntu@ubuntu-xenial:~$ cd $SC
-ubuntu@ubuntu-xenial:~/go/src/github.com/scionproto/scion$ ./scion.sh stop
-Terminating this run of the SCION infrastructure
-dispatcher: stopped
-as17-ffaa_1_64:sd17-ffaa_1_64: stopped
-as17-ffaa_1_64:br17-ffaa_1_64-1: stopped
-as17-ffaa_1_64:cs17-ffaa_1_64-1: stopped
-as17-ffaa_1_64:ps17-ffaa_1_64-1: stopped
-as17-ffaa_1_64:bs17-ffaa_1_64-1: stopped
-ubuntu@ubuntu-xenial:~/go/src/github.com/scionproto/scion$ ./scion.sh start
-Compiling...
-Running the network...
-dispatcher: started
-as17-ffaa_1_64:sd17-ffaa_1_64: started
-as17-ffaa_1_64:br17-ffaa_1_64-1: started
-as17-ffaa_1_64:bs17-ffaa_1_64-1: started
-as17-ffaa_1_64:cs17-ffaa_1_64-1: started
-as17-ffaa_1_64:ps17-ffaa_1_64-1: started
+$ cd $SC
+$ ./scion.sh stop
+$ ./scion.sh start
+$ ./scion.sh status
 
 if the test still fails, please contact us and copy the following msg:
 $status"
@@ -59,7 +45,7 @@ else
     echo "Directory $1 found."
 fi
 
-if [[ ! -f "$1/$2" ]]
+if [[ ! -e "$1/$2" ]]
 then
     error_exit "File $1/$2 doesn't exist, please contact us."
 else

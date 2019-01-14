@@ -1,5 +1,6 @@
 # test if the VPN configuration is correct, fail if not
 
+set -e
 # error exit function
 error_exit()
 {
@@ -8,7 +9,7 @@ error_exit()
 }
 
 # lines describing the tun0 interface
-targetLines=$(ip a | grep "tun0:" -A4)
+targetLines=$(ip address show dev tun0)
 
 ### 1.check if tun0 interface is present
 if [ $(echo "$targetLines" | wc -l) -eq 1 ]
@@ -20,13 +21,14 @@ fi
 # ip address of the tun0 interface
 ipAddress=$(echo "$targetLines" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -n1)
 
+topologyFile=$SC/gen/ISD*/AS*/endhost/topology.json
 # find the ISD_AS for this VM
-isd_as=$(cat $(find ~ -name topology.json | head -n1) | python -c "import sys, json; print json.load(sys.stdin)['ISD_AS'];" | tr ":" "_")
+isd_as=$(cat $topologyFile | python -c "import sys, json; print json.load(sys.stdin)['ISD_AS'];" | tr ":" "_")
 
 # decode the ip adresses of "Bind" and "Public" in the above block
-ipBind=$(cat $(find ~ -name topology.json | head -n1) | python -c "import sys, json; print json.load(sys.stdin)['BorderRouters']['br$isd_as-1']['Interfaces']['1']['Bind']['Addr'];")
+ipBind=$(cat $topologyFile | python -c "import sys, json; print json.load(sys.stdin)['BorderRouters']['br$isd_as-1']['Interfaces']['1']['Bind']['Addr'];")
 
-ipPublic=$(cat $(find ~ -name topology.json | head -n1) | python -c "import sys, json; print json.load(sys.stdin)['BorderRouters']['br$isd_as-1']['Interfaces']['1']['Public']['Addr'];")
+ipPublic=$(cat $topologyFile | python -c "import sys, json; print json.load(sys.stdin)['BorderRouters']['br$isd_as-1']['Interfaces']['1']['Public']['Addr'];")
 
 # 2.check if the ip address from the tun0 interface is consistent with the two ip addresses above.
 
