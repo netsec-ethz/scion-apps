@@ -46,7 +46,7 @@ check_repo()
     then
 	error_exit "Git repo '$2' at path $1 needs to push"
     else
-	error_exit "Git repo '$2' at path $1 is diverged"
+        error_exit "Git repo '$2' at path $1 is diverged"
     fi
 }
 
