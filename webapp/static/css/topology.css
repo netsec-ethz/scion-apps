@@ -1,0 +1,84 @@
+/*
+ * Copyright 2016 ETH Zurich
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * --------------------------------- Cola Topology ---------------------------------
+ */
+
+.node:not (.host ) {
+ stroke: white;
+ stroke-width: 3px;
+}
+
+.node.host {
+ stroke: #CCCCCC;
+ stroke-width: 1px;
+}
+
+.marker{
+    fill: none;
+    stroke: #666;
+    stroke-opacity: .5;
+    stroke-width: 1.5px;
+}
+
+.link {
+ stroke-width: 4px;
+}
+
+.link.host {
+ stroke: #444444;
+ stroke-width: 1px;
+ stroke-dasharray: 4, 4;
+}
+
+.group {
+ stroke: white;
+ stroke-width: 1.5px;
+ cursor: move;
+ opacity: 0.7;
+}
+
+.label {
+ fill: black;
+ text-anchor: middle;
+ cursor: move;
+}
+
+.host.label {
+ text-transform: capitalize;
+}
+
+.CORE.label {
+ fill: white;
+}
+
+/**
+ * --------------------------------- Additional Topology ---------------------------------
+ */
+
+.link.CORE {
+ stroke-width: 5.5px;
+}
+
+.link.PEER {
+ stroke-dasharray: 0, 2 1;
+}
+
+.link.SELECTED {
+ stroke: red;
+}
+

@@ -1,0 +1,45 @@
+{
+ "down_segments": {
+  "if_lists": [
+   {
+    "expTime": 1542761349,
+    "timestamp": 1542739781,
+    "interfaces": [
+     {
+      "IFID": 24,
+      "ISD": "1",
+      "AS": "ff00:0:110"
+     },
+     {
+      "IFID": 26,
+      "ISD": "1",
+      "AS": "ff00:0:111"
+     }
+    ]
+   }
+  ]
+ },
+ "core_segments": {
+  "if_lists": []
+ },
+ "up_segments": {
+  "if_lists": [
+   {
+    "expTime": 1542761349,
+    "timestamp": 1542739781,
+    "interfaces": [
+     {
+      "IFID": 59,
+      "ISD": "1",
+      "AS": "ff00:0:110"
+     },
+     {
+      "IFID": 66,
+      "ISD": "1",
+      "AS": "ff00:0:112"
+     }
+    ]
+   }
+  ]
+ }
+}

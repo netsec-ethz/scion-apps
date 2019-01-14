@@ -1,5 +1,10 @@
 {{define "health"}} {{template "header" .}}
+
+<script type="text/javascript" src="static/js/asviz.js"></script>
+
 <div class="content">
+
+ <div id='as-error'></div>
 
  <h2>SCIONLab Health Check</h2>
  <p>
@@ -10,37 +15,38 @@
  <ul id="health-list">
  </ul>
  <p>
-  Some tests take a few seconds to succeed, click <a href="/health">Health</a>
+  Some tests take a few seconds to succeed, click <a href="/">Health</a>
   to test again.
  </p>
 
 </div>
 
 <script>
-    $.post("/healthcheck", null, function(json) {
+    $.post("/healthcheck", null, function(data) {
         var now = new Date();
-        d = JSON.parse(json);
+        d = JSON.parse(data);
         console.info('resp:', JSON.stringify(d));
+        if (d.err) {
+            showError(d.err);
+        }
         // parse results into html
         $("#health-list").empty();
         var test;
-        for (test in d) {
-            if (d.hasOwnProperty(test)) {
-                var a = $('<a>').attr('href', "#hc-" + test).attr('class',
-                        "panel-title").attr('data-toggle', "collapse").append(
-                        d[test].desc + " ");
-                var span = $('<span>').attr('class',
-                        "label label-" + (d[test].pass ? "success" : "danger"))
-                        .append(d[test].pass ? "Passed" : "Failed");
-                var div = $('<div>').attr('id', "hc-" + test).attr('class',
-                        "collapse").append(d[test].reason);
-                var li = $('<li>').append(a).append(span).append(div);
-                $("#health-list").append(li);
-            }
+        for (test in d.tests) {
+            var a = $('<a>').attr('href', "#hc-" + test).attr('class',
+                    "panel-title").attr('data-toggle', "collapse").append(
+                    d.tests[test].desc + " ");
+            var label = d.tests[test].pass ? "success" : "danger";
+            var span = $('<span>').attr('class', "label label-" + label)
+                    .append(d.tests[test].pass ? "Passed" : "Failed");
+            var div = $('<div>').attr('id', "hc-" + test).attr('class',
+                    "collapse").append(d.tests[test].reason);
+            var li = $('<li>').append(a).append(span).append(div);
+            $("#health-list").append(li);
         }
         $("#test-complete").text(
-                "Check last completed " + now.toLocaleTimeString() + " "
-                        + now.toLocaleDateString() + ".");
+                "Check last completed " + now.toLocaleDateString() + " "
+                        + now.toLocaleTimeString() + ".");
     });
 </script>
 

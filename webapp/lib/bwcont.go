@@ -4,7 +4,6 @@ import (
     "encoding/csv"
     "encoding/json"
     "fmt"
-    model "github.com/netsec-ethz/scion-apps/webapp/models"
     "io"
     "log"
     "net/http"
@@ -14,6 +13,8 @@ import (
     "strconv"
     "strings"
     "time"
+
+    model "github.com/netsec-ethz/scion-apps/webapp/models"
 )
 
 var logBufLen = 1024
@@ -30,6 +31,7 @@ var reItMax = `(?i:interarrival time max:\s*)([0-9.-]*)(?:\s*ms)`
 var reErr1 = `(?i:err=*)"(.*?)"`
 var reErr2 = `(?i:crit msg=*)"(.*?)"`
 var reErr3 = `(?i:error:\s*)([\s\S]*)`
+var reUPath = `(?i:using path:)`
 
 // ExtractBwtestRespData will parse cmd line output from bwtester for adding BwTestItem fields.
 func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
@@ -41,8 +43,9 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
     d.Inserted = time.Now().UnixNano() / 1e6
 
     var data = map[string]map[string]string{}
-    var dir, err string
+    var dir, path, err string
     var match bool
+    pathNext := false
     r := strings.Split(resp, "\n")
     for i := range r {
         match, _ = regexp.MatchString(reCSHdr, r[i])
@@ -85,6 +88,12 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
             re := regexp.MustCompile(reItMax)
             data[dir]["arrival_max"] = re.FindStringSubmatch(r[i])[1]
         }
+        // save used path (default or interactive) for later user display
+        if pathNext {
+            path = strings.TrimSpace(r[i])
+        }
+        match, _ = regexp.MatchString(reUPath, r[i])
+        pathNext = match
         // evaluate error message potential
         match1, _ := regexp.MatchString(reErr1, r[i])
         match2, _ := regexp.MatchString(reErr2, r[i])
@@ -118,6 +127,7 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
     d.SCArrAvg, _ = strconv.Atoi(data["sc"]["arrival_avg"])
     d.SCArrMin, _ = strconv.Atoi(data["sc"]["arrival_min"])
     d.SCArrMax, _ = strconv.Atoi(data["sc"]["arrival_max"])
+    d.Path = path
 
     if d.CSThroughput == 0 || d.SCThroughput == 0 {
         d.Error = err

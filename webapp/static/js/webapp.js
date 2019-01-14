@@ -59,22 +59,6 @@ var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
 
-$(document).ready(function() {
-    $.ajaxSetup({
-        cache : false,
-        timeout : 30000,
-    });
-    // nodes setup
-    initNodes();
-    // dials setup
-    initDials('cs');
-    initDials('sc');
-    $('.dial').trigger('configure', dial_prop_all);
-    initBwGraphs();
-
-    setDefaults();
-});
-
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
     var checked = $('#switch_cont').prop('checked');
@@ -105,7 +89,10 @@ function initBwGraphs() {
 
     // charts update on tab switch
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
-        handleSwitchTabs();
+        var name = $(e.target).attr("name");
+        if (name != "as-graphs" && name != "as-tab-pathtopo") {
+            handleSwitchTabs();
+        }
     });
     // setup charts
     var csColAch = $('#svg-client circle').css("fill");
@@ -122,11 +109,18 @@ function initBwGraphs() {
     manageTestData();
 }
 
+function showOnlyConsoleGraphs(activeApp) {
+    $('#bwtest-continuous').css("display",
+            (activeApp == "bwtester") ? "block" : "none");
+    var isConsole = (activeApp == "bwtester" || activeApp == "camerapp" || activeApp == "sensorapp");
+    $('.stdout').css("display", isConsole ? "block" : "none");
+}
+
 function handleSwitchTabs() {
     var activeApp = $('.nav-tabs .active > a').attr('name');
     var isBwtest = (activeApp == "bwtester");
     // show/hide graphs for bwtester
-    $('#bwtest-graphs').css("display", isBwtest ? "block" : "none");
+    showOnlyConsoleGraphs(activeApp);
     var checked = $('#switch_cont').prop('checked');
     if (checked && !isBwtest) {
         $("#switch_cont").prop('checked', false);
@@ -242,7 +236,8 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
 function formatTooltip() {
     var tooltip = '<b>' + this.series.name + '</b><br/>'
             + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
-            + Highcharts.numberFormat(this.y, 2) + ' mbps';
+            + Highcharts.numberFormat(this.y, 2) + ' mbps<br/><i>'
+            + this.point.path + '</i>';
     if (this.point.error != null) {
         tooltip += '<br/><b>' + this.point.error + '</b>';
     }
@@ -321,10 +316,12 @@ function manageTestData() {
                             'cs' : {
                                 'bandwidth' : d.graph[i].CSBandwidth,
                                 'throughput' : d.graph[i].CSThroughput,
+                                'path' : d.graph[i].Path,
                             },
                             'sc' : {
                                 'bandwidth' : d.graph[i].SCBandwidth,
                                 'throughput' : d.graph[i].SCThroughput,
+                                'path' : d.graph[i].Path,
                             },
                         };
                         // update with errors, if any
@@ -389,6 +386,7 @@ function updateBwChart(chart, dataDir, time) {
         chart.series[0].addPoint({
             x : time,
             y : bw,
+            path : dataDir.path,
             error : dataDir.error,
             color : '#f00',
             marker : {
@@ -396,10 +394,18 @@ function updateBwChart(chart, dataDir, time) {
             }
         }, draw, shift);
     } else {
-        chart.series[0].addPoint([ time, bw ], draw, shift);
+        chart.series[0].addPoint({
+            x : time,
+            y : bw,
+            path : dataDir.path,
+        }, draw, shift);
     }
     if (tp > 0) {
-        chart.series[1].addPoint([ time, tp ], draw, shift);
+        chart.series[1].addPoint({
+            x : time,
+            y : tp,
+            path : dataDir.path,
+        }, draw, shift);
     }
 }
 
@@ -428,6 +434,9 @@ function command(continuous) {
         }, {
             name : "interval",
             value : getIntervalMax()
+        }, {
+            name : "pathStr",
+            value : formatPathString(resPath, self.segNum, self.segType)
         });
     }
     if (activeApp == "camerapp") {
@@ -570,7 +579,10 @@ function updateBwErrors(dataDir, dir, err) {
 function initNodes() {
     loadNodes('cli', 'clients_default');
     $("a[data-toggle='tab']").on('shown.bs.tab', function(e) {
-        updateNodeOptions('ser');
+        var name = $(e.target).attr("name");
+        if (name != "as-graphs" && name != "as-tab-pathtopo") {
+            updateNodeOptions('ser');
+        }
     });
     $('#sel_cli').change(function() {
         updateNode('cli');
@@ -579,6 +591,8 @@ function initNodes() {
     });
     $('#sel_ser').change(function() {
         updateNode('ser');
+        // server node change complete, update paths
+        requestPaths();
     });
 }
 
@@ -600,11 +614,18 @@ function loadNodes(node, list) {
     console.info(JSON.stringify(data));
     $('#sel_' + node).load('/getnodes', data, function(resp, status, jqXHR) {
         console.info('resp:', resp);
-        nodes[node] = JSON.parse(resp);
-        updateNodeOptions(node);
-        if (node == 'cli') {
-            // after client selection, update server options
-            loadServerNodes();
+        if (status == "success") {
+            nodes[node] = JSON.parse(resp);
+            updateNodeOptions(node);
+            if (node == 'cli') {
+                // after client selection, update server options
+                loadServerNodes();
+            } else {
+                // server node change complete, update paths
+                requestPaths();
+            }
+        } else {
+            console.error("Error: " + jqXHR.status + ": " + jqXHR.statusText);
         }
     });
 }
@@ -765,7 +786,7 @@ function onchange(dir, name, v) {
     }
 }
 
-function update(dir, name, val, min, max) {
+function update_dial(dir, name, val, min, max) {
     var valid = (val <= max && val >= min);
     if (valid) {
         setTimeout(function() {
@@ -919,22 +940,22 @@ function onchange_bw(dir, v, min, max, lock) {
 
 function update_sec(dir) {
     var val = parseInt(get_sec(dir) / 1000000);
-    return update(dir, 'sec', val, secMin, secMax);
+    return update_dial(dir, 'sec', val, secMin, secMax);
 }
 
 function update_size(dir) {
     var val = parseInt(get_size(dir) * 1000000);
-    return update(dir, 'size', val, sizeMin, sizeMax);
+    return update_dial(dir, 'size', val, sizeMin, sizeMax);
 }
 
 function update_pkt(dir) {
     var val = parseInt(get_pkt(dir) * 1000000);
-    return update(dir, 'pkt', val, pktMin, pktMax);
+    return update_dial(dir, 'pkt', val, pktMin, pktMax);
 }
 
 function update_bw(dir) {
     var val = parseFloat(get_bw(dir) / 1000000);
-    return update(dir, 'bw', val, bwMin, bwMax);
+    return update_dial(dir, 'bw', val, bwMin, bwMax);
 }
 
 function get_sec(dir) {

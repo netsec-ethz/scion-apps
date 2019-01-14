@@ -9,13 +9,17 @@ import (
     "net/http"
     "os/exec"
     "path"
+    "path/filepath"
     "strconv"
     "strings"
 )
 
+// Tests holds the JSON array for all health checks.
 type Tests struct {
     Tests []Check `json:"tests"`
 }
+
+// Check holds JSON fields for an individual health check.
 type Check struct {
     Label  string `json:"label"`
     Script string `json:"script"`
@@ -29,18 +33,26 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
     raw, err := ioutil.ReadFile(fp)
     if err != nil {
         log.Println("ioutil.ReadFile() error: " + err.Error())
+        fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+        return
     }
     fmt.Println(string(raw))
 
     var tests Tests
-    json.Unmarshal([]byte(raw), &tests)
+    err = json.Unmarshal([]byte(raw), &tests)
+    if err != nil {
+        log.Println("json.Unmarshal() error: " + err.Error())
+        fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+        return
+    }
     // execute each script and format results for json
-    jsonBuf := []byte(`{ `)
+    jsonBuf := []byte(`{ "tests": { `)
     for i := 0; i < len(tests.Tests); i++ {
         pass := true
         fmt.Println(tests.Tests[i].Script + ": " + tests.Tests[i].Desc)
         // execute script
-        cmd := exec.Command("bash", "./tests/health/"+tests.Tests[i].Script)
+        cmd := exec.Command("bash", tests.Tests[i].Script)
+        cmd.Dir = filepath.Dir(fp)
         var stdout, stderr bytes.Buffer
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
@@ -73,7 +85,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
             jsonBuf = append(jsonBuf, []byte(`,`)...)
         }
     }
-    jsonBuf = append(jsonBuf, []byte(` }`)...)
+    jsonBuf = append(jsonBuf, []byte(` } }`)...)
 
     fmt.Printf(string(jsonBuf))
 
