@@ -8,46 +8,126 @@
 
  <h2>SCIONLab Health Check</h2>
  <p>
-  If all tests have passed, please continue to <a href="/apps">Apps</a>
-  in the menu to use SCIONLab. <span id="test-complete"></span>
-
+  If all automated tests have passed, please continue to <a
+   href="/apps">Apps</a> in the menu to use SCIONLab.
  </p>
  <ul id="health-list">
  </ul>
  <p>
-  Some tests take a few seconds to succeed, click <a href="/">Health</a>
-  to test again.
+  <span id="test-complete"></span>
  </p>
-
+ <p>
+  Some tests take a few seconds to succeed, click <a href="/">Health</a>
+  to test again. Our <a
+   href='http://netsec-ethz.github.io/scion-tutorials/general_scion_configuration/troubleshooting'>troubleshooting
+   guide</a> may also be useful.
+ </p>
 </div>
 
 <script>
+    $("#health-list").empty();
     $.post("/healthcheck", null, function(data) {
-        var now = new Date();
         d = JSON.parse(data);
         console.info('resp:', JSON.stringify(d));
         if (d.err) {
             showError(d.err);
         }
-        // parse results into html
-        $("#health-list").empty();
-        var test;
-        for (test in d.tests) {
-            var a = $('<a>').attr('href', "#hc-" + test).attr('class',
-                    "panel-title").attr('data-toggle', "collapse").append(
-                    d.tests[test].desc + " ");
-            var label = d.tests[test].pass ? "success" : "danger";
-            var span = $('<span>').attr('class', "label label-" + label)
-                    .append(d.tests[test].pass ? "Passed" : "Failed");
-            var div = $('<div>').attr('id', "hc-" + test).attr('class',
-                    "collapse").append(d.tests[test].reason);
-            var li = $('<li>').append(a).append(span).append(div);
-            $("#health-list").append(li);
-        }
-        $("#test-complete").text(
-                "Check last completed " + now.toLocaleDateString() + " "
-                        + now.toLocaleTimeString() + ".");
     });
+    var last = [];
+    var healthInterval = setInterval(function() {
+        // setup interval to check status file webserver will update
+        $.ajax({
+            url : "files/data/healthcheck-result.json",
+            method : 'GET',
+            dataType : "json",
+            success : function(data) {
+                var inProgress = false;
+                resp = (data);
+                $.each(resp, function(test) {
+                    if (resp[test].end == 0) {
+                        // when any test has not completed, we are in progress
+                        inProgress = true;
+                    }
+                    if (last.length == 0) {
+                        // if list empty, use first hit as fill list
+                        var li = $('<li>').attr('id', "li-" + test).append(
+                                getListItemDiv(resp, test));
+                        $("#health-list").append(li);
+                    } else {
+                        // if list not empty, then based on label state,
+                        // reset label state and details.
+                        if (last[test].end == 0) {
+                            $('#li-' + test).empty().append(
+                                    getListItemDiv(resp, test));
+                        }
+                    }
+                });
+                last = resp; // increment local update monitor
+                if (!inProgress) {
+                    // end checking and report time
+                    clearInterval(healthInterval);
+                    var now = new Date();
+                    $("#test-complete").text(
+                            "Check last completed " + now.toLocaleDateString()
+                                    + " " + now.toLocaleTimeString() + ".");
+                }
+            }
+        });
+    }, 500);
+
+    function getListItemDiv(resp, test) {
+        var a = $('<a>').attr('href', "#hc-" + test).attr('class',
+                "panel-title").attr('data-toggle', "collapse").append(
+                resp[test].desc + " ");
+        var label = getBadgeLabel(resp[test]);
+        var text = getBadgeText(resp[test]);
+        var span = $('<span>').attr('class', "label " + label).append(text);
+
+        var elapsed = getElapsedText(resp[test]);
+        var div = $('<div>').attr('id', "hc-" + test).attr('class', "collapse")
+                .append(elapsed).append(resp[test].reason);
+        return $('<div>').append(a).append(span).append(div);
+    }
+
+    function getElapsedText(test) {
+        if (test.end == 0) {
+            return "";
+        } else {
+            return "Test duration: " + (test.end - test.start) + "ms.<br>";
+        }
+    }
+
+    function getBadgeLabel(test) {
+        if (!test.pass) {
+            if (test.end == 0) {
+                if (test.start == 0) {
+                    return "label-default";
+                } else {
+                    return "label-info";
+                }
+            } else {
+                return "label-danger";
+            }
+        } else {
+            return "label-success";
+        }
+    }
+
+    function getBadgeText(test) {
+        if (!test.pass) {
+            if (test.end == 0) {
+                if (test.start == 0) {
+                    return "Pending";
+                } else {
+                    return "Running...";
+                }
+            } else {
+                return "Failed";
+            }
+        } else {
+            return "Passed";
+        }
+    }
 </script>
 
 {{template "footer" .}} {{end}}

@@ -1,6 +1,12 @@
 #!/bin/bash
 # test will fail for non-zero exit and/or bytes in stderr
 
+# timeout for reties to find vaerfied PCBs
+timeout_ms=20000
+
+# oldest accept age of last PCB
+pcb_ms=10000
+
 # get local IA
 ia=`cat ~/go/src/github.com/scionproto/scion/gen/ia`
 echo "IA found: $ia"
@@ -10,17 +16,37 @@ fsafe_ia=$(echo $ia | sed "s/:/_/g")
 logfile="~/go/src/github.com/scionproto/scion/logs/bs${fsafe_ia}-1.DEBUG"
 echo "Log: $logfile"
 
-# seek log entries for verified PCBs on today's date
-regex_pcb="$(date +%Y-%m-%d).*Successfully verified PCB"
+# seek last log entry for verified PCBs
+regex_pcb="Successfully verified PCB"
 echo "Seeking regex: $regex_pcb"
 
-count=$(grep -c "${regex_pcb}" \
-    ~/go/src/github.com/scionproto/scion/logs/bs${fsafe_ia}-1.DEBUG)
-echo "Verifications found on $(date +%Y-%m-%d): $count"
+epoch_s=$(date +"%s%6N")
+diff_ms=$pcb_ms
+while [ "$diff_ms" -ge $pcb_ms ]
+do
+    epoch_n=$(date +"%s%6N")
 
-if (( count==0 )); then
-    echo "No PCBs verified yet today."
-    exit 1
-fi
+    # timeout after 20s of attempts
+    diff_to=$((epoch_n-epoch_s))
+    diff_to_ms=$((diff_to/1000))
+    if (( diff_to_ms>timeout_ms )); then
+        echo "Timeout: No PCBs verified in the last $((pcb_ms/1000)) seconds."
+        exit 1
+    fi
 
+    # seek the last pcb verified, and determine age
+    last_pcb=$(grep "${regex_pcb}" \
+        ~/go/src/github.com/scionproto/scion/logs/bs${fsafe_ia}-1.DEBUG | tail -n 1)
+    date=${last_pcb:0:32}
+    epoch_l=$(date -d "${date}" +"%s%6N")
+    diff=$((epoch_n-epoch_l))
+    diff_ms=$((diff/1000))
+
+    # if too old, wait 1s to try again
+    if [ "$diff_ms" -ge 60000 ]; then
+        sleep 1
+    fi
+done
+
+echo "PCB verification found ${diff_ms}ms ago."
 exit $?

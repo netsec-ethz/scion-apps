@@ -10,26 +10,42 @@ import (
     "os/exec"
     "path"
     "path/filepath"
-    "strconv"
     "strings"
+    "time"
 )
 
-// Tests holds the JSON array for all health checks.
-type Tests struct {
-    Tests []Check `json:"tests"`
+var defFileHealthCheck = "tests/health/default.json"
+var resFileHealthCheck = "data/healthcheck-result.json"
+var healthCheckTimeout = time.Duration(60) * time.Second
+
+// DefTests holds the JSON array for all health checks.
+type DefTests struct {
+    Tests []DefHealthCheck `json:"tests"`
 }
 
-// Check holds JSON fields for an individual health check.
-type Check struct {
+// DefHealthCheck holds JSON fields for a health check definition.
+type DefHealthCheck struct {
     Label  string `json:"label"`
     Script string `json:"script"`
     Desc   string `json:"desc"`
 }
 
+// ResHealthCheck holds JSON fields for a health check result.
+type ResHealthCheck struct {
+    Label  string `json:"label"`
+    Title  string `json:"desc"`
+    Reason string `json:"reason"`
+    Pass   bool   `json:"pass"`
+    Start  int64  `json:"start"`
+    End    int64  `json:"end"`
+}
+
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) {
-    fp := path.Join(srcpath, "tests/health/default.json")
+    hcResFp := path.Join(srcpath, resFileHealthCheck)
+    // read specified tests from json definition
+    fp := path.Join(srcpath, defFileHealthCheck)
     raw, err := ioutil.ReadFile(fp)
     if err != nil {
         log.Println("ioutil.ReadFile() error: " + err.Error())
@@ -38,30 +54,67 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
     }
     fmt.Println(string(raw))
 
-    var tests Tests
+    var tests DefTests
     err = json.Unmarshal([]byte(raw), &tests)
     if err != nil {
         log.Println("json.Unmarshal() error: " + err.Error())
         fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
         return
     }
+
+    // generate local memory struct to export results
+    var results []ResHealthCheck
+    for _, test := range tests.Tests {
+        res := ResHealthCheck{Label: test.Label, Title: test.Desc}
+        results = append(results, res)
+    }
+    // export empty result set first
+    jsonRes, err := json.Marshal(results)
+    err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+    if err != nil {
+        log.Println("ioutil.WriteFile() error: " + err.Error())
+    }
+
     // execute each script and format results for json
-    jsonBuf := []byte(`{ "tests": { `)
-    for i := 0; i < len(tests.Tests); i++ {
+    for i, test := range tests.Tests {
         pass := true
-        fmt.Println(tests.Tests[i].Script + ": " + tests.Tests[i].Desc)
+        fmt.Println(test.Script + ": " + test.Desc)
         // execute script
-        cmd := exec.Command("bash", tests.Tests[i].Script)
+        cmd := exec.Command("bash", test.Script)
         cmd.Dir = filepath.Dir(fp)
         var stdout, stderr bytes.Buffer
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
+        start := time.Now().UnixNano() / 1e6
+
+        // export results when test starts, timestamp
+        results[i].Start = start
+        jsonRes, err = json.Marshal(results)
+        err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+        if err != nil {
+            log.Println("ioutil.WriteFile() error: " + err.Error())
+        }
+
+        // start cmd timeout timer
+        go func(idx int) {
+            time.Sleep(healthCheckTimeout)
+            if results[idx].End == 0 {
+                // no match found by timeout, kill, throw err
+                fmt.Println(tests.Tests[idx].Script + " exceeded timeout: " + healthCheckTimeout.String())
+                fmt.Println("Terminating " + tests.Tests[idx].Script + "...")
+                if err := cmd.Process.Kill(); err != nil {
+                    fmt.Println(err)
+                }
+            }
+        }(i)
+
         err := cmd.Run()
         if err != nil {
             // fail test for non-zero exit code
             pass = false
             log.Printf("cmd.Run() failed with %s\n", err)
         }
+        end := time.Now().UnixNano() / 1e6
         outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
         if len(outStr) > 0 {
             fmt.Println(outStr)
@@ -71,24 +124,22 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
             pass = false
             fmt.Println(errStr)
         }
-
         // format results
         result := strings.Replace((outStr + ` <b>` + errStr + `</b>`), "\n", "<br>", -1)
         result = strings.Replace(result, "\"", "\\\"", -1)
-        json := []byte(`"` + tests.Tests[i].Label + `": {` +
-            `"pass":` + strconv.FormatBool(pass) + `,` +
-            `"desc":"` + tests.Tests[i].Desc + `",` +
-            `"reason":"` + result + `"` +
-            `}`)
-        jsonBuf = append(jsonBuf, json...)
-        if (i + 1) != len(tests.Tests) { // add delimiter
-            jsonBuf = append(jsonBuf, []byte(`,`)...)
+
+        // export results when test ends, timestamp
+        results[i].End = end
+        results[i].Pass = pass
+        results[i].Reason = result
+        jsonRes, err = json.Marshal(results)
+        fmt.Println(string(jsonRes))
+        err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+        if err != nil {
+            log.Println("ioutil.WriteFile() error: " + err.Error())
         }
     }
-    jsonBuf = append(jsonBuf, []byte(` } }`)...)
-
-    fmt.Printf(string(jsonBuf))
 
     // ensure all escaped correctly before writing to printf formatter
-    fmt.Fprintf(w, string(jsonBuf))
+    fmt.Fprintf(w, string(jsonRes))
 }

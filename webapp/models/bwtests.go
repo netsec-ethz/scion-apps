@@ -10,8 +10,6 @@ import (
 
 var bwTestDbExpire = time.Duration(24) * time.Hour
 
-var bwDbVer = 1
-
 // BwTestItem reflects one row in the bwtests table with all columns.
 type BwTestItem struct {
     Inserted       int64  // v1, ms
@@ -77,66 +75,6 @@ type BwTestGraph struct {
     SCThroughput   int
     Error          string
     Path           string
-}
-
-// LoadBwTestTable operates on the DB to migrate the bwtests table.
-func LoadBwTestTable() {
-    createBwTestTable()
-    version := getUserVersion()
-    log.Printf("Database version: %d", version)
-    // add successive migrations here
-    if version < 1 {
-        addColumn("Path TEXT")
-    }
-    //set updated version
-    if version != bwDbVer {
-        setUserVersion(bwDbVer)
-        log.Printf("Migrated to database version: %d", bwDbVer)
-    }
-}
-
-func getUserVersion() int {
-    sqlGetVersion := `PRAGMA user_version;`
-    rows, err := db.Query(sqlGetVersion)
-    if err != nil {
-        log.Println(err.Error())
-        panic(err)
-    }
-    defer rows.Close()
-    var version int
-    for rows.Next() {
-        if err := rows.Scan(&version); err != nil {
-            log.Println(err.Error())
-            panic(err)
-        }
-    }
-    if err := rows.Err(); err != nil {
-        log.Println(err.Error())
-        panic(err)
-    }
-    return version
-}
-
-func setUserVersion(version int) {
-    sqlSetVersion := fmt.Sprintf(`PRAGMA user_version = %d;`, version)
-    log.Printf(sqlSetVersion)
-    res, err := db.Exec(sqlSetVersion)
-    fmt.Println(res)
-    if err != nil {
-        log.Println(err.Error())
-        panic(err)
-    }
-}
-
-func addColumn(column string) {
-    sqlAddCol := fmt.Sprintf(`ALTER TABLE bwtests ADD COLUMN %s;`, column)
-    log.Printf(sqlAddCol)
-    res, err := db.Exec(sqlAddCol)
-    fmt.Println(res)
-    if err != nil {
-        log.Println(err.Error())
-        panic(err)
-    }
 }
 
 // createBwTestTable operates on the DB to create the bwtests table.
