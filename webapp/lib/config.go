@@ -74,7 +74,8 @@ func GenServerNodeDefaults(srcpath string) {
     serFp := path.Join(srcpath, cfgFileSerUser)
     jsonBuf := []byte(`{ `)
     json := []byte(`"bwtester": [{"name":"localhost","isdas":"` +
-        serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefBwt + `}], `)
+        serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefBwt +
+        `},{"name":"test1","isdas":"2-ff00:0:222", "addr":"127.0.0.22","port":30101}], `)
     jsonBuf = append(jsonBuf, json...)
     json = []byte(`"camerapp": [{"name":"localhost","isdas":"` +
         serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefImg + `}], `)
@@ -82,6 +83,7 @@ func GenServerNodeDefaults(srcpath string) {
     json = []byte(`"sensorapp": [{"name":"localhost","isdas":"` +
         serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefSen + `}] `)
     jsonBuf = append(jsonBuf, json...)
+
     jsonBuf = append(jsonBuf, []byte(` }`)...)
     err := ioutil.WriteFile(serFp, jsonBuf, 0644)
     if err != nil {

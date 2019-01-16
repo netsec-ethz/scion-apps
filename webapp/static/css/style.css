@@ -1,7 +1,8 @@
 /* GENERAL */
 #webapp {
- width: 900px;
  margin: 0 auto;
+ width: 900px;
+ /* font-size: 12px; */
 }
 
 #error_text.enable {
@@ -90,8 +91,8 @@ svg.svg-dials {
 }
 
 #bwtest-continuous .chart {
- height: 140px;
- width: 450px;
+ height: 200px;
+ width: 349px;
  overflow: hidden;
  float: left;
 }
@@ -123,7 +124,7 @@ img {
 
 .scion-ia {
  width: 200px;
- height: 300px;
+ height: 200px;
  text-align: center;
  display: table-cell;
  vertical-align: middle;
@@ -140,7 +141,7 @@ img {
 .stdout {
  font-family: monospace;
  white-space: pre-line;
- height: 200px;
+ height: 220px;
  overflow: auto;
  overflow-x: hidden;
  border-style: solid;

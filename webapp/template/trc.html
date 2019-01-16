@@ -1,0 +1,43 @@
+{{define "trc"}} {{template "header" .}}
+
+<script type="text/javascript" src="static/js/asviz.js"></script>
+
+<div class="content">
+
+ <div id='as-error'></div>
+
+ <div id="as-tab-trc">
+  <div id="as-trc">
+   <div id="as-trclist">
+    <h2>ISD ({{.MyIA}}) Trust Root Configurations</h2>
+    <div id="json-trc"></div>
+   </div>
+  </div>
+ </div>
+
+ <script type="text/javascript">
+        $.ajax({
+            url : 'gettrc',
+            type : 'post',
+            dataType : "json",
+            data : {
+                "src" : "{{.MyIA}}"
+            },
+            timeout : 10000,
+            success : function(data, textStatus, jqXHR) {
+                console.info(JSON.stringify(data));
+                if (data.err) {
+                    showError(data.err);
+                }
+                $('#json-trc').html(json2html(data, true));
+                setupListTree();
+            },
+            error : function(jqXHR, textStatus, errorThrown) {
+                showError(this.url + ' ' + textStatus + ': ' + errorThrown);
+            },
+        });
+    </script>
+
+</div>
+
+{{template "footer" .}} {{end}}

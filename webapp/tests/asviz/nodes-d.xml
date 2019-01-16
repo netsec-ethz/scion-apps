@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes>
+ <node ia="1-ff00:0:110" host="OLD 1-11 GB" lat="54.0000" long="-2.0000" />
+ <node ia="1-ff00:0:120" host="OLD 1-12 CH {0}" lat="47.0000" long="8.0000" />
+ <node ia="1-ff00:0:120" host="OLD 1-12 CH {1}" lat="47.1000" long="8.1000" />
+ <node ia="1-ff00:0:120" host="OLD 1-12 CH {2}" lat="47.2000" long="8.2000" />
+ <node ia="1-ff00:0:130" host="OLD 1-13 DE {0}" lat="51.0000" long="9.0000" />
+ <node ia="1-ff00:0:130" host="OLD 1-13 DE {1}" lat="51.1000" long="9.1000" />
+ <node ia="1-ff00:0:111" host="OLD 1-14 PL {0}" lat="52.0000" long="20.0000" />
+ <node ia="1-ff00:0:111" host="OLD 1-14 PL {1}" lat="52.1000" long="20.1000" />
+ <node ia="1-ff00:0:111" host="OLD 1-14 PL {2}" lat="52.2000" long="20.2000" />
+ <!-- Remove at least one location to test cases for nodes that are not geolocated:
+ <node ia="1-ff00:0:112" host="OLD 1-17 IT" lat="42.8333" long="12.8333" /> -->
+ <node ia="1-ff00:0:121" host="OLD 1-15 UA" lat="49.0000" long="32.0000" />
+ <node ia="1-ff00:0:122" host="OLD 1-18 TR" lat="39.0000" long="35.0000" />
+ <node ia="1-ff00:0:131" host="OLD 1-16 AT" lat="47.3333" long="13.3333" />
+ <node ia="1-ff00:0:132" host="OLD 1-19 FR" lat="46.0000" long="2.0000" />
+ <node ia="1-ff00:0:133" host="OLD 1-10 ES" lat="40.0000" long="-4.0000" />
+ <node ia="2-ff00:0:210" host="OLD 2-21 KZ" lat="48.0000" long="68.0000" />
+ <node ia="2-ff00:0:220" host="OLD 2-22 MN" lat="46.0000" long="105.0000" />
+ <node ia="2-ff00:0:211" host="OLD 2-23 KR" lat="37.0000" long="127.5000" />
+ <node ia="2-ff00:0:212" host="OLD 2-25 TH" lat="15.0000" long="100.0000" />
+ <node ia="2-ff00:0:221" host="OLD 2-24 JP" lat="36.0000" long="138.0000" />
+ <node ia="2-ff00:0:222" host="OLD 2-26 PH" lat="13.0000" long="122.0000" />
+ <node ia="3-ff00:0:310" host="old 3-1 CA" lat="60.0000" long="-95.0000" />
+ <node ia="3-ff00:0:311" host="old 3-2 CA" lat="60.0000" long="-95.0000" />
+ <node ia="3-ff00:0:312" host="old 3-3 CA" lat="60.0000" long="-95.0000" />
+ <node ia="3-ff00:0:313" host="old 3-4 CA" lat="60.0000" long="-95.0000" />
+ <node ia="4-ff00:0:410" host="old 4-1 US" lat="38.0000" long="-97.0000" />
+ <node ia="5-ff00:0:510" host="old 5-1 AU" lat="-27.0000" long="133.0000" />
+ <node ia="5-ff00:0:520" host="old 5-2 AU" lat="-27.0000" long="133.0000" />
+ <node ia="5-ff00:0:530" host="old 5-3 AU" lat="-27.0000" long="133.0000" />
+ <node ia="5-ff00:0:511" host="old 5-4 AU" lat="-27.0000" long="133.0000" />
+ <node ia="5-ff00:0:531" host="old 5-5 AU" lat="-27.0000" long="133.0000" />
+</nodes>

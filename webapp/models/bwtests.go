@@ -10,35 +10,38 @@ import (
 
 var bwTestDbExpire = time.Duration(24) * time.Hour
 
-// BwTestItem reflects one row in the bwtests table will all columns.
+var bwDbVer = 1
+
+// BwTestItem reflects one row in the bwtests table with all columns.
 type BwTestItem struct {
-    Inserted       int64 // ms
-    ActualDuration int   // ms
-    CIa            string
-    CAddr          string
-    CPort          int
-    SIa            string
-    SAddr          string
-    SPort          int
-    CSDuration     int // ms
-    CSPackets      int // packets
-    CSPktSize      int // bytes
-    CSBandwidth    int // bps
-    CSThroughput   int // bps
-    CSArrVar       int // ms
-    CSArrAvg       int // ms
-    CSArrMin       int // ms
-    CSArrMax       int // ms
-    SCDuration     int // ms
-    SCPackets      int // packets
-    SCPktSize      int // bytes
-    SCBandwidth    int // bps
-    SCThroughput   int // bps
-    SCArrVar       int // ms
-    SCArrAvg       int // ms
-    SCArrMin       int // ms
-    SCArrMax       int // ms
-    Error          string
+    Inserted       int64  // v1, ms
+    ActualDuration int    // v1, ms
+    CIa            string // v1
+    CAddr          string // v1
+    CPort          int    // v1
+    SIa            string // v1
+    SAddr          string // v1
+    SPort          int    // v1
+    CSDuration     int    // v1, ms
+    CSPackets      int    // v1, packets
+    CSPktSize      int    // v1, bytes
+    CSBandwidth    int    // v1, bps
+    CSThroughput   int    // v1, bps
+    CSArrVar       int    // v1, ms
+    CSArrAvg       int    // v1, ms
+    CSArrMin       int    // v1, ms
+    CSArrMax       int    // v1, ms
+    SCDuration     int    // v1, ms
+    SCPackets      int    // v1, packets
+    SCPktSize      int    // v1, bytes
+    SCBandwidth    int    // v1, bps
+    SCThroughput   int    // v1, bps
+    SCArrVar       int    // v1, ms
+    SCArrAvg       int    // v1, ms
+    SCArrMin       int    // v1, ms
+    SCArrMax       int    // v1, ms
+    Error          string // v1
+    Path           string // v2
 }
 
 // GetHeaders iterates the BwTestItem and returns struct variable names.
@@ -73,10 +76,71 @@ type BwTestGraph struct {
     SCBandwidth    int
     SCThroughput   int
     Error          string
+    Path           string
 }
 
-// CreateBwTestTable operates on the DB to create the bwtests table.
-func CreateBwTestTable() {
+// LoadBwTestTable operates on the DB to migrate the bwtests table.
+func LoadBwTestTable() {
+    createBwTestTable()
+    version := getUserVersion()
+    log.Printf("Database version: %d", version)
+    // add successive migrations here
+    if version < 1 {
+        addColumn("Path TEXT")
+    }
+    //set updated version
+    if version != bwDbVer {
+        setUserVersion(bwDbVer)
+        log.Printf("Migrated to database version: %d", bwDbVer)
+    }
+}
+
+func getUserVersion() int {
+    sqlGetVersion := `PRAGMA user_version;`
+    rows, err := db.Query(sqlGetVersion)
+    if err != nil {
+        log.Println(err.Error())
+        panic(err)
+    }
+    defer rows.Close()
+    var version int
+    for rows.Next() {
+        if err := rows.Scan(&version); err != nil {
+            log.Println(err.Error())
+            panic(err)
+        }
+    }
+    if err := rows.Err(); err != nil {
+        log.Println(err.Error())
+        panic(err)
+    }
+    return version
+}
+
+func setUserVersion(version int) {
+    sqlSetVersion := fmt.Sprintf(`PRAGMA user_version = %d;`, version)
+    log.Printf(sqlSetVersion)
+    res, err := db.Exec(sqlSetVersion)
+    fmt.Println(res)
+    if err != nil {
+        log.Println(err.Error())
+        panic(err)
+    }
+}
+
+func addColumn(column string) {
+    sqlAddCol := fmt.Sprintf(`ALTER TABLE bwtests ADD COLUMN %s;`, column)
+    log.Printf(sqlAddCol)
+    res, err := db.Exec(sqlAddCol)
+    fmt.Println(res)
+    if err != nil {
+        log.Println(err.Error())
+        panic(err)
+    }
+}
+
+// createBwTestTable operates on the DB to create the bwtests table.
+func createBwTestTable() {
     sqlCreateTable := `
     CREATE TABLE IF NOT EXISTS bwtests(
         Inserted BIGINT NOT NULL PRIMARY KEY,
@@ -110,6 +174,7 @@ func CreateBwTestTable() {
     `
     _, err := db.Exec(sqlCreateTable)
     if err != nil {
+        log.Println(err.Error())
         panic(err)
     }
 }
@@ -144,8 +209,9 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         SCArrAvg,
         SCArrMin,
         SCArrMax,
-        Error
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        Error,
+        Path
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     stmt, err := db.Prepare(sqlInsert)
     if err != nil {
@@ -180,7 +246,8 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         bwtest.SCArrAvg,
         bwtest.SCArrMin,
         bwtest.SCArrMax,
-        bwtest.Error)
+        bwtest.Error,
+        bwtest.Path)
     if err2 != nil {
         panic(err2)
     }
@@ -216,7 +283,8 @@ func ReadBwTestItemsAll() []BwTestItem {
         SCArrAvg,
         SCArrMin,
         SCArrMax,
-        Error
+        Error,
+        Path
     FROM bwtests
     ORDER BY datetime(Inserted) DESC
     `
@@ -256,7 +324,8 @@ func ReadBwTestItemsAll() []BwTestItem {
             &bwtest.SCArrAvg,
             &bwtest.SCArrMin,
             &bwtest.SCArrMax,
-            &bwtest.Error)
+            &bwtest.Error,
+            &bwtest.Path)
         if err2 != nil {
             panic(err2)
         }
@@ -276,7 +345,8 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
         CSThroughput,
         SCBandwidth,
         SCThroughput,
-        Error
+        Error,
+        Path
     FROM bwtests
     WHERE Inserted > ?
     ORDER BY datetime(Inserted) DESC
@@ -297,7 +367,8 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
             &bwtest.CSThroughput,
             &bwtest.SCBandwidth,
             &bwtest.SCThroughput,
-            &bwtest.Error)
+            &bwtest.Error,
+            &bwtest.Path)
         if err2 != nil {
             panic(err2)
         }

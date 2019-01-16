@@ -6,6 +6,12 @@
 
 <link rel="stylesheet" type="text/css"
  href="static/css/bootstrap.min.css" />
+<link rel="stylesheet" type="text/css"
+ href="static/css/pretty-checkbox.min.css" />
+<link rel="stylesheet" type="text/css" href="static/css/style-viz.css" />
+<link rel="stylesheet" type="text/css" href="static/css/topology.css" />
+<link rel="stylesheet" type="text/css" href="static/css/animation.css" />
+<link rel="stylesheet" type="text/css" href="static/css/style.css" />
 <script type="text/javascript" src="static/js/jquery-2.2.0.min.js"></script>
 <script type="text/javascript" src="static/js/bootstrap.min.js"></script>
 
@@ -21,6 +27,7 @@ body {
 </head>
 
 <body>
+
  <nav class="navbar navbar-inverse">
   <div class="container-fluid">
    <div class="navbar-header">
@@ -31,12 +38,16 @@ body {
     </button>
     <a class="navbar-brand" href="#">SCIONLab {{.MyIA}}</a>
    </div>
-   <div class="collapse navbar-collapse" id="myNavbar">
-    <ul class="nav navbar-nav">
-     <li><a href="/">Health</a></li>
-     <li><a href="/apps">Apps</a></li>
-     <li><a href="/files">Files</a></li>
-     <li><a href="/about">About</a></li>
+   <div class="navbar-inverse collapse navbar-collapse" id="myNavbar">
+    <ul class="nav navbar-nav navbar-left">
+     <li><a id="nav-health" href="/">Health</a></li>
+     <li><a id="nav-apps" href="/apps">Apps</a></li>
+     <!--<li><a id="nav-files" href="/dirview">Files</a></li> -->
+     <li><a id="nav-files" href="/files">Files</a></li>
+     <li><a id="nav-astopo" href="/astopo">AS Topology</a></li>
+     <li><a id="nav-trc" href="/trc">ISD TRC</a></li>
+     <li><a id="nav-crt" href="/crt">AS Certificate</a></li>
+     <li><a id="nav-about" href="/about">About</a></li>
     </ul>
    </div>
   </div>

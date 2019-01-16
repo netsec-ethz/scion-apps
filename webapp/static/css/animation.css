@@ -6,3 +6,12 @@
   opacity:0;
  }
 }
+
+/* list open/close */
+ul.tree li > a:not(:last-child):before {
+ content: '+';
+}
+
+ul.tree li.open > a:not(:last-child):before {
+ content: '-';
+}

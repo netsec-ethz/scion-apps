@@ -1,0 +1,315 @@
+/*
+body {
+ font-family: Arial, sans-serif;
+ background: #fefefe;
+ width: 900px;
+ margin: 0 auto;
+}
+*/
+
+/* LINKS */
+/*
+a:link {
+ color: blue;
+ text-decoration: none;
+}
+
+a:hover {
+ text-decoration: underline;
+}
+*/
+
+/* PAGE PANEL LAYOUT */
+#chart {
+ position: relative;
+}
+
+#as-viz {
+ position: absolute;
+ top: 90px;
+ width: 100%;
+}
+
+#title {
+ position: absolute;
+ font-size: 30px;
+ font-weight: 100;
+ top: 20px;
+}
+
+#info {
+ position: absolute;
+ font-size: 11px;
+ top: 18px;
+ width: 300px;
+ right: 0px;
+ line-height: 1.2;
+}
+
+#as-menu {
+ font-size: 12px;
+ padding: 5px;
+}
+
+#as-menu div {
+ display: inline-block
+}
+
+#as-menu option {
+ font-size: 12px
+}
+
+#row-paths {
+ width: 900px;
+ height: 500px;
+ position: relative;
+}
+
+#tab-content-paths {
+ width: 700px;
+ height: 450px;
+ border: 1px solid #ccc;
+}
+
+#cmd_config {
+ font-size: 12px;
+ width: 700px;
+ height: 30px;
+ padding: 2px;
+ /* border: 1px solid #ccc; */
+ position: relative;
+}
+
+#as-graphs {
+ width: 700px;
+ height: 450px;
+ position: absolute;
+}
+
+#as-pathopt {
+ font-size: 12px;
+ width: 700px;
+ height: 25px;
+ padding: 4px;
+ /* border: 1px solid #ccc; */
+ position: absolute;
+}
+
+#as-pathtopo {
+ width: 700px;
+ height: 425px;
+ top: 25px;
+ /* border: 1px solid #ccc; */
+ position: absolute;
+}
+
+#as-iflist {
+ width: 200px;
+ height: 450px;
+ top: 42px;
+ left: 700px;
+ padding: 5px;
+ border: 1px solid #ccc;
+ position: absolute;
+}
+
+#as-astopo {
+ width: 600px;
+ height: 450px;
+ border: 1px solid #ccc;
+ position: absolute;
+}
+
+#as-svclist {
+ width: 300px;
+ height: 450px;
+ left: 610px;
+ padding-left: 10px;
+ border: 1px solid #ccc;
+ position: absolute;
+}
+
+#as-trclist {
+ width: 900px;
+ height: 450px;
+ padding-left: 10px;
+ border: 1px solid #ccc;
+ overflow: scroll;
+ overflow-x: hidden;
+}
+
+#as-crtlist {
+ width: 900px;
+ height: 450px;
+ padding-left: 10px;
+ border: 1px solid #ccc;
+ overflow: scroll;
+ overflow-x: hidden;
+}
+
+#as-trclist h2 {
+ font-size: 18px;
+ margin: 4px;
+}
+
+#as-crtlist h2 {
+ font-size: 18px;
+ margin: 4px;
+}
+
+/* AS TOPOLOGY DATA LIST */
+#as-svclist {
+ font-size: 12px;
+ overflow: scroll;
+ overflow-x: hidden;
+}
+
+#as-svclist table {
+ font-size: 12px;
+}
+
+#as-svclist table th#key {
+ width: 120px
+}
+
+#as-svclist table th#value {
+ width: 120px
+}
+
+#as-svclist h2 {
+ font-size: 14px;
+ margin: 4px;
+ text-align: center
+}
+
+#as-svclist tr:hover {
+ cursor: pointer;
+ background: lightgray;
+}
+
+#as-svclist tr {
+ opacity: 1
+}
+
+/* PATH TOPOLOGY DATA LIST */
+#as-iflist {
+ font-size: 12px;
+ overflow: auto;
+ overflow-x: hidden;
+}
+
+#as-iflist h2 {
+ font-size: 14px;
+ margin: 4px;
+ text-align: center
+}
+
+/* OPEN/CLOSE LISTS */
+li.seg-type {
+ font-weight: bold;
+}
+
+ul {
+ padding-left: 1.2em;
+}
+
+ul.tree li {
+ list-style-type: none;
+ position: relative;
+}
+
+ul.tree li ul {
+ display: none;
+}
+
+ul.tree li.open>ul {
+ display: block;
+}
+
+ul.tree li a {
+ color: black;
+ text-decoration: none;
+}
+
+ul.tree li a:before {
+ height: 1em;
+ padding: 0 .1em;
+ font-size: .8em;
+ display: block;
+ position: absolute;
+ left: -1.3em;
+ top: .2em;
+}
+
+/* AS TOPOLOGY GRAPH */
+.link.as-peer {
+ fill: "none";
+ stroke: gray;
+ stroke-width: 3px;
+ stroke-dasharray: 5, 5;
+ opacity: 0.50;
+}
+
+.link.as-core, .link.as-routing {
+ fill: "none";
+ stroke: gray;
+ stroke-width: 6px;
+ opacity: 0.50;
+}
+
+.link.as-parent, .link.as-child {
+ fill: "none";
+ stroke: gray;
+ stroke-width: 3px;
+ opacity: 0.50;
+}
+
+.link.as-in {
+ /* invisible internal AS links */
+
+}
+
+/* G-MAP LOCATIONS */
+#g-map {
+ position: absolute;
+ width: 100%;
+ height: 100%;
+}
+
+/**
+ * ------------------------------- Tabs --------------------------------
+ */
+#tabs {
+ font-size: 14px;
+}
+
+.tabs li {
+ list-style: none;
+ display: inline;
+}
+
+.tabs a {
+ padding: 5px 10px;
+ display: inline-block;
+ background: #666;
+ color: #fff;
+ text-decoration: none;
+ border: 1px solid #66CCFF;
+}
+
+.tabs a.active {
+ background: #fff;
+ color: #000;
+ font-weight: bold;
+}
+
+.nav-tabs {
+ overflow-x: auto;
+ overflow-y: hidden;
+ display: -webkit-box;
+ display: -moz-box;
+}
+
+.nav-tabs>li {
+ float: none;
+}
