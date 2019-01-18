@@ -8,6 +8,13 @@ error_exit()
     exit 1
 }
 
+# test if this AS uses VPN, exit directly if not.
+if [ ! -f /etc/openvpn/client.conf ]
+then
+    echo "VPN test isn't necessary on this AS, proceed."
+    exit 0
+fi
+
 # lines describing the tun0 interface
 targetLines=$(ip address show dev tun0)
 

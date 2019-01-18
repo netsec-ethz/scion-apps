@@ -22,7 +22,7 @@ check_repo()
 {
     if [[ ! -d $1 ]]
     then
-	error_exit "Repo $2 doesn't exist."
+        error_exit "Repo $2 doesn't exist."
     fi
 
     cd $1
@@ -30,21 +30,16 @@ check_repo()
     LOCAL=$(git rev-parse @)
     REMOTE=$(git rev-parse "$UPSTREAM")
     BASE=$(git merge-base @ "$UPSTREAM")
-
-    echo $UPSTREAM
-    echo $LOCAL
-    echo $REMOTE
-    echo $BASE
     
     if [[ $LOCAL = $REMOTE ]]
     then
-	echo "Git repo '$2' at path $1 is up-to-date"
+        echo "Git repo '$2' at path $1 is up-to-date"
     elif [[ $LOCAL = $BASE ]]
     then
-	error_exit "Git repo '$2' at path $1 needs to pull"
+        error_exit "Git repo '$2' at path $1 needs to pull"
     elif [[ $REMOTE = $BASE ]]
     then
-	error_exit "Git repo '$2' at path $1 needs to push"
+        error_exit "Git repo '$2' at path $1 needs to push"
     else
         error_exit "Git repo '$2' at path $1 is diverged"
     fi

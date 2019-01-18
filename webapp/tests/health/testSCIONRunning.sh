@@ -23,7 +23,7 @@ then
     echo "SCION status has reported a problem: $status."
     error_exit "Stop and start SCION again as following then retry the test:
 
-$ cd $SC
+$ cd \$SC
 $ ./scion.sh stop
 $ ./scion.sh start
 $ ./scion.sh status
