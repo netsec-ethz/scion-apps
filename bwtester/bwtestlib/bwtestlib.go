@@ -3,6 +3,7 @@ package bwtestlib
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/gob"
@@ -328,7 +329,7 @@ func aggrInterArrivalTime(bwr map[int]int64) (IPAvar, IPAmin, IPAavg, IPAmax int
 
 func ChoosePath(interactive bool, pathAlgo string, local snet.Addr, remote snet.Addr) *sciond.PathReplyEntry {
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
 	var appPaths []*spathmeta.AppPath
 	var selectedPath *spathmeta.AppPath
 

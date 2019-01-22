@@ -2,6 +2,7 @@ package pathutil
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -29,7 +30,7 @@ func ChoosePath(interactive bool, pathAlgo string, local, remote *snet.Addr) *sc
 	}
 
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
 	var appPaths []*spathmeta.AppPath
 	var selectedPath *spathmeta.AppPath
 

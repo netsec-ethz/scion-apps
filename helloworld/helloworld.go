@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -58,7 +59,7 @@ func main() {
 	Check(err)
 	// query paths from here to there:
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(clientCCAddr.IA, serverCCAddr.IA)
+	pathSet := pathMgr.Query(context.Background(), clientCCAddr.IA, serverCCAddr.IA)
 	if len(pathSet) == 0 {
 		Check(fmt.Errorf("No paths"))
 	}
