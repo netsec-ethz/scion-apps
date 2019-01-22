@@ -13,7 +13,6 @@ import (
     "runtime"
     "strconv"
     "strings"
-    //"time"
 
     "github.com/scionproto/scion/go/lib/addr"
     "github.com/scionproto/scion/go/lib/common"
@@ -121,11 +120,6 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     c := snet.DefNetwork.Sciond()
-    //c, err := sd.ConnectTimeout(1 * time.Second)
-    //if err != nil {
-    //    returnError(w, err)
-    //    return
-    //} 
 
     asir, err := c.ASInfo(context.Background(), addr.IA{})
     if err != nil {
