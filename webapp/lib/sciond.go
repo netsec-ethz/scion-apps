@@ -2,6 +2,7 @@ package lib
 
 import (
     "bytes"
+    "context"
     "encoding/json"
     "fmt"
     "io/ioutil"
@@ -12,12 +13,14 @@ import (
     "runtime"
     "strconv"
     "strings"
+    //"time"
 
     "github.com/scionproto/scion/go/lib/addr"
     "github.com/scionproto/scion/go/lib/common"
     "github.com/scionproto/scion/go/lib/sciond"
     "github.com/scionproto/scion/go/lib/snet"
     "github.com/scionproto/scion/go/lib/spath/spathmeta"
+    "github.com/scionproto/scion/go/proto"
 )
 
 // Configuations to save. Zeroing out any of these placeholders will cause the
@@ -82,7 +85,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 
 func getPaths(local snet.Addr, remote snet.Addr) []*spathmeta.AppPath {
     pathMgr := snet.DefNetwork.PathResolver()
-    pathSet := pathMgr.Query(local.IA, remote.IA)
+    pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
     var appPaths []*spathmeta.AppPath
     for _, path := range pathSet {
         appPaths = append(appPaths, path)
@@ -117,14 +120,14 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
         }
     }
 
-    sd := snet.DefNetwork.Sciond()
-    c, err := sd.Connect()
-    if err != nil {
-        returnError(w, err)
-        return
-    }
+    c := snet.DefNetwork.Sciond()
+    //c, err := sd.ConnectTimeout(1 * time.Second)
+    //if err != nil {
+    //    returnError(w, err)
+    //    return
+    //} 
 
-    asir, err := c.ASInfo(addr.IA{})
+    asir, err := c.ASInfo(context.Background(), addr.IA{})
     if err != nil {
         returnError(w, err)
         return
@@ -132,7 +135,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
     ajsonInfo, _ := json.Marshal(asir)
     log.Printf("asinfos: %s\n", ajsonInfo)
 
-    ifirs, err := c.IFInfo([]common.IFIDType{})
+    ifirs, err := c.IFInfo(context.Background(), []common.IFIDType{})
     if err != nil {
         returnError(w, err)
         return
@@ -141,8 +144,8 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
     log.Printf("ifinfos: %s\n", ijsonInfo)
 
     // kills sciond: sciond.SvcSB, sciond.SvcBR
-    svcirs, err := c.SVCInfo([]sciond.ServiceType{
-        sciond.SvcBS, sciond.SvcPS, sciond.SvcCS})
+    svcirs, err := c.SVCInfo(context.Background(), []proto.ServiceType{
+        proto.ServiceType_bs, proto.ServiceType_ps, proto.ServiceType_cs})
     if err != nil {
         returnError(w, err)
         return
