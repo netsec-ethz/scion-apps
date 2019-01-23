@@ -3,6 +3,7 @@ package bwtestlib
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/gob"
@@ -76,7 +77,7 @@ func LogFatal(msg string, a ...interface{}) {
 }
 
 // TODO: make it more generic: func LogPanicAndRestart(f func(a ...interface{}), a ...interface{}) {
-func LogPanicAndRestart(f func(a *snet.Conn, b string, c []byte, d []byte), CCConn *snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
+func LogPanicAndRestart(f func(a snet.Conn, b string, c []byte, d []byte), CCConn snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
 	if msg := recover(); msg != nil {
 		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 		log.Debug("Recovering from panic.")
@@ -162,7 +163,7 @@ func DecodeBwtestParameters(buf []byte) (*BwtestParameters, int, error) {
 	return &v, is - bb.Len(), err
 }
 
-func HandleDCConnSend(bwp *BwtestParameters, udpConnection *snet.Conn) {
+func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
 	sb := make([]byte, bwp.PacketSize)
 	var i int64 = 0
 	t0 := time.Now()
@@ -203,7 +204,7 @@ func HandleDCConnSend(bwp *BwtestParameters, udpConnection *snet.Conn) {
 	}
 }
 
-func HandleDCConnReceive(bwp *BwtestParameters, udpConnection *snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
+func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
 	resLock.Lock()
 	finish := res.ExpectedFinishTime
 	resLock.Unlock()
@@ -328,7 +329,7 @@ func aggrInterArrivalTime(bwr map[int]int64) (IPAvar, IPAmin, IPAavg, IPAmax int
 
 func ChoosePath(interactive bool, pathAlgo string, local snet.Addr, remote snet.Addr) *sciond.PathReplyEntry {
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
 	var appPaths []*spathmeta.AppPath
 	var selectedPath *spathmeta.AppPath
 

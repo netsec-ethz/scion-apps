@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -58,7 +59,7 @@ func main() {
 	Check(err)
 	// query paths from here to there:
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(clientCCAddr.IA, serverCCAddr.IA)
+	pathSet := pathMgr.Query(context.Background(), clientCCAddr.IA, serverCCAddr.IA)
 	if len(pathSet) == 0 {
 		Check(fmt.Errorf("No paths"))
 	}
@@ -78,8 +79,7 @@ func main() {
 	// we need to copy the path to the destination (destination is the whole selected path)
 	serverCCAddr.Path = spath.New(argMinPath.Path.FwdPath)
 	serverCCAddr.Path.InitOffsets()
-	serverCCAddr.NextHopHost = argMinPath.HostInfo.Host()
-	serverCCAddr.NextHopPort = argMinPath.HostInfo.Port
+	serverCCAddr.NextHop, _ = argMinPath.HostInfo.Overlay()
 	// get a connection object using that path:
 	conn, err := snet.DialSCION("udp4", clientCCAddr, serverCCAddr)
 	Check(err)

@@ -42,8 +42,7 @@ func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) e
 		return initErr
 	}
 
-	network := snet.DefNetwork
-	sconn, err := network.ListenSCION("udp4", laddr)
+	sconn, err := snet.ListenSCION("udp4", laddr)
 	if err != nil {
 		return err
 	}
@@ -86,8 +85,7 @@ func (srv *Server) ListenAndServeSCION(certFile, keyFile string) error {
 		return initErr
 	}
 
-	network := snet.DefNetwork
-	sconn, err := network.ListenSCION("udp4", laddr)
+	sconn, err := snet.ListenSCION("udp4", laddr)
 	if err != nil {
 		return err
 	}
