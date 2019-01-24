@@ -11,9 +11,14 @@
    "desc": "Receiving beacons test"
   },
   {
+   "label": "checkdiskspace",
+   "script": "testAvailDiskSpace.sh",
+   "desc": "Tests for available disk space"
+  },
+  {
    "label": "checkmemory",
-   "script": "testAvailMem.sh",
-   "desc": "Tests for available memory"
+   "script": "testTotalMem.sh",
+   "desc": "Tests for total memory"
   },
   {
    "label": "checkVPN",

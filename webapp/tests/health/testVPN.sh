@@ -11,7 +11,7 @@ error_exit()
 # test if this AS uses VPN, exit directly if not.
 if [ ! -f /etc/openvpn/client.conf ]
 then
-    echo "VPN test isn't necessary on this AS, proceed."
+    echo "VPN is not configured for this AS."
     exit 0
 fi
 
