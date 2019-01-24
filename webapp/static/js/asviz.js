@@ -404,20 +404,23 @@ function updateNodeSelected(isSelected, selected) {
 }
 
 var svc_pre = {
-    0 : "bs",
-    1 : "ps",
-    2 : "cs",
-// TODO: add all types
-// BR = "br"
-// SB = "sb"
-// RS = "rs"
-// DS = "ds"
+    0 : "unset",
+    1 : "bs",
+    2 : "ps",
+    3 : "cs",
+    4 : "sb",
+    5 : "sig",
+    6 : "ds",
 };
 
 var svc_icon = {
-    0 : "BEACON",
-    1 : "PATH",
-    2 : "CERTIFICATE",
+    0 : "unset",
+    1 : "BEACON",
+    2 : "PATH",
+    3 : "CERTIFICATE",
+    4 : "SIBRA",
+    5 : "GATEWAY",
+    6 : "DISCOVERY",
 };
 
 function get_json_as_topo(data) {

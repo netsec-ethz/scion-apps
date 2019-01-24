@@ -421,6 +421,7 @@ function get_json_path_topo(paths) {
 function requestPaths() {
     // make sure to get path topo after IAs are loaded
     var form_data = $('#command-form').serializeArray();
+    $("#as-error").empty();
     $.ajax({
         url : 'getpathtopo',
         type : 'post',
