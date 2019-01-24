@@ -37,8 +37,8 @@ func main(){
     cAddr, err := utils.InitSCIONConnection(*clientAddress)
     checkErr("Init SCION", err)
 
-    if cAddr.L4Port != 0{
-        log.Panicf("Application port must be set to 0, currently its %d", cAddr.L4Port)
+    if cAddr.Host.L4.Port() != 0{
+        log.Panicf("Application port must be set to 0, currently its %d", cAddr.Host.L4.Port())
     }
 
     servers, err := utils.LoadServersConfigurationList(*serversFile)

@@ -39,7 +39,7 @@ func printUsage() {
 	fmt.Println("Example SCION address 1-1011,[192.33.93.166]:42002")
 }
 
-func fetchFileInfo(udpConnection *snet.Conn) (string, uint32, time.Duration, error) {
+func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, error) {
 	numRetries := 0
 	packetBuffer := make([]byte, 2500)
 
@@ -95,7 +95,7 @@ func fetchFileInfo(udpConnection *snet.Conn) (string, uint32, time.Duration, err
 	return "", 0, 0, fmt.Errorf("Error: could not obtain file information")
 }
 
-func blockFetcher(fetchBlockChan chan uint32, udpConnection *snet.Conn, fileName string, fileSize uint32) {
+func blockFetcher(fetchBlockChan chan uint32, udpConnection snet.Conn, fileName string, fileSize uint32) {
 	packetBuffer := make([]byte, 512)
 	packetBuffer[0] = 'G'
 	packetBuffer[1] = byte(len(fileName))
@@ -114,7 +114,7 @@ func blockFetcher(fetchBlockChan chan uint32, udpConnection *snet.Conn, fileName
 	}
 }
 
-func blockReceiver(receivedBlockChan chan uint32, udpConnection *snet.Conn, fileBuffer []byte, fileSize uint32) {
+func blockReceiver(receivedBlockChan chan uint32, udpConnection snet.Conn, fileBuffer []byte, fileSize uint32) {
 	packetBuffer := make([]byte, 2500)
 	for {
 		n, _, err := udpConnection.ReadFrom(packetBuffer)
@@ -168,7 +168,7 @@ func main() {
 		local  *snet.Addr
 		remote *snet.Addr
 
-		udpConnection *snet.Conn
+		udpConnection snet.Conn
 	)
 
 	flag.StringVar(&clientAddress, "c", "", "Client SCION Address")

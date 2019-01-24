@@ -52,7 +52,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			if !ok {
 				log.Fatal("shttp: Host not found in DNS map")
 			}
-			return squic.DialSCION(nil, t.LAddr, raddr)
+			return squic.DialSCION(nil, t.LAddr, raddr, nil)
 		}
 		t.rt = &h2quic.RoundTripper{
 			Dial: dial,

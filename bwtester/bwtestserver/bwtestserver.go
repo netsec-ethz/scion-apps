@@ -54,10 +54,11 @@ var (
 	serverCCAddrStr string
 	serverCCAddr    *snet.Addr
 	err             error
-	CCConn          *snet.Conn
+	CCConn          snet.Conn
 	sciondPath      *string
 	sciondFromIA    *bool
 	dispatcherPath  *string
+	overlayType     string
 )
 
 func main() {
@@ -72,6 +73,8 @@ func main() {
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
+	useIPv6 := flag.Bool("6", false, "Use IPv6")
+
 	flag.Parse()
 
 	// Setup logging
@@ -86,6 +89,11 @@ func main() {
 				fmt15.Fmt15Format(nil)))))
 	log.Debug("Setup info:", "id", *id)
 
+	if *useIPv6 {
+		overlayType = "udp6"
+	} else {
+		overlayType = "udp4"
+	}
 	if len(serverCCAddrStr) > 0 {
 		runServer(serverCCAddrStr)
 		if err != nil {
@@ -96,7 +104,6 @@ func main() {
 		printUsage()
 		LogFatal("Error, server address needs to be specified with -s")
 	}
-
 }
 
 func runServer(serverCCAddrStr string) {
@@ -125,7 +132,7 @@ func runServer(serverCCAddrStr string) {
 	}
 	serverISDASIP := serverCCAddrStr[:ci]
 
-	CCConn, err = snet.ListenSCION("udp4", serverCCAddr)
+	CCConn, err = snet.ListenSCION(overlayType, serverCCAddr)
 	Check(err)
 
 	receivePacketBuffer := make([]byte, 2500)
@@ -133,7 +140,7 @@ func runServer(serverCCAddrStr string) {
 	handleClients(CCConn, serverISDASIP, receivePacketBuffer, sendPacketBuffer)
 }
 
-func handleClients(CCConn *snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
+func handleClients(CCConn snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
 	defer LogPanicAndRestart(handleClients, CCConn, serverISDASIP, receivePacketBuffer, sendPacketBuffer)
 
 	for {
@@ -243,12 +250,11 @@ func handleClients(CCConn *snet.Conn, serverISDASIP string, receivePacketBuffer 
 
 			// Set path on data connection as reverse of client path (received address is already Reversed)
 			clientDCAddr.Path = clientCCAddr.Path
-			clientDCAddr.NextHopHost = clientCCAddr.NextHopHost
-			clientDCAddr.NextHopPort = clientCCAddr.NextHopPort
-			log.Debug("Server DC", "Next Hop", clientDCAddr.NextHopHost, "Client Host", clientDCAddr.Host, "Client Port", clientDCAddr.L4Port)
+			clientDCAddr.NextHop = clientCCAddr.NextHop
+			log.Debug("Server DC", "Next Hop", clientDCAddr.NextHop, "Client Host", clientDCAddr.Host)
 
 			// Open Data Connection
-			DCConn, err := snet.DialSCION("udp4", serverDCAddr, clientDCAddr)
+			DCConn, err := snet.DialSCION(overlayType, serverDCAddr, clientDCAddr)
 			if err != nil {
 				// An error happened, ask the client to try again in 1 second (perhaps no path to client was found)
 				sendPacketBuffer[0] = 'N'

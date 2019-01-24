@@ -117,7 +117,7 @@ func main() {
 		err    error
 		server *snet.Addr
 
-		udpConnection *snet.Conn
+		udpConnection snet.Conn
 	)
 
 	// Fetch arguments from command line

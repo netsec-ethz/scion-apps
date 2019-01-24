@@ -36,7 +36,7 @@ func main() {
 		local  *snet.Addr
 		remote *snet.Addr
 
-		udpConnection *snet.Conn
+		udpConnection snet.Conn
 	)
 
 	// Fetch arguments from command line
