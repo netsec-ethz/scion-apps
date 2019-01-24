@@ -137,9 +137,9 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
     ijsonInfo, _ := json.Marshal(ifirs)
     log.Printf("ifinfos: %s\n", ijsonInfo)
 
-    // kills sciond: sciond.SvcSB, sciond.SvcBR
     svcirs, err := c.SVCInfo(context.Background(), []proto.ServiceType{
-        proto.ServiceType_bs, proto.ServiceType_ps, proto.ServiceType_cs})
+        proto.ServiceType_bs, proto.ServiceType_ps, proto.ServiceType_cs,
+        proto.ServiceType_sb, proto.ServiceType_sig, proto.ServiceType_ds})
     if err != nil {
         returnError(w, err)
         return

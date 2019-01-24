@@ -4,6 +4,7 @@ package main
 
 import (
     "bufio"
+    "bytes"
     "flag"
     "fmt"
     "html/template"
@@ -339,8 +340,16 @@ func appsBuildCheck(app string) {
         filepath := getClientLocationSrc(app)
         cmd := exec.Command("go", "install")
         cmd.Dir = path.Dir(filepath)
-        log.Printf("Installing %s...\n", app)
-        cmd.Run()
+        log.Printf("Installing %s...\n", filepath)
+        var stdout, stderr bytes.Buffer
+        cmd.Stdout = &stdout
+        cmd.Stderr = &stderr
+        err := cmd.Run()
+        if err != nil {
+            log.Printf("go install failed: %s\n", err)
+        }
+        outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
+        fmt.Printf("%s\n%s\n", outStr, errStr)
     } else {
         log.Printf("Existing install, found %s...\n", app)
     }
