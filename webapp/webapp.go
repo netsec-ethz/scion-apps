@@ -63,7 +63,7 @@ func main() {
     dbpath := path.Join(srcpath, "webapp.db")
     model.InitDB(dbpath)
     defer model.CloseDB()
-    model.LoadBwTestTable()
+    model.LoadDB()
     go model.MaintainDatabase()
     dataDirPath := path.Join(srcpath, "data")
     if _, err := os.Stat(dataDirPath); os.IsNotExist(err) {
