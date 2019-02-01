@@ -9,6 +9,31 @@
    "label": "checkbeacons",
    "script": "beaconstest.sh",
    "desc": "Receiving beacons test"
+  },
+  {
+   "label": "checkdiskspace",
+   "script": "testAvailDiskSpace.sh",
+   "desc": "Tests for available disk space"
+  },
+  {
+   "label": "checkmemory",
+   "script": "testTotalMem.sh",
+   "desc": "Tests for total memory"
+  },
+  {
+   "label": "checkVPN",
+   "script": "testVPN.sh",
+   "desc": "Tests for VPN configuration"
+  },
+  {
+   "label": "checkrunnngstatus",
+   "script": "testSCIONRunning.sh",
+   "desc": "Tests for SCION Running status"
+  },
+  {
+   "label": "checkrepo",
+   "script": "testVersion.sh",
+   "desc": "Tests to check if git repo scion and scion-apps are up to date"
   }
  ]
 }
