@@ -2,10 +2,11 @@ package models
 
 import (
     "fmt"
-    "log"
     "reflect"
     "strconv"
     "time"
+
+    log "github.com/inconshreveable/log15"
 )
 
 var bwTestDbExpire = time.Duration(24) * time.Hour
@@ -112,7 +113,7 @@ func createBwTestTable() {
     `
     _, err := db.Exec(sqlCreateTable)
     if err != nil {
-        log.Println(err.Error())
+        log.Error("db.Exec(sqlCreateTable) bwtests", err)
         panic(err)
     }
 }
@@ -153,6 +154,7 @@ func StoreBwTestItem(bwtest *BwTestItem) {
     `
     stmt, err := db.Prepare(sqlInsert)
     if err != nil {
+        log.Error("db.Prepare(sqlInsert) bwtests", err)
         panic(err)
     }
     defer stmt.Close()
@@ -187,6 +189,7 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         bwtest.Error,
         bwtest.Path)
     if err2 != nil {
+        log.Error("stmt.Exec sqlInsert bwtests", err2)
         panic(err2)
     }
 }
@@ -228,6 +231,7 @@ func ReadBwTestItemsAll() []BwTestItem {
     `
     rows, err := db.Query(sqlReadAll)
     if err != nil {
+        log.Error("db.Query(sqlReadAll) bwtests", err)
         panic(err)
     }
     defer rows.Close()
@@ -265,6 +269,7 @@ func ReadBwTestItemsAll() []BwTestItem {
             &bwtest.Error,
             &bwtest.Path)
         if err2 != nil {
+            log.Error("rows.Scan (sqlReadAll) bwtests", err2)
             panic(err2)
         }
         result = append(result, bwtest)
@@ -291,6 +296,7 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
     `
     rows, err := db.Query(sqlReadSince, since)
     if err != nil {
+        log.Error("db.Query(sqlReadSince) bwtests", err)
         panic(err)
     }
     defer rows.Close()
@@ -308,6 +314,7 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
             &bwtest.Error,
             &bwtest.Path)
         if err2 != nil {
+            log.Error("rows.Scan (sqlReadSince) bwtests", err2)
             panic(err2)
         }
         result = append(result, bwtest)
@@ -324,10 +331,12 @@ func DeleteBwTestItemsBefore(before string) int64 {
     `
     res, err := db.Exec(sqlDeleteBefore, before)
     if err != nil {
+        log.Error("db.Exec(sqlDeleteBefore) bwtests", err)
         panic(err)
     }
     count, err := res.RowsAffected()
     if err != nil {
+        log.Error("res.RowsAffected() bwtests delete", err)
         panic(err)
     }
     return count
@@ -340,7 +349,7 @@ func MaintainDatabase() {
         before := time.Now().Add(-bwTestDbExpire)
         count := DeleteBwTestItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
         if count > 0 {
-            log.Println("Deleting", count, "bwtests db rows older than", bwTestDbExpire)
+            log.Warn(fmt.Sprintf("Deleting", count, "bwtests db rows older than", bwTestDbExpire))
         }
         time.Sleep(bwTestDbExpire)
     }
