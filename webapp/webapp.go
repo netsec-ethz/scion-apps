@@ -21,7 +21,10 @@ import (
     "strings"
     "time"
 
+    log "github.com/inconshreveable/log15"
+    "github.com/kormat/fmt15"
     _ "github.com/mattn/go-sqlite3"
+
     lib "github.com/netsec-ethz/scion-apps/webapp/lib"
     model "github.com/netsec-ethz/scion-apps/webapp/models"
 )
@@ -34,6 +37,8 @@ var browserAddr = "127.0.0.1"
 var rootmarker = ".webapp"
 var srcpath string
 var myIa string
+var id = "webapp"
+var logDir = "./logs"
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -57,6 +62,20 @@ func main() {
     flag.Parse()
     _, srcfile, _, _ := runtime.Caller(0)
     srcpath = path.Dir(srcfile)
+
+    // logging
+    logDirPath := path.Join(srcpath, "logs")
+    if _, err := os.Stat(logDirPath); os.IsNotExist(err) {
+        os.Mkdir(logDirPath, os.ModePerm)
+    }
+    log.Root().SetHandler(log.MultiHandler(
+        log.LvlFilterHandler(log.LvlDebug,
+            log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
+        log.LvlFilterHandler(log.LvlDebug,
+            log.Must.FileHandler(path.Join(logDirPath, fmt.Sprintf("%s.log", id)),
+                fmt15.Fmt15Format(nil)))))
+    log.Debug("Setup info:", "id", id)
+
     // prepare templates
     templates = prepareTemplates(srcpath)
     // open and manage database
@@ -110,10 +129,20 @@ func main() {
     http.HandleFunc("/getcrt", lib.CrtHandler)
     http.HandleFunc("/gettrc", lib.TrcHandler)
 
-    log.Printf("Browser access at http://%s:%d.\n", browserAddr, *port)
-    log.Printf("File browser root: %s\n", *root)
-    log.Printf("Listening on %s:%d...\n", *addr, *port)
-    log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), nil))
+    log.Info(fmt.Sprintf("Browser access: at http://%s:%d.\n", browserAddr, *port))
+    log.Info("File browser root:", "root", *root)
+    log.Info(fmt.Sprintf("Listening on %s:%d...\n", *addr, *port))
+    err := http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
+    if err != nil {
+        log.Crit("", err)
+    }
+}
+
+func logRequestHandler(handler http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        log.Info(fmt.Sprintf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL))
+        handler.ServeHTTP(w, r)
+    })
 }
 
 func prepareTemplates(srcpath string) *template.Template {
