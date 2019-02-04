@@ -6,7 +6,6 @@ import (
     "encoding/json"
     "fmt"
     "io/ioutil"
-    "log"
     "net/http"
     "path"
     "path/filepath"
@@ -14,6 +13,8 @@ import (
     "strconv"
     "strings"
 
+    log "github.com/inconshreveable/log15"
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
     "github.com/scionproto/scion/go/lib/addr"
     "github.com/scionproto/scion/go/lib/common"
     "github.com/scionproto/scion/go/lib/sciond"
@@ -30,7 +31,6 @@ var cNodes string
 var cGeoLoc string
 
 func returnError(w http.ResponseWriter, err error) {
-    log.Println("error: " + err.Error())
     fmt.Fprintf(w, `{"err":`+strconv.Quote(err.Error())+`}`)
 }
 
@@ -63,7 +63,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         err := snet.Init(clientCCAddr.IA, sciondPath, dispatcherPath)
-        if err != nil {
+        if CheckError(err) {
             returnError(w, err)
             return
         }
@@ -77,7 +77,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     jsonPathInfo, _ := json.Marshal(paths)
-    log.Printf("paths: %s\n", jsonPathInfo)
+    log.Debug("PathTopoHandler:", "jsonPathInfo", string(jsonPathInfo))
 
     fmt.Fprintf(w, fmt.Sprintf(`{"paths":%s}`, jsonPathInfo))
 }
@@ -97,7 +97,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     CIa := r.PostFormValue("src")
     ia, err := addr.IAFromString(CIa)
-    if err != nil {
+    if CheckError(err) {
         returnError(w, err)
         return
     }
@@ -113,7 +113,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
         }
 
         err := snet.Init(ia, sciondPath, dispatcherPath)
-        if err != nil {
+        if CheckError(err) {
             returnError(w, err)
             return
         }
@@ -122,30 +122,30 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
     c := snet.DefNetwork.Sciond()
 
     asir, err := c.ASInfo(context.Background(), addr.IA{})
-    if err != nil {
+    if CheckError(err) {
         returnError(w, err)
         return
     }
     ajsonInfo, _ := json.Marshal(asir)
-    log.Printf("asinfos: %s\n", ajsonInfo)
+    log.Debug("AsTopoHandler:", "ajsonInfo", string(ajsonInfo))
 
     ifirs, err := c.IFInfo(context.Background(), []common.IFIDType{})
-    if err != nil {
+    if CheckError(err) {
         returnError(w, err)
         return
     }
     ijsonInfo, _ := json.Marshal(ifirs)
-    log.Printf("ifinfos: %s\n", ijsonInfo)
+    log.Debug("AsTopoHandler:", "ijsonInfo", string(ijsonInfo))
 
     svcirs, err := c.SVCInfo(context.Background(), []proto.ServiceType{
         proto.ServiceType_bs, proto.ServiceType_ps, proto.ServiceType_cs,
         proto.ServiceType_sb, proto.ServiceType_sig, proto.ServiceType_ds})
-    if err != nil {
+    if CheckError(err) {
         returnError(w, err)
         return
     }
     sjsonInfo, _ := json.Marshal(svcirs)
-    log.Printf("svcinfos: %s\n", sjsonInfo)
+    log.Debug("AsTopoHandler:", "sjsonInfo", string(sjsonInfo))
 
     fmt.Fprintf(w, fmt.Sprintf(`{"as_info":%s,"if_info":%s,"svc_info":%s}`,
         ajsonInfo, ijsonInfo, sjsonInfo))
@@ -156,13 +156,11 @@ func TrcHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     CIa := r.PostFormValue("src")
     raw, err := loadJSONCerts(CIa, "*.trc")
-    if err != nil {
+    if CheckError(err) {
         returnError(w, err)
         return
     }
-    jsonInfo, _ := json.Marshal(raw)
-    log.Printf("jsonInfo: %s\n", jsonInfo)
-
+    log.Debug("TrcHandler:", "trcInfo", string(raw))
     fmt.Fprintf(w, string(raw))
 }
 
@@ -171,13 +169,11 @@ func CrtHandler(w http.ResponseWriter, r *http.Request) {
     r.ParseForm()
     CIa := r.PostFormValue("src")
     raw, err := loadJSONCerts(CIa, "*.crt")
-    if err != nil {
+    if CheckError(err) {
         returnError(w, err)
         return
     }
-    jsonInfo, _ := json.Marshal(raw)
-    log.Printf("jsonInfo: %s\n", jsonInfo)
-
+    log.Debug("CrtHandler:", "crtInfo", string(raw))
     fmt.Fprintf(w, string(raw))
 }
 
@@ -246,7 +242,7 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
         } else {
             buf := new(bytes.Buffer)
             resp, err := http.Post(url, "application/json", buf)
-            if err != nil {
+            if CheckError(err) {
                 returnError(w, err)
                 return
             }
@@ -254,8 +250,8 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
             body, _ := ioutil.ReadAll(resp.Body)
             cConfig = string(body)
         }
+        log.Debug("ConfigHandler:", "cached", cConfig)
     }
-    fmt.Println(cConfig)
     fmt.Fprintf(w, cConfig)
 }
 
@@ -270,7 +266,7 @@ func LabelsHandler(w http.ResponseWriter, r *http.Request) {
             cLabels = string(raw)
         } else {
             resp, err := http.Get(url)
-            if err != nil {
+            if CheckError(err) {
                 returnError(w, err)
                 return
             }
@@ -278,8 +274,8 @@ func LabelsHandler(w http.ResponseWriter, r *http.Request) {
             body, _ := ioutil.ReadAll(resp.Body)
             cLabels = string(body)
         }
+        log.Debug("LabelsHandler:", "cached", cLabels)
     }
-    fmt.Println(cLabels)
     fmt.Fprintf(w, cLabels)
 }
 
@@ -294,7 +290,7 @@ func LocationsHandler(w http.ResponseWriter, r *http.Request) {
             cNodes = string(raw)
         } else {
             resp, err := http.Get(url)
-            if err != nil {
+            if CheckError(err) {
                 returnError(w, err)
                 return
             }
@@ -302,8 +298,8 @@ func LocationsHandler(w http.ResponseWriter, r *http.Request) {
             body, _ := ioutil.ReadAll(resp.Body)
             cNodes = string(body)
         }
+        log.Debug("LocationsHandler:", "cached", cNodes)
     }
-    fmt.Println(cNodes)
     fmt.Fprintf(w, cNodes)
 }
 
@@ -321,7 +317,7 @@ func GeolocateHandler(w http.ResponseWriter, r *http.Request) {
         } else {
             buf := new(bytes.Buffer)
             resp, err := http.Post(url, "application/json", buf)
-            if err != nil {
+            if CheckError(err) {
                 returnError(w, err)
                 return
             }
@@ -329,8 +325,8 @@ func GeolocateHandler(w http.ResponseWriter, r *http.Request) {
             body, _ := ioutil.ReadAll(resp.Body)
             cGeoLoc = string(body)
         }
+        log.Debug("GeolocateHandler:", "cached", cGeoLoc)
     }
-    fmt.Println(cGeoLoc)
     fmt.Fprintf(w, cGeoLoc)
 }
 
@@ -340,8 +336,6 @@ func loadTestFile(testpath string) []byte {
 
     var fp = path.Join(srcpath, "..", testpath)
     raw, err := ioutil.ReadFile(fp)
-    if err != nil {
-        log.Println("ioutil.ReadFile() error: " + err.Error())
-    }
+    CheckError(err)
     return raw
 }

@@ -5,7 +5,6 @@ import (
     "encoding/json"
     "fmt"
     "io"
-    "log"
     "net/http"
     "os"
     "path"
@@ -14,7 +13,9 @@ import (
     "strings"
     "time"
 
+    log "github.com/inconshreveable/log15"
     model "github.com/netsec-ethz/scion-apps/webapp/models"
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var logBufLen = 1024
@@ -113,8 +114,10 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
             err = r[i]
         }
     }
-    fmt.Println("data:", data)
-    fmt.Println("err:", err)
+    log.Info("app response", "data", data)
+    if len(err) > 0 {
+        log.Error("app error", "err", err)
+    }
 
     // get bandwidth from original request
     d.CSThroughput, _ = strconv.Atoi(data["cs"]["throughput"])
@@ -138,14 +141,13 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
     r.ParseForm()
     since := r.PostFormValue("since")
-    log.Println("Requesting data since", since)
+    log.Info("Requesting data since", "timestamp", since)
     // find undisplayed test results
     bwTestResults := model.ReadBwTestItemsSince(since)
-    log.Println("Requested data:", bwTestResults)
+    log.Debug("Requested data:", "bwTestResults", bwTestResults)
 
     bwtestsJSON, err := json.Marshal(bwTestResults)
-    if err != nil {
-        fmt.Println(err)
+    if CheckError(err) {
         return
     }
     jsonBuf := []byte(`{ "graph": ` + string(bwtestsJSON))
@@ -155,9 +157,7 @@ func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, src
     if len(bwTestResults) > 0 {
         logpath := path.Join(srcpath, "webapp.log")
         file, err := os.Open(logpath)
-        if err != nil {
-            fmt.Println(err)
-        }
+        CheckError(err)
         defer file.Close()
 
         json := []byte(`, "log": "`)
@@ -200,8 +200,7 @@ func WriteBwtestCsv(bwtest *model.BwTestItem, srcpath string) {
     }
     // open/create file
     f, err := os.OpenFile(bwdataPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-    if err != nil {
-        fmt.Println("Error: ", err)
+    if CheckError(err) {
         return
     }
     w := csv.NewWriter(f)

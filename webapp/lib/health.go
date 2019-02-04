@@ -5,13 +5,15 @@ import (
     "encoding/json"
     "fmt"
     "io/ioutil"
-    "log"
     "net/http"
     "os/exec"
     "path"
     "path/filepath"
     "strings"
     "time"
+
+    log "github.com/inconshreveable/log15"
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var defFileHealthCheck = "tests/health/default.json"
@@ -47,17 +49,15 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
     // read specified tests from json definition
     fp := path.Join(srcpath, defFileHealthCheck)
     raw, err := ioutil.ReadFile(fp)
-    if err != nil {
-        log.Println("ioutil.ReadFile() error: " + err.Error())
+    if CheckError(err) {
         fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
         return
     }
-    fmt.Println(string(raw))
+    log.Info(string(raw))
 
     var tests DefTests
     err = json.Unmarshal([]byte(raw), &tests)
-    if err != nil {
-        log.Println("json.Unmarshal() error: " + err.Error())
+    if CheckError(err) {
         fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
         return
     }
@@ -71,14 +71,12 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
     // export empty result set first
     jsonRes, err := json.Marshal(results)
     err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
-    if err != nil {
-        log.Println("ioutil.WriteFile() error: " + err.Error())
-    }
+    CheckError(err)
 
     // execute each script and format results for json
     for i, test := range tests.Tests {
         pass := true
-        fmt.Println(test.Script + ": " + test.Desc)
+        log.Info(test.Script + ": " + test.Desc)
         // execute script
         cmd := exec.Command("bash", test.Script)
         cmd.Dir = filepath.Dir(fp)
@@ -91,38 +89,34 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
         results[i].Start = start
         jsonRes, err = json.Marshal(results)
         err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
-        if err != nil {
-            log.Println("ioutil.WriteFile() error: " + err.Error())
-        }
+        CheckError(err)
 
         // start cmd timeout timer
         go func(idx int) {
             time.Sleep(healthCheckTimeout)
             if results[idx].End == 0 {
                 // no match found by timeout, kill, throw err
-                fmt.Println(tests.Tests[idx].Script + " exceeded timeout: " + healthCheckTimeout.String())
-                fmt.Println("Terminating " + tests.Tests[idx].Script + "...")
-                if err := cmd.Process.Kill(); err != nil {
-                    fmt.Println(err)
-                }
+                log.Error(tests.Tests[idx].Script + " exceeded timeout: " + healthCheckTimeout.String())
+                log.Error("Terminating " + tests.Tests[idx].Script + "...")
+                err := cmd.Process.Kill()
+                CheckError(err)
             }
         }(i)
 
         err := cmd.Run()
-        if err != nil {
+        if CheckError(err) {
             // fail test for non-zero exit code
             pass = false
-            log.Printf("cmd.Run() failed with %s\n", err)
         }
         end := time.Now().UnixNano() / 1e6
         outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
         if len(outStr) > 0 {
-            fmt.Println(outStr)
+            log.Info(outStr)
         }
         if len(errStr) > 0 {
             // fail test when errors are written to stderr
             pass = false
-            fmt.Println(errStr)
+            log.Error(errStr)
         }
         // format results
         result := strings.Replace((outStr + ` <b>` + errStr + `</b>`), "\n", "<br>", -1)
@@ -133,11 +127,9 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
         results[i].Pass = pass
         results[i].Reason = result
         jsonRes, err = json.Marshal(results)
-        fmt.Println(string(jsonRes))
+        log.Info(string(jsonRes))
         err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
-        if err != nil {
-            log.Println("ioutil.WriteFile() error: " + err.Error())
-        }
+        CheckError(err)
     }
 
     // ensure all escaped correctly before writing to printf formatter
