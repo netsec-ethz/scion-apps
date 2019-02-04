@@ -3,7 +3,8 @@ package models
 import (
     "database/sql"
     "fmt"
-    "log"
+
+    log "github.com/inconshreveable/log15"
 )
 
 var db *sql.DB
@@ -14,11 +15,13 @@ func InitDB(filepath string) {
     var err error
     db, err = sql.Open("sqlite3", filepath)
     if err != nil {
-        log.Panic(err)
+        log.Error("sql.Open", err)
+        panic(err)
     }
 
     if err = db.Ping(); err != nil {
-        log.Panic(err)
+        log.Error("db.Ping()", err)
+        panic(err)
     }
 }
 
@@ -26,7 +29,8 @@ func InitDB(filepath string) {
 func CloseDB() {
     var err error
     if err = db.Close(); err != nil {
-        log.Panic(err)
+        log.Error("db.Close()", err)
+        panic(err)
     }
 }
 
@@ -34,7 +38,7 @@ func CloseDB() {
 func LoadDB() {
     createBwTestTable()
     version := getUserVersion()
-    log.Printf("Database version: %d", version)
+    log.Info("Loading database version:", "version", version)
     // add successive migrations here
     if version < 1 {
         addColumn("bwtests", "Path TEXT")
@@ -42,17 +46,16 @@ func LoadDB() {
     //set updated version
     if version != bwDbVer {
         setUserVersion(bwDbVer)
-        log.Printf("Migrated to database version: %d", bwDbVer)
+        log.Info("Migrated to database version:", "version", bwDbVer)
     }
 }
 
 func addColumn(table string, column string) {
     sqlAddCol := fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s;`, table, column)
-    log.Printf(sqlAddCol)
-    res, err := db.Exec(sqlAddCol)
-    fmt.Println(res)
+    log.Info(sqlAddCol)
+    _, err := db.Exec(sqlAddCol)
     if err != nil {
-        log.Println(err.Error())
+        log.Error("db.Exec(sqlAddCol)", err)
         panic(err)
     }
 }
@@ -61,19 +64,19 @@ func getUserVersion() int {
     sqlGetVersion := `PRAGMA user_version;`
     rows, err := db.Query(sqlGetVersion)
     if err != nil {
-        log.Println(err.Error())
+        log.Error("db.Query(sqlGetVersion)", err)
         panic(err)
     }
     defer rows.Close()
     var version int
     for rows.Next() {
         if err := rows.Scan(&version); err != nil {
-            log.Println(err.Error())
+            log.Error("rows.Scan(&version)", err)
             panic(err)
         }
     }
     if err := rows.Err(); err != nil {
-        log.Println(err.Error())
+        log.Error("rows.Err() get version", err)
         panic(err)
     }
     return version
@@ -81,11 +84,10 @@ func getUserVersion() int {
 
 func setUserVersion(version int) {
     sqlSetVersion := fmt.Sprintf(`PRAGMA user_version = %d;`, version)
-    log.Printf(sqlSetVersion)
-    res, err := db.Exec(sqlSetVersion)
-    fmt.Println(res)
+    log.Info(sqlSetVersion)
+    _, err := db.Exec(sqlSetVersion)
     if err != nil {
-        log.Println(err.Error())
+        log.Error("db.Exec(sqlSetVersion)", err)
         panic(err)
     }
 }
