@@ -3,13 +3,14 @@ package lib
 import (
     "fmt"
     "io/ioutil"
-    "log"
     "net"
     "net/http"
     "os"
     "path"
     "sort"
     "strings"
+
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 // SCIONROOT is the root location on the scion infrastructure.
@@ -36,8 +37,7 @@ var cfgFileSerDef = "config/servers_default.json"
 func GetLocalIa() string {
     filepath := path.Join(GOPATH, SCIONROOT, "gen/ia")
     b, err := ioutil.ReadFile(filepath)
-    if err != nil {
-        log.Println("ioutil.ReadFile() error: " + err.Error())
+    if CheckError(err) {
         return ""
     }
     return strings.Replace(strings.TrimSpace(string(b)), "_", ":", -1)
@@ -86,9 +86,7 @@ func GenServerNodeDefaults(srcpath string) {
 
     jsonBuf = append(jsonBuf, []byte(` }`)...)
     err := ioutil.WriteFile(serFp, jsonBuf, 0644)
-    if err != nil {
-        log.Println("ioutil.WriteFile() error: " + err.Error())
-    }
+    CheckError(err)
 }
 
 // GenClientNodeDefaults queries network interfaces and writes local client
@@ -104,16 +102,14 @@ func GenClientNodeDefaults(srcpath string) {
     // find interface addresses
     jsonBuf := []byte(`{ "all": [ `)
     ifaces, err := net.Interfaces()
-    if err != nil {
-        log.Println("net.Interfaces() error: " + err.Error())
+    if CheckError(err) {
         return
     }
     sort.Sort(byPrefInterface(ifaces))
     idx := 0
     for _, i := range ifaces {
         addrs, err := i.Addrs()
-        if err != nil {
-            log.Println("i.Addrs() error: " + err.Error())
+        if CheckError(err) {
             continue
         }
         for _, a := range addrs {
@@ -134,9 +130,7 @@ func GenClientNodeDefaults(srcpath string) {
     }
     jsonBuf = append(jsonBuf, []byte(` ] }`)...)
     err = ioutil.WriteFile(cliFp, jsonBuf, 0644)
-    if err != nil {
-        log.Println("ioutil.WriteFile() error: " + err.Error())
-    }
+    CheckError(err)
 }
 
 // GetNodesHandler queries the local environment for user/default nodes.
@@ -157,8 +151,6 @@ func GetNodesHandler(w http.ResponseWriter, r *http.Request, srcpath string) {
         panic("Unhandled nodes type!")
     }
     raw, err := ioutil.ReadFile(fp)
-    if err != nil {
-        log.Println("ioutil.ReadFile() error: " + err.Error())
-    }
+    CheckError(err)
     fmt.Fprintf(w, string(raw))
 }

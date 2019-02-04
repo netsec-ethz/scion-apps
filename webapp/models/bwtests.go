@@ -7,6 +7,7 @@ import (
     "time"
 
     log "github.com/inconshreveable/log15"
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var bwTestDbExpire = time.Duration(24) * time.Hour
@@ -112,8 +113,7 @@ func createBwTestTable() {
     );
     `
     _, err := db.Exec(sqlCreateTable)
-    if err != nil {
-        log.Error("db.Exec(sqlCreateTable) bwtests", err)
+    if CheckError(err) {
         panic(err)
     }
 }
@@ -153,8 +153,7 @@ func StoreBwTestItem(bwtest *BwTestItem) {
     ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     stmt, err := db.Prepare(sqlInsert)
-    if err != nil {
-        log.Error("db.Prepare(sqlInsert) bwtests", err)
+    if CheckError(err) {
         panic(err)
     }
     defer stmt.Close()
@@ -188,8 +187,7 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         bwtest.SCArrMax,
         bwtest.Error,
         bwtest.Path)
-    if err2 != nil {
-        log.Error("stmt.Exec sqlInsert bwtests", err2)
+    if CheckError(err2) {
         panic(err2)
     }
 }
@@ -230,8 +228,7 @@ func ReadBwTestItemsAll() []BwTestItem {
     ORDER BY datetime(Inserted) DESC
     `
     rows, err := db.Query(sqlReadAll)
-    if err != nil {
-        log.Error("db.Query(sqlReadAll) bwtests", err)
+    if CheckError(err) {
         panic(err)
     }
     defer rows.Close()
@@ -268,8 +265,7 @@ func ReadBwTestItemsAll() []BwTestItem {
             &bwtest.SCArrMax,
             &bwtest.Error,
             &bwtest.Path)
-        if err2 != nil {
-            log.Error("rows.Scan (sqlReadAll) bwtests", err2)
+        if CheckError(err2) {
             panic(err2)
         }
         result = append(result, bwtest)
@@ -295,8 +291,7 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
     ORDER BY datetime(Inserted) DESC
     `
     rows, err := db.Query(sqlReadSince, since)
-    if err != nil {
-        log.Error("db.Query(sqlReadSince) bwtests", err)
+    if CheckError(err) {
         panic(err)
     }
     defer rows.Close()
@@ -313,8 +308,7 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
             &bwtest.SCThroughput,
             &bwtest.Error,
             &bwtest.Path)
-        if err2 != nil {
-            log.Error("rows.Scan (sqlReadSince) bwtests", err2)
+        if CheckError(err2) {
             panic(err2)
         }
         result = append(result, bwtest)
@@ -330,13 +324,11 @@ func DeleteBwTestItemsBefore(before string) int64 {
     WHERE Inserted < ?
     `
     res, err := db.Exec(sqlDeleteBefore, before)
-    if err != nil {
-        log.Error("db.Exec(sqlDeleteBefore) bwtests", err)
+    if CheckError(err) {
         panic(err)
     }
     count, err := res.RowsAffected()
-    if err != nil {
-        log.Error("res.RowsAffected() bwtests delete", err)
+    if CheckError(err) {
         panic(err)
     }
     return count

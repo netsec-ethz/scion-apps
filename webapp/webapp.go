@@ -23,9 +23,9 @@ import (
     log "github.com/inconshreveable/log15"
     "github.com/kormat/fmt15"
     _ "github.com/mattn/go-sqlite3"
-
     lib "github.com/netsec-ethz/scion-apps/webapp/lib"
     model "github.com/netsec-ethz/scion-apps/webapp/models"
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var addr = flag.String("a", "0.0.0.0", "server host address")
@@ -70,10 +70,10 @@ func main() {
     log.Root().SetHandler(log.MultiHandler(
         log.LvlFilterHandler(log.LvlDebug,
             log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
-        log.LvlFilterHandler(log.LvlDebug,
+        log.LvlFilterHandler(log.LvlInfo,
             log.Must.FileHandler(path.Join(logDirPath, fmt.Sprintf("%s.log", id)),
                 fmt15.Fmt15Format(nil)))))
-    log.Debug("Setup info:", "id", id)
+    log.Info("======================> Webapp started")
 
     // prepare templates
     templates = prepareTemplates(srcpath)
@@ -128,18 +128,16 @@ func main() {
     http.HandleFunc("/getcrt", lib.CrtHandler)
     http.HandleFunc("/gettrc", lib.TrcHandler)
 
-    log.Info(fmt.Sprintf("Browser access: at http://%s:%d.\n", browserAddr, *port))
+    log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
     log.Info("File browser root:", "root", *root)
-    log.Info(fmt.Sprintf("Listening on %s:%d...\n", *addr, *port))
+    log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
     err := http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
-    if err != nil {
-        log.Crit("http.ListenAndServe", err)
-    }
+    CheckFatal(err)
 }
 
 func logRequestHandler(handler http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        log.Debug(fmt.Sprintf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL))
+        log.Info(fmt.Sprintf("%s %s %s", r.RemoteAddr, r.Method, r.URL))
         handler.ServeHTTP(w, r)
     })
 }
@@ -342,13 +340,9 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 
     cmd.Stderr = os.Stderr
     stdin, err := cmd.StdinPipe()
-    if nil != err {
-        log.Error("cmd.StdinPipe app", err)
-    }
+    CheckError(err)
     stdout, err := cmd.StdoutPipe()
-    if nil != err {
-        log.Error("cmd.StdoutPipe app", err)
-    }
+    CheckError(err)
     reader := bufio.NewReader(stdout)
 
     err = cmd.Start()
@@ -367,14 +361,12 @@ func appsBuildCheck(app string) {
         filepath := getClientLocationSrc(app)
         cmd := exec.Command("go", "install")
         cmd.Dir = path.Dir(filepath)
-        log.Info(fmt.Sprintf("Installing %s...\n", filepath))
+        log.Info(fmt.Sprintf("Installing %s...", filepath))
         var stdout, stderr bytes.Buffer
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         err := cmd.Run()
-        if err != nil {
-            log.Error("cmd.Run go install", err)
-        }
+        CheckError(err)
         outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
         if len(outStr) > 0 {
             log.Info(outStr)
@@ -383,7 +375,7 @@ func appsBuildCheck(app string) {
             log.Error(errStr)
         }
     } else {
-        log.Info(fmt.Sprintf("Existing install, found %s...\n", app))
+        log.Info(fmt.Sprintf("Existing install, found %s...", app))
     }
 }
 
@@ -431,9 +423,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
     start := time.Now()
     logpath := path.Join(srcpath, "webapp.log")
     file, err := os.Create(logpath)
-    if err != nil {
-        log.Error("os.Create temp logfile", err)
-    }
+    CheckError(err)
 
     defer func() {
         // monitor end of test here
@@ -468,9 +458,8 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
                         errMsg = "Path no longer available: " + pathStr
                         log.Warn(errMsg)
                         log.Info("Terminating app...", "appSel", appSel)
-                        if err := cmd.Process.Kill(); err != nil {
-                            log.Error("cmd.Process.Kill app", err)
-                        }
+                        err := cmd.Process.Kill()
+                        CheckError(err)
                     }
                 }()
             }
@@ -501,9 +490,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
     }
     // log file write response
     nF, err := file.Write(jsonBuf)
-    if err != nil {
-        log.Error("file.Write temp log", err)
-    }
+    CheckError(err)
     if nF != len(jsonBuf) {
         log.Error("failed to write complete temp log")
     }
@@ -531,9 +518,7 @@ func getNodesHandler(w http.ResponseWriter, r *http.Request) {
 func refreshRootDirectory() {
     cliFp := path.Join(srcpath, *root, rootmarker)
     err := ioutil.WriteFile(cliFp, []byte(``), 0644)
-    if err != nil {
-        log.Error("ioutil.WriteFile .webapp", err)
-    }
+    CheckError(err)
 }
 
 // FileBrowseResponseWriter holds modified reponse headers
