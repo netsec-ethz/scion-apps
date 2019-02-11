@@ -17,6 +17,9 @@ package scionutil
 import (
 	"log"
 	"testing"
+
+	libaddr "github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func init() {
@@ -69,7 +72,12 @@ func TestReadHosts(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if addr.String() != "17-ffaa:0:1,[192.168.1.1]:0" {
+	addr.Host.L4 = libaddr.NewL4UDPInfo(0)
+	expected, err := snet.AddrFromString("17-ffaa:0:1,[192.168.1.1]:0")
+	if err != nil {
+		panic("This should always work")
+	}
+	if !addr.EqAddr(expected) {
 		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "17-ffaa:0:1,[192.168.1.1]:0", addr)
 	}
 
@@ -78,7 +86,9 @@ func TestReadHosts(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if addr.String() != "20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0" {
+	addr.Host.L4 = libaddr.NewL4UDPInfo(0)
+	expected, err = snet.AddrFromString("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0")
+	if !addr.EqAddr(expected) {
 		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0", addr)
 	}
 
