@@ -25,6 +25,7 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -40,10 +41,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	rAddr, err := scionutil.GetHostByName("image-server", "40002")
+	rAddr, err := scionutil.GetHostByName("image-server")
 	if err != nil {
 		log.Fatal(err)
 	}
+	rAddr.Host.L4 = addr.NewL4UDPInfo(40002)
 	if *interactive {
 		scionutil.ChoosePathInteractive(lAddr, rAddr)
 	} else {
