@@ -6,6 +6,8 @@ The applications are written in Go, with some supporting code in Python. A SCION
 
 More information on [SCION](https://www.scion-architecture.net/), and [tutorials on how to set up SCION and SCIONLab](https://netsec-ethz.github.io/scion-tutorials/).
 
+To build any project, first run once the provided script `deps.sh` and you should be ready to _go_ :) . This script will pull all vendor dependencies and prepare this directory to build any project.
+
 
 ## camerapp
 
