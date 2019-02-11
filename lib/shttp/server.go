@@ -40,24 +40,6 @@ var (
 // ListenAndServeSCION listens for HTTPS connections on the SCION address addr and calls ServeSCION
 // with handler to handle requests
 func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) error {
-	laddr, err := snet.AddrFromString(addr)
-	if err != nil {
-		return err
-	}
-
-	// initialize SCION
-	initOnce.Do(func() {
-		if snet.DefNetwork == nil {
-			initErr = scionutil.InitSCION(laddr)
-		}
-	})
-	if initErr != nil {
-		return initErr
-	}
-
-	sconn, err := snet.ListenSCION("udp4", laddr)
-	if err != nil {
-		return err
 	scionServer := &Server{
 		Addr: addr,
 		s: &h2quic.Server{

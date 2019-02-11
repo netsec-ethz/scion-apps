@@ -27,6 +27,7 @@ import (
 	quic "github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	libaddr "github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
@@ -74,7 +75,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			if err != nil {
 				p = 443
 			}
-			raddr.L4Port = uint16(p)
+			raddr.Host.L4 = libaddr.NewL4UDPInfo(uint16(p))
 			return squic.DialSCION(nil, t.LAddr, raddr, nil)
 		}
 		t.rt = &h2quic.RoundTripper{
