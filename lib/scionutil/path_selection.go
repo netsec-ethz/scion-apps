@@ -16,6 +16,7 @@ package scionutil
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -43,7 +44,7 @@ func ChoosePathInteractive(local, remote *snet.Addr) *sciond.PathReplyEntry {
 	}
 
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
 	var appPaths []*spathmeta.AppPath
 	var selectedPath *spathmeta.AppPath
 
@@ -84,7 +85,7 @@ func ChoosePathByMetric(pathAlgo int, local, remote *snet.Addr) *sciond.PathRepl
 	}
 
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
 	var appPaths []*spathmeta.AppPath
 
 	i := 0
