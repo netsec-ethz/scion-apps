@@ -27,3 +27,18 @@ webapp/data
 .webapp
 
 *.log
+
+# vendor directory
+vendor/*/
+
+# generated binaries
+bat/bat
+bat/example_server/example_server
+bwtester/bwtestclient/bwtestclient
+bwtester/bwtestserver/bwtestserver
+camerapp/imagefetcher/imagefetcher
+camerapp/imageserver/imageserver
+helloworld/helloworld
+sensorapp/sensorfetcher/sensorfetcher
+sensorapp/sensorserver/sensorserver
+webapp/webapp
