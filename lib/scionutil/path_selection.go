@@ -33,8 +33,9 @@ import (
 
 // metrics for path selection
 const (
-	MTU      = iota // metric for path with biggest MTU
-	Shortest        // metric for shortest path
+	PathAlgoDefault = iota // default algorithm
+	MTU                    // metric for path with biggest MTU
+	Shortest               // metric for shortest path
 )
 
 // ChoosePathInteractive presents the user a selection of paths to choose from
