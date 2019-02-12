@@ -143,11 +143,11 @@ func copyDBToTemp(filename string) string {
 	}
 	err = copyOneFile(dirName, filename+"-wal")
 	if err != nil {
-		fmt.Printf("No panic: %v", err)
+		fmt.Fprintf(os.Stderr, "No panic: %v", err)
 	}
 	err = copyOneFile(dirName, filename+"-shm")
 	if err != nil {
-		fmt.Printf("No panic: %v", err)
+		fmt.Fprintf(os.Stderr, "No panic: %v", err)
 	}
 	baseFilename := filepath.Base(filename)
 	return filepath.Join(dirName, baseFilename)
@@ -155,7 +155,7 @@ func copyDBToTemp(filename string) string {
 func removeAllDir(dirName string) {
 	err := os.RemoveAll(dirName)
 	if err != nil {
-		fmt.Printf("Error when removing temp dir %s: %v\n", dirName, err)
+		fmt.Fprintf(os.Stderr, "Error when removing temp dir %s: %v\n", dirName, err)
 	}
 }
 
