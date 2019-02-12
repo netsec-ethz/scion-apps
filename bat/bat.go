@@ -174,7 +174,8 @@ func main() {
 			}
 		}
 	}
-
+	// TODO: uncomment when RAINS is deployed and remove belows URL creation
+	/* start of URL creation: Remove when RAINS is deployed*/
 	if *URL == "" {
 		usage()
 	}
@@ -189,6 +190,7 @@ func main() {
 			*URL = "https://localhost" + string(urlb[1:])
 		}
 	}
+
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
 		*URL = "https://" + *URL
 	}
