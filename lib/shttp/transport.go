@@ -65,6 +65,10 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 	// set the dial function and QuicConfig once for each Transport
 	t.dialOnce.Do(func() {
 		dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
+
+			// TODO: this field in the quic.Config set to 'true' causes an 'InvalidHeadersStreamData: NetworkIdleTimeout' error
+			cfg.RequestConnectionIDOmission = false
+
 			host, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, err
