@@ -41,11 +41,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	rAddr, err := scionutil.GetHostByName("minimal-server")
+	ia, l3, err := scionutil.GetHostByName("minimal-server")
 	if err != nil {
 		log.Fatal(err)
 	}
-	rAddr.Host.L4 = addr.NewL4UDPInfo(40002)
+	l4 := addr.NewL4UDPInfo(40002)
+	rAddr := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}
+
 	if *interactive {
 		scionutil.ChoosePathInteractive(lAddr, rAddr)
 	} else {
