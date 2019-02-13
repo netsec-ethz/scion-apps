@@ -22,14 +22,20 @@ import (
 	"regexp"
 	"strings"
 
+	libaddr "github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var (
 	hostFilePath = "/etc/hosts"
-	addrRegexp   = regexp.MustCompile(`\d{1,4}-([0-9a-f]{1,4}:){2}[0-9a-f]{1,4},\[[^]]+\]`)
+	addrRegexp   = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\]`)
 	hosts        map[string]string   // hostname -> SCION address
 	revHosts     map[string][]string // SCION address w/o port -> hostnames
+)
+
+const (
+	iaIndex = iota + 1
+	l3Index
 )
 
 func init() {
@@ -60,18 +66,31 @@ func AddHost(hostname, address string) error {
 	return nil
 }
 
-// GetHostByName returns the SCION address corresponding to hostname.
-// The port is set to the default zero value.
-func GetHostByName(hostname string) (*snet.Addr, error) {
+// GetHostByName returns the IA and HostAddr corresponding to hostname
+func GetHostByName(hostname string) (ia libaddr.IA, l3 libaddr.HostAddr, err error) {
 	addr, ok := hosts[hostname]
 	if !ok {
-		return nil, fmt.Errorf("Address for host %q not found", hostname)
+		err = fmt.Errorf("Address for host %q not found", hostname)
+		return
 	}
-	scionAddr, err := snet.AddrFromString(addr)
+
+	parts := addrRegexp.FindStringSubmatch(addr)
+	ia, err = libaddr.IAFromString(parts[iaIndex])
 	if err != nil {
-		return nil, err
+		err = fmt.Errorf("Invalid IA string: %v", parts[iaIndex])
+		return
 	}
-	return scionAddr, nil
+	if hostSVC := libaddr.HostSVCFromString(parts[l3Index]); hostSVC != libaddr.SvcNone {
+		l3 = hostSVC
+	} else {
+		l3 = libaddr.HostFromIPStr(parts[l3Index])
+		if l3 == nil {
+			err = fmt.Errorf("Invalid IP address string: %v", parts[l3Index])
+			return
+		}
+	}
+	return
+
 }
 
 // GetHostnamesByAddress returns the hostnames corresponding to address
@@ -101,7 +120,7 @@ func parseHostsFile(hostsFile []byte) error {
 		if len(fields) == 0 {
 			continue
 		}
-		if match := addrRegexp.FindString(fields[0]); len(match) == len(fields[0]) {
+		if matched := addrRegexp.MatchString(fields[0]); matched {
 			for _, field := range fields[1:] {
 				if _, ok := hosts[field]; !ok {
 					hosts[field] = fields[0]

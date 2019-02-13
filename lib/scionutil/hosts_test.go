@@ -68,11 +68,13 @@ func TestAddingHost(t *testing.T) {
 }
 
 func TestReadHosts(t *testing.T) {
-	addr, err := GetHostByName("host1.2")
+	ia, l3, err := GetHostByName("host1.2")
 	if err != nil {
 		t.Error(err)
 	}
-	addr.Host.L4 = libaddr.NewL4UDPInfo(0)
+	addr := &snet.Addr{IA: ia, Host: &libaddr.AppAddr{L3: l3, L4: libaddr.NewL4UDPInfo(0)}}
+	//addr.Host.L4 = libaddr.NewL4UDPInfo(0)
+
 	expected, err := snet.AddrFromString("17-ffaa:0:1,[192.168.1.1]:0")
 	if err != nil {
 		panic("This should always work")
@@ -82,18 +84,19 @@ func TestReadHosts(t *testing.T) {
 	}
 
 	// works with IPv6 SCION hosts
-	addr, err = GetHostByName("host4")
+	ia, l3, err = GetHostByName("host4")
 	if err != nil {
 		t.Error(err)
 	}
-	addr.Host.L4 = libaddr.NewL4UDPInfo(0)
+	addr = &snet.Addr{IA: ia, Host: &libaddr.AppAddr{L3: l3, L4: libaddr.NewL4UDPInfo(0)}}
+
 	expected, err = snet.AddrFromString("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0")
 	if !addr.EqAddr(expected) {
 		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0", addr)
 	}
 
 	// does not parse commented hosts
-	addr, err = GetHostByName("commented")
+	ia, l3, err = GetHostByName("commented")
 	if err == nil {
 		t.Error("read commented host")
 	}
@@ -114,7 +117,7 @@ func TestReadAddresses(t *testing.T) {
 		t.Error(err)
 	}
 	if len(addrs) != 3 || addrs[0] != "host1.1" || addrs[1] != "host1.2" || addrs[2] != "host3" {
-		t.Errorf("address resolved to wrong hostnames, expected: %v, received: %v", []string{"host1", "host3"}, addrs)
+		t.Errorf("address resolved to wrong hostnames, expected: %v, received: %v", []string{"host1.1", "host1.2", "host3"}, addrs)
 	}
 
 	// pass address with IPv6
