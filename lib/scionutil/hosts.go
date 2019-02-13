@@ -23,14 +23,18 @@ import (
 	"strings"
 
 	libaddr "github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
 )
+
+type scionAddress struct {
+	ia libaddr.IA
+	l3 libaddr.HostAddr
+}
 
 var (
 	hostFilePath = "/etc/hosts"
 	addrRegexp   = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\]`)
-	hosts        map[string]string   // hostname -> SCION address
-	revHosts     map[string][]string // SCION address w/o port -> hostnames
+	hosts        map[string]scionAddress // hostname -> scionAddress
+	revHosts     map[string][]string     // SCION address w/o port -> hostnames
 )
 
 const (
@@ -43,7 +47,7 @@ func init() {
 	if err != nil {
 		hostsFile = []byte{}
 	}
-	err = parseHostsFile(hostsFile)
+	parseHostsFile(hostsFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,41 +60,23 @@ func AddHost(hostname, address string) error {
 	if addrs, ok := hosts[hostname]; ok {
 		return fmt.Errorf("Host %q already exists, address(es): %v", hostname, addrs)
 	}
-	_, err := snet.AddrFromString(fmt.Sprintf("%s:%s", address, "0"))
+	addr, err := addrFromString(address)
 	if err != nil {
 		return fmt.Errorf("Cannot add host %q: %v", hostname, err)
 	}
-	hosts[hostname] = address
+	hosts[hostname] = addr
 	revHosts[address] = append(revHosts[address], hostname)
 
 	return nil
 }
 
 // GetHostByName returns the IA and HostAddr corresponding to hostname
-func GetHostByName(hostname string) (ia libaddr.IA, l3 libaddr.HostAddr, err error) {
+func GetHostByName(hostname string) (libaddr.IA, libaddr.HostAddr, error) {
 	addr, ok := hosts[hostname]
 	if !ok {
-		err = fmt.Errorf("Address for host %q not found", hostname)
-		return
+		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found", hostname)
 	}
-
-	parts := addrRegexp.FindStringSubmatch(addr)
-	ia, err = libaddr.IAFromString(parts[iaIndex])
-	if err != nil {
-		err = fmt.Errorf("Invalid IA string: %v", parts[iaIndex])
-		return
-	}
-	if hostSVC := libaddr.HostSVCFromString(parts[l3Index]); hostSVC != libaddr.SvcNone {
-		l3 = hostSVC
-	} else {
-		l3 = libaddr.HostFromIPStr(parts[l3Index])
-		if l3 == nil {
-			err = fmt.Errorf("Invalid IP address string: %v", parts[l3Index])
-			return
-		}
-	}
-	return
-
+	return addr.ia, addr.l3, nil
 }
 
 // GetHostnamesByAddress returns the hostnames corresponding to address
@@ -111,8 +97,8 @@ func readHostsFile() ([]byte, error) {
 	return bs, nil
 }
 
-func parseHostsFile(hostsFile []byte) error {
-	hosts = make(map[string]string)
+func parseHostsFile(hostsFile []byte) {
+	hosts = make(map[string]scionAddress)
 	revHosts = make(map[string][]string)
 	lines := bytes.Split(hostsFile, []byte("\n"))
 	for _, line := range lines {
@@ -121,14 +107,37 @@ func parseHostsFile(hostsFile []byte) error {
 			continue
 		}
 		if matched := addrRegexp.MatchString(fields[0]); matched {
+			addr, err := addrFromString(fields[0])
+			if err != nil {
+				continue
+			}
+
+			// map hostnames to scionAddress
 			for _, field := range fields[1:] {
 				if _, ok := hosts[field]; !ok {
-					hosts[field] = fields[0]
+					hosts[field] = addr
 					revHosts[fields[0]] = append(revHosts[fields[0]], field)
 				}
 			}
 		}
 
 	}
-	return nil
+}
+
+func addrFromString(addr string) (scionAddress, error) {
+	parts := addrRegexp.FindStringSubmatch(addr)
+	ia, err := libaddr.IAFromString(parts[iaIndex])
+	if err != nil {
+		return scionAddress{}, fmt.Errorf("Invalid IA string: %v", parts[iaIndex])
+	}
+	var l3 libaddr.HostAddr
+	if hostSVC := libaddr.HostSVCFromString(parts[l3Index]); hostSVC != libaddr.SvcNone {
+		l3 = hostSVC
+	} else {
+		l3 = libaddr.HostFromIPStr(parts[l3Index])
+		if l3 == nil {
+			return scionAddress{}, fmt.Errorf("Invalid IP address string: %v", parts[l3Index])
+		}
+	}
+	return scionAddress{ia, l3}, nil
 }
