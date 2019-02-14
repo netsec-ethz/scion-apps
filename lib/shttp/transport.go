@@ -66,7 +66,13 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 	t.dialOnce.Do(func() {
 		dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
 
-			// TODO: this field in the quic.Config set to 'true' causes an 'InvalidHeadersStreamData: NetworkIdleTimeout' error
+			/* TODO(chaehni):
+			RequestConnectionIDOmission MUST not be set to 'true' when a connection is dialed using an existing net.PacketConn
+			(which the squic package is doing)
+			quic-go/client.go func populateClientConfig (line 177) fails to catch this problem
+			As a result, if set to 'true' the quic-go client multiplexer fails to match incoming packets
+			This problem is solved in subsequent releases of quic-go (>v0.8.0)
+			*/
 			cfg.RequestConnectionIDOmission = false
 
 			host, port, err := net.SplitHostPort(addr)
