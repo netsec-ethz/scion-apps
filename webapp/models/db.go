@@ -9,7 +9,7 @@ import (
 )
 
 var db *sql.DB
-var bwDbVer = 1
+var bwDbVer = 2
 
 // InitDB controls the opening connection to the database.
 func InitDB(filepath string) {
@@ -40,6 +40,9 @@ func LoadDB() {
     // add successive migrations here
     if version < 1 {
         addColumn("bwtests", "Path TEXT")
+    }
+    if version < 2 {
+        addColumn("bwtests", "Log TEXT")
     }
     //set updated version
     if version != bwDbVer {
