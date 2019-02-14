@@ -305,13 +305,13 @@ function manageTestData() {
                         clearInterval(intervalGraphData);
                     }
                 }
-                if (d.log != null) {
-                    // result returned, display it and reset progress
-                    handleEndCmdDisplay(d.log);
-                }
                 if (d.graph != null) {
                     // write data on graph
                     for (var i = 0; i < d.graph.length; i++) {
+                        if (d.graph[i].Log != null) {
+                            // result returned, display it and reset progress
+                            handleEndCmdDisplay(d.graph[i].Log);
+                        }
                         var data = {
                             'cs' : {
                                 'bandwidth' : d.graph[i].CSBandwidth,

@@ -419,16 +419,11 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
     if interactive {
         log.Info("Searching:", "regex", rePathStr)
     }
-
     start := time.Now()
-    logpath := path.Join(srcpath, "webapp.log")
-    file, err := os.Create(logpath)
-    CheckError(err)
 
     defer func() {
         // monitor end of test here
         go func() { bwChanDone <- true }()
-        file.Close()
     }()
 
     pathsAvail := false
@@ -487,12 +482,6 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
         // store in database
         model.StoreBwTestItem(d)
         lib.WriteBwtestCsv(d, srcpath)
-    }
-    // log file write response
-    nF, err := file.Write(jsonBuf)
-    CheckError(err)
-    if nF != len(jsonBuf) {
-        log.Error("failed to write complete temp log")
     }
 }
 

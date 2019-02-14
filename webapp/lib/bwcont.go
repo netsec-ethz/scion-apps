@@ -4,7 +4,6 @@ import (
     "encoding/csv"
     "encoding/json"
     "fmt"
-    "io"
     "net/http"
     "os"
     "path"
@@ -115,9 +114,6 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
         }
     }
     log.Info("app response", "data", data)
-    if len(err) > 0 {
-        log.Error("app error", "err", err)
-    }
 
     // get bandwidth from original request
     d.CSThroughput, _ = strconv.Atoi(data["cs"]["throughput"])
@@ -134,7 +130,9 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 
     if d.CSThroughput == 0 || d.SCThroughput == 0 {
         d.Error = err
+        log.Error("app error", "err", err)
     }
+    d.Log = resp // pipe log output to render in display later
 }
 
 // GetBwByTimeHandler request the bwtest results stored since provided time.
@@ -153,26 +151,6 @@ func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, src
     jsonBuf := []byte(`{ "graph": ` + string(bwtestsJSON))
     json := []byte(`, "active": ` + strconv.FormatBool(active))
     jsonBuf = append(jsonBuf, json...)
-    // add log results to response if any
-    if len(bwTestResults) > 0 {
-        logpath := path.Join(srcpath, "webapp.log")
-        file, err := os.Open(logpath)
-        CheckError(err)
-        defer file.Close()
-
-        json := []byte(`, "log": "`)
-        jsonBuf = append(jsonBuf, json...)
-        p := make([]byte, logBufLen)
-        for {
-            n, err := file.Read(p)
-            if err == io.EOF {
-                break
-            }
-            // ensure \ if any, is escaped correctly before writing to json value
-            jsonBuf = append(jsonBuf, removeOuterQuotes(strconv.QuoteToASCII(string(p[:n])))...)
-        }
-        jsonBuf = append(jsonBuf, []byte(`"`)...)
-    }
     jsonBuf = append(jsonBuf, []byte(`}`)...)
 
     // ensure % if any, is escaped correctly before writing to printf formatter

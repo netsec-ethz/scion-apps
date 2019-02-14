@@ -14,34 +14,35 @@ var bwTestDbExpire = time.Duration(24) * time.Hour
 
 // BwTestItem reflects one row in the bwtests table with all columns.
 type BwTestItem struct {
-    Inserted       int64  // v1, ms
-    ActualDuration int    // v1, ms
-    CIa            string // v1
-    CAddr          string // v1
-    CPort          int    // v1
-    SIa            string // v1
-    SAddr          string // v1
-    SPort          int    // v1
-    CSDuration     int    // v1, ms
-    CSPackets      int    // v1, packets
-    CSPktSize      int    // v1, bytes
-    CSBandwidth    int    // v1, bps
-    CSThroughput   int    // v1, bps
-    CSArrVar       int    // v1, ms
-    CSArrAvg       int    // v1, ms
-    CSArrMin       int    // v1, ms
-    CSArrMax       int    // v1, ms
-    SCDuration     int    // v1, ms
-    SCPackets      int    // v1, packets
-    SCPktSize      int    // v1, bytes
-    SCBandwidth    int    // v1, bps
-    SCThroughput   int    // v1, bps
-    SCArrVar       int    // v1, ms
-    SCArrAvg       int    // v1, ms
-    SCArrMin       int    // v1, ms
-    SCArrMax       int    // v1, ms
-    Error          string // v1
-    Path           string // v2
+    Inserted       int64  // v0, ms
+    ActualDuration int    // v0, ms
+    CIa            string // v0
+    CAddr          string // v0
+    CPort          int    // v0
+    SIa            string // v0
+    SAddr          string // v0
+    SPort          int    // v0
+    CSDuration     int    // v0, ms
+    CSPackets      int    // v0, packets
+    CSPktSize      int    // v0, bytes
+    CSBandwidth    int    // v0, bps
+    CSThroughput   int    // v0, bps
+    CSArrVar       int    // v0, ms
+    CSArrAvg       int    // v0, ms
+    CSArrMin       int    // v0, ms
+    CSArrMax       int    // v0, ms
+    SCDuration     int    // v0, ms
+    SCPackets      int    // v0, packets
+    SCPktSize      int    // v0, bytes
+    SCBandwidth    int    // v0, bps
+    SCThroughput   int    // v0, bps
+    SCArrVar       int    // v0, ms
+    SCArrAvg       int    // v0, ms
+    SCArrMin       int    // v0, ms
+    SCArrMax       int    // v0, ms
+    Error          string // v0
+    Path           string // v1
+    Log            string // v2
 }
 
 // GetHeaders iterates the BwTestItem and returns struct variable names.
@@ -77,6 +78,7 @@ type BwTestGraph struct {
     SCThroughput   int
     Error          string
     Path           string
+    Log            string
 }
 
 // createBwTestTable operates on the DB to create the bwtests table.
@@ -149,8 +151,9 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         SCArrMin,
         SCArrMax,
         Error,
-        Path
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        Path,
+        Log
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     stmt, err := db.Prepare(sqlInsert)
     if CheckError(err) {
@@ -186,7 +189,8 @@ func StoreBwTestItem(bwtest *BwTestItem) {
         bwtest.SCArrMin,
         bwtest.SCArrMax,
         bwtest.Error,
-        bwtest.Path)
+        bwtest.Path,
+        bwtest.Log)
     if CheckError(err2) {
         panic(err2)
     }
@@ -223,7 +227,8 @@ func ReadBwTestItemsAll() []BwTestItem {
         SCArrMin,
         SCArrMax,
         Error,
-        Path
+        Path,
+        Log
     FROM bwtests
     ORDER BY datetime(Inserted) DESC
     `
@@ -264,7 +269,8 @@ func ReadBwTestItemsAll() []BwTestItem {
             &bwtest.SCArrMin,
             &bwtest.SCArrMax,
             &bwtest.Error,
-            &bwtest.Path)
+            &bwtest.Path,
+            &bwtest.Log)
         if CheckError(err2) {
             panic(err2)
         }
@@ -285,7 +291,8 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
         SCBandwidth,
         SCThroughput,
         Error,
-        Path
+        Path,
+        Log
     FROM bwtests
     WHERE Inserted > ?
     ORDER BY datetime(Inserted) DESC
@@ -307,7 +314,8 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
             &bwtest.SCBandwidth,
             &bwtest.SCThroughput,
             &bwtest.Error,
-            &bwtest.Path)
+            &bwtest.Path,
+            &bwtest.Log)
         if CheckError(err2) {
             panic(err2)
         }
