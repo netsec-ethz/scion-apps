@@ -30,6 +30,11 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+func errorAndQuit(msg string, params ...interface{}) {
+	fmt.Fprintf(os.Stderr, msg, params...)
+	os.Exit(1)
+}
+
 type rawBytes []byte
 
 type asIface struct {
@@ -90,22 +95,23 @@ func (s *segment) lessThan(o *segment) bool {
 func findIA() addr.IA {
 	SC := os.Getenv("SC")
 	if SC == "" {
-		panic("Env $SC not defined")
+		errorAndQuit("Env $SC not defined")
 	}
 	iaFile := filepath.Join(SC, "gen", "ia")
 	if _, err := os.Stat(iaFile); err == nil {
 		iaBytes, err := ioutil.ReadFile(iaFile)
 		if err != nil {
-			panic(fmt.Sprintf("Cannot read %s: %v", iaFile, err))
+			errorAndQuit("Cannot read %s: %v", iaFile, err)
 		}
 		ia, err := addr.IAFromFileFmt(string(iaBytes), false)
 		if err != nil {
-			panic(fmt.Sprintf("Cannot parse IA %s: %v", string(iaBytes), err))
+			errorAndQuit("Cannot parse IA %s: %v", string(iaBytes), err)
 		}
 		return ia
 	}
 	// we have no ia file, complain for now
-	panic(fmt.Sprintf("Could not find ia file on %s", iaFile))
+	errorAndQuit("Could not find ia file on %s", iaFile)
+	return addr.IA{}
 }
 func findDBFilename() string {
 	ia := findIA()
@@ -134,12 +140,12 @@ func copyDBToTemp(filename string) string {
 	}
 	dirName, err := ioutil.TempDir("/tmp", "pathserver_dump")
 	if err != nil {
-		panic(fmt.Sprintf("Error creating temporary dir: %v", err))
+		errorAndQuit("Error creating temporary dir: %v", err)
 	}
 
 	err = copyOneFile(dirName, filename)
 	if err != nil {
-		panic(err.Error())
+		errorAndQuit(err.Error())
 	}
 	err = copyOneFile(dirName, filename+"-wal")
 	if err != nil {
@@ -170,13 +176,13 @@ func main() {
 	// Fails because of setting journal (vendor/.../mattn/.../sqlite3.go:1480), for all journal modes")
 	db, err := sql.Open("sqlite3", filename+"?mode=ro")
 	if err != nil {
-		panic(err.Error())
+		errorAndQuit(err.Error())
 	}
 	// TODO: three queries? query 1 and 3 coud be easily joined
 	sqlstmt := `SELECT SegRowID, Type from SegTypes`
 	rows, err := db.Query(sqlstmt)
 	if err != nil {
-		panic(err.Error())
+		errorAndQuit(err.Error())
 	}
 	var segRowID int64
 	var segType proto.PathSegType
@@ -184,7 +190,7 @@ func main() {
 	for rows.Next() {
 		err = rows.Scan(&segRowID, &segType)
 		if err != nil {
-			panic(err.Error())
+			errorAndQuit(err.Error())
 		}
 		segTypes[segRowID] = segType
 	}
@@ -193,7 +199,7 @@ func main() {
 	sqlstmt = `SELECT IsdID, AsID, IntfID, SegRowID FROM IntfToSeg`
 	rows, err = db.Query(sqlstmt)
 	if err != nil {
-		panic(err.Error())
+		errorAndQuit(err.Error())
 	}
 	var isd addr.ISD
 	var as addr.AS
@@ -202,7 +208,7 @@ func main() {
 	for rows.Next() {
 		err = rows.Scan(&isd, &as, &ifaceID, &segRowID)
 		if err != nil {
-			panic(err.Error())
+			errorAndQuit(err.Error())
 		}
 		segInterfaces[segRowID] = append(segInterfaces[segRowID], newASIface(isd, as, ifaceID))
 	}
@@ -212,7 +218,7 @@ func main() {
     StartIsdID, StartAsID, EndIsdID, EndAsID FROM Segments`
 	rows, err = db.Query(sqlstmt)
 	if err != nil {
-		panic(err.Error())
+		errorAndQuit(err.Error())
 	}
 	var segID, fullID, packedSeg rawBytes
 	var lastUpdated, infoTS, maxExpiry []uint8
@@ -223,7 +229,7 @@ func main() {
 		err = rows.Scan(&segRowID, &segID, &fullID, &lastUpdated, &infoTS, &packedSeg, &maxExpiry,
 			&startISD, &startAS, &endISD, &endAS)
 		if err != nil {
-			panic(err.Error())
+			errorAndQuit(err.Error())
 		}
 		segmt := newSegment(segTypes[segRowID], startISD, startAS, endISD, endAS, segInterfaces[segRowID])
 		segments = append(segments, segmt)
