@@ -4,8 +4,6 @@ import (
     "encoding/csv"
     "encoding/json"
     "fmt"
-    "io"
-    "log"
     "net/http"
     "os"
     "path"
@@ -14,7 +12,9 @@ import (
     "strings"
     "time"
 
+    log "github.com/inconshreveable/log15"
     model "github.com/netsec-ethz/scion-apps/webapp/models"
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var logBufLen = 1024
@@ -113,8 +113,7 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
             err = r[i]
         }
     }
-    fmt.Println("data:", data)
-    fmt.Println("err:", err)
+    log.Info("app response", "data", data)
 
     // get bandwidth from original request
     d.CSThroughput, _ = strconv.Atoi(data["cs"]["throughput"])
@@ -131,48 +130,27 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 
     if d.CSThroughput == 0 || d.SCThroughput == 0 {
         d.Error = err
+        log.Error("app error", "err", err)
     }
+    d.Log = resp // pipe log output to render in display later
 }
 
 // GetBwByTimeHandler request the bwtest results stored since provided time.
 func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
     r.ParseForm()
     since := r.PostFormValue("since")
-    log.Println("Requesting data since", since)
+    log.Info("Requesting data since", "timestamp", since)
     // find undisplayed test results
     bwTestResults := model.ReadBwTestItemsSince(since)
-    log.Println("Requested data:", bwTestResults)
+    log.Debug("Requested data:", "bwTestResults", bwTestResults)
 
     bwtestsJSON, err := json.Marshal(bwTestResults)
-    if err != nil {
-        fmt.Println(err)
+    if CheckError(err) {
         return
     }
     jsonBuf := []byte(`{ "graph": ` + string(bwtestsJSON))
     json := []byte(`, "active": ` + strconv.FormatBool(active))
     jsonBuf = append(jsonBuf, json...)
-    // add log results to response if any
-    if len(bwTestResults) > 0 {
-        logpath := path.Join(srcpath, "webapp.log")
-        file, err := os.Open(logpath)
-        if err != nil {
-            fmt.Println(err)
-        }
-        defer file.Close()
-
-        json := []byte(`, "log": "`)
-        jsonBuf = append(jsonBuf, json...)
-        p := make([]byte, logBufLen)
-        for {
-            n, err := file.Read(p)
-            if err == io.EOF {
-                break
-            }
-            // ensure \ if any, is escaped correctly before writing to json value
-            jsonBuf = append(jsonBuf, removeOuterQuotes(strconv.QuoteToASCII(string(p[:n])))...)
-        }
-        jsonBuf = append(jsonBuf, []byte(`"`)...)
-    }
     jsonBuf = append(jsonBuf, []byte(`}`)...)
 
     // ensure % if any, is escaped correctly before writing to printf formatter
@@ -200,8 +178,7 @@ func WriteBwtestCsv(bwtest *model.BwTestItem, srcpath string) {
     }
     // open/create file
     f, err := os.OpenFile(bwdataPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-    if err != nil {
-        fmt.Println("Error: ", err)
+    if CheckError(err) {
         return
     }
     w := csv.NewWriter(f)

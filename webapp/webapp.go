@@ -10,7 +10,6 @@ import (
     "html/template"
     "io"
     "io/ioutil"
-    "log"
     "net/http"
     "os"
     "os/exec"
@@ -21,9 +20,12 @@ import (
     "strings"
     "time"
 
+    log "github.com/inconshreveable/log15"
+    "github.com/kormat/fmt15"
     _ "github.com/mattn/go-sqlite3"
     lib "github.com/netsec-ethz/scion-apps/webapp/lib"
     model "github.com/netsec-ethz/scion-apps/webapp/models"
+    . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var addr = flag.String("a", "0.0.0.0", "server host address")
@@ -34,6 +36,8 @@ var browserAddr = "127.0.0.1"
 var rootmarker = ".webapp"
 var srcpath string
 var myIa string
+var id = "webapp"
+var logDir = "./logs"
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -57,6 +61,20 @@ func main() {
     flag.Parse()
     _, srcfile, _, _ := runtime.Caller(0)
     srcpath = path.Dir(srcfile)
+
+    // logging
+    logDirPath := path.Join(srcpath, "logs")
+    if _, err := os.Stat(logDirPath); os.IsNotExist(err) {
+        os.Mkdir(logDirPath, os.ModePerm)
+    }
+    log.Root().SetHandler(log.MultiHandler(
+        log.LvlFilterHandler(log.LvlDebug,
+            log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
+        log.LvlFilterHandler(log.LvlInfo,
+            log.Must.FileHandler(path.Join(logDirPath, fmt.Sprintf("%s.log", id)),
+                fmt15.Fmt15Format(nil)))))
+    log.Info("======================> Webapp started")
+
     // prepare templates
     templates = prepareTemplates(srcpath)
     // open and manage database
@@ -110,10 +128,18 @@ func main() {
     http.HandleFunc("/getcrt", lib.CrtHandler)
     http.HandleFunc("/gettrc", lib.TrcHandler)
 
-    log.Printf("Browser access at http://%s:%d.\n", browserAddr, *port)
-    log.Printf("File browser root: %s\n", *root)
-    log.Printf("Listening on %s:%d...\n", *addr, *port)
-    log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), nil))
+    log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
+    log.Info("File browser root:", "root", *root)
+    log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
+    err := http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
+    CheckFatal(err)
+}
+
+func logRequestHandler(handler http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        log.Info(fmt.Sprintf("%s %s %s", r.RemoteAddr, r.Method, r.URL))
+        handler.ServeHTTP(w, r)
+    })
 }
 
 func prepareTemplates(srcpath string) *template.Template {
@@ -209,7 +235,6 @@ func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []strin
     case "bwtester", "camerapp", "sensorapp":
         optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
         optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
-        log.Printf("optServer %s", optServer)
         command = append(command, binname, optServer, optClient)
         if appSel == "bwtester" {
             bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
@@ -255,7 +280,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
             // continuous goroutine running?
             if continuous {
                 // update it
-                log.Println("Updating continuous bwtest...")
+                log.Info("Updating continuous bwtest...")
             } else {
                 // end it
                 bwActive = false
@@ -268,14 +293,14 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func continuousBwTest() {
-    log.Println("Starting continuous bwtest...")
+    log.Info("Starting continuous bwtest...")
     defer func() {
-        log.Println("Ending continuous bwtest...")
+        log.Info("Ending continuous bwtest...")
     }()
     for bwActive {
         timeUserIdle := time.Since(bwTimeKeepAlive)
         if timeUserIdle > maxContTimeout {
-            log.Println("Last browser keep-alive over ", maxContTimeout, " ago")
+            log.Warn("Last browser keep-alive expired ", "maxContTimeout", maxContTimeout)
             bwActive = false
             break
         }
@@ -293,8 +318,8 @@ func continuousBwTest() {
         if interval > elapsed {
             remaining = interval - elapsed
         }
-        log.Println("Test took", elapsed.Nanoseconds()/1e6,
-            "ms, sleeping for remaining interval:", remaining.Nanoseconds()/1e6, "ms")
+        log.Info(fmt.Sprintf("Test took %i ms, sleeping for remaining interval: %i ms",
+            elapsed.Nanoseconds()/1e6, remaining.Nanoseconds()/1e6))
         time.Sleep(remaining)
     }
 }
@@ -308,20 +333,16 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
     command = append(command, addlOpt)
 
     // execute scion go client app with client/server commands
-    log.Printf("Executing: %s\n", strings.Join(command, " "))
+    log.Info("Executing:", "command", strings.Join(command, " "))
     cmd := exec.Command(command[0], command[1:]...)
 
-    fmt.Println("Chosen Path: " + pathStr)
+    log.Info("Chosen Path:", "pathStr", pathStr)
 
     cmd.Stderr = os.Stderr
     stdin, err := cmd.StdinPipe()
-    if nil != err {
-        log.Printf("Error obtaining stdin: %s", err.Error())
-    }
+    CheckError(err)
     stdout, err := cmd.StdoutPipe()
-    if nil != err {
-        log.Printf("Error obtaining stdout: %s", err.Error())
-    }
+    CheckError(err)
     reader := bufio.NewReader(stdout)
 
     err = cmd.Start()
@@ -340,18 +361,21 @@ func appsBuildCheck(app string) {
         filepath := getClientLocationSrc(app)
         cmd := exec.Command("go", "install")
         cmd.Dir = path.Dir(filepath)
-        log.Printf("Installing %s...\n", filepath)
+        log.Info(fmt.Sprintf("Installing %s...", filepath))
         var stdout, stderr bytes.Buffer
         cmd.Stdout = &stdout
         cmd.Stderr = &stderr
         err := cmd.Run()
-        if err != nil {
-            log.Printf("go install failed: %s\n", err)
-        }
+        CheckError(err)
         outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
-        fmt.Printf("%s\n%s\n", outStr, errStr)
+        if len(outStr) > 0 {
+            log.Info(outStr)
+        }
+        if len(errStr) > 0 {
+            log.Error(errStr)
+        }
     } else {
-        log.Printf("Existing install, found %s...\n", app)
+        log.Info(fmt.Sprintf("Existing install, found %s...", app))
     }
 }
 
@@ -393,20 +417,13 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
     rePathStr := `\[(.*?)\].*` + regexp.QuoteMeta(pathStr)
     interactive := len(pathStr) > 0
     if interactive {
-        fmt.Println("Searching: " + rePathStr)
+        log.Info("Searching:", "regex", rePathStr)
     }
-
     start := time.Now()
-    logpath := path.Join(srcpath, "webapp.log")
-    file, err := os.Create(logpath)
-    if err != nil {
-        fmt.Println(err)
-    }
 
     defer func() {
         // monitor end of test here
         go func() { bwChanDone <- true }()
-        file.Close()
     }()
 
     pathsAvail := false
@@ -415,7 +432,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
     for scanner.Scan() {
         // read each line from stdout
         line := scanner.Text()
-        fmt.Println(line)
+        log.Info(line)
 
         jsonBuf = append(jsonBuf, []byte(line+"\n")...)
         // http write response
@@ -434,11 +451,10 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
                     if pathsAvail {
                         // no match found by timeout, kill, throw err
                         errMsg = "Path no longer available: " + pathStr
-                        fmt.Println(errMsg)
-                        fmt.Println("Terminating " + appSel + "...")
-                        if err := cmd.Process.Kill(); err != nil {
-                            fmt.Println(err)
-                        }
+                        log.Warn(errMsg)
+                        log.Info("Terminating app...", "appSel", appSel)
+                        err := cmd.Process.Kill()
+                        CheckError(err)
                     }
                 }()
             }
@@ -451,7 +467,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
                 num := re.FindStringSubmatch(line)[1]
                 pathNum, _ := strconv.Atoi(strings.TrimSpace(num))
                 answer := fmt.Sprintf("%d\n", pathNum)
-                log.Printf("Writing stdin: %s", answer)
+                log.Info("Writing stdin:", "answer", answer)
                 stdin.Write([]byte(answer))
             }
         }
@@ -466,14 +482,6 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
         // store in database
         model.StoreBwTestItem(d)
         lib.WriteBwtestCsv(d, srcpath)
-    }
-    // log file write response
-    nF, err := file.Write(jsonBuf)
-    if err != nil {
-        fmt.Println(err)
-    }
-    if nF != len(jsonBuf) {
-        fmt.Println("failed to write data")
     }
 }
 
@@ -499,9 +507,7 @@ func getNodesHandler(w http.ResponseWriter, r *http.Request) {
 func refreshRootDirectory() {
     cliFp := path.Join(srcpath, *root, rootmarker)
     err := ioutil.WriteFile(cliFp, []byte(``), 0644)
-    if err != nil {
-        log.Println("ioutil.WriteFile() error: " + err.Error())
-    }
+    CheckError(err)
 }
 
 // FileBrowseResponseWriter holds modified reponse headers
