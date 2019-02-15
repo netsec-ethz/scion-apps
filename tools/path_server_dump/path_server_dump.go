@@ -16,6 +16,7 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -103,11 +104,16 @@ func (s *segment) lessThan(o *segment) bool {
 			(len(s.interfaces) == len(o.interfaces) && (segsLessThan(s, o)))))
 }
 
-func findIA() addr.IA {
+func getSC() string {
 	SC := os.Getenv("SC")
 	if SC == "" {
 		errorAndQuit("Env $SC not defined")
 	}
+	return SC
+}
+
+func findIA() addr.IA {
+	SC := getSC()
 	iaFile := filepath.Join(SC, "gen", "ia")
 	if _, err := os.Stat(iaFile); err == nil {
 		iaBytes, err := ioutil.ReadFile(iaFile)
@@ -125,8 +131,15 @@ func findIA() addr.IA {
 	return addr.IA{}
 }
 func findDBFilename() string {
+	SC := getSC()
+	filenames, err := filepath.Glob(filepath.Join(SC, "gen-cache", "ps*path.db"))
+	if err != nil {
+		errorAndQuit("Error while listing files: %v", err)
+	}
+	if len(filenames) == 1 {
+		return filenames[0]
+	}
 	ia := findIA()
-	SC := os.Getenv("SC")
 	pathDBFileName := fmt.Sprintf("ps%s-1.path.db", ia.FileFmt(false))
 	return filepath.Join(SC, "gen-cache", pathDBFileName)
 }
@@ -175,8 +188,15 @@ func removeAllDir(dirName string) {
 }
 
 func main() {
-	foundFilename := findDBFilename()
-	filename := copyDBToTemp(foundFilename)
+	var origFilename string
+	flag.StringVar(&origFilename, "db", "", "Sqlite DB file (optional)")
+	flag.StringVar(&origFilename, "database", "", "Sqlite DB file (optional)")
+	flag.Parse()
+
+	if origFilename == "" {
+		origFilename = findDBFilename()
+	}
+	filename := copyDBToTemp(origFilename)
 	defer removeAllDir(filepath.Dir(filename))
 
 	// TODO it would be ideal to open the DB file in place instead of copying it, but we always
