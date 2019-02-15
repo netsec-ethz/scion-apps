@@ -326,7 +326,7 @@ function drawTopo(src, dst, paths, segs) {
     }, width, height);
 }
 
-function get_path_info(paths) {
+function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
     var html = "<ul class='tree'>";
     for (p in paths) {
         html += "<li seg-type='PATH' seg-num=" + p + "><a href='#'>PATH "
@@ -356,13 +356,40 @@ function get_path_info(paths) {
         }
         html += "</ul>";
     }
+    if (show_segs) {
+        html += get_segment_info(csegs, "CORE");
+        html += get_segment_info(usegs, "UP");
+        html += get_segment_info(dsegs, "DOWN");
+    }
     html += "</ul>";
     return html;
 }
 
-// TODO: need segments to construct segments topology
-function get_json_seg_topo(paths) {
-    return {
+function get_segment_info(segs, type) {
+    var html = "";
+    for (s in segs.if_lists) {
+        html += "<li seg-type='" + type + "' seg-num=" + s + "><a href='#'>"
+                + type + " SEGMENT " + (parseInt(s) + 1) + "</a>";
+        var exp = new Date(0);
+        exp.setUTCSeconds(segs.if_lists[s].expTime);
+        html += "<ul>";
+        html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
+                + exp.toLocaleTimeString() + "</a>";
+        if_ = segs.if_lists[s].interfaces;
+        var hops = if_.length / 2;
+        html += "<li><a href='#'>Hops: " + hops + "</a>";
+        for (i in if_) {
+            html += "<li><a href='#'>" + if_[i].ISD + "-" + if_[i].AS + " ("
+                    + if_[i].IFID + ")</a>";
+        }
+        html += "</ul>";
+    }
+    return html;
+}
+
+function get_json_seg_topo(paths, segments, src, dst) {
+
+    var segs = {
         "core_segments" : {
             "if_lists" : []
         },
@@ -373,9 +400,43 @@ function get_json_seg_topo(paths) {
             "if_lists" : []
         }
     };
+    var pathIAs = [];
+    for (p in paths) {
+        var if_ = paths[p].Entry.Path.Interfaces;
+        for (i in if_) {
+            var ia = iaRaw2Read(if_[i].RawIsdas);
+            if (!pathIAs.includes(ia)) {
+                pathIAs.push(ia);
+            }
+        }
+    }
+    // filter out segments not included in paths
+    for (s in segments) {
+        var if_ = segments[s].Interfaces;
+        var ifaces = {};
+        var interfaces = [];
+        for (i in if_) {
+            var iface = {};
+            if (!pathIAs.includes(if_[i].IA)) {
+                ifaces = null;
+                continue;
+            }
+            var ia = if_[i].IA.split('-');
+            iface.IFID = if_[i].IfNum;
+            iface.ISD = ia[0];
+            iface.AS = ia[1];
+            interfaces.push(iface);
+        }
+        if (ifaces != null) {
+            ifaces.interfaces = interfaces;
+            ifaces.expTime = new Date(segments[s].Expiry).getTime() / 1000;
+            segs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
+        }
+    }
+    return segs;
 }
 
-function get_json_paths(paths) {
+function get_json_paths(paths, src, dst) {
     var json_paths = {};
     var if_lists = [];
     for (p in paths) {
@@ -398,19 +459,54 @@ function get_json_paths(paths) {
     return json_paths;
 }
 
-// TODO: need segments to add "PEER" ltype
-function get_json_path_topo(paths) {
+function get_json_path_links(paths, csegs, usegs, dsegs) {
+    var nsegs = csegs.length + usegs.length + dsegs.length;
+    if (nsegs > 0) {
+        nonseg_ltype = "PEER";
+    } else {
+        nonseg_ltype = "CHILD";
+    }
     var hops = [];
-    for (p in paths) {
-        var if_ = paths[p].Entry.Path.Interfaces;
+    c = get_seg_links(csegs, "CORE");
+    u = get_seg_links(usegs, "PARENT");
+    d = get_seg_links(dsegs, "PARENT");
+    n = get_nonseg_links(paths, nonseg_ltype);
+    hops = hops.concat(c, u, d, n);
+    return hops;
+}
+
+function get_seg_links(segs, lType) {
+    var hops = [];
+    for (s in segs.if_lists) {
+        var if_ = segs.if_lists[s].interfaces;
         for (i in if_) {
             var link = {};
             if (i < (if_.length - 1)) {
-                curIa = if_[parseInt(i)].RawIsdas;
-                nextIa = if_[parseInt(i) + 1].RawIsdas;
-                link.a = iaRaw2Read(curIa);
-                link.b = iaRaw2Read(nextIa);
-                link.ltype = "PARENT";
+                link.a = if_[parseInt(i)].ISD + "-" + if_[parseInt(i)].AS;
+                link.b = if_[parseInt(i) + 1].ISD + "-"
+                        + if_[parseInt(i) + 1].AS;
+                link.ltype = lType;
+                // TODO: (mwfarb) confirm either direction is not a duplicate
+                hops.push(link);
+            }
+        }
+    }
+    return hops;
+}
+
+function get_nonseg_links(paths, lType) {
+    var hops = [];
+    var ias = [];
+    for (p in paths.if_lists) {
+        var if_ = paths.if_lists[p].interfaces;
+        for (i in if_) {
+            var link = {};
+            if (i < (if_.length - 1)) {
+                link.a = if_[parseInt(i)].ISD + "-" + if_[parseInt(i)].AS;
+                link.b = if_[parseInt(i) + 1].ISD + "-"
+                        + if_[parseInt(i) + 1].AS;
+                link.ltype = lType;
+                // TODO: (mwfarb) confirm either direction is not a duplicate
                 hops.push(link);
             }
         }
@@ -432,13 +528,15 @@ function requestPaths() {
             if (data.err) {
                 showError(data.err);
             }
-            resSegs = get_json_seg_topo(data.paths);
+            resPath = get_json_paths(data.paths);
+            resSegs = get_json_seg_topo(data.paths, data.segments);
             resCore = resSegs.core_segments;
             resUp = resSegs.up_segments;
             resDown = resSegs.down_segments;
-            resPath = get_json_paths(data.paths);
-            jTopo = get_json_path_topo(data.paths);
-            $('#path-info').html(get_path_info(data.paths));
+
+            jTopo = get_json_path_links(resPath, resCore, resUp, resDown);
+            $('#path-info').html(
+                    get_path_html(data.paths, resCore, resUp, resDown, true));
 
             // clear graphs, new paths, remove selection
             removePaths();

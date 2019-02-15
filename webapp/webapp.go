@@ -28,8 +28,8 @@ import (
     . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-var addr = flag.String("a", "0.0.0.0", "server host address")
-var port = flag.Int("p", 8080, "server port number")
+var addr = flag.String("a", "127.0.0.1", "server host address")
+var port = flag.Int("p", 8000, "server port number")
 var root = flag.String("r", ".", "file system path to browse from")
 var cmdBufLen = 1024
 var browserAddr = "127.0.0.1"
@@ -90,7 +90,13 @@ func main() {
     // generate client/server default
     lib.GenClientNodeDefaults(srcpath)
     lib.GenServerNodeDefaults(srcpath)
+
     myIa = lib.GetLocalIa()
+    if len(myIa) == 0 {
+        myIa = lib.GetCliIaDef()
+    }
+    log.Info("IA loaded:", "myIa", myIa)
+
     refreshRootDirectory()
     appsBuildCheck("bwtester")
     appsBuildCheck("camerapp")

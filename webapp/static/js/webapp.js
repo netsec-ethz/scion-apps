@@ -434,10 +434,13 @@ function command(continuous) {
         }, {
             name : "interval",
             value : getIntervalMax()
-        }, {
-            name : "pathStr",
-            value : formatPathString(resPath, self.segNum, self.segType)
         });
+        if (self.segType == 'PATH') { // only full paths allowed
+            form_data.push({
+                name : "pathStr",
+                value : formatPathString(resPath, self.segNum, self.segType)
+            });
+        }
     }
     if (activeApp == "camerapp") {
         // clear for new image request

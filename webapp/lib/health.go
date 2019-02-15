@@ -53,7 +53,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
         fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
         return
     }
-    log.Info(string(raw))
+    log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
 
     var tests DefTests
     err = json.Unmarshal([]byte(raw), &tests)

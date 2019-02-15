@@ -43,11 +43,19 @@ func GetLocalIa() string {
     return strings.Replace(strings.TrimSpace(string(b)), "_", ":", -1)
 }
 
+func GetCliIaDef() string {
+    return cliIaDef
+}
+
 // Makes interfaces sortable, by preferred name
 type byPrefInterface []net.Interface
 
 func isInterfaceEnp(c net.Interface) bool {
     return strings.HasPrefix(c.Name, "enp")
+}
+
+func isInterfaceLocal(c net.Interface) bool {
+    return strings.HasPrefix(c.Name, "lo")
 }
 
 func (c byPrefInterface) Len() int {
@@ -59,11 +67,17 @@ func (c byPrefInterface) Swap(i, j int) {
 }
 
 func (c byPrefInterface) Less(i, j int) bool {
-    // sort "enp" interfaces first, then alphabetically
+    // sort "enp" interfaces first, then "lo", then alphabetically
     if isInterfaceEnp(c[i]) && !isInterfaceEnp(c[j]) {
         return true
     }
     if !isInterfaceEnp(c[i]) && isInterfaceEnp(c[j]) {
+        return false
+    }
+    if isInterfaceLocal(c[i]) && !isInterfaceLocal(c[j]) {
+        return true
+    }
+    if !isInterfaceLocal(c[i]) && isInterfaceLocal(c[j]) {
         return false
     }
     return c[i].Name < c[j].Name
@@ -73,9 +87,9 @@ func (c byPrefInterface) Less(i, j int) bool {
 func GenServerNodeDefaults(srcpath string) {
     serFp := path.Join(srcpath, cfgFileSerUser)
     jsonBuf := []byte(`{ `)
-    json := []byte(`"bwtester": [{"name":"localhost","isdas":"` +
+    json := []byte(`"bwtester": [{"name":"lo ` + serIaDef + `","isdas":"` +
         serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefBwt +
-        `},{"name":"test1","isdas":"2-ff00:0:222", "addr":"127.0.0.22","port":30101}], `)
+        `},{"name":"lo 2-ff00:0:222","isdas":"2-ff00:0:222", "addr":"127.0.0.22","port":30101}], `)
     jsonBuf = append(jsonBuf, json...)
     json = []byte(`"camerapp": [{"name":"localhost","isdas":"` +
         serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefImg + `}], `)

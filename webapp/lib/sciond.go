@@ -5,8 +5,10 @@ import (
     "context"
     "encoding/json"
     "fmt"
+    "io"
     "io/ioutil"
     "net/http"
+    "os"
     "path"
     "path/filepath"
     "runtime"
@@ -14,6 +16,7 @@ import (
     "strings"
 
     log "github.com/inconshreveable/log15"
+    pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
     . "github.com/netsec-ethz/scion-apps/webapp/util"
     "github.com/scionproto/scion/go/lib/addr"
     "github.com/scionproto/scion/go/lib/common"
@@ -79,7 +82,74 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
     jsonPathInfo, _ := json.Marshal(paths)
     log.Debug("PathTopoHandler:", "jsonPathInfo", string(jsonPathInfo))
 
-    fmt.Fprintf(w, fmt.Sprintf(`{"paths":%s}`, jsonPathInfo))
+    // load segments from paths database
+    var dbSrcFile = findDBFilename(clientCCAddr.IA)
+    dbTmpFile := copyDBToTemp(dbSrcFile)
+    // since http.ListenAndServe() blocks, ensure we generate a local db object
+    // which will live only during the http call
+    db := pathdb.InitDB(dbTmpFile)
+    defer func() {
+        pathdb.CloseDB(db)
+        removeAllDir(filepath.Dir(dbTmpFile))
+    }()
+    segTypes := pathdb.ReadSegTypesAll(db)
+    segments := pathdb.ReadSegmentsAll(db, segTypes)
+
+    jsonSegsInfo, _ := json.Marshal(segments)
+    log.Debug("PathTopoHandler:", "jsonSegsInfo", string(jsonSegsInfo))
+
+    fmt.Fprintf(w, fmt.Sprintf(`{"paths":%s,"segments":%s}`,
+        jsonPathInfo, jsonSegsInfo))
+}
+
+func findDBFilename(ia addr.IA) string {
+    filenames, err := filepath.Glob(filepath.Join(
+        GOPATH, SCIONROOT, "gen-cache", "ps*path.db"))
+    CheckError(err)
+    if len(filenames) == 1 {
+        return filenames[0]
+    }
+    pathDBFileName := fmt.Sprintf("ps%s-1.path.db", ia.FileFmt(false))
+    return filepath.Join(GOPATH, SCIONROOT, "gen-cache", pathDBFileName)
+}
+
+// returns the name of the created file
+func copyDBToTemp(filename string) string {
+    copyOneFile := func(dstDir, srcFileName string) error {
+        src, err := os.Open(srcFileName)
+        if CheckError(err) {
+            return fmt.Errorf("Cannot open %s: %v", srcFileName, err)
+        }
+        defer src.Close()
+        dstFilename := filepath.Join(dstDir, filepath.Base(srcFileName))
+        dst, err := os.Create(dstFilename)
+        if CheckError(err) {
+            return fmt.Errorf("Cannot open %s: %v", dstFilename, err)
+        }
+        defer dst.Close()
+        _, err = io.Copy(dst, src)
+        if CheckError(err) {
+            return fmt.Errorf("Cannot copy %s to %s: %v", srcFileName, dstFilename, err.Error())
+        }
+        return nil
+    }
+    dirName, err := ioutil.TempDir("/tmp", "sciond_dump")
+    if CheckError(err) {
+        return err.Error()
+    }
+
+    err = copyOneFile(dirName, filename)
+    if CheckError(err) {
+        fmt.Fprintf(os.Stderr, "No panic: %v", err)
+    }
+    err = copyOneFile(dirName, filename+"-wal")
+    CheckError(err)
+    return filepath.Join(dirName, filepath.Base(filename))
+}
+
+func removeAllDir(dirName string) {
+    err := os.RemoveAll(dirName)
+    CheckError(err)
 }
 
 func getPaths(local snet.Addr, remote snet.Addr) []*spathmeta.AppPath {
