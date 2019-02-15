@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -330,12 +331,20 @@ func main() {
 	} else if sciondPath == "" {
 		sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
-	err = snet.Init(clientCCAddr.IA, sciondPath, dispatcherPath)
-	Check(err)
 
 	var pathEntry *sciond.PathReplyEntry
 	if !serverCCAddr.IA.Eq(clientCCAddr.IA) {
-		pathEntry = ChoosePath(interactive, pathAlgo, *clientCCAddr, *serverCCAddr)
+		if interactive {
+			pathEntry = scionutil.ChoosePathInteractive(clientCCAddr, serverCCAddr)
+		} else {
+			var metric int
+			if pathAlgo == "mtu" {
+				metric = scionutil.MTU
+			} else if pathAlgo == "shortest" {
+				metric = scionutil.Shortest
+			}
+			pathEntry = scionutil.ChoosePathByMetric(metric, clientCCAddr, serverCCAddr)
+		}
 		if pathEntry == nil {
 			LogFatal("No paths available to remote destination")
 		}

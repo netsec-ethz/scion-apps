@@ -1,3 +1,17 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package shttp
 
 import (
@@ -26,28 +40,16 @@ var (
 // ListenAndServeSCION listens for HTTPS connections on the SCION address addr and calls ServeSCION
 // with handler to handle requests
 func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) error {
-
-	laddr, err := snet.AddrFromString(addr)
-	if err != nil {
-		return err
+	scionServer := &Server{
+		Addr: addr,
+		s: &h2quic.Server{
+			Server: &http.Server{
+				Handler: handler,
+			},
+		},
 	}
 
-	// initialize SCION
-	initOnce.Do(func() {
-		if snet.DefNetwork == nil {
-			initErr = scionutil.InitSCION(laddr)
-		}
-	})
-	if initErr != nil {
-		return initErr
-	}
-
-	sconn, err := snet.ListenSCION("udp4", laddr)
-	if err != nil {
-		return err
-	}
-
-	return ServeSCION(sconn, handler, certFile, keyFile)
+	return scionServer.ListenAndServeSCION(certFile, keyFile)
 }
 
 // ServeSCION creates a listener on conn and listens for HTTPS connections.

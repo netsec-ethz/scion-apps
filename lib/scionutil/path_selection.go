@@ -1,4 +1,18 @@
-package pathutil
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
+package scionutil
 
 import (
 	"bufio"
@@ -12,21 +26,22 @@ import (
 	"github.com/bclicn/color"
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
-// ChoosePath presents the user a selection of paths to choose from
-func ChoosePath(interactive bool, pathAlgo string, local, remote *snet.Addr) *sciond.PathReplyEntry {
-	re := regexp.MustCompile(`\d{2}-ffaa:\d:([a-z]|\d)+`)
-	repl := func(in string) string {
-		return color.Cyan(in)
-	}
+// metrics for path selection
+const (
+	PathAlgoDefault = iota // default algorithm
+	MTU                    // metric for path with biggest MTU
+	Shortest               // metric for shortest path
+)
 
+// ChoosePathInteractive presents the user a selection of paths to choose from
+func ChoosePathInteractive(local, remote *snet.Addr) *sciond.PathReplyEntry {
 	if snet.DefNetwork == nil {
-		scionutil.InitSCION(local)
+		InitSCION(local)
 	}
 
 	pathMgr := snet.DefNetwork.PathResolver()
@@ -38,51 +53,70 @@ func ChoosePath(interactive bool, pathAlgo string, local, remote *snet.Addr) *sc
 		return nil
 	}
 
+	re := regexp.MustCompile(`\d{1,4}-([0-9a-f]{1,4}:){2}[0-9a-f]{1,4}`)
 	fmt.Printf("Available paths to %v\n", remote.IA)
 	i := 0
 	for _, path := range pathSet {
 		appPaths = append(appPaths, path)
-		fmt.Printf("[%2d] %s\n", i, path.Entry.Path.String())
+		fmt.Printf("[%2d] %s\n", i, re.ReplaceAllStringFunc(path.Entry.Path.String(), color.Cyan))
 		i++
 	}
 
-	if interactive {
-		scanner := bufio.NewScanner(os.Stdin)
-		for {
-			fmt.Printf("Choose path: ")
-			scanner.Scan()
-			pathIndexStr := scanner.Text()
-			pathIndex, err := strconv.Atoi(pathIndexStr)
-			if err == nil && 0 <= pathIndex && pathIndex < len(appPaths) {
-				selectedPath = appPaths[pathIndex]
-				break
-			}
-			fmt.Printf("ERROR: Invalid path index %v, valid indices range: [0, %v]\n", pathIndex, len(appPaths)-1)
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Printf("Choose path: ")
+		scanner.Scan()
+		pathIndexStr := scanner.Text()
+		pathIndex, err := strconv.Atoi(pathIndexStr)
+		if err == nil && 0 <= pathIndex && pathIndex < len(appPaths) {
+			selectedPath = appPaths[pathIndex]
+			break
 		}
-	} else {
-		// when in non-interactive mode, use path selection function to choose path
-		selectedPath = pathSelection(pathSet, pathAlgo)
+		fmt.Printf("ERROR: Invalid path index %v, valid indices range: [0, %v]\n", pathIndex, len(appPaths)-1)
 	}
 	entry := selectedPath.Entry
-	fmt.Printf("Using path:\n %s\n", re.ReplaceAllStringFunc(entry.Path.String(), repl))
+	fmt.Printf("Using path:\n %s\n", re.ReplaceAllStringFunc(entry.Path.String(), color.Cyan))
 	return entry
 }
 
-func pathSelection(pathSet spathmeta.AppPathSet, pathAlgo string) *spathmeta.AppPath {
+// ChoosePathByMetric chooses the best path based on the metric pathAlgo
+func ChoosePathByMetric(pathAlgo int, local, remote *snet.Addr) *sciond.PathReplyEntry {
+	if snet.DefNetwork == nil {
+		InitSCION(local)
+	}
+
+	pathMgr := snet.DefNetwork.PathResolver()
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
+	var appPaths []*spathmeta.AppPath
+
+	i := 0
+	for _, path := range pathSet {
+		appPaths = append(appPaths, path)
+		i++
+	}
+
+	if len(pathSet) == 0 {
+		return nil
+	}
+
+	return pathSelection(pathSet, pathAlgo).Entry
+}
+
+func pathSelection(pathSet spathmeta.AppPathSet, pathAlgo int) *spathmeta.AppPath {
 	var selectedPath *spathmeta.AppPath
 	var metric float64
 	// A path selection algorithm consists of a simple comparision function selecting the best path according
 	// to some path property and a metric function normalizing that property to a value in [0,1], where larger is better
 	// Available path selection algorithms, the metric returned must be normalized between [0,1]:
-	pathAlgos := map[string](func(spathmeta.AppPathSet) (*spathmeta.AppPath, float64)){
-		"shortest": selectShortestPath,
-		"mtu":      selectLargestMTUPath,
+	pathAlgos := map[int](func(spathmeta.AppPathSet) (*spathmeta.AppPath, float64)){
+		Shortest: selectShortestPath,
+		MTU:      selectLargestMTUPath,
 	}
 	switch pathAlgo {
-	case "shortest":
+	case Shortest:
 		log.Debug("Path selection algorithm", "pathAlgo", "shortest")
 		selectedPath, metric = pathAlgos[pathAlgo](pathSet)
-	case "mtu":
+	case MTU:
 		log.Debug("Path selection algorithm", "pathAlgo", "MTU")
 		selectedPath, metric = pathAlgos[pathAlgo](pathSet)
 	default:
