@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -45,6 +46,7 @@ type asIface struct {
 func newASIface(isd addr.ISD, as addr.AS, ifNum common.IFIDType) asIface {
 	return asIface{IA: addr.IA{I: isd, A: as}, ifNum: ifNum}
 }
+
 func ifsArrayToString(ifs []asIface) string {
 	if len(ifs) == 0 {
 		return ""
@@ -62,14 +64,23 @@ type segment struct {
 	Src        addr.IA
 	Dst        addr.IA
 	interfaces []asIface
+	Updated    time.Time
+	Expiry     time.Time
 }
 
-func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI addr.ISD, dstA addr.AS, interfaces []asIface) segment {
-	return segment{SegType: segType, Src: addr.IA{I: srcI, A: srcA}, Dst: addr.IA{I: dstI, A: dstA}, interfaces: interfaces}
+func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI addr.ISD, dstA addr.AS,
+	interfaces []asIface, updateTime, expiryTime int64) segment {
+
+	return segment{SegType: segType, Src: addr.IA{I: srcI, A: srcA}, Dst: addr.IA{I: dstI, A: dstA},
+		interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(0, expiryTime)}
 }
+
 func (s segment) String() string {
 	toRet := s.SegType.String() + "\t"
-	return toRet + ifsArrayToString(s.interfaces)
+	now := time.Now()
+	updatedStr := now.Sub(s.Updated).String()
+	expiryStr := now.Sub(s.Expiry).String()
+	return toRet + ifsArrayToString(s.interfaces) + "\tUpdated: " + updatedStr + "\t: Expires in: " + expiryStr
 }
 
 // returns if this segment is < the other segment. It relies on the
@@ -127,11 +138,13 @@ func copyDBToTemp(filename string) string {
 		if err != nil {
 			return fmt.Errorf("Cannot open %s: %v", srcFileName, err)
 		}
+		defer src.Close()
 		dstFilename := filepath.Join(dstDir, filepath.Base(srcFileName))
 		dst, err := os.Create(dstFilename)
 		if err != nil {
 			return fmt.Errorf("Cannot open %s: %v", dstFilename, err)
 		}
+		defer dst.Close()
 		_, err = io.Copy(dst, src)
 		if err != nil {
 			return fmt.Errorf("Cannot copy %s to %s: %v", srcFileName, dstFilename, err.Error())
@@ -151,13 +164,9 @@ func copyDBToTemp(filename string) string {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "No panic: %v", err)
 	}
-	err = copyOneFile(dirName, filename+"-shm")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "No panic: %v", err)
-	}
-	baseFilename := filepath.Base(filename)
-	return filepath.Join(dirName, baseFilename)
+	return filepath.Join(dirName, filepath.Base(filename))
 }
+
 func removeAllDir(dirName string) {
 	err := os.RemoveAll(dirName)
 	if err != nil {
@@ -214,24 +223,24 @@ func main() {
 	}
 	rows.Close()
 
-	sqlstmt = `SELECT RowID, SegID, FullID, LastUpdated, InfoTs, Segment, MaxExpiry,
+	sqlstmt = `SELECT RowID, LastUpdated, Segment, MaxExpiry,
     StartIsdID, StartAsID, EndIsdID, EndAsID FROM Segments`
 	rows, err = db.Query(sqlstmt)
 	if err != nil {
 		errorAndQuit(err.Error())
 	}
-	var segID, fullID, packedSeg rawBytes
-	var lastUpdated, infoTS, maxExpiry []uint8
+	var packedSeg rawBytes
+	var lastUpdated, maxExpiry int64
 	var startISD, endISD addr.ISD
 	var startAS, endAS addr.AS
 	segments := []segment{}
 	for rows.Next() {
-		err = rows.Scan(&segRowID, &segID, &fullID, &lastUpdated, &infoTS, &packedSeg, &maxExpiry,
+		err = rows.Scan(&segRowID, &lastUpdated, &packedSeg, &maxExpiry,
 			&startISD, &startAS, &endISD, &endAS)
 		if err != nil {
 			errorAndQuit(err.Error())
 		}
-		segmt := newSegment(segTypes[segRowID], startISD, startAS, endISD, endAS, segInterfaces[segRowID])
+		segmt := newSegment(segTypes[segRowID], startISD, startAS, endISD, endAS, segInterfaces[segRowID], lastUpdated, maxExpiry)
 		segments = append(segments, segmt)
 	}
 	rows.Close()
