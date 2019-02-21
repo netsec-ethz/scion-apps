@@ -2,7 +2,7 @@
 
 ROOT_DIR=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 # TODO: missing roughtime/timeserver roughtime/timeclient
-SRCDIRS= helloworld sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient webapp bat bat/example_server
+SRCDIRS= helloworld sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient webapp bat bat/example_server tools/pathdb_dump
 TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
 all: $(TARGETS)
