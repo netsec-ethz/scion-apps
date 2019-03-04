@@ -32,9 +32,11 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
-// Transport wraps a h2quic.RoundTripper and makes it compatible with SCION
+// Transport wraps a h2quic.RoundTripper making it compatible with SCION
 type Transport struct {
-	LAddr *snet.Addr
+	LAddr              *snet.Addr
+	QuicConfig         *quic.Config
+	DisableCompression bool
 
 	rt *h2quic.RoundTripper
 
@@ -60,14 +62,24 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 		return nil, initErr
 	}
 
-	// set the dial function once for each Transport
+	// set the dial function and QuicConfig once for each Transport
 	t.dialOnce.Do(func() {
 		dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
+
+			/* TODO(chaehni):
+			RequestConnectionIDOmission MUST not be set to 'true' when a connection is dialed using an existing net.PacketConn
+			(which the squic package is doing)
+			quic-go/client.go func populateClientConfig (line 177) fails to catch this problem
+			As a result, if set to 'true' the quic-go client multiplexer fails to match incoming packets
+			This problem is solved in subsequent releases of quic-go (>v0.8.0)
+			*/
+			cfg.RequestConnectionIDOmission = false
+
 			host, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, err
 			}
-			raddr, err := scionutil.GetHostByName(host)
+			ia, l3, err := scionutil.GetHostByName(host)
 			if err != nil {
 				return nil, err
 			}
@@ -75,11 +87,14 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			if err != nil {
 				p = 443
 			}
-			raddr.Host.L4 = libaddr.NewL4UDPInfo(uint16(p))
-			return squic.DialSCION(nil, t.LAddr, raddr, nil)
+			l4 := libaddr.NewL4UDPInfo(uint16(p))
+			raddr := &snet.Addr{IA: ia, Host: &libaddr.AppAddr{L3: l3, L4: l4}}
+			return squic.DialSCION(nil, t.LAddr, raddr, cfg)
 		}
 		t.rt = &h2quic.RoundTripper{
-			Dial: dial,
+			Dial:               dial,
+			QuicConfig:         t.QuicConfig,
+			DisableCompression: t.DisableCompression,
 		}
 	})
 
