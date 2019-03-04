@@ -73,7 +73,6 @@ func TestReadHosts(t *testing.T) {
 		t.Error(err)
 	}
 	addr := &snet.Addr{IA: ia, Host: &libaddr.AppAddr{L3: l3, L4: libaddr.NewL4UDPInfo(0)}}
-	//addr.Host.L4 = libaddr.NewL4UDPInfo(0)
 
 	expected, err := snet.AddrFromString("17-ffaa:0:1,[192.168.1.1]:0")
 	if err != nil {

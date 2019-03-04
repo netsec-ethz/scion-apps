@@ -72,6 +72,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			quic-go/client.go func populateClientConfig (line 177) fails to catch this problem
 			As a result, if set to 'true' the quic-go client multiplexer fails to match incoming packets
 			This problem is solved in subsequent releases of quic-go (>v0.8.0)
+			See issue https://github.com/scionproto/scion/issues/2463
 			*/
 			cfg.RequestConnectionIDOmission = false
 
