@@ -73,14 +73,14 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 	interfaces []asIface, updateTime, expiryTime int64) segment {
 
 	return segment{SegType: segType, Src: addr.IA{I: srcI, A: srcA}, Dst: addr.IA{I: dstI, A: dstA},
-		interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(0, expiryTime)}
+		interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(expiryTime, 0)}
 }
 
 func (s segment) toString(showTimestamps bool) string {
 	toRet := s.SegType.String() + "\t"
 	now := time.Now()
 	updatedStr := now.Sub(s.Updated).String()
-	expiryStr := now.Sub(s.Expiry).String()
+	expiryStr := s.Expiry.Sub(now).String()
 	toRet += ifsArrayToString(s.interfaces)
 	if showTimestamps {
 		toRet += "\tUpdated: " + updatedStr + "\t: Expires in: " + expiryStr
