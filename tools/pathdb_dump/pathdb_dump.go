@@ -80,7 +80,7 @@ func (s segment) toString(showTimestamps bool) string {
 	toRet := s.SegType.String() + "\t"
 	now := time.Now()
 	updatedStr := now.Sub(s.Updated).String()
-	expiryStr := now.Sub(s.Expiry).String()
+	expiryStr := s.Expiry.Sub(now).String()
 	toRet += ifsArrayToString(s.interfaces)
 	if showTimestamps {
 		toRet += "\tUpdated: " + updatedStr + "\t: Expires in: " + expiryStr
