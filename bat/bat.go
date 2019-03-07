@@ -57,7 +57,6 @@ var (
 	download         bool
 	insecureSSL      bool
 	local            string // TODO: remove as soon as dispatcher supports nil local address
-	remote           string // TODO: remove as soon as RAINS is deployed
 	auth             string
 	proxy            string
 	printV           string
@@ -88,7 +87,6 @@ func init() {
 	flag.BoolVar(&insecureSSL, "insecure", false, "Allow connections to SSL sites without certs")
 	flag.BoolVar(&insecureSSL, "i", false, "Allow connections to SSL sites without certs")
 	flag.StringVar(&local, "l", "", "local SCION address")
-	flag.StringVar(&remote, "r", "", "remote SCION address")
 	flag.StringVar(&auth, "auth", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&auth, "a", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&proxy, "proxy", "", "Proxy host and port, PROXY_URL")
@@ -123,7 +121,7 @@ func init() {
 	}
 
 	// redirect SCION log to a log file
-	slog.SetupLogFile("scion", "log", "info", 10, 10, 0)
+	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0)
 }
 
 func parsePrintOption(s string) {
@@ -174,8 +172,7 @@ func main() {
 			}
 		}
 	}
-	// TODO: uncomment when RAINS is deployed and remove belows URL creation
-	/* start of URL creation: Remove when RAINS is deployed*/
+	
 	if *URL == "" {
 		usage()
 	}
