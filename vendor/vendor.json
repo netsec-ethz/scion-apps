@@ -401,6 +401,12 @@
 			"revisionTime": "2019-03-04T16:13:51Z"
 		},
 		{
+			"checksumSHA1": "lswI6WfYlDBVomWV6uluhWSmIzg=",
+			"path": "github.com/netsec-ethz/rains/public/util",
+			"revision": "6ab8f3ce14762774dcbe4152b671a8bcfbbbac79",
+			"revisionTime": "2019-03-04T16:13:51Z"
+		},
+		{
 			"checksumSHA1": "SQi5yeNb9HnAMRpEhQgcv9x9yKc=",
 			"path": "github.com/patrickmn/go-cache",
 			"revision": "7ac151875ffb48b9f3ccce9ea20f020b0c1596c8",

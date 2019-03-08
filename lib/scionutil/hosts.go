@@ -19,10 +19,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/netsec-ethz/rains/pkg/rains"
 	libaddr "github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 type scionAddress struct {
@@ -30,11 +34,22 @@ type scionAddress struct {
 	l3 libaddr.HostAddr
 }
 
+// hosts file
 var (
 	hostFilePath = "/etc/hosts"
 	addrRegexp   = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\]`)
-	hosts        map[string]scionAddress // hostname -> scionAddress
-	revHosts     map[string][]string     // SCION address w/o port -> hostnames
+	hosts        = make(map[string]scionAddress) // hostname -> scionAddress
+	revHosts     = make(map[string][]string)     // SCION address w/o port -> hostnames
+)
+
+// RAINS
+var (
+	ctx         = "."                // use global context
+	qType       = rains.OTScionAddr4 // request SCION IPv4 address
+	qOpts       = []rains.Option{}   // no options
+	expire      = 5 * time.Minute    // sensible expiry date?
+	timeout     = time.Second        // timeout for query
+	rainsServer *snet.Addr           // resolver address
 )
 
 const (
@@ -43,6 +58,7 @@ const (
 )
 
 func init() {
+	// parse hosts file
 	hostsFile, err := readHostsFile()
 	if err != nil {
 		hostsFile = []byte{}
@@ -50,6 +66,31 @@ func init() {
 	parseHostsFile(hostsFile)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// get RAINS configuration for this ISD
+	rawIA, err := ioutil.ReadFile(fmt.Sprintf("%s/gen/ia", os.Getenv("SC")))
+	if err != nil {
+		log.Fatal("Unable to read file $SC/gen/ia: ", err)
+	}
+	ia, err := libaddr.IAFromFileFmt(strings.TrimSpace(string(rawIA)), false)
+	if err != nil {
+		log.Fatal("Failed parsing $SC/gen/ia: ", err)
+	}
+	resolver, err := snet.AddrFromString(rainsConfig(uint16(ia.I)))
+	if err != nil {
+		log.Fatal("RAINS resolver has an invalid address")
+	}
+	rainsServer = resolver
+}
+
+// THIS IS A DUMMY, will be replaced by a bootstrapping service
+func rainsConfig(isd uint16) string {
+	switch isd {
+	case 17:
+		return "17-ffaa:0:1107,[192.33.93.195]:55553"
+	default:
+		return "17-ffaa:0:1107,[192.33.93.195]:55553"
 	}
 }
 
@@ -72,14 +113,28 @@ func AddHost(hostname, address string) error {
 
 // GetHostByName returns the IA and HostAddr corresponding to hostname
 func GetHostByName(hostname string) (libaddr.IA, libaddr.HostAddr, error) {
+	// try to resolve hostname locally
 	addr, ok := hosts[hostname]
-	if !ok {
-		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found", hostname)
+	if ok {
+		return addr.ia, addr.l3, nil
 	}
-	return addr.ia, addr.l3, nil
+
+	// fall back to RAINS
+	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
+	if err != nil {
+		return libaddr.IA{}, nil, fmt.Errorf("Failed querying RAINS server: %v", err)
+	}
+	scionAddr, err := addrFromString(reply[qType])
+	if err != nil {
+		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q invalid: %v", hostname, err)
+	}
+
+	return scionAddr.ia, scionAddr.l3, nil
+
 }
 
 // GetHostnamesByAddress returns the hostnames corresponding to address
+// TODO: (chaehni) RAINS address query to resolve address to name
 func GetHostnamesByAddress(address string) ([]string, error) {
 	match := addrRegexp.FindString(address)
 	host, ok := revHosts[match]
@@ -98,8 +153,6 @@ func readHostsFile() ([]byte, error) {
 }
 
 func parseHostsFile(hostsFile []byte) {
-	hosts = make(map[string]scionAddress)
-	revHosts = make(map[string][]string)
 	lines := bytes.Split(hostsFile, []byte("\n"))
 	for _, line := range lines {
 		fields := strings.Fields(string(line))
@@ -126,6 +179,9 @@ func parseHostsFile(hostsFile []byte) {
 
 func addrFromString(addr string) (scionAddress, error) {
 	parts := addrRegexp.FindStringSubmatch(addr)
+	if parts == nil {
+		return scionAddress{}, fmt.Errorf("No valid SCION address: %q", addr)
+	}
 	ia, err := libaddr.IAFromString(parts[iaIndex])
 	if err != nil {
 		return scionAddress{}, fmt.Errorf("Invalid IA string: %v", parts[iaIndex])
