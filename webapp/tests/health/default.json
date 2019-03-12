@@ -3,7 +3,7 @@
   {
    "label": "netcheck",
    "script": "netcheck.sh",
-   "desc": "Internet connection test"
+   "desc": "Attachment point ICMP test"
   },
   {
    "label": "timecheck",
@@ -28,12 +28,17 @@
   {
    "label": "checkrepo",
    "script": "testVersion.sh",
-   "desc": "Version tests for scion and scion-apps repos"
+   "desc": "Version tests for scion and scion-apps"
   },
   {
    "label": "checkrunnngstatus",
    "script": "testSCIONRunning.sh",
    "desc": "SCION running test"
+  },
+  {
+   "label": "scmpcheck",
+   "script": "scmpcheck.sh",
+   "desc": "Attachment point SCMP test"
   },
   {
    "label": "checkbeacons",
