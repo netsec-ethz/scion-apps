@@ -2,37 +2,27 @@
 # test will fail for non-zero exit and/or bytes in stderr
 
 # get local IA
-ia=$(cat ~/go/src/github.com/scionproto/scion/gen/ia)
-echo "IA found: $ia"
+iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia | sed "s/:/_/g")
+echo "IA found: $iaFile"
 
-# check connection to local attachment point, default to ETHZ
-isd=$(echo ${ia} | cut -d"-" -f1)
-case $isd in
-    17|*)
-        # 17-ffaa:0:1107 Attachment Point, ETHZ
-        ip_dst='192.33.93.195'
-        ;;
-    18)
-        # 18-ffaa:0:1202 Attachment Point, WISC
-        ip_dst='128.105.21.208'
-        ;;
-    19)
-        # 19-ffaa:0:1303 Attachment Point, OVGU
-        ip_dst='141.44.25.144'
-        ;;
-    20)
-        # 20-ffaa:0:1404 Attachment Point, KU
-        ip_dst='203.230.60.98'
-        ;;
-esac
+isd=$(echo ${iaFile} | cut -d"-" -f1)
+as=$(echo ${iaFile} | cut -d"-" -f2)
+topologyFile=$SC/gen/ISD$isd/AS$as/endhost/topology.json
 
-# if no response under default icmp ping timeout consider connection failed
+ip_dst=$(cat $topologyFile | python -c "import sys, json
+brs = json.load(sys.stdin)['BorderRouters']
+interfaces=next(iter(brs.values()))['Interfaces']
+inter=next(iter(interfaces.values()))
+print inter['RemoteOverlay']['Addr']")
+echo $ip_dst
+
 cmd="ping -c 1 -w 5 $ip_dst"
+echo "Running: $cmd"
 recv=$($cmd | grep -E -o '[0-9]+ received' | cut -f1 -d' ')
-if [ $recv -eq 0 ]; then
-    echo "ICMP ping failed. For ISD $ia, tried $ip_dst."
+if [ "$recv" != "1" ]; then
+    echo "ICMP ping failed from $ip_dst."
     exit 1
 else
-    echo "ICMP ping succeeded. For ISD $ia, recieved response from $ip_dst."
+    echo "ICMP ping succeeded."
 fi
 exit $?
