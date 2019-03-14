@@ -3,7 +3,7 @@
   {
    "label": "netcheck",
    "script": "netcheck.sh",
-   "desc": "Attachment point ICMP test"
+   "desc": "Border router ICMP test"
   },
   {
    "label": "timecheck",
@@ -38,7 +38,7 @@
   {
    "label": "scmpcheck",
    "script": "scmpcheck.sh",
-   "desc": "Attachment point SCMP test"
+   "desc": "Border router SCMP test"
   },
   {
    "label": "checkbeacons",
