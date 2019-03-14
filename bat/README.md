@@ -7,21 +7,6 @@ Go implemented CLI cURL-like tool for humans. Bat can be used for testing, debug
 This repository is a fork of [astaxie/bat](https://github.com/astaxie/bat) making it available for SCION/QUIC.
 Refer to the original repository for general usage.
 
-### Installation
-
-SCION infrastructure must be installed and running on your machine. Instructions on how to set this up can be found [here](https://github.com/netsec-ethz/netsec-scion).
-Clone the repository and install using:
-
-```
-govendor sync
-govendor add +e
-go install
-```
-
-If you experience problems with the `govendor` commands above:
-* Remove the contents and leave only the `vendor.json` file in the `vendor` folders in `scion-apps` and `bat` itself.
-* Go to the `scion-apps` directory and run `govendor sync`. You can now follow the instructions above again.
-
 ### Usage
 
 In contrast to the original tool, we require a local SCION address.
