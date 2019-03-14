@@ -59,6 +59,13 @@ type Page struct {
 
 func main() {
     flag.Parse()
+
+    //TODO: run_loc: needs to faile when /static and other files not found, must panic
+
+    //TODO: run_loc: maybe need to centralize location of root folder in libs
+
+    //TODO: run_loc: add command line option -webdir, default to CWD
+
     _, srcfile, _, _ := runtime.Caller(0)
     srcpath = path.Dir(srcfile)
 

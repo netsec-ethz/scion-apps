@@ -26,6 +26,9 @@
 
 <script>
     $("#health-list").empty();
+
+    //TODO: run_loc: /healthcheck needs to timeout response when wrong rundir
+
     $.post("/healthcheck", null, function(data) {
         d = JSON.parse(data);
         console.info('resp:', JSON.stringify(d));
