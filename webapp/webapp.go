@@ -15,7 +15,6 @@ import (
     "os/exec"
     "path"
     "regexp"
-    "runtime"
     "strconv"
     "strings"
     "time"
@@ -28,16 +27,24 @@ import (
     . "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-var addr = flag.String("a", "0.0.0.0", "server host address")
-var port = flag.Int("p", 8080, "server port number")
-var root = flag.String("r", ".", "file system path to browse from")
+// browseRoot is browse-only, consider security (def: cwd)
+var browseRoot = flag.String("r", ".",
+    "Root path to browse from, CAUTION: read-access granted from -a and -p.")
+
+// staticRoot for serving/writing static data (def: cwd)
+var staticRoot = flag.String("s", ".",
+    "Static path of web server files (local repo scion-apps/webapp).")
+
+// cwdPath - this is where images are going, this is runtime (record, no settings)
+var cwdPath = "."
+
+var addr = flag.String("a", "127.0.0.1", "Address of server host.")
+var port = flag.Int("p", 8000, "Port of server host.")
 var cmdBufLen = 1024
 var browserAddr = "127.0.0.1"
 var rootmarker = ".webapp"
-var srcpath string
 var myIa string
 var id = "webapp"
-var logDir = "./logs"
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -57,23 +64,25 @@ type Page struct {
     MyIA  string
 }
 
+func ensurePath(srcpath, staticDir string) string {
+    dir := path.Join(srcpath, staticDir)
+    if _, err := os.Stat(dir); os.IsNotExist(err) {
+        os.Mkdir(dir, os.ModePerm)
+    }
+    return dir
+}
+
 func main() {
     flag.Parse()
-
-    //TODO: run_loc: needs to faile when /static and other files not found, must panic
-
-    //TODO: run_loc: maybe need to centralize location of root folder in libs
-
-    //TODO: run_loc: add command line option -webdir, default to CWD
-
-    _, srcfile, _, _ := runtime.Caller(0)
-    srcpath = path.Dir(srcfile)
+    // correct static files are required for the app to serve them, else fail
+    if _, err := os.Stat(path.Join(*staticRoot, "static")); os.IsNotExist(err) {
+        log.Error("-s flag must be set with local repo: scion-apps/webapp")
+        CheckFatal(err)
+        return
+    }
 
     // logging
-    logDirPath := path.Join(srcpath, "logs")
-    if _, err := os.Stat(logDirPath); os.IsNotExist(err) {
-        os.Mkdir(logDirPath, os.ModePerm)
-    }
+    logDirPath := ensurePath(*staticRoot, "logs")
     log.Root().SetHandler(log.MultiHandler(
         log.LvlFilterHandler(log.LvlDebug,
             log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
@@ -83,20 +92,17 @@ func main() {
     log.Info("======================> Webapp started")
 
     // prepare templates
-    templates = prepareTemplates(srcpath)
+    templates = prepareTemplates(*staticRoot)
     // open and manage database
-    dbpath := path.Join(srcpath, "webapp.db")
+    dbpath := path.Join(*staticRoot, "webapp.db")
     model.InitDB(dbpath)
     defer model.CloseDB()
     model.LoadDB()
     go model.MaintainDatabase()
-    dataDirPath := path.Join(srcpath, "data")
-    if _, err := os.Stat(dataDirPath); os.IsNotExist(err) {
-        os.Mkdir(dataDirPath, os.ModePerm)
-    }
+    ensurePath(*staticRoot, "data")
     // generate client/server default
-    lib.GenClientNodeDefaults(srcpath)
-    lib.GenServerNodeDefaults(srcpath)
+    lib.GenClientNodeDefaults(*staticRoot)
+    lib.GenServerNodeDefaults(*staticRoot)
     myIa = lib.GetLocalIa()
     refreshRootDirectory()
     appsBuildCheck("bwtester")
@@ -110,11 +116,11 @@ func main() {
     http.HandleFunc("/astopo", astopoHandler)
     http.HandleFunc("/crt", crtHandler)
     http.HandleFunc("/trc", trcHandler)
-    fsStatic := http.FileServer(http.Dir(path.Join(srcpath, "static")))
+    fsStatic := http.FileServer(http.Dir(path.Join(*staticRoot, "static")))
     http.Handle("/static/", http.StripPrefix("/static/", fsStatic))
-    fsImageFetcher := http.FileServer(http.Dir("."))
-    http.Handle("/images/", http.StripPrefix("/images/", fsImageFetcher))
-    fsFileBrowser := http.FileServer(http.Dir(*root))
+    fsData := http.FileServer(http.Dir(path.Join(*staticRoot, "data")))
+    http.Handle("/data/", http.StripPrefix("/data/", fsData))
+    fsFileBrowser := http.FileServer(http.Dir(*browseRoot))
     http.Handle("/files/", http.StripPrefix("/files/", fsFileBrowser))
 
     http.HandleFunc("/command", commandHandler)
@@ -136,7 +142,7 @@ func main() {
     http.HandleFunc("/gettrc", lib.TrcHandler)
 
     log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
-    log.Info("File browser root:", "root", *root)
+    log.Info("File browser root:", "root", *browseRoot)
     log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
     err := http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
     CheckFatal(err)
@@ -488,16 +494,16 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
         }
         // store in database
         model.StoreBwTestItem(d)
-        lib.WriteBwtestCsv(d, srcpath)
+        lib.WriteBwtestCsv(d, *staticRoot)
     }
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-    lib.HealthCheckHandler(w, r, srcpath)
+    lib.HealthCheckHandler(w, r, *staticRoot)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
-    lib.GetBwByTimeHandler(w, r, bwActive, srcpath)
+    lib.GetBwByTimeHandler(w, r, bwActive, *staticRoot)
 }
 
 // Handles locating most recent image formatting it for graphic display in response.
@@ -506,13 +512,13 @@ func findImageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
-    lib.GetNodesHandler(w, r, srcpath)
+    lib.GetNodesHandler(w, r, *staticRoot)
 }
 
 // Used to workaround cache-control issues by ensuring root specified by user
 // has updated last modified date by writing a .webapp file
 func refreshRootDirectory() {
-    cliFp := path.Join(srcpath, *root, rootmarker)
+    cliFp := path.Join(*staticRoot, *browseRoot, rootmarker)
     err := ioutil.WriteFile(cliFp, []byte(``), 0644)
     CheckError(err)
 }

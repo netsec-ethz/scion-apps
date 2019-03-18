@@ -199,13 +199,10 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
             floating : true,
             enabled : true,
         },
-
-        //TODO: run_loc: Download Data, location failed needs better error
-
         credits : {
             enabled : legend,
             text : legend ? 'Download Data' : null,
-            href : legend ? './files/webapp/data/' : null,
+            href : legend ? './data/' : null,
         },
         exporting : {
             enabled : false

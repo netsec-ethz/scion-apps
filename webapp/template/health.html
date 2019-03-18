@@ -26,9 +26,6 @@
 
 <script>
     $("#health-list").empty();
-
-    //TODO: run_loc: /healthcheck needs to timeout response when wrong rundir
-
     $.post("/healthcheck", null, function(data) {
         d = JSON.parse(data);
         console.info('resp:', JSON.stringify(d));
@@ -40,7 +37,7 @@
     var healthInterval = setInterval(function() {
         // setup interval to check status file webserver will update
         $.ajax({
-            url : "files/data/healthcheck-result.json",
+            url : "data/healthcheck-result.json",
             method : 'GET',
             dataType : "json",
             success : function(data) {
