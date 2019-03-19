@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (

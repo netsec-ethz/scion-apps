@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func check(e error) {
@@ -26,8 +26,8 @@ func printUsage() {
 
 func main() {
 	var (
-		clientAddress string
-		serverAddress string
+		clientAddress  string
+		serverAddress  string
 		sciondPath     string
 		sciondFromIA   bool
 		dispatcherPath string

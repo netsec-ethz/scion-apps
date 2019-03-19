@@ -1,19 +1,19 @@
 package lib
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "io/ioutil"
-    "net/http"
-    "os/exec"
-    "path"
-    "path/filepath"
-    "strings"
-    "time"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
 
-    log "github.com/inconshreveable/log15"
-    . "github.com/netsec-ethz/scion-apps/webapp/util"
+	log "github.com/inconshreveable/log15"
+	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var defFileHealthCheck = "tests/health/default.json"
@@ -22,116 +22,116 @@ var healthCheckTimeout = time.Duration(60) * time.Second
 
 // DefTests holds the JSON array for all health checks.
 type DefTests struct {
-    Tests []DefHealthCheck `json:"tests"`
+	Tests []DefHealthCheck `json:"tests"`
 }
 
 // DefHealthCheck holds JSON fields for a health check definition.
 type DefHealthCheck struct {
-    Label  string `json:"label"`
-    Script string `json:"script"`
-    Desc   string `json:"desc"`
+	Label  string `json:"label"`
+	Script string `json:"script"`
+	Desc   string `json:"desc"`
 }
 
 // ResHealthCheck holds JSON fields for a health check result.
 type ResHealthCheck struct {
-    Label  string `json:"label"`
-    Title  string `json:"desc"`
-    Reason string `json:"reason"`
-    Pass   bool   `json:"pass"`
-    Start  int64  `json:"start"`
-    End    int64  `json:"end"`
+	Label  string `json:"label"`
+	Title  string `json:"desc"`
+	Reason string `json:"reason"`
+	Pass   bool   `json:"pass"`
+	Start  int64  `json:"start"`
+	End    int64  `json:"end"`
 }
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) {
-    hcResFp := path.Join(srcpath, resFileHealthCheck)
-    // read specified tests from json definition
-    fp := path.Join(srcpath, defFileHealthCheck)
-    raw, err := ioutil.ReadFile(fp)
-    if CheckError(err) {
-        fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
-        return
-    }
-    log.Info(string(raw))
+	hcResFp := path.Join(srcpath, resFileHealthCheck)
+	// read specified tests from json definition
+	fp := path.Join(srcpath, defFileHealthCheck)
+	raw, err := ioutil.ReadFile(fp)
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
+	log.Info(string(raw))
 
-    var tests DefTests
-    err = json.Unmarshal([]byte(raw), &tests)
-    if CheckError(err) {
-        fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
-        return
-    }
+	var tests DefTests
+	err = json.Unmarshal([]byte(raw), &tests)
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
 
-    // generate local memory struct to export results
-    var results []ResHealthCheck
-    for _, test := range tests.Tests {
-        res := ResHealthCheck{Label: test.Label, Title: test.Desc}
-        results = append(results, res)
-    }
-    // export empty result set first
-    jsonRes, err := json.Marshal(results)
-    err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
-    CheckError(err)
+	// generate local memory struct to export results
+	var results []ResHealthCheck
+	for _, test := range tests.Tests {
+		res := ResHealthCheck{Label: test.Label, Title: test.Desc}
+		results = append(results, res)
+	}
+	// export empty result set first
+	jsonRes, err := json.Marshal(results)
+	err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+	CheckError(err)
 
-    // execute each script and format results for json
-    for i, test := range tests.Tests {
-        pass := true
-        log.Info(test.Script + ": " + test.Desc)
-        // execute script
-        cmd := exec.Command("bash", test.Script)
-        cmd.Dir = filepath.Dir(fp)
-        var stdout, stderr bytes.Buffer
-        cmd.Stdout = &stdout
-        cmd.Stderr = &stderr
-        start := time.Now().UnixNano() / 1e6
+	// execute each script and format results for json
+	for i, test := range tests.Tests {
+		pass := true
+		log.Info(test.Script + ": " + test.Desc)
+		// execute script
+		cmd := exec.Command("bash", test.Script)
+		cmd.Dir = filepath.Dir(fp)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		start := time.Now().UnixNano() / 1e6
 
-        // export results when test starts, timestamp
-        results[i].Start = start
-        jsonRes, err = json.Marshal(results)
-        err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
-        CheckError(err)
+		// export results when test starts, timestamp
+		results[i].Start = start
+		jsonRes, err = json.Marshal(results)
+		err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+		CheckError(err)
 
-        // start cmd timeout timer
-        go func(idx int) {
-            time.Sleep(healthCheckTimeout)
-            if results[idx].End == 0 {
-                // no match found by timeout, kill, throw err
-                log.Error(tests.Tests[idx].Script + " exceeded timeout: " + healthCheckTimeout.String())
-                log.Error("Terminating " + tests.Tests[idx].Script + "...")
-                err := cmd.Process.Kill()
-                CheckError(err)
-            }
-        }(i)
+		// start cmd timeout timer
+		go func(idx int) {
+			time.Sleep(healthCheckTimeout)
+			if results[idx].End == 0 {
+				// no match found by timeout, kill, throw err
+				log.Error(tests.Tests[idx].Script + " exceeded timeout: " + healthCheckTimeout.String())
+				log.Error("Terminating " + tests.Tests[idx].Script + "...")
+				err := cmd.Process.Kill()
+				CheckError(err)
+			}
+		}(i)
 
-        err := cmd.Run()
-        if CheckError(err) {
-            // fail test for non-zero exit code
-            pass = false
-        }
-        end := time.Now().UnixNano() / 1e6
-        outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
-        if len(outStr) > 0 {
-            log.Info(outStr)
-        }
-        if len(errStr) > 0 {
-            // fail test when errors are written to stderr
-            pass = false
-            log.Error(errStr)
-        }
-        // format results
-        result := strings.Replace((outStr + ` <b>` + errStr + `</b>`), "\n", "<br>", -1)
-        result = strings.Replace(result, "\"", "\\\"", -1)
+		err := cmd.Run()
+		if CheckError(err) {
+			// fail test for non-zero exit code
+			pass = false
+		}
+		end := time.Now().UnixNano() / 1e6
+		outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
+		if len(outStr) > 0 {
+			log.Info(outStr)
+		}
+		if len(errStr) > 0 {
+			// fail test when errors are written to stderr
+			pass = false
+			log.Error(errStr)
+		}
+		// format results
+		result := strings.Replace((outStr + ` <b>` + errStr + `</b>`), "\n", "<br>", -1)
+		result = strings.Replace(result, "\"", "\\\"", -1)
 
-        // export results when test ends, timestamp
-        results[i].End = end
-        results[i].Pass = pass
-        results[i].Reason = result
-        jsonRes, err = json.Marshal(results)
-        log.Info(string(jsonRes))
-        err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
-        CheckError(err)
-    }
+		// export results when test ends, timestamp
+		results[i].End = end
+		results[i].Pass = pass
+		results[i].Reason = result
+		jsonRes, err = json.Marshal(results)
+		log.Info(string(jsonRes))
+		err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+		CheckError(err)
+	}
 
-    // ensure all escaped correctly before writing to printf formatter
-    fmt.Fprintf(w, string(jsonRes))
+	// ensure all escaped correctly before writing to printf formatter
+	fmt.Fprintf(w, string(jsonRes))
 }
