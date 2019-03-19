@@ -318,7 +318,7 @@ func continuousBwTest() {
 		if interval > elapsed {
 			remaining = interval - elapsed
 		}
-		log.Info(fmt.Sprintf("Test took %i ms, sleeping for remaining interval: %i ms",
+		log.Info(fmt.Sprintf("Test took %d ms, sleeping for remaining interval: %d ms",
 			elapsed.Nanoseconds()/1e6, remaining.Nanoseconds()/1e6))
 		time.Sleep(remaining)
 	}

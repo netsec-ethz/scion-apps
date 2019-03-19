@@ -349,7 +349,7 @@ func MaintainDatabase() {
 		before := time.Now().Add(-bwTestDbExpire)
 		count := DeleteBwTestItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
 		if count > 0 {
-			log.Warn(fmt.Sprintf("Deleting", count, "bwtests db rows older than", bwTestDbExpire))
+			log.Warn(fmt.Sprint("Deleting", count, "bwtests db rows older than", bwTestDbExpire))
 		}
 		time.Sleep(bwTestDbExpire)
 	}

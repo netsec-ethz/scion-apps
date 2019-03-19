@@ -164,7 +164,7 @@ func main() {
 			// 	}
 			// }
 			// If it's not an snet SCMP error, then it's something more serious and fail
-			check(err)
+			// check(err)
 		}
 		if n > 0 {
 			if receivePacketBuffer[0] == 'L' {

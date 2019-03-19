@@ -209,7 +209,7 @@ func getDuration(duration string) int64 {
 	}
 	d := time.Second * time.Duration(a1)
 	if d > MaxDuration {
-		Check(fmt.Errorf("Duration is exceeding MaxDuration:", a1, ">", MaxDuration/time.Second))
+		Check(fmt.Errorf("Duration is exceeding MaxDuration: %d > %d", a1, MaxDuration/time.Second))
 		a1 = DefaultDuration
 	}
 	return a1

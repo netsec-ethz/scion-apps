@@ -68,7 +68,7 @@ func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, erro
 			// 	}
 			// }
 			// If it's not an snet Timeout or SCMP error, then it's something more serious and fail
-			check(err)
+			// check(err)
 		}
 		t1 := time.Now()
 		rttApprox := t1.Sub(t0)
@@ -128,7 +128,7 @@ func blockReceiver(receivedBlockChan chan uint32, udpConnection snet.Conn, fileB
 			// 	}
 			// }
 			// If it's not an snet SCMP error, then it's something more serious and fail
-			check(err)
+			// check(err)
 		}
 		if n < 10 {
 			continue
