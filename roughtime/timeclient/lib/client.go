@@ -6,19 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
+	mathrand "math/rand"
 	"net"
 	"time"
 
-	"math/big"
-	mathrand "math/rand"
-
+	"github.com/netsec-ethz/scion-apps/roughtime/utils"
+	"github.com/scionproto/scion/go/lib/snet"
 	"roughtime.googlesource.com/go/client/monotime"
 	"roughtime.googlesource.com/go/config"
 	"roughtime.googlesource.com/go/protocol"
-
-	"github.com/scionproto/scion/go/lib/snet"
-
-	"github.com/netsec-ethz/scion-apps/roughtime/utils"
 )
 
 const (

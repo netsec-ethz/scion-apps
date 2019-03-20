@@ -9,9 +9,8 @@ import (
 	"github.com/netsec-ethz/scion-apps/roughtime/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 	"golang.org/x/crypto/ed25519"
-	"roughtime.googlesource.com/go/protocol"
-
 	"gopkg.in/alecthomas/kingpin.v2"
+	"roughtime.googlesource.com/go/protocol"
 )
 
 var (
