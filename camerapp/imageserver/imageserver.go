@@ -183,7 +183,7 @@ func main() {
 				binary.LittleEndian.PutUint32(sendPacketBuffer[sendLen:], currentFiles[mostRecentFile].size)
 				currentFilesLock.Unlock()
 				sendLen = sendLen + 4
-				n, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
+				_, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
 				check(err)
 			} else if receivePacketBuffer[0] == 'G' && n > 1 {
 				filenameLen := int(receivePacketBuffer[1])
@@ -206,7 +206,7 @@ func main() {
 						// Copy image contents
 						copy(sendPacketBuffer[9:], v.content[startByte:endByte])
 						sendLen := 9 + endByte - startByte
-						n, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
+						_, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
 						check(err)
 					}
 				}

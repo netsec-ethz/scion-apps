@@ -166,7 +166,7 @@ func parseBandwidth(bw string) int64 {
 		return DefaultBW
 	}
 
-	var m int64 = 1
+	var m int64
 	val := rawBw[0][:len(rawBw[0])-1]
 	suffix := rawBw[0][len(rawBw[0])-1:]
 	switch suffix {

@@ -79,10 +79,10 @@ func main() {
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 0)
 
-	n, err := udpConnection.Write(sendPacketBuffer)
+	_, err = udpConnection.Write(sendPacketBuffer)
 	check(err)
 
-	n, _, err = udpConnection.ReadFrom(receivePacketBuffer)
+	n, _, err := udpConnection.ReadFrom(receivePacketBuffer)
 	check(err)
 
 	fmt.Print(string(receivePacketBuffer[:n]))

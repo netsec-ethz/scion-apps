@@ -47,13 +47,13 @@ func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, erro
 		numRetries++
 		// Send LIST command ("L") to server
 		t0 := time.Now()
-		n, err := udpConnection.Write([]byte("L"))
+		_, err := udpConnection.Write([]byte("L"))
 		check(err)
 
 		// Read response
 		err = udpConnection.SetReadDeadline(time.Now().Add(maxWaitDelay))
 		check(err)
-		n, _, err = udpConnection.ReadFrom(packetBuffer)
+		n, _, err := udpConnection.ReadFrom(packetBuffer)
 		if err != nil {
 			// Read error, most likely Timeout
 			continue
