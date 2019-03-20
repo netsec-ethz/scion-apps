@@ -510,7 +510,7 @@ func refreshRootDirectory() {
 	CheckError(err)
 }
 
-// FileBrowseResponseWriter holds modified respones headers
+// FileBrowseResponseWriter holds modified response headers
 type FileBrowseResponseWriter struct {
 	http.ResponseWriter
 }
