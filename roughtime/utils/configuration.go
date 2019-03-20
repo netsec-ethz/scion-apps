@@ -49,7 +49,7 @@ func createConfigFile(pubKey ed25519.PublicKey, address *snet.Addr, serverName, 
 		PublicKeyType: "ed25519", // For now this is fixed
 		PublicKey:     pubKey,
 		Addresses: []config.ServerAddress{
-			config.ServerAddress{
+			{
 				Protocol: "udp4", // For now this is fixed
 				Address:  address.String(),
 			},
