@@ -126,7 +126,11 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
 		results[i].End = end
 		results[i].Pass = pass
 		results[i].Reason = result
-		jsonRes, _ = json.Marshal(results)
+		jsonRes, err = json.Marshal(results)
+		if CheckError(err) {
+			fmt.Fprintf(w, `{ "err": %q }`, err.Error())
+			return
+		}
 		log.Info(string(jsonRes))
 		err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
 		CheckError(err)

@@ -58,7 +58,8 @@ func findNewestFileExt(dir, extRegEx string) (imgFilename string, imgTimestamp i
 	for _, f := range files {
 		fi, err := os.Stat(path.Join(dir, f.Name()))
 		CheckError(err)
-		matched, _ := regexp.MatchString(extRegEx, f.Name())
+		matched, err := regexp.MatchString(extRegEx, f.Name())
+		CheckError(err)
 		if matched {
 			modTime := fi.ModTime().Unix()
 			if modTime > imgTimestamp {

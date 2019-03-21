@@ -178,7 +178,10 @@ func CrtHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func loadJSONCerts(src, pattern string) ([]byte, error) {
-	ia, _ := addr.IAFromString(src)
+	ia, err := addr.IAFromString(src)
+	if err != nil {
+		return nil, err
+	}
 	certDir := path.Join(GOPATH, SCIONROOT,
 		fmt.Sprintf("gen/ISD%d/AS%s/endhost/certs", ia.I, ia.A.FileFmt()))
 	cacheDir := path.Join(GOPATH, SCIONROOT, "gen-cache")
