@@ -91,12 +91,6 @@
 			"revisionTime": "2018-03-06T13:52:33Z"
 		},
 		{
-			"checksumSHA1": "I9USlnFClp2E/Ap9vfano+H7/bk=",
-			"path": "github.com/britram/borat",
-			"revision": "6ab8f3ce14762774dcbe4152b671a8bcfbbbac79",
-			"revisionTime": "2019-03-04T16:13:51Z"
-		},
-		{
 			"checksumSHA1": "PYXuf7wvcj492uWhjvmXlyyQUYc=",
 			"path": "github.com/cheekybits/genny/generic",
 			"revision": "9127e812e1e9e501ce899a18121d316ecb52e4ba",
@@ -674,12 +668,6 @@
 			"path": "golang.org/x/crypto/salsa20/salsa",
 			"revision": "8ac0e0d97ce45cd83d1d7243c060cb8461dda5e9",
 			"revisionTime": "2018-06-07T13:59:11Z"
-		},
-		{
-			"checksumSHA1": "eP6ULb7qY83lyYmM7AfaDIRDeXE=",
-			"path": "golang.org/x/crypto/sha3",
-			"revision": "6ab8f3ce14762774dcbe4152b671a8bcfbbbac79",
-			"revisionTime": "2019-03-04T16:13:51Z"
 		},
 		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
