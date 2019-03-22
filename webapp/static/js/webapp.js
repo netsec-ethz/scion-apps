@@ -466,6 +466,9 @@ function command(continuous) {
         } else {
             handleGeneralResponse();
         }
+    }).fail(function(error) {
+        showError(error.responseJSON);
+        handleGeneralResponse();
     });
     // onsubmit should always return false to override native http call
     return false;
