@@ -47,13 +47,13 @@ func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, erro
 		numRetries++
 		// Send LIST command ("L") to server
 		t0 := time.Now()
-		n, err := udpConnection.Write([]byte("L"))
+		_, err := udpConnection.Write([]byte("L"))
 		check(err)
 
 		// Read response
 		err = udpConnection.SetReadDeadline(time.Now().Add(maxWaitDelay))
 		check(err)
-		n, _, err = udpConnection.ReadFrom(packetBuffer)
+		n, _, err := udpConnection.ReadFrom(packetBuffer)
 		if err != nil {
 			// Read error, most likely Timeout
 			continue
@@ -68,7 +68,7 @@ func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, erro
 			// 	}
 			// }
 			// If it's not an snet Timeout or SCMP error, then it's something more serious and fail
-			check(err)
+			// check(err)
 		}
 		t1 := time.Now()
 		rttApprox := t1.Sub(t0)
@@ -128,7 +128,7 @@ func blockReceiver(receivedBlockChan chan uint32, udpConnection snet.Conn, fileB
 			// 	}
 			// }
 			// If it's not an snet SCMP error, then it's something more serious and fail
-			check(err)
+			// check(err)
 		}
 		if n < 10 {
 			continue
