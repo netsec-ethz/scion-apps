@@ -192,7 +192,7 @@ func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
 				Check(err)
 			}
 		} else if int64(n) < bwp.PacketSize {
-			Check(fmt.Errorf("Insufficient number of bytes written:", n, "instead of:", bwp.PacketSize))
+			Check(fmt.Errorf("Insufficient number of bytes written: %d instead of %d", n, bwp.PacketSize))
 		}
 		i++
 	}

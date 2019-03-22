@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func check(e error) {
@@ -26,8 +26,8 @@ func printUsage() {
 
 func main() {
 	var (
-		clientAddress string
-		serverAddress string
+		clientAddress  string
+		serverAddress  string
 		sciondPath     string
 		sciondFromIA   bool
 		dispatcherPath string
@@ -79,10 +79,10 @@ func main() {
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 0)
 
-	n, err := udpConnection.Write(sendPacketBuffer)
+	_, err = udpConnection.Write(sendPacketBuffer)
 	check(err)
 
-	n, _, err = udpConnection.ReadFrom(receivePacketBuffer)
+	n, _, err := udpConnection.ReadFrom(receivePacketBuffer)
 	check(err)
 
 	fmt.Print(string(receivePacketBuffer[:n]))

@@ -81,6 +81,9 @@ func main() {
 	}
 
 	out, err := os.Create("received.jpg")
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = jpeg.Encode(out, img, nil)
 	if err != nil {
 		log.Fatal(err)

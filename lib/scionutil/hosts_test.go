@@ -89,13 +89,13 @@ func TestReadHosts(t *testing.T) {
 	}
 	addr = &snet.Addr{IA: ia, Host: &libaddr.AppAddr{L3: l3, L4: libaddr.NewL4UDPInfo(0)}}
 
-	expected, err = snet.AddrFromString("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0")
+	expected, _ = snet.AddrFromString("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0")
 	if !addr.EqAddr(expected) {
 		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0", addr)
 	}
 
 	// does not parse commented hosts
-	ia, l3, err = GetHostByName("commented")
+	_, _, err = GetHostByName("commented")
 	if err == nil {
 		t.Error("read commented host")
 	}
