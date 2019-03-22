@@ -18,14 +18,15 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/netsec-ethz/rains/pkg/rains"
 	libaddr "github.com/scionproto/scion/go/lib/addr"
+	log "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -44,12 +45,13 @@ var (
 
 // RAINS
 var (
-	ctx         = "."                // use global context
-	qType       = rains.OTScionAddr4 // request SCION IPv4 address
-	qOpts       = []rains.Option{}   // no options
-	expire      = 5 * time.Minute    // sensible expiry date?
-	timeout     = time.Second        // timeout for query
-	rainsServer *snet.Addr           // resolver address
+	rainsConfigPath = path.Join(os.Getenv("SC"), "gen", "rainsconfig")
+	ctx             = "."                // use global context
+	qType           = rains.OTScionAddr4 // request SCION IPv4 addresses
+	qOpts           = []rains.Option{}   // no options
+	expire          = 5 * time.Minute    // sensible expiry date?
+	timeout         = time.Second        // timeout for query
+	rainsServer     *snet.Addr           // resolver address
 )
 
 const (
@@ -65,38 +67,22 @@ func init() {
 	}
 	parseHostsFile(hostsFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Warn("Error parsing hosts file, local name resolution not available", "error", err)
 	}
 
-	// get RAINS configuration for this ISD
-	rawIA, err := ioutil.ReadFile(fmt.Sprintf("%s/gen/ia", os.Getenv("SC")))
+	// read RAINS server address
+	srv, err := readRainsConfig()
 	if err != nil {
-		log.Fatal("Unable to read file $SC/gen/ia: ", err)
-	}
-	ia, err := libaddr.IAFromFileFmt(strings.TrimSpace(string(rawIA)), false)
-	if err != nil {
-		log.Fatal("Failed parsing $SC/gen/ia: ", err)
-	}
-	resolver, err := snet.AddrFromString(rainsConfig(uint16(ia.I)))
-	if err != nil {
-		log.Fatal("RAINS resolver has an invalid address")
-	}
-	rainsServer = resolver
-}
-
-// THIS IS A DUMMY, will be replaced by a bootstrapping service
-func rainsConfig(isd uint16) string {
-	switch isd {
-	case 17:
-		return "17-ffaa:0:1107,[192.33.93.195]:55553"
-	default:
-		return "17-ffaa:0:1107,[192.33.93.195]:55553"
+		log.Warn("Could not configure RAINS, remote name resolution not available", "error", err)
+	} else {
+		rainsServer = srv
 	}
 }
 
 // AddHost adds a host to the map of known hosts
 // An error is returned if the address has a wrong format or
 // the hostname already exists
+// The added host will not persist between program executions
 func AddHost(hostname, address string) error {
 	if addrs, ok := hosts[hostname]; ok {
 		return fmt.Errorf("Host %q already exists, address(es): %v", hostname, addrs)
@@ -119,10 +105,14 @@ func GetHostByName(hostname string) (libaddr.IA, libaddr.HostAddr, error) {
 		return addr.ia, addr.l3, nil
 	}
 
+	if rainsServer == nil {
+		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found", hostname)
+	}
+
 	// fall back to RAINS
 	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
 	if err != nil {
-		return libaddr.IA{}, nil, fmt.Errorf("Failed querying RAINS server: %v", err)
+		return libaddr.IA{}, nil, fmt.Errorf("Error querying RAINS server: %v", err)
 	}
 	scionAddr, err := addrFromString(reply[qType])
 	if err != nil {
@@ -175,6 +165,18 @@ func parseHostsFile(hostsFile []byte) {
 		}
 
 	}
+}
+
+func readRainsConfig() (*snet.Addr, error) {
+	bs, err := ioutil.ReadFile(rainsConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := snet.AddrFromString(strings.TrimSpace(string(bs)))
+	if err != nil {
+		return nil, err
+	}
+	return addr, nil
 }
 
 func addrFromString(addr string) (scionAddress, error) {
