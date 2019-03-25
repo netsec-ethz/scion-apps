@@ -202,7 +202,7 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
         credits : {
             enabled : legend,
             text : legend ? 'Download Data' : null,
-            href : legend ? './files/webapp/data/' : null,
+            href : legend ? './data/' : null,
         },
         exporting : {
             enabled : false
@@ -466,6 +466,9 @@ function command(continuous) {
         } else {
             handleGeneralResponse();
         }
+    }).fail(function(error) {
+        showError(error.responseJSON);
+        handleGeneralResponse();
     });
     // onsubmit should always return false to override native http call
     return false;
