@@ -259,7 +259,7 @@ func handleClients(CCConn snet.Conn, serverISDASIP string, receivePacketBuffer [
 				// An error happened, ask the client to try again in 1 second (perhaps no path to client was found)
 				sendPacketBuffer[0] = 'N'
 				sendPacketBuffer[1] = byte(1)
-				n, err = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
+				CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
 				// Ignore error
 				continue
 			}
@@ -285,7 +285,7 @@ func handleClients(CCConn snet.Conn, serverISDASIP string, receivePacketBuffer [
 			// Send back success
 			sendPacketBuffer[0] = 'N'
 			sendPacketBuffer[1] = byte(0)
-			n, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
+			CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
 			// Ignore error
 			// Everything succeeded, now set variable that bwtest is ongoing
 			currentBwtest = clientCCAddrStr

@@ -172,7 +172,7 @@ func main() {
 			}
 		}
 	}
-	
+
 	if *URL == "" {
 		usage()
 	}

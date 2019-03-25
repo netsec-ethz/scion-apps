@@ -1,23 +1,23 @@
 package lib
 
 import (
-    "bytes"
-    "encoding/base64"
-    "fmt"
-    "html/template"
-    "image"
-    "image/gif"
-    "image/jpeg"
-    "image/png"
-    "io/ioutil"
-    "net/http"
-    "os"
-    "path"
-    "regexp"
-    "strconv"
+	"bytes"
+	"encoding/base64"
+	"fmt"
+	"html/template"
+	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"regexp"
+	"strconv"
 
-    log "github.com/inconshreveable/log15"
-    . "github.com/netsec-ethz/scion-apps/webapp/util"
+	log "github.com/inconshreveable/log15"
+	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var regexImageFiles = `([^\s]+(\.(?i)(jp?g|png|gif))$)`
@@ -28,88 +28,89 @@ var imgTemplate = `<!doctype html><html lang="en"><head></head><body>
 
 // Handles writing jpeg image to http response writer by content-type.
 func writeJpegContentType(w http.ResponseWriter, img *image.Image) {
-    buf := new(bytes.Buffer)
-    err := jpeg.Encode(buf, *img, nil)
-    CheckError(err)
-    w.Header().Set("Content-Type", "image/jpeg")
-    w.Header().Set("Content-Length", strconv.Itoa(len(buf.Bytes())))
-    _, werr := w.Write(buf.Bytes())
-    CheckError(werr)
+	buf := new(bytes.Buffer)
+	err := jpeg.Encode(buf, *img, nil)
+	CheckError(err)
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Length", strconv.Itoa(len(buf.Bytes())))
+	_, werr := w.Write(buf.Bytes())
+	CheckError(werr)
 }
 
 // Handles writing jpeg image to http response writer by image template.
 func writeJpegTemplate(w http.ResponseWriter, img *image.Image, url string) {
-    buf := new(bytes.Buffer)
-    err := jpeg.Encode(buf, *img, nil)
-    CheckError(err)
-    str := base64.StdEncoding.EncodeToString(buf.Bytes())
-    tmpl, err := template.New("image").Parse(imgTemplate)
-    if CheckError(err) {
-        return
-    }
-    data := map[string]interface{}{"JpegB64": str, "ImgUrl": url}
-    err = tmpl.Execute(w, data)
-    CheckError(err)
+	buf := new(bytes.Buffer)
+	err := jpeg.Encode(buf, *img, nil)
+	CheckError(err)
+	str := base64.StdEncoding.EncodeToString(buf.Bytes())
+	tmpl, err := template.New("image").Parse(imgTemplate)
+	if CheckError(err) {
+		return
+	}
+	data := map[string]interface{}{"JpegB64": str, "ImgUrl": url}
+	err = tmpl.Execute(w, data)
+	CheckError(err)
 }
 
 // Helper method to find most recently modified regex extension filename in dir.
 func findNewestFileExt(dir, extRegEx string) (imgFilename string, imgTimestamp int64) {
-    files, _ := ioutil.ReadDir(dir)
-    for _, f := range files {
-        fi, err := os.Stat(path.Join(dir, f.Name()))
-        CheckError(err)
-        matched, err := regexp.MatchString(extRegEx, f.Name())
-        if matched {
-            modTime := fi.ModTime().Unix()
-            if modTime > imgTimestamp {
-                imgTimestamp = modTime
-                imgFilename = f.Name()
-            }
-        }
-    }
-    return
+	files, _ := ioutil.ReadDir(dir)
+	for _, f := range files {
+		fi, err := os.Stat(path.Join(dir, f.Name()))
+		CheckError(err)
+		matched, err := regexp.MatchString(extRegEx, f.Name())
+		CheckError(err)
+		if matched {
+			modTime := fi.ModTime().Unix()
+			if modTime > imgTimestamp {
+				imgTimestamp = modTime
+				imgFilename = f.Name()
+			}
+		}
+	}
+	return
 }
 
 // FindImageInfoHandler locating most recent image and writing text info data about it.
 func FindImageInfoHandler(w http.ResponseWriter, r *http.Request) {
-    filesDir := "."
-    imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
-    if imgFilename == "" {
-        return
-    }
-    fileText := imgFilename
-    fmt.Fprintf(w, fileText)
+	filesDir := "."
+	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
+	if imgFilename == "" {
+		return
+	}
+	fileText := imgFilename
+	fmt.Fprintf(w, fileText)
 }
 
 // FindImageHandler locating most recent image formatting it for graphic display in response.
 func FindImageHandler(w http.ResponseWriter, r *http.Request, browserAddr string, port int) {
-    filesDir := "."
-    imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
-    if imgFilename == "" {
-        fmt.Fprint(w, "Error: Unable to find image file locally.")
-        return
-    }
-    log.Info("Found image file:", "imgFilename", imgFilename)
-    imgFile, err := os.Open(path.Join(filesDir, imgFilename))
-    CheckError(err)
-    defer imgFile.Close()
-    _, imageType, err := image.Decode(imgFile)
-    CheckError(err)
-    log.Info("Found image type: ", "imageType", imageType)
-    // reset file pointer to beginning
-    imgFile.Seek(0, 0)
-    var rawImage image.Image
-    switch imageType {
-    case "gif":
-        rawImage, err = gif.Decode(imgFile)
-    case "png":
-        rawImage, err = png.Decode(imgFile)
-    case "jpeg":
-        rawImage, err = jpeg.Decode(imgFile)
-    default:
-        panic("Unhandled image type!")
-    }
-    CheckError(err)
-    url := fmt.Sprintf("http://%s:%d/%s/%s", browserAddr, port, "images", imgFilename)
-    writeJpegTemplate(w, &rawImage, url)
+	filesDir := "."
+	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
+	if imgFilename == "" {
+		fmt.Fprint(w, "Error: Unable to find image file locally.")
+		return
+	}
+	log.Info("Found image file:", "imgFilename", imgFilename)
+	imgFile, err := os.Open(path.Join(filesDir, imgFilename))
+	CheckError(err)
+	defer imgFile.Close()
+	_, imageType, err := image.Decode(imgFile)
+	CheckError(err)
+	log.Info("Found image type: ", "imageType", imageType)
+	// reset file pointer to beginning
+	imgFile.Seek(0, 0)
+	var rawImage image.Image
+	switch imageType {
+	case "gif":
+		rawImage, err = gif.Decode(imgFile)
+	case "png":
+		rawImage, err = png.Decode(imgFile)
+	case "jpeg":
+		rawImage, err = jpeg.Decode(imgFile)
+	default:
+		panic("Unhandled image type!")
+	}
+	CheckError(err)
+	url := fmt.Sprintf("http://%s:%d/%s/%s", browserAddr, port, "images", imgFilename)
+	writeJpegTemplate(w, &rawImage, url)
 }

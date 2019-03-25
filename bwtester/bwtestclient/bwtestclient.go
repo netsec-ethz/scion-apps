@@ -166,7 +166,7 @@ func parseBandwidth(bw string) int64 {
 		return DefaultBW
 	}
 
-	var m int64 = 1
+	var m int64
 	val := rawBw[0][:len(rawBw[0])-1]
 	suffix := rawBw[0][len(rawBw[0])-1:]
 	switch suffix {
@@ -209,7 +209,7 @@ func getDuration(duration string) int64 {
 	}
 	d := time.Second * time.Duration(a1)
 	if d > MaxDuration {
-		Check(fmt.Errorf("Duration is exceeding MaxDuration:", a1, ">", MaxDuration/time.Second))
+		Check(fmt.Errorf("Duration is exceeding MaxDuration: %d > %d", a1, MaxDuration/time.Second))
 		a1 = DefaultDuration
 	}
 	return a1

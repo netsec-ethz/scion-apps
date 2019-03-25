@@ -105,7 +105,7 @@ func ChoosePathByMetric(pathAlgo int, local, remote *snet.Addr) *sciond.PathRepl
 func pathSelection(pathSet spathmeta.AppPathSet, pathAlgo int) *spathmeta.AppPath {
 	var selectedPath *spathmeta.AppPath
 	var metric float64
-	// A path selection algorithm consists of a simple comparision function selecting the best path according
+	// A path selection algorithm consists of a simple comparison function selecting the best path according
 	// to some path property and a metric function normalizing that property to a value in [0,1], where larger is better
 	// Available path selection algorithms, the metric returned must be normalized between [0,1]:
 	pathAlgos := map[int](func(spathmeta.AppPathSet) (*spathmeta.AppPath, float64)){

@@ -1,18 +1,6 @@
 # HTTP over SCION/QUIC
 
-This repository contains a client/server implementation of HTTP/2 over SCION/QUIC.
-
-### Setup
-
-SCION infrastructure must be installed and running on your machine. Instructions on how to set this up can be found [here](https://github.com/netsec-ethz/netsec-scion).
-Clone the repository and install the dependencies:
-
-```
-govendor sync
-govendor add +e
-```
-
-Refer to the individual examples to see how to run them.
+This package contains a client/server implementation of HTTP/2 over SCION/QUIC.
 
 ### The Client is a standard net/http client with a custom RoundTripper implementation.
 
@@ -25,7 +13,7 @@ client := &http.Client{
 }
 ```
 
-where `lAddr` is the local SCION address of the client.
+where `LAddr` is the local SCION address of the client.
 
 Then, make requests as usual:
 ```Go

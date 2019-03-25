@@ -12,8 +12,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -70,7 +70,7 @@ func main() {
 	go parseInput()
 
 	var (
-		serverAddress string
+		serverAddress  string
 		sciondPath     string
 		sciondFromIA   bool
 		dispatcherPath string

@@ -8,8 +8,8 @@
 
  <h2>SCIONLab Health Check</h2>
  <p>
-  If all automated tests have passed, please continue to <a
-   href="/apps">Apps</a> in the menu to use SCIONLab.
+  If all automated tests have passed, please continue to <a href="/apps">Apps</a>
+  in the menu to use SCIONLab.
  </p>
  <ul id="health-list">
  </ul>
@@ -32,12 +32,14 @@
         if (d.err) {
             showError(d.err);
         }
+    }).fail(function(error) {
+        showError(error.responseJSON);
     });
     var last = [];
     var healthInterval = setInterval(function() {
         // setup interval to check status file webserver will update
         $.ajax({
-            url : "files/data/healthcheck-result.json",
+            url : "data/healthcheck-result.json",
             method : 'GET',
             dataType : "json",
             success : function(data) {
@@ -71,9 +73,13 @@
                             "Check last completed " + now.toLocaleDateString()
                                     + " " + now.toLocaleTimeString() + ".");
                 }
+            },
+            error : function(jqXHR, textStatus, errorThrown) {
+                showError(this.url + ' ' + textStatus + ': ' + errorThrown);
+                clearInterval(healthInterval);
             }
         });
-    }, 500);
+    }, 1000);
 
     function getListItemDiv(resp, test) {
         var a = $('<a>').attr('href', "#hc-" + test).attr('class',
