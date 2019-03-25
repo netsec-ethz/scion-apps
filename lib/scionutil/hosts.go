@@ -45,13 +45,13 @@ var (
 
 // RAINS
 var (
-	rainsConfigPath = path.Join(os.Getenv("SC"), "gen", "rainsconfig")
-	ctx             = "."                // use global context
-	qType           = rains.OTScionAddr4 // request SCION IPv4 addresses
-	qOpts           = []rains.Option{}   // no options
-	expire          = 5 * time.Minute    // sensible expiry date?
-	timeout         = time.Second        // timeout for query
-	rainsServer     *snet.Addr           // resolver address
+	rainsConfigPath = path.Join(os.Getenv("SC"), "gen", "rains.cfg")
+	ctx             = "."                    // use global context
+	qType           = rains.OTScionAddr4     // request SCION IPv4 addresses
+	qOpts           = []rains.Option{}       // no options
+	expire          = 5 * time.Minute        // sensible expiry date?
+	timeout         = 500 * time.Millisecond // timeout for query
+	rainsServer     *snet.Addr               // resolver address
 )
 
 const (
@@ -106,13 +106,16 @@ func GetHostByName(hostname string) (libaddr.IA, libaddr.HostAddr, error) {
 	}
 
 	if rainsServer == nil {
-		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found", hostname)
+		return libaddr.IA{}, nil, fmt.Errorf("Could not resolve %q, no RAINS server configured", hostname)
 	}
 
 	// fall back to RAINS
+
+	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
+	// The timeout value has been decreased to counter this behavior until the problem is resolved.
 	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
 	if err != nil {
-		return libaddr.IA{}, nil, fmt.Errorf("Error querying RAINS server: %v", err)
+		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found: %v", hostname, err)
 	}
 	scionAddr, err := addrFromString(reply[qType])
 	if err != nil {
