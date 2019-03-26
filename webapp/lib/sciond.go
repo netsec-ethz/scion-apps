@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -49,6 +50,11 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 	SPort, _ := strconv.Atoi(r.PostFormValue("port_ser"))
 	CPort, _ := strconv.Atoi(r.PostFormValue("port_cli"))
 
+	// src and dst must be different
+	if SIa == CIa {
+		returnError(w, errors.New("Source IA and destination IA are the same."))
+		return
+	}
 	optClient := fmt.Sprintf("%s,[%s]:%d", CIa, CAddr, CPort)
 	optServer := fmt.Sprintf("%s,[%s]:%d", SIa, SAddr, SPort)
 	clientCCAddr, _ := snet.AddrFromString(optClient)

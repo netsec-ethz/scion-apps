@@ -388,7 +388,7 @@ function get_segment_info(segs, type) {
 }
 
 function get_json_seg_topo(paths, segments, src, dst) {
-
+    var now = Date.now();
     var segs = {
         "core_segments" : {
             "if_lists" : []
@@ -401,37 +401,76 @@ function get_json_seg_topo(paths, segments, src, dst) {
         }
     };
     var pathIAs = [];
+    var pathStr = "";
     for (p in paths) {
+        pathStr += "| ";
         var if_ = paths[p].Entry.Path.Interfaces;
         for (i in if_) {
             var ia = iaRaw2Read(if_[i].RawIsdas);
             if (!pathIAs.includes(ia)) {
                 pathIAs.push(ia);
             }
+            pathStr += ia + " " + if_[i].IfID + " ";
         }
     }
-    // filter out segments not included in paths
     for (s in segments) {
+        var segmentIAs = [];
+        var segStr = "", revStr = "";
         var if_ = segments[s].Interfaces;
         var ifaces = {};
         var interfaces = [];
+        var extraIA = false;
         for (i in if_) {
-            var iface = {};
-            if (!pathIAs.includes(if_[i].IA)) {
-                ifaces = null;
-                continue;
+            if (!segmentIAs.includes(if_[i].IA)) {
+                segmentIAs.push(if_[i].IA);
             }
+
+            if (!pathIAs.includes(if_[i].IA)) {
+                extraIA = true;
+            }
+            var iface = {};
             var ia = if_[i].IA.split('-');
             iface.IFID = if_[i].IfNum;
             iface.ISD = ia[0];
             iface.AS = ia[1];
             interfaces.push(iface);
+            segStr += if_[i].IA + " " + if_[i].IfNum + " ";
+            revStr += if_[if_.length - 1 - i].IA + " "
+                    + if_[if_.length - 1 - i].IfNum + " ";
         }
-        if (ifaces != null) {
-            ifaces.interfaces = interfaces;
-            ifaces.expTime = new Date(segments[s].Expiry).getTime() / 1000;
-            segs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
+        // filter segments not included in paths
+        var exp = new Date(segments[s].Expiry).getTime();
+        if (exp < now) {
+            // segment IAs must not be expired
+            console.error("E", exp - now, segments[s].SegType, segmentIAs)
+            continue;
+        } else if (extraIA) {
+            // segment IAs must appear in at least one path
+            console.error("I", exp - now, segments[s].SegType, segmentIAs)
+            continue;
         }
+        // TODO: core IAs should be evaluated for matching to/from
+        // up(src)/down(dst)
+        // else if (segments[s].SegType == "core"
+        // && !(pathStr.includes(segStr) /* || pathStr.includes(revStr) */)) {
+        // // core ia+interface segments must appear in at least one path
+        // console.error("C", exp - now, segments[s].SegType, segmentIAs)
+        // continue;
+        // }
+        else if (segments[s].SegType == "up" && !segmentIAs.includes(src)) {
+            // up segments must include src
+            console.error("S", exp - now, segments[s].SegType, segmentIAs)
+            continue;
+        } else if (segments[s].SegType == "down" && !segmentIAs.includes(dst)) {
+            // down segments must include dst
+            console.error("D", exp - now, segments[s].SegType, segmentIAs)
+            continue;
+        } else {
+            console.debug("   ", exp - now, segments[s].SegType, segmentIAs)
+        }
+        ifaces.interfaces = interfaces;
+        ifaces.expTime = new Date(segments[s].Expiry).getTime() / 1000;
+        segs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
     }
     return segs;
 }
@@ -528,8 +567,10 @@ function requestPaths() {
             if (data.err) {
                 showError(data.err);
             }
-            resPath = get_json_paths(data.paths);
-            resSegs = get_json_seg_topo(data.paths, data.segments);
+            var src = $('#ia_cli').val();
+            var dst = $('#ia_ser').val();
+            resPath = get_json_paths(data.paths, src, dst);
+            resSegs = get_json_seg_topo(data.paths, data.segments, src, dst);
             resCore = resSegs.core_segments;
             resUp = resSegs.up_segments;
             resDown = resSegs.down_segments;
