@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -164,7 +164,7 @@ func main() {
 			// 	}
 			// }
 			// If it's not an snet SCMP error, then it's something more serious and fail
-			check(err)
+			// check(err)
 		}
 		if n > 0 {
 			if receivePacketBuffer[0] == 'L' {
@@ -183,7 +183,7 @@ func main() {
 				binary.LittleEndian.PutUint32(sendPacketBuffer[sendLen:], currentFiles[mostRecentFile].size)
 				currentFilesLock.Unlock()
 				sendLen = sendLen + 4
-				n, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
+				_, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
 				check(err)
 			} else if receivePacketBuffer[0] == 'G' && n > 1 {
 				filenameLen := int(receivePacketBuffer[1])
@@ -206,7 +206,7 @@ func main() {
 						// Copy image contents
 						copy(sendPacketBuffer[9:], v.content[startByte:endByte])
 						sendLen := 9 + endByte - startByte
-						n, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
+						_, err = udpConnection.WriteTo(sendPacketBuffer[:sendLen], remoteUDPaddress)
 						check(err)
 					}
 				}

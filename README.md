@@ -7,7 +7,7 @@ The applications are written in Go, with some supporting code in Python. A SCION
 More information on [SCION](https://www.scion-architecture.net/), and [tutorials on how to set up SCION and SCIONLab](https://netsec-ethz.github.io/scion-tutorials/).
 
 To build:
-1. run once the provided script `deps.sh` to setup the dependencies
+1. run once the provided script `deps.sh` to set up the dependencies
 2. run `make` to build all projects
 
 
