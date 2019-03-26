@@ -8,12 +8,12 @@ timeout_ms=20000
 pcb_ms=10000
 
 # get local IA
-ia=`cat ~/go/src/github.com/scionproto/scion/gen/ia`
+iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia | sed "s/:/_/g")
+ia=$(cat ~/go/src/github.com/scionproto/scion/gen/ia | sed "s/_/:/g")
 echo "IA found: $ia"
 
 # format log file and beacons grep string
-fsafe_ia=$(echo $ia | sed "s/:/_/g")
-logfile=~/go/src/github.com/scionproto/scion/logs/bs${fsafe_ia}-1.DEBUG
+logfile=~/go/src/github.com/scionproto/scion/logs/bs${iaFile}-1.DEBUG
 echo "Log: $logfile"
 
 # seek last log entry for verified PCBs
