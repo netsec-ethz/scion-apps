@@ -15,14 +15,16 @@
 package scionutil
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"os"
 )
 
 // InitSCION initializes the default SCION networking context with the provided SCION address
 // and the default SCIOND/SCION dispatcher
 func InitSCION(localAddr *snet.Addr) error {
-	err := snet.Init(localAddr.IA, GetDefaultSCIOND(), GetDefaultDispatcher())
+	err := snet.Init(localAddr.IA, GetSCIONDPath(&localAddr.IA), GetDefaultDispatcher())
 	if err != nil {
 		return err
 	}
@@ -37,7 +39,7 @@ func InitSCIONString(localAddr string) (*snet.Addr, error) {
 		return nil, err
 	}
 
-	err = snet.Init(addr.IA, GetDefaultSCIOND(), GetDefaultDispatcher())
+	err = snet.Init(addr.IA, GetSCIONDPath(&addr.IA), GetDefaultDispatcher())
 	if err != nil {
 		return nil, err
 	}
@@ -45,9 +47,15 @@ func InitSCIONString(localAddr string) (*snet.Addr, error) {
 	return addr, nil
 }
 
-// GetDefaultSCIOND returns the path to the default SCION socket
-func GetDefaultSCIOND() string {
-	return sciond.GetDefaultSCIONDPath(nil)
+// GetSCIONDPath returns the path to the SCION socket.
+func GetSCIONDPath(ia *addr.IA) string {
+
+	// Use default.sock if exists:
+	if _, err := os.Stat(sciond.DefaultSCIONDPath); err == nil {
+		return sciond.DefaultSCIONDPath
+	}
+	// otherwise, use socket with ia name:
+	return sciond.GetDefaultSCIONDPath(ia)
 }
 
 // GetDefaultDispatcher returns the path to the default SCION dispatcher

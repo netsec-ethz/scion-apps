@@ -24,12 +24,17 @@ import (
 	"strconv"
 	"sync"
 
-	quic "github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	libaddr "github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
+	// "github.com/scionproto/scion/go/lib/snet/squic"
+)
+
+var (
+	// cliTlsCfg is a copy squic.cliTlsCfg
+	cliTlsCfg = &tls.Config{InsecureSkipVerify: true}
 )
 
 // Transport wraps a h2quic.RoundTripper making it compatible with SCION
@@ -40,13 +45,37 @@ type Transport struct {
 
 	rt *h2quic.RoundTripper
 
-	dialOnce sync.Once
+	dialOnce         sync.Once
+	connectionsMutex sync.Mutex
+	connections      []*snet.Conn
 }
 
 // RoundTrip does a single round trip; retreiving a response for a given request
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	return t.RoundTripOpt(req, h2quic.RoundTripOpt{})
+}
+
+// squicDialSCION re-implements squic.DialSCION to get access to the underlying
+// snet.Conn to be able to close the connection later.
+func (t *Transport) squicDialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
+	quicConfig *quic.Config) (quic.Session, error) {
+
+	// squic.sListen (but without the Bind/SVC)
+	if network == nil {
+		network = snet.DefNetwork
+	}
+	sconn, err := network.ListenSCION("udp4", laddr, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	t.connectionsMutex.Lock()
+	defer t.connectionsMutex.Unlock()
+	t.connections = append(t.connections, &sconn)
+
+	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
+	return quic.Dial(sconn, raddr, "host:0", cliTlsCfg, quicConfig)
 }
 
 // RoundTripOpt is the same as RoundTrip but takes additional options
@@ -90,7 +119,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			}
 			l4 := libaddr.NewL4UDPInfo(uint16(p))
 			raddr := &snet.Addr{IA: ia, Host: &libaddr.AppAddr{L3: l3, L4: l4}}
-			return squic.DialSCION(nil, t.LAddr, raddr, cfg)
+			return t.squicDialSCION(nil, t.LAddr, raddr, cfg)
 		}
 		t.rt = &h2quic.RoundTripper{
 			Dial:               dial,
@@ -104,5 +133,15 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 
 // Close closes the QUIC connections that this RoundTripper has used
 func (t *Transport) Close() error {
-	return t.rt.Close()
+	err := t.rt.Close()
+
+	// quic.Session.Close (which is called by RoundTripper.Close()) will NOT
+	// close the underlying connections, so we do it manually here.
+	t.connectionsMutex.Lock()
+	defer t.connectionsMutex.Unlock()
+	for _, sconn := range t.connections {
+		(*sconn).Close()
+	}
+
+	return err
 }
