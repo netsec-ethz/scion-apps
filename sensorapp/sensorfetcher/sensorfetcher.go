@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -51,11 +53,11 @@ func main() {
 	// Create the SCION UDP socket
 	if len(clientAddress) > 0 {
 		local, err = snet.AddrFromString(clientAddress)
-		check(err)
 	} else {
-		printUsage()
-		check(fmt.Errorf("Error, client address needs to be specified with -c"))
+		local, err = scionutil.GetLocalhost()
 	}
+	check(err)
+
 	if len(serverAddress) > 0 {
 		remote, err = snet.AddrFromString(serverAddress)
 		check(err)
