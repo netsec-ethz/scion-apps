@@ -468,7 +468,7 @@ function get_json_seg_topo(paths, segments, src, dst) {
         } else {
             console.debug("   ", exp - now, segments[s].SegType, segmentIAs)
         }
-        ifaces.interfaces = interfaces;
+	ifaces.interfaces = interfaces;
         ifaces.expTime = new Date(segments[s].Expiry).getTime() / 1000;
         segs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
     }
