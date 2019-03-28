@@ -36,6 +36,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	slog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -103,16 +104,16 @@ func init() {
 	flag.Parse()
 
 	// SCION: add shttp Transport to defaultSetting
+	var laddr *snet.Addr
+	var err error
 	if local == "" {
-		var err error
-		local, err = readIsdAS()
-		if err != nil {
-			log.Fatal("Cannot infer local address. Please provide it using the -l flag.")
-		}
+		laddr, err = scionutil.GetLocalhost()
+	} else {
+		laddr, err = snet.AddrFromString(local)
 	}
 
-	laddr, err := snet.AddrFromString(local)
 	if err != nil {
+		log.Fatal("Could get local address: ", err)
 		usage()
 	}
 

@@ -16,16 +16,19 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
+	. "github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
 )
 
 func main() {
 
 	var local = flag.String("local", "", "The address on which the server will be listening")
+	var port = flag.Uint("p", 40002, "port the server listens on (only relevant if local address not specified)")
 	var tlsCert = flag.String("cert", "tls.pem", "Path to TLS pemfile")
 	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
 
@@ -45,13 +48,22 @@ func main() {
 	m.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
 		// serve the sample HTML file
 		// Status 200 OK will be set implicitly
-		// Conent-Length will be inferred by server
+		// Content-Length will be inferred by server
 		// Content-Type will be detected by server
 		http.ServeFile(w, r, "sample.html")
 	})
 
-	err := shttp.ListenAndServeSCION(*local, *tlsCert, *tlsKey, m)
-	if err != nil {
-		log.Fatal(err)
+	var laddr string
+	var err error
+	if *local == "" {
+		laddr, err = GetLocalhostString()
+		if err != nil {
+			log.Fatal(err)
+		}
+		laddr = fmt.Sprintf("%s:%d", laddr, *port)
+	} else {
+		laddr = *local
 	}
+
+	log.Fatal(shttp.ListenAndServeSCION(laddr, *tlsCert, *tlsKey, m))
 }
