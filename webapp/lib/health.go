@@ -131,7 +131,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
 			fmt.Fprintf(w, `{ "err": %q }`, err.Error())
 			return
 		}
-		log.Info(string(jsonRes))
+		log.Debug(string(jsonRes))
 		err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
 		CheckError(err)
 	}

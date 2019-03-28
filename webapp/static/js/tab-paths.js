@@ -387,9 +387,11 @@ function get_segment_info(segs, type) {
     return html;
 }
 
-function get_json_seg_topo(paths, segments, src, dst) {
+function get_json_seg_topo(paths, segs, src, dst) {
     var now = Date.now();
-    var segs = {
+    var segments = segs; // edit local copy
+    console.debug("segments received:", segments.length);
+    var outSegs = {
         "core_segments" : {
             "if_lists" : []
         },
@@ -400,6 +402,7 @@ function get_json_seg_topo(paths, segments, src, dst) {
             "if_lists" : []
         }
     };
+    // loop through all paths as benchmark for filtering segments
     var pathIAs = [];
     var pathStr = "";
     for (p in paths) {
@@ -413,66 +416,110 @@ function get_json_seg_topo(paths, segments, src, dst) {
             pathStr += ia + " " + if_[i].IfID + " ";
         }
     }
-    for (s in segments) {
+    // segments must be removed where they do not follow the paths
+    var coreIngr = [];
+    var coreEgr = [];
+    var segOrders = [];
+    for (var s = segments.length - 1; s >= 0; s--) {
         var segmentIAs = [];
         var segStr = "", revStr = "";
         var if_ = segments[s].Interfaces;
-        var ifaces = {};
-        var interfaces = [];
         var extraIA = false;
         for (i in if_) {
             if (!segmentIAs.includes(if_[i].IA)) {
                 segmentIAs.push(if_[i].IA);
             }
-
             if (!pathIAs.includes(if_[i].IA)) {
                 extraIA = true;
             }
+            segStr += if_[i].IA + " " + if_[i].IfNum + " ";
+            revStr += if_[if_.length - 1 - i].IA + " "
+                    + if_[if_.length - 1 - i].IfNum + " ";
+        }
+        // TODO: (mwfarb) this filtering logic should eventually move to Go
+        var exp = new Date(segments[s].Expiry).getTime();
+        if (exp < now) {
+            // segment IAs must not be expired
+            segments.splice(s, 1);
+        } else if (extraIA) {
+            // segment IAs must appear in at least one path
+            segments.splice(s, 1);
+        } else if (!(pathStr.includes(segStr) || pathStr.includes(revStr))) {
+            // sub-segments must be interrogated for path match, any order
+            segments.splice(s, 1);
+        } else if (segOrders.includes(segStr) || segOrders.includes(revStr)) {
+            // duplicate segment IAs+IFs, any order
+            segments.splice(s, 1);
+        } else if (segments[s].SegType == "up") {
+            if (!segmentIAs.includes(src)) {
+                // up segments must include src
+                segments.splice(s, 1);
+            } else { // valid core ingress
+                coreIngr.push(getUpDownCoreTransit(segmentIAs, src, dst));
+            }
+        } else if (segments[s].SegType == "down") {
+            if (!segmentIAs.includes(dst)) {
+                // down segments must include dst
+                segments.splice(s, 1);
+            } else { // valid core egress
+                coreEgr.push(getUpDownCoreTransit(segmentIAs, src, dst));
+            }
+        } else {
+            segOrders.push(segStr);
+            segOrders.push(revStr);
+        }
+    }
+    // up(src)/down(dst)
+    if (coreIngr.length == 0) {
+        coreIngr.push(src);
+    }
+    if (coreEgr.length == 0) {
+        coreEgr.push(dst);
+    }
+    // loop through all segments again, remove unlogical core seg, final format
+    var fwd = true;
+    for (var s = segments.length - 1; s >= 0; s--) {
+        var if_ = segments[s].Interfaces;
+        if (segments[s].SegType == "core") {
+            // core IAs should be evaluated for matching to/from
+            var cs = segments[s];
+            var last = if_.length - 1;
+            var head = if_[0].IA;
+            var tail = if_[last].IA;
+            // core segs must follow ingress/egress links from up/down segs
+            if (coreIngr.includes(head) && coreEgr.includes(tail)) {
+                console.debug("fwd", segments[s].SegType, head, tail);
+            } else if (coreIngr.includes(tail) && coreEgr.includes(head)) {
+                console.debug("rev", segments[s].SegType, head, tail);
+            } else {
+                segments.splice(s, 1);
+                continue;
+            }
+        }
+        var interfaces = [];
+        for (i in if_) {
             var iface = {};
             var ia = if_[i].IA.split('-');
             iface.IFID = if_[i].IfNum;
             iface.ISD = ia[0];
             iface.AS = ia[1];
             interfaces.push(iface);
-            segStr += if_[i].IA + " " + if_[i].IfNum + " ";
-            revStr += if_[if_.length - 1 - i].IA + " "
-                    + if_[if_.length - 1 - i].IfNum + " ";
         }
-        // filter segments not included in paths
-        var exp = new Date(segments[s].Expiry).getTime();
-        if (exp < now) {
-            // segment IAs must not be expired
-            console.error("E", exp - now, segments[s].SegType, segmentIAs)
-            continue;
-        } else if (extraIA) {
-            // segment IAs must appear in at least one path
-            console.error("I", exp - now, segments[s].SegType, segmentIAs)
-            continue;
-        }
-        // TODO: core IAs should be evaluated for matching to/from
-        // up(src)/down(dst)
-        // else if (segments[s].SegType == "core"
-        // && !(pathStr.includes(segStr) /* || pathStr.includes(revStr) */)) {
-        // // core ia+interface segments must appear in at least one path
-        // console.error("C", exp - now, segments[s].SegType, segmentIAs)
-        // continue;
-        // }
-        else if (segments[s].SegType == "up" && !segmentIAs.includes(src)) {
-            // up segments must include src
-            console.error("S", exp - now, segments[s].SegType, segmentIAs)
-            continue;
-        } else if (segments[s].SegType == "down" && !segmentIAs.includes(dst)) {
-            // down segments must include dst
-            console.error("D", exp - now, segments[s].SegType, segmentIAs)
-            continue;
-        } else {
-            console.debug("   ", exp - now, segments[s].SegType, segmentIAs)
-        }
-	ifaces.interfaces = interfaces;
+        var ifaces = {};
+        ifaces.interfaces = interfaces;
         ifaces.expTime = new Date(segments[s].Expiry).getTime() / 1000;
-        segs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
+        outSegs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
     }
-    return segs;
+    console.debug("segments post trim:", segments.length);
+    return outSegs;
+}
+
+function getUpDownCoreTransit(segmentIAs, src, dst) {
+    if (src == segmentIAs[0] || dst == segmentIAs[0]) {
+        return segmentIAs[segmentIAs.length - 1];
+    } else {
+        return segmentIAs[0];
+    }
 }
 
 function get_json_paths(paths, src, dst) {
