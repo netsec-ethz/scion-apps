@@ -55,6 +55,7 @@ func printUsage() {
 	fmt.Println("bwtestclient -c ClientSCIONAddress -s ServerSCIONAddress -cs t,size,num,bw -sc t,size,num,bw -i")
 	fmt.Println("A SCION address is specified as ISD-AS,[IP Address]:Port")
 	fmt.Println("Example SCION address 1-1011,[192.33.93.166]:42002")
+	fmt.Println("ClientSCIONAddress can be omitted, the application then binds to localhost")
 	fmt.Println("-cs specifies time duration (seconds), packet size (bytes), number of packets, target bandwidth " +
 		"of client->server test")
 	fmt.Println("\tThe question mark character ? can be used as wildcard when setting the test parameters " +

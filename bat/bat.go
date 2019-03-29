@@ -385,7 +385,7 @@ Usage:
 	bat [flags] [METHOD] URL [ITEM [ITEM]]
 
 flags:
-  -l                          Local SCION address, for VMs this can be omitted
+  -l                          Local SCION address, omit to bind to localhost
   -a, -auth=USER[:PASS]       Pass a username:password pair as the argument
   -b, -bench=false            Sends bench requests to URL
   -b.N=1000                   Number of requests to run
@@ -416,7 +416,7 @@ ITEM:
 
 Example:
 
-	bat -l 17-ffaa:1:1[IP]:0 https://server:8080/download
+	bat https://server:8080/download
 	The protocol can be omitted, bat defaults to HTTPS
 
 For more help information please refer to https://github.com/netsec-ethz/scion-apps/bat
