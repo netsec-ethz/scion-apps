@@ -86,7 +86,7 @@ func main() {
 
 	// Fetch arguments from command line
 	flag.StringVar(&serverAddress, "s", "", "Server SCION Address")
-	flag.UintVar(&serverPort, "p", 40002, "Server SCION Port (only used when Server Address not set)")
+	flag.UintVar(&serverPort, "p", 40002, "Server Port (only used when Server Address not set)")
 	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
 	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",

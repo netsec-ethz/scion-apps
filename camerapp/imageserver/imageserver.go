@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -110,6 +112,7 @@ func main() {
 
 	var (
 		serverAddress  string
+		serverPort     uint
 		sciondPath     string
 		sciondFromIA   bool
 		dispatcherPath string
@@ -122,6 +125,7 @@ func main() {
 
 	// Fetch arguments from command line
 	flag.StringVar(&serverAddress, "s", "", "Server SCION Address")
+	flag.UintVar(&serverPort, "p", 40002, "Server Port (only used when Server Address not set)")
 	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
 	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
@@ -131,11 +135,11 @@ func main() {
 	// Create the SCION UDP socket
 	if len(serverAddress) > 0 {
 		server, err = snet.AddrFromString(serverAddress)
-		check(err)
 	} else {
-		printUsage()
-		check(fmt.Errorf("Error, server address needs to be specified with -s"))
+		server, err = scionutil.GetLocalhost()
+		server.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
 	}
+	check(err)
 
 	if sciondFromIA {
 		if sciondPath != "" {
