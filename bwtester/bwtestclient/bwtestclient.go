@@ -351,6 +351,8 @@ func main() {
 		serverCCAddr.Path = spath.New(pathEntry.Path.FwdPath)
 		serverCCAddr.Path.InitOffsets()
 		serverCCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
+	} else {
+		scionutil.InitSCION(clientCCAddr)
 	}
 
 	CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
