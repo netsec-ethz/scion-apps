@@ -18,6 +18,7 @@ import (
 	"github.com/kormat/fmt15"
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -53,6 +54,7 @@ func purgeOldResults() {
 var (
 	serverCCAddrStr string
 	serverCCAddr    *snet.Addr
+	serverPort      uint
 	err             error
 	CCConn          snet.Conn
 	sciondPath      *string
@@ -67,6 +69,7 @@ func main() {
 
 	// Fetch arguments from command line
 	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
+	flag.UintVar(&serverPort, "p", 40002, "Server Port (only used when Server Address not set)")
 	id := flag.String("id", "bwtester", "Element ID")
 	logDir := flag.String("log_dir", "./logs", "Log directory")
 	sciondPath = flag.String("sciond", "", "Path to sciond socket")
@@ -94,15 +97,16 @@ func main() {
 	} else {
 		overlayType = "udp4"
 	}
-	if len(serverCCAddrStr) > 0 {
-		runServer(serverCCAddrStr)
-		if err != nil {
-			printUsage()
-			LogFatal("Unable to start server", "err", err)
-		}
-	} else {
+
+	if len(serverCCAddrStr) == 0 {
+		serverCCAddrStr, err = scionutil.GetLocalhostString()
+		serverCCAddrStr = fmt.Sprintf("%s:%d", serverCCAddrStr, serverPort)
+	}
+
+	runServer(serverCCAddrStr)
+	if err != nil {
 		printUsage()
-		LogFatal("Error, server address needs to be specified with -s")
+		LogFatal("Unable to start server", "err", err)
 	}
 }
 
@@ -125,12 +129,7 @@ func runServer(serverCCAddrStr string) {
 	log.Info("Starting server")
 	snet.Init(serverCCAddr.IA, *sciondPath, *dispatcherPath)
 
-	ci := strings.LastIndex(serverCCAddrStr, ":")
-	if ci < 0 {
-		// This should never happen, an error would have been much earlier detected
-		LogFatal("Malformed server address")
-	}
-	serverISDASIP := serverCCAddrStr[:ci]
+	serverISDASIP := fmt.Sprintf("%s,[%s]", serverCCAddr.IA, serverCCAddr.Host.L3)
 
 	CCConn, err = snet.ListenSCION(overlayType, serverCCAddr)
 	Check(err)

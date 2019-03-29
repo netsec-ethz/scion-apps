@@ -18,6 +18,7 @@ import (
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -247,9 +248,7 @@ func main() {
 		dispatcherPath  string
 		clientCCAddrStr string
 		serverCCAddrStr string
-		clientISDASIP   string
-		serverISDASIP   string
-		clientPort      uint16
+		clientPort      uint
 		serverPort      uint16
 		// Address of client control channel (CC)
 		clientCCAddr *snet.Addr
@@ -284,6 +283,7 @@ func main() {
 	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
 	flag.StringVar(&clientCCAddrStr, "c", "", "Client SCION Address")
+	flag.UintVar(&clientPort, "p", 40002, "Client Port (only used when Client Address not set)")
 	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
 	flag.StringVar(&serverBwpStr, "sc", DefaultBwtestParameters, "Server->Client test parameter")
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
@@ -308,13 +308,15 @@ func main() {
 		overlayType = "udp4"
 	}
 	// Create SCION UDP socket
-	if len(clientCCAddrStr) > 0 {
-		clientCCAddr, err = snet.AddrFromString(clientCCAddrStr)
-		Check(err)
-	} else {
-		printUsage()
-		Check(fmt.Errorf("Error, client address needs to be specified with -c"))
+	if len(clientCCAddrStr) == 0 {
+		clientCCAddrStr, err = scionutil.GetLocalhostString()
+		clientCCAddrStr = fmt.Sprintf("%s:%d", clientCCAddrStr, clientPort)
 	}
+	Check(err)
+
+	clientCCAddr, err = snet.AddrFromString(clientCCAddrStr)
+	Check(err)
+
 	if len(serverCCAddrStr) > 0 {
 		serverCCAddr, err = snet.AddrFromString(serverCCAddrStr)
 		Check(err)
@@ -322,6 +324,9 @@ func main() {
 		printUsage()
 		Check(fmt.Errorf("Error, server address needs to be specified with -s"))
 	}
+
+	clientPort = uint(clientCCAddr.Host.L4.Port())
+	serverPort = serverCCAddr.Host.L4.Port()
 
 	if sciondFromIA {
 		if sciondPath != "" {
@@ -357,38 +362,13 @@ func main() {
 
 	CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
 	Check(err)
-	// fmt.Println("clientCCAddr -> serverCCAddr", clientCCAddr, "->", serverCCAddr)
-
-	ci := strings.LastIndex(serverCCAddrStr, ":")
-	if ci < 0 {
-		// This should never happen, an error would have been much earlier detected
-		Check(fmt.Errorf("Malformed server address"))
-	}
-	serverISDASIP = serverCCAddrStr[:ci]
-	auxUint64, err := strconv.ParseUint(serverCCAddrStr[ci+1:], 10, 16)
-	Check(err)
-	serverPort = uint16(auxUint64)
-	// fmt.Println("serverISDASIP:", serverISDASIP)
-	// fmt.Println("serverPort:", serverPort)
-
-	ci = strings.LastIndex(clientCCAddrStr, ":")
-	if ci < 0 {
-		// This should never happen, an error would have been much earlier detected
-		Check(fmt.Errorf("Malformed client address"))
-	}
-	clientISDASIP = clientCCAddrStr[:ci]
-	auxUint64, err = strconv.ParseUint(clientCCAddrStr[ci+1:], 10, 16)
-	clientPort = uint16(auxUint64)
-	Check(err)
-	// fmt.Println("clientISDASIP:", clientISDASIP)
-	// fmt.Println("clientPort:", clientPort)
 
 	// Address of client data channel (DC)
-	clientDCAddr, err = snet.AddrFromString(clientISDASIP + ":" + strconv.Itoa(int(clientPort)+1))
-	Check(err)
-	// Address of server data channel (DC)
-	serverDCAddr, err = snet.AddrFromString(serverISDASIP + ":" + strconv.Itoa(int(serverPort)+1))
-	Check(err)
+	clientDCAddr = &snet.Addr{IA: clientCCAddr.IA, Host: &addr.AppAddr{
+		L3: clientCCAddr.Host.L3, L4: addr.NewL4UDPInfo(clientCCAddr.Host.L4.Port() + 1)}}
+	serverDCAddr = &snet.Addr{IA: serverCCAddr.IA, Host: &addr.AppAddr{
+		L3: serverCCAddr.Host.L3, L4: addr.NewL4UDPInfo(serverCCAddr.Host.L4.Port() + 1)}}
+
 	// Set path on data connection
 	if !serverDCAddr.IA.Eq(clientDCAddr.IA) {
 		serverDCAddr.Path = spath.New(pathEntry.Path.FwdPath)
