@@ -6,13 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-
-	"github.com/scionproto/scion/go/lib/snet"
-
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/roughtime/timeclient/lib"
 	"github.com/netsec-ethz/scion-apps/roughtime/utils"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"roughtime.googlesource.com/go/client/monotime"
 )
