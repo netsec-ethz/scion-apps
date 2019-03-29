@@ -23,6 +23,7 @@ func printUsage() {
 	fmt.Println("scion-sensor-server -s ServerSCIONAddress -c ClientSCIONAddress")
 	fmt.Println("The SCION address is specified as ISD-AS,[IP Address]:Port")
 	fmt.Println("Example SCION address 1-1,[127.0.0.1]:42002")
+	fmt.Println("ClientSCIONAddress can be omitted, the application then binds to localhost")
 }
 
 func main() {

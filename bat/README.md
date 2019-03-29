@@ -9,14 +9,19 @@ Refer to the original repository for general usage.
 
 ### Usage
 
-In contrast to the original tool, we require a local SCION address.
-If you're running bat in a VM, your local address can be inferred:
+bat uses a default localhost address to bind to the dispatcher. You can overwrite localhost by adding a line to `/etc/hosts`. E.g:
+
+```
+17-ffaa:1:1,[127.0.1.1]  localhost
+```
+
+Then run bat:
 
 ```
 bat GET https://server/api/download
 ```
 
-In case this fails or you are running a different setup, provide the local address using the ```-l``` flag:
+In case you want to bind to a specific address, specify it using the `-l` flag:
 
 ```
 bat -l ISD-AS,[IP]:port GET https://server/api/download

@@ -25,6 +25,8 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+const localhost = "localhost"
+
 // InitSCION initializes the default SCION networking context with the provided SCION address
 // and the default SCIOND/SCION dispatcher
 func InitSCION(localAddr *snet.Addr) error {
@@ -80,7 +82,7 @@ func GetLocalhostString() (string, error) {
 	var err error
 
 	// see if 'localhost' is defined in hostsfile
-	ia, l3, err = GetHostByName("localhost")
+	ia, l3, err = GetHostByName(localhost)
 	if err == nil {
 		return fmt.Sprintf("%s,[%s]", ia, l3), nil
 	}

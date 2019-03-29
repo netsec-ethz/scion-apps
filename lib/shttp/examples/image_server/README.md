@@ -1,17 +1,19 @@
 This example application fetches a JPEG image from the server and saves it to the disk.
 
 To run the example, first start the server like this
-```Go
+```sh
 go run server.go -local 17-ffaa:1:c2,[127.0.0.1]:40002 -cert tls.pem -key tls.key
 ```
 
 Then, start the client:
-```Go
+```sh
 go run client.go -local 17-ffaa:1:c2,[127.0.0.1]:0
 ```
 
+The local address can be omitted, in that case the application binds to localhost.
+
 For an interactive mode that lets the user choose a path from all available paths add the `-i` flag:
-```Go
+```sh
 go run client.go -local 17-ffaa:1:c2,[127.0.0.1]:0 -i
 ```
 
