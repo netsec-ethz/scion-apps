@@ -74,15 +74,26 @@ func GetLocalhost() (*snet.Addr, error) {
 
 // GetLocalhostString returns a local SCION address an application can bind to
 func GetLocalhostString() (string, error) {
+
+	var ia addr.IA
+	var l3 addr.HostAddr
+	var err error
+
+	// see if 'localhost' is defined in hostsfile
+	ia, l3, err = GetHostByName("localhost")
+	if err == nil {
+		return fmt.Sprintf("%s,[%s]", ia, l3), nil
+	}
+
+	// otherwise return ISD-AS and loopback IP
 	sc := os.Getenv("SC")
 	b, err := ioutil.ReadFile(filepath.Join(sc, "gen/ia"))
 	if err != nil {
 		return "", err
 	}
-	ia, err := addr.IAFromFileFmt(string(b), false)
+	ia, err = addr.IAFromFileFmt(string(b), false)
 	if err != nil {
 		return "", err
 	}
-
 	return fmt.Sprintf("%s,[127.0.0.1]", ia), nil
 }
