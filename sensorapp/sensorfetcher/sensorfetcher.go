@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
