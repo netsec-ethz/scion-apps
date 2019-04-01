@@ -2,8 +2,8 @@
 # test will fail for non-zero exit and/or bytes in stderr
 
 # get local IA
-iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia | sed "s/:/_/g")
-ia=$(cat ~/go/src/github.com/scionproto/scion/gen/ia | sed "s/_/:/g")
+iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia)
+ia=$(echo $iaFile | sed "s/_/:/g")
 echo "IA found: $ia"
 
 isd=$(echo ${iaFile} | cut -d"-" -f1)
