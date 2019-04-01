@@ -8,8 +8,8 @@ timeout_ms=20000
 pcb_ms=10000
 
 # get local IA
-iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia | sed "s/:/_/g")
-ia=$(cat ~/go/src/github.com/scionproto/scion/gen/ia | sed "s/_/:/g")
+iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia)
+ia=$(echo $iaFile | sed "s/_/:/g")
 echo "IA found: $ia"
 
 # format log file and beacons grep string
