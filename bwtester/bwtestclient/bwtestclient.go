@@ -284,7 +284,7 @@ func main() {
 	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
 	flag.StringVar(&clientCCAddrStr, "c", "", "Client SCION Address")
-	flag.UintVar(&clientPort, "p", 40002, "Client Port (only used when Client Address not set)")
+	flag.UintVar(&clientPort, "p", 0, "Client Port (only used when Client Address not set)")
 	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
 	flag.StringVar(&serverBwpStr, "sc", DefaultBwtestParameters, "Server->Client test parameter")
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
@@ -326,9 +326,6 @@ func main() {
 		Check(fmt.Errorf("Error, server address needs to be specified with -s"))
 	}
 
-	clientPort = uint(clientCCAddr.Host.L4.Port())
-	serverPort = serverCCAddr.Host.L4.Port()
-
 	if sciondFromIA {
 		if sciondPath != "" {
 			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
@@ -364,11 +361,16 @@ func main() {
 	CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
 	Check(err)
 
+	// get the port used by clientCC after it bound to the dispatcher (because it might be 0)
+	clientPort = uint((CCConn.LocalAddr()).(*snet.Addr).Host.L4.Port())
+	serverPort = serverCCAddr.Host.L4.Port()
+
 	// Address of client data channel (DC)
 	clientDCAddr = &snet.Addr{IA: clientCCAddr.IA, Host: &addr.AppAddr{
-		L3: clientCCAddr.Host.L3, L4: addr.NewL4UDPInfo(clientCCAddr.Host.L4.Port() + 1)}}
+		L3: clientCCAddr.Host.L3, L4: addr.NewL4UDPInfo(uint16(clientPort) + 1)}}
+	// Address of server data channel (DC)
 	serverDCAddr = &snet.Addr{IA: serverCCAddr.IA, Host: &addr.AppAddr{
-		L3: serverCCAddr.Host.L3, L4: addr.NewL4UDPInfo(serverCCAddr.Host.L4.Port() + 1)}}
+		L3: serverCCAddr.Host.L3, L4: addr.NewL4UDPInfo(uint16(serverPort) + 1)}}
 
 	// Set path on data connection
 	if !serverDCAddr.IA.Eq(clientDCAddr.IA) {
