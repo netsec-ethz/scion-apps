@@ -7,7 +7,6 @@ import (
 
     "github.com/lucas-clemente/quic-go"
 
-    scionlog "github.com/scionproto/scion/go/lib/log"
     "github.com/scionproto/scion/go/lib/snet"
     "github.com/scionproto/scion/go/lib/snet/squic"
     "github.com/scionproto/scion/go/lib/sciond"
@@ -18,8 +17,6 @@ import (
 var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
 
 func InitSCION(tlsKeyFile, tlsCertFile string, useIASCIONDPath bool) error {
-    scionlog.SetupLogFile("log", "./log", "debug", 1, 30, 100, 0)
-
     log.Println("Initializing SCION connection...")
 
 	localCCAddr, err := scionutil.GetLocalhost()

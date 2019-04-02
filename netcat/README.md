@@ -1,17 +1,11 @@
 # scion-netcat
-A repository containing the netcat process. Was initially contained in N2D4/scion-ssh, now has its own repo
+A SCION port of the netcat process.
 
 
-## Get Started
-Clone this repository, cd to it, install dependencies and build:
-```govendor init
-govendor add +e
-govendor fetch +m
-go build
-```
+## Usage
+```./netcat <host> <port>```
 
-Then, run it:
-```./scion-netcat <host> <port>```
+See `./netcat -h` for more.
 
 `-l` flag is not currently supported.
 

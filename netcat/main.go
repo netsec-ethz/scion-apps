@@ -39,10 +39,10 @@ func main() {
     if *SEND_PIPER_BYTE {
         _, err := conn.Write([]byte {71})
         if err != nil {
-            log.Panicf("Error writing piper byte: %v", err)
+            log.Panicf("Error writing extra byte: %v", err)
         }
 
-        log.Printf("Sent piper byte!")
+        log.Printf("Sent extra byte!")
     }
 
     close := func() {
@@ -51,12 +51,10 @@ func main() {
 
     var once sync.Once
     go func() {
-        written, err := io.Copy(os.Stdout, conn)
-        log.Printf("go %+v %+v", written, err)
+        io.Copy(os.Stdout, conn)
         once.Do(close)
     }()
-    written, err := io.Copy(conn, os.Stdin)
-    log.Printf("no %+v %+v", written, err)
+    io.Copy(conn, os.Stdin)
     once.Do(close)
 
     log.Printf("Exiting snetcat...")
