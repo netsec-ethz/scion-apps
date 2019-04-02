@@ -132,14 +132,32 @@ func main() {
 		"Path to dispatcher socket")
 	flag.Parse()
 
+	var pflag bool
+	var sflag bool
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "s" {
+			sflag = true
+		}
+		if f.Name == "p" {
+			pflag = true
+		}
+	})
+	if sflag && pflag {
+		log.Println("Warning: flags '-s' and '-p' provided. '-p' has no effect")
+	}
+
 	// Create the SCION UDP socket
 	if len(serverAddress) > 0 {
 		server, err = snet.AddrFromString(serverAddress)
+		check(err)
+		if server.Host.L4 == nil {
+			log.Fatal("Port in server address is missing")
+		}
 	} else {
 		server, err = scionutil.GetLocalhost()
 		server.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
+		check(err)
 	}
-	check(err)
 
 	if sciondFromIA {
 		if sciondPath != "" {

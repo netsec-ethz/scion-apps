@@ -19,6 +19,7 @@ import (
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -85,12 +86,11 @@ func main() {
 		os.Mkdir(*logDir, 0744)
 	}
 	log.Root().SetHandler(log.MultiHandler(
-		log.LvlFilterHandler(log.LvlError,
+		log.LvlFilterHandler(log.LvlDebug,
 			log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
 		log.LvlFilterHandler(log.LvlDebug,
 			log.Must.FileHandler(fmt.Sprintf("%s/%s.log", *logDir, *id),
 				fmt15.Fmt15Format(nil)))))
-	log.Debug("Setup info:", "id", *id)
 
 	if *useIPv6 {
 		overlayType = "udp6"
@@ -98,25 +98,47 @@ func main() {
 		overlayType = "udp4"
 	}
 
-	if len(serverCCAddrStr) == 0 {
-		serverCCAddrStr, err = scionutil.GetLocalhostString()
-		serverCCAddrStr = fmt.Sprintf("%s:%d", serverCCAddrStr, serverPort)
+	var pflag bool
+	var sflag bool
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "s" {
+			sflag = true
+		}
+		if f.Name == "p" {
+			pflag = true
+		}
+	})
+	if sflag && pflag {
+		log.Warn("Flags '-s' and '-p' provided. '-p' has no effect")
 	}
 
-	runServer(serverCCAddrStr)
+	// Create the SCION UDP socket
+	if len(serverCCAddrStr) == 0 {
+		serverCCAddr, err = scionutil.GetLocalhost()
+		serverCCAddr.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
+		if err != nil {
+			printUsage()
+			LogFatal("Unable to start server", "err", err)
+		}
+	} else {
+		serverCCAddr, err = snet.AddrFromString(serverCCAddrStr)
+		if err != nil {
+			printUsage()
+			LogFatal("Unable to start server", "err", err)
+		}
+		if serverCCAddr.Host.L4 == nil {
+			LogFatal("Port in server address is missing")
+		}
+	}
+
+	runServer()
 	if err != nil {
 		printUsage()
 		LogFatal("Unable to start server", "err", err)
 	}
 }
 
-func runServer(serverCCAddrStr string) {
-	// Create the SCION UDP socket
-	serverCCAddr, err = snet.AddrFromString(serverCCAddrStr)
-	if err != nil {
-		printUsage()
-		LogFatal("Unable to start server", "err", err)
-	}
+func runServer() {
 
 	if *sciondFromIA {
 		if *sciondPath != "" {
