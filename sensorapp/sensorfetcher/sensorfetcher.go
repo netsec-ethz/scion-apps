@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -22,6 +23,7 @@ func printUsage() {
 	fmt.Println("scion-sensor-server -s ServerSCIONAddress -c ClientSCIONAddress")
 	fmt.Println("The SCION address is specified as ISD-AS,[IP Address]:Port")
 	fmt.Println("Example SCION address 1-1,[127.0.0.1]:42002")
+	fmt.Println("ClientSCIONAddress can be omitted, the application then binds to localhost")
 }
 
 func main() {
@@ -51,11 +53,11 @@ func main() {
 	// Create the SCION UDP socket
 	if len(clientAddress) > 0 {
 		local, err = snet.AddrFromString(clientAddress)
-		check(err)
 	} else {
-		printUsage()
-		check(fmt.Errorf("Error, client address needs to be specified with -c"))
+		local, err = scionutil.GetLocalhost()
 	}
+	check(err)
+
 	if len(serverAddress) > 0 {
 		remote, err = snet.AddrFromString(serverAddress)
 		check(err)

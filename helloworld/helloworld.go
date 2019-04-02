@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -37,13 +38,14 @@ func main() {
 	var err error
 	var clientCCAddrStr string
 	var serverCCAddrStr string
-	dispatcherPath := "/run/shm/dispatcher/default.sock"
+	dispatcherPath := scionutil.GetDefaultDispatcher()
 	// get local and remote addresses from program arguments:
 	flag.StringVar(&clientCCAddrStr, "local", "", "Local SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:0)")
 	flag.StringVar(&serverCCAddrStr, "remote", "", "Remote SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
 	flag.Parse()
 	if len(clientCCAddrStr) == 0 {
-		Check(fmt.Errorf("Error, local address needs to be specified with -local"))
+		clientCCAddrStr, err = scionutil.GetLocalhostString()
+		Check(err)
 	}
 	if len(serverCCAddrStr) == 0 {
 		Check(fmt.Errorf("Error, remote address needs to be specified with -remote"))
@@ -63,7 +65,7 @@ func main() {
 	if len(pathSet) == 0 {
 		Check(fmt.Errorf("No paths"))
 	}
-	// print all paths. Also pick one path. Here we chose the path with less hops:
+	// print all paths. Also pick one path. Here we chose the path with least hops:
 	i := 0
 	minLength, argMinPath := 999, (*sciond.PathReplyEntry)(nil)
 	fmt.Println("Available paths:")

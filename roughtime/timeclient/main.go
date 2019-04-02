@@ -6,8 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/roughtime/timeclient/lib"
 	"github.com/netsec-ethz/scion-apps/roughtime/utils"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"roughtime.googlesource.com/go/client/monotime"
 )
@@ -15,7 +18,7 @@ import (
 var (
 	app = kingpin.New("timeclient", "SCION roughtime client")
 
-	clientAddress = app.Flag("address", "Client's SCION address").Required().String()
+	clientAddress = app.Flag("address", "Client's SCION address").String()
 	chainFile     = app.Flag("chain-file", "Name of a file in which the query chain will be maintained").Default("query-chain.json").String()
 	maxChainSize  = app.Flag("max-chain-size", "Maximum number of entries in chain file").Default("128").Int()
 	serversFile   = app.Flag("servers", "Name of the file with server configuration").Default("servers.json").String()
@@ -33,7 +36,17 @@ func checkErr(action string, err error) {
 
 func main() {
 	kingpin.MustParse(app.Parse(os.Args[1:]))
-	cAddr, err := utils.InitSCIONConnection(*clientAddress)
+
+	var cAddr *snet.Addr
+	var err error
+
+	if *clientAddress != "" {
+		cAddr, err = scionutil.InitSCIONString(*clientAddress)
+	} else {
+		cAddr, err = scionutil.GetLocalhost()
+		cAddr.Host.L4 = addr.NewL4UDPInfo(0)
+		scionutil.InitSCION(cAddr)
+	}
 	checkErr("Init SCION", err)
 
 	if cAddr.Host.L4.Port() != 0 {

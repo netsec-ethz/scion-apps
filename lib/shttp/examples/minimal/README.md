@@ -17,6 +17,8 @@ Then, start the client:
 go run client.go -local 17-ffaa:1:c2,[127.0.0.1]:0
 ```
 
+The local address can be omitted, in that case the application binds to localhost.
+
 For an interactive mode that lets the user choose a path from all available paths add the `-i` flag:
 ```sh
 go run client.go -local 17-ffaa:1:c2,[127.0.0.1]:0 -i

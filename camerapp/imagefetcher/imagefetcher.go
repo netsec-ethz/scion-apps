@@ -12,6 +12,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -37,6 +38,7 @@ func printUsage() {
 	fmt.Println("imagefetcher -c ClientSCIONAddress -s ServerSCIONAddress")
 	fmt.Println("The SCION address is specified as ISD-AS,[IP Address]:Port")
 	fmt.Println("Example SCION address 1-1011,[192.33.93.166]:42002")
+	fmt.Println("ClientSCIONAddress can be omitted, the application then binds to localhost")
 }
 
 func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, error) {
@@ -182,11 +184,11 @@ func main() {
 	// Create SCION UDP socket
 	if len(clientAddress) > 0 {
 		local, err = snet.AddrFromString(clientAddress)
-		check(err)
 	} else {
-		printUsage()
-		check(fmt.Errorf("Error, client address needs to be specified with -c"))
+		local, err = scionutil.GetLocalhost()
 	}
+	check(err)
+
 	if len(serverAddress) > 0 {
 		remote, err = snet.AddrFromString(serverAddress)
 		check(err)
