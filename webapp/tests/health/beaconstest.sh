@@ -8,12 +8,12 @@ timeout_ms=20000
 pcb_ms=10000
 
 # get local IA
-ia=`cat ~/go/src/github.com/scionproto/scion/gen/ia`
+iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia)
+ia=$(echo $iaFile | sed "s/_/:/g")
 echo "IA found: $ia"
 
 # format log file and beacons grep string
-fsafe_ia=$(echo $ia | sed "s/:/_/g")
-logfile="~/go/src/github.com/scionproto/scion/logs/bs${fsafe_ia}-1.DEBUG"
+logfile=~/go/src/github.com/scionproto/scion/logs/bs${iaFile}-1.DEBUG
 echo "Log: $logfile"
 
 # seek last log entry for verified PCBs
@@ -35,8 +35,7 @@ do
     fi
 
     # seek the last pcb verified, and determine age
-    last_pcb=$(grep "${regex_pcb}" \
-        ~/go/src/github.com/scionproto/scion/logs/bs${fsafe_ia}-1.DEBUG | tail -n 1)
+    last_pcb=$(grep -a "${regex_pcb}" $logfile | tail -n 1)
     date=${last_pcb:0:32}
     epoch_l=$(date -d "${date}" +"%s%6N")
     diff=$((epoch_n-epoch_l))
