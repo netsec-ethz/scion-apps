@@ -6,37 +6,59 @@ import (
     "os"
     "io"
     "sync"
-
-    "gopkg.in/alecthomas/kingpin.v2"
+    "strconv"
+    "flag"
 
     "github.com/netsec-ethz/scion-apps/netcat/utils"
 )
 
-var (
-    // Connection
-    SERVER_ADDRESS = kingpin.Arg("host-address", "Server SCION address (without the port)").Required().String()
-    PORT = kingpin.Arg("port", "The host's port").Required().Uint16()
-	USE_IA_SCIOND_PATH = kingpin.Flag("sciond-path-from-ia", "Use IA when resolving SCIOND socket path").Bool()
-    SEND_PIPER_BYTE = kingpin.Flag("send-extra-byte", "Sends an extra byte when opening the connection").Default("false").Bool()
-)
+func printUsage() {
+	fmt.Println("netcat [flags] host-address port")
+	fmt.Println("The host address is specified as ISD-AS,[IP Address]")
+	fmt.Println("Example SCION address: 17-ffaa:1:bfd,[127.0.0.1]:42002")
+	fmt.Println("Available flags:")
+	fmt.Println("  --sciond-path-from-ia: Use IA when resolving SCIOND socket path")
+	fmt.Println("  --send-extra-byte: Send an extra byte before sending the actual data")
+}
 
 func main() {
-    kingpin.Parse()
+    var (
+        SERVER_ADDRESS string
+        PORT uint16
+        USE_IA_SCIOND_PATH bool
+        SEND_PIPER_BYTE bool
+    )
+
+    flag.BoolVar(&USE_IA_SCIOND_PATH, "d", false, "Use IA SCIOND Path")
+    flag.BoolVar(&SEND_PIPER_BYTE, "b", false, "Send extra byte")
+    flag.Parse()
+    tail := flag.Args()
+    if len(tail) != 2 {
+        log.Panicf("Number of arguments is not two! Arguments: %v", tail)
+    }
+
+    SERVER_ADDRESS = tail[0]
+    port64, err := strconv.ParseUint(tail[1], 10, 16)
+    if err != nil {
+        log.Panicf("Can't parse port string %s: %v", port64, err)
+    }
+    PORT = uint16(port64)
+
 
     // Initialize SCION library
-    err := utils.InitSCION("", "", *USE_IA_SCIOND_PATH)
+    err = utils.InitSCION("", "", USE_IA_SCIOND_PATH)
     if err != nil {
         log.Panicf("Error initializing SCION connection: %v", err)
     }
 
-    conn, err := utils.DialSCION(fmt.Sprintf("%s:%v", *SERVER_ADDRESS, *PORT))
+    conn, err := utils.DialSCION(fmt.Sprintf("%s:%v", SERVER_ADDRESS, PORT))
     if err != nil {
         log.Panicf("Error dialing remote: %v", err)
     }
 
     log.Printf("Connected!")
 
-    if *SEND_PIPER_BYTE {
+    if SEND_PIPER_BYTE {
         _, err := conn.Write([]byte {71})
         if err != nil {
             log.Panicf("Error writing extra byte: %v", err)

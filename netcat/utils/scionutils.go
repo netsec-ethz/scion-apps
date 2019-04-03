@@ -44,16 +44,6 @@ func InitSCION(tlsKeyFile, tlsCertFile string, useIASCIONDPath bool) error {
 	return nil
 }
 
-func SplitHostPort(hostport string) (host, port string, err error){
-    split := addressPortSplitRegex.FindAllStringSubmatch(hostport, -1)
-    if(len(split)==1){
-        return split[0][1], split[0][2], nil
-    }else{
-        // Shouldn't happen
-        return "", "", fmt.Errorf("Invalid SCION address provided")
-    }
-}
-
 
 func DialSCION(remoteAddress string) (*QuicConn, error) {
     localCCAddr, err := scionutil.GetLocalhost()
