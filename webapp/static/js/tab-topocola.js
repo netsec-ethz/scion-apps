@@ -79,6 +79,9 @@ function topoSetup(msg, width, height) {
 
     // use smallest path to find min links for basis of anchors
     var paths = resPath.if_lists;
+    if (paths.length == 0) {
+        return;
+    }
     var min_interfaces = paths[0].interfaces.length;
     for (path in resPath.if_lists) {
         if (paths[path].interfaces.length < min_interfaces) {
@@ -176,7 +179,6 @@ function drawTopology(div_id, original_json_data, segs, width, height) {
     svgPath = null;
     setup = {};
     colors = {};
-    pageBounds = null;
     circlesg = null;
     linesg = null;
 
@@ -643,7 +645,7 @@ function drawPath(res, path, color) {
 function restorePath() {
 
     topoSetup({
-        "path1" : {}
+        "path1" : []
     });
     topoColor({
         "path1" : "none"

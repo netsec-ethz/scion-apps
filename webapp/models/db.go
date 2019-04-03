@@ -45,7 +45,7 @@ func LoadDB() {
 		addColumn("bwtests", "Log TEXT")
 	}
 	//set updated version
-	if version != bwDbVer {
+	if version < bwDbVer {
 		setUserVersion(bwDbVer)
 		log.Info("Migrated to database version", "version", bwDbVer)
 	}

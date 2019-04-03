@@ -103,7 +103,13 @@ func main() {
 	// generate client/server default
 	lib.GenClientNodeDefaults(*staticRoot)
 	lib.GenServerNodeDefaults(*staticRoot)
+
 	myIa = lib.GetLocalIa()
+	if len(myIa) == 0 {
+		myIa = lib.GetCliIaDef()
+	}
+	log.Info("IA loaded:", "myIa", myIa)
+
 	refreshRootDirectory()
 	appsBuildCheck("bwtester")
 	appsBuildCheck("camerapp")

@@ -476,30 +476,46 @@ function get_json_as_topo(data) {
         }
     }
 
+    // consider each unique ip/port as a single border router, which may
+    // have multiple interfaces
     gidx += 1;
+    var brs = {};
     var iinfos = data.if_info.RawEntries;
     for (i in iinfos) {
-        // ifinfo: add all interface BR nodes
-        var snode = {};
-        snode.name = "br" + iaf + "-" + (parseInt(i) + 1);
-        snode.icon = "BORDER";
+        var ipv4, ipv6, port;
         if (iinfos[i].HostInfo.Addrs.Ipv4) {
-            snode.ipv4 = ipv4Raw2Read(iinfos[i].HostInfo.Addrs.Ipv4);
+            ipv4 = ipv4Raw2Read(iinfos[i].HostInfo.Addrs.Ipv4);
         }
         if (iinfos[i].HostInfo.Addrs.Ipv6) {
-            snode.ipv6 = ipv6Raw2Read(iinfos[i].HostInfo.Addrs.Ipv6);
+            ipv6 = ipv6Raw2Read(iinfos[i].HostInfo.Addrs.Ipv6);
         }
-        snode.port = iinfos[i].HostInfo.Port;
-        snode.if_id = iinfos[i].IfID;
-        snode.type = "router";
-        snode.group = gidx;
-        nodes.push(snode);
-        // ifinfo: add all interface BR nodes
-        var slink = {};
-        slink.source = asnode.name;
-        slink.target = snode.name;
-        slink.type = "as-in";
-        links.push(slink);
+        port = iinfos[i].HostInfo.Port;
+
+        var brkey = ipv4 + "-" + ipv6 + "-" + port;
+        if (!brs.hasOwnProperty(brkey)) {
+            // ifinfo: add all interface BR nodes
+            var snode = {};
+            brs[brkey] = "br" + iaf + "-" + (Object.keys(brs).length + 1);
+            snode.name = brs[brkey];
+            snode.icon = "BORDER";
+            if (iinfos[i].HostInfo.Addrs.Ipv4) {
+                snode.ipv4 = ipv4;
+            }
+            if (iinfos[i].HostInfo.Addrs.Ipv6) {
+                snode.ipv6 = ipv6;
+            }
+            snode.port = port;
+            snode.if_id = iinfos[i].IfID;
+            snode.type = "router";
+            snode.group = gidx;
+            nodes.push(snode);
+            // ifinfo: add all interface BR links
+            var slink = {};
+            slink.source = asnode.name;
+            slink.target = snode.name;
+            slink.type = "as-in";
+            links.push(slink);
+        }
 
         // ifinfo: add all interface dest AS nodes
         var lnode = {};
@@ -511,12 +527,11 @@ function get_json_as_topo(data) {
         nodes.push(lnode);
         // ifinfo: add external links BR to dest AS nodes
         var llink = {};
-        llink.source = snode.name;
+        llink.source = brs[brkey];
         llink.target = lnode.name;
         llink.type = "as-parent";
         links.push(llink);
     }
-
     var graph = {};
     graph.nodes = nodes;
     graph.links = links;
