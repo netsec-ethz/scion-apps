@@ -19,7 +19,7 @@ func printUsage() {
 	fmt.Println("Example SCION address: 17-ffaa:1:bfd,[127.0.0.1]:42002")
 	fmt.Println("Available flags:")
 	fmt.Println("  -h: Show help")
-	fmt.Println("  -P: Use IA when resolving SCIOND socket path")
+	fmt.Println("  -local: Use IA when resolving SCIOND socket path")
 	fmt.Println("  -b: Send an extra byte before sending the actual data")
 }
 
@@ -32,42 +32,40 @@ func main() {
 		port            uint16
 		useIASCIONDPath bool
 		extraByte       bool
-	)
-	flag.BoolVar(&showHelp, "h", false, "Show help")
-	flag.BoolVar(&USE_IA_SCIOND_PATH, "P", false, "Use IA SCIOND Path")
-	flag.BoolVar(&SEND_PIPER_BYTE, "b", false, "Send extra byte")
+    )
+    flag.Usage = printUsage
+	flag.BoolVar(&useIASCIONDPath, "local", false, "Use IA SCIOND Path")
+	flag.BoolVar(&useIASCIONDPath, "b", false, "Send extra byte")
 	flag.Parse()
-	if showHelp {
-		printUsage()
-		return
-	}
 
 	tail := flag.Args()
 	if len(tail) != 2 {
+        printUsage()
 		golog.Panicf("Number of arguments is not two! Arguments: %v", tail)
 	}
 
-	SERVER_ADDRESS = tail[0]
+	serverAddress = tail[0]
 	port64, err := strconv.ParseUint(tail[1], 10, 16)
 	if err != nil {
+        printUsage()
 		golog.Panicf("Can't parse port string %v: %v", port64, err)
 	}
-	PORT = uint16(port64)
+	port = uint16(port64)
 
 	// Initialize SCION library
-	err = utils.InitSCION("", "", USE_IA_SCIOND_PATH)
+	err = utils.InitSCION("", "", useIASCIONDPath)
 	if err != nil {
 		golog.Panicf("Error initializing SCION connection: %v", err)
 	}
 
-	conn, err := utils.DialSCION(fmt.Sprintf("%s:%v", SERVER_ADDRESS, PORT))
+	conn, err := utils.DialSCION(fmt.Sprintf("%s:%v", serverAddress, port))
 	if err != nil {
 		golog.Panicf("Error dialing remote: %v", err)
 	}
 
 	log.Debug("Connected!")
 
-	if SEND_PIPER_BYTE {
+	if extraByte {
 		_, err := conn.Write([]byte{71})
 		if err != nil {
 			golog.Panicf("Error writing extra byte: %v", err)
