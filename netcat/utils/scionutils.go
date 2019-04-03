@@ -3,7 +3,6 @@ package utils
 import (
     "fmt"
     "regexp"
-    "log"
 
     "github.com/lucas-clemente/quic-go"
 
@@ -17,8 +16,6 @@ import (
 var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
 
 func InitSCION(tlsKeyFile, tlsCertFile string, useIASCIONDPath bool) error {
-    log.Println("Initializing SCION connection...")
-
 	localCCAddr, err := scionutil.GetLocalhost()
 	if err != nil {
 		return err
