@@ -32,22 +32,22 @@ func main() {
 		port            uint16
 		useIASCIONDPath bool
 		extraByte       bool
-    )
-    flag.Usage = printUsage
+	)
+	flag.Usage = printUsage
 	flag.BoolVar(&useIASCIONDPath, "local", false, "Use IA SCIOND Path")
-	flag.BoolVar(&useIASCIONDPath, "b", false, "Send extra byte")
+	flag.BoolVar(&extraByte, "b", false, "Send extra byte")
 	flag.Parse()
 
 	tail := flag.Args()
 	if len(tail) != 2 {
-        printUsage()
+		printUsage()
 		golog.Panicf("Number of arguments is not two! Arguments: %v", tail)
 	}
 
 	serverAddress = tail[0]
 	port64, err := strconv.ParseUint(tail[1], 10, 16)
 	if err != nil {
-        printUsage()
+		printUsage()
 		golog.Panicf("Can't parse port string %v: %v", port64, err)
 	}
 	port = uint16(port64)
