@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	. "github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -36,28 +36,34 @@ func main() {
 
 	flag.Parse()
 
-	lAddr, err := snet.AddrFromString(*local)
+	var laddr *snet.Addr
+	var err error
+	if *local == "" {
+		laddr, err = GetLocalhost()
+	} else {
+		laddr, err = snet.AddrFromString(*local)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ia, l3, err := scionutil.GetHostByName("image-server")
+	ia, l3, err := GetHostByName("image-server")
 	if err != nil {
 		log.Fatal(err)
 	}
 	l4 := addr.NewL4UDPInfo(40002)
-	rAddr := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}
+	raddr := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}
 
 	if *interactive {
-		scionutil.ChoosePathInteractive(lAddr, rAddr)
+		ChoosePathInteractive(laddr, raddr)
 	} else {
-		scionutil.ChoosePathByMetric(scionutil.Shortest, lAddr, rAddr)
+		ChoosePathByMetric(Shortest, laddr, raddr)
 	}
 
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
 		Transport: &shttp.Transport{
-			LAddr: lAddr,
+			LAddr: laddr,
 		},
 	}
 

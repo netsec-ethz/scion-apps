@@ -43,7 +43,7 @@ Then, create handlers:
 ```Go
 mux.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
 	// Status 200 OK will be set implicitly
-	// Conent-Length will be inferred by server
+	// Content-Length will be inferred by server
 	// Content-Type will be detected by server
 	http.ServeFile(w, r, "example/sample.html")
 })

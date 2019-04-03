@@ -2,18 +2,25 @@ This example application makes two requests from the client to the server.
 
 First, it issues a GET request and downloads an HTML file. Afterwards it sends data to the server via POST.
 
-To run the example, first start the server like this
-```Go
-go run server.go -local 17-ffaa:1:c2,[127.0.0.1]:40002 -cert tls.pem -key tls.key
+To run the example, generate a certificate for the server first, e.g
+```sh
+openssl req -x509 -newkey rsa:1024 -keyout key.pem -nodes -out cert.pem -days 365 -subj '/CN=minimal-server'
+```
+
+Start the server like this
+```sh
+go run server.go -local 17-ffaa:1:c2,[127.0.0.1]:40002 -cert cert.pem -key key.pem
 ```
 
 Then, start the client:
-```Go
+```sh
 go run client.go -local 17-ffaa:1:c2,[127.0.0.1]:0
 ```
 
+The local address can be omitted, in that case the application binds to localhost.
+
 For an interactive mode that lets the user choose a path from all available paths add the `-i` flag:
-```Go
+```sh
 go run client.go -local 17-ffaa:1:c2,[127.0.0.1]:0 -i
 ```
 
