@@ -26,6 +26,11 @@ webapp.db
 webapp/data
 .webapp
 
+# IDE project files
+.jshintrc
+.project
+.settings/
+
 *.log
 
 # vendor directory
