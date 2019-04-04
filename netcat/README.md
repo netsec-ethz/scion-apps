@@ -7,5 +7,3 @@ A SCION port of the netcat process.
 
 See `./netcat -h` for more.
 
-`-l` flag is not currently supported.
-
