@@ -56,7 +56,7 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 		Interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(expiryTime, 0)}
 }
 
-func ReadSegTypesAll(db *sql.DB) map[int64]proto.PathSegType {
+func ReadSegTypesAll(db *sql.DB) (map[int64]proto.PathSegType, error) {
 	sqlReadAll := `
     SELECT
          SegRowID,
@@ -64,8 +64,8 @@ func ReadSegTypesAll(db *sql.DB) map[int64]proto.PathSegType {
     FROM SegTypes
     `
 	rows, err := db.Query(sqlReadAll)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -76,15 +76,15 @@ func ReadSegTypesAll(db *sql.DB) map[int64]proto.PathSegType {
 		err = rows.Scan(
 			&segRowID,
 			&segType)
-		if CheckError(err) {
-			panic(err)
+		if err != nil {
+			return nil, err
 		}
 		result[segRowID] = segType
 	}
-	return result
+	return result, nil
 }
 
-func ReadIntfToSegAll(db *sql.DB) map[int64][]asIface {
+func ReadIntfToSegAll(db *sql.DB) (map[int64][]asIface, error) {
 	sqlReadAll := `
     SELECT
         IsdID,
@@ -94,8 +94,8 @@ func ReadIntfToSegAll(db *sql.DB) map[int64][]asIface {
     FROM IntfToSeg
     `
 	rows, err := db.Query(sqlReadAll)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -110,15 +110,15 @@ func ReadIntfToSegAll(db *sql.DB) map[int64][]asIface {
 			&as,
 			&ifaceID,
 			&segRowID)
-		if CheckError(err) {
-			panic(err)
+		if err != nil {
+			return nil, err
 		}
 		result[segRowID] = append(result[segRowID], newASIface(isd, as, ifaceID))
 	}
-	return result
+	return result, nil
 }
 
-func ReadSegmentsAll(db *sql.DB, segTypes map[int64]proto.PathSegType) []segment {
+func ReadSegmentsAll(db *sql.DB, segTypes map[int64]proto.PathSegType) ([]segment, error) {
 	sqlReadAll := `
     SELECT
         RowID,
@@ -132,8 +132,8 @@ func ReadSegmentsAll(db *sql.DB, segTypes map[int64]proto.PathSegType) []segment
     FROM Segments
     `
 	rows, err := db.Query(sqlReadAll)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -153,11 +153,11 @@ func ReadSegmentsAll(db *sql.DB, segTypes map[int64]proto.PathSegType) []segment
 			&startAS,
 			&endISD,
 			&endAS)
-		if CheckError(err) {
-			panic(err)
+		if err != nil {
+			return nil, err
 		}
 		segmt := newSegment(segTypes[segRowID], startISD, startAS, endISD, endAS, packedSeg, lastUpdated, maxExpiry)
 		result = append(result, segmt)
 	}
-	return result
+	return result, nil
 }

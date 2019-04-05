@@ -2,26 +2,22 @@ package pathdb
 
 import (
 	"database/sql"
-
-	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-func InitDB(filepath string) *sql.DB {
-	var err error
+func InitDB(filepath string) (*sql.DB, error) {
+	//var err error
 	db, err := sql.Open("sqlite3", filepath+"?mode=ro")
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return nil, err
 	}
 	err = db.Ping()
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return nil, err
 	}
-	return db
+	return db, nil
 }
 
-func CloseDB(db *sql.DB) {
+func CloseDB(db *sql.DB) error {
 	err := db.Close()
-	if CheckError(err) {
-		panic(err)
-	}
+	return err
 }
