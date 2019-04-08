@@ -32,6 +32,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -176,6 +177,15 @@ func main() {
 
 	if *URL == "" {
 		usage()
+	}
+
+	addrRegexp := regexp.MustCompile(`^(https?://)?(\d+-[[:xdigit:]]{1,4}:[[:xdigit:]]{1,4}:[[:xdigit:]]{1,4},\[[^]]+\])`)
+	matches := addrRegexp.FindSubmatch([]byte(*URL))
+	if matches != nil {
+		err := scionutil.AddHost("__bat_host__", string(matches[2]))
+		if err == nil {
+			*URL = addrRegexp.ReplaceAllString(*URL, `${1}__bat_host__`)
+		}
 	}
 
 	if strings.HasPrefix(*URL, ":") {
