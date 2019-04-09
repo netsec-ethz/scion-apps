@@ -676,30 +676,6 @@
 			"tree": true
 		},
 		{
-			"checksumSHA1": "Vzb+dEH/LTYbvr8RXHmt6xJHz04=",
-			"license": "3-BSD",
-			"path": "github.com/smartystreets/assertions/internal/go-render/render",
-			"revision": "2063fd1cc7c975db70502811a34b06ad034ccdf2",
-			"revisionTime": "2016-07-07T19:03:55Z"
-		},
-		{
-			"checksumSHA1": "SLC6TfV4icQA9l8YJQu8acJYbuo=",
-			"license": "APL 2.0",
-			"path": "github.com/smartystreets/assertions/internal/oglematchers",
-			"revision": "2063fd1cc7c975db70502811a34b06ad034ccdf2",
-			"revisionTime": "2016-07-07T19:03:55Z"
-		},
-		{
-			"checksumSHA1": "ZNcNGA0vNsM39HBFmM6JhHcdsLU=",
-			"comment": "FIXME(kormat): Use fork until https://github.com/smartystreets/goconvey/pull/451 is merged",
-			"license": "MIT",
-			"origin": "github.com/kormat/goconvey",
-			"path": "github.com/smartystreets/goconvey",
-			"revision": "a9793712606dd72b256bcbb0fad0858aa0e72d67",
-			"revisionTime": "2016-10-13T14:27:51Z",
-			"tree": true
-		},
-		{
 			"checksumSHA1": "g27xFm/EIghjjcT3DuGt976CgNo=",
 			"path": "github.com/walle/lll",
 			"revision": "8b13b3fbf7312913fcfdbfa78997b9bd1dbb11af",
