@@ -760,10 +760,22 @@
 			"revisionTime": "2018-06-07T13:59:11Z"
 		},
 		{
-			"checksumSHA1": "asZBHvcTKF5gVlI7AYnMlLXRYys=",
-			"path": "golang.org/x/crypto/sha3",
-			"revision": "b7391e95e576cacdcdd422573063bc057239113d",
-			"revisionTime": "2019-03-19T22:29:04Z"
+			"checksumSHA1": "CQYQ8wELyxPMRYOTDLELVtude/M=",
+			"path": "golang.org/x/image/font",
+			"revision": "3fc05d484e9f77dd51816890e05f2602e4ca4d65",
+			"revisionTime": "2019-03-12T13:36:53Z"
+		},
+		{
+			"checksumSHA1": "iV2FonJPeLV+iF4JHS3TRRXegF4=",
+			"path": "golang.org/x/image/font/basicfont",
+			"revision": "3fc05d484e9f77dd51816890e05f2602e4ca4d65",
+			"revisionTime": "2019-03-12T13:36:53Z"
+		},
+		{
+			"checksumSHA1": "euzvwlMLxyD0hwc+raoVsDLv6j4=",
+			"path": "golang.org/x/image/math/fixed",
+			"revision": "3fc05d484e9f77dd51816890e05f2602e4ca4d65",
+			"revisionTime": "2019-03-12T13:36:53Z"
 		},
 		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
