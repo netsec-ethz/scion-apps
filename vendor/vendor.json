@@ -888,6 +888,30 @@
 			"revisionTime": "2016-09-28T15:37:09Z"
 		},
 		{
+			"checksumSHA1": "d+FszpdwcrSQzdoG3w0E2FxQnFQ=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/client/monotime",
+			"path": "roughtime.googlesource.com/go/client/monotime",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
+		},
+		{
+			"checksumSHA1": "dtUYa81+BOxmiK4NjluVowO8g0U=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/config",
+			"path": "roughtime.googlesource.com/go/config",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
+		},
+		{
+			"checksumSHA1": "7TVC3xVndRMynYSO7L/fQG6QIkk=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/protocol",
+			"path": "roughtime.googlesource.com/go/protocol",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
+		},
+		{
 			"checksumSHA1": "Vu7yTzds3lfhARaEKI/8vmhIvLg=",
 			"license": "MIT",
 			"path": "zombiezen.com/go/capnproto2",
