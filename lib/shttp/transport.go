@@ -19,15 +19,19 @@ package shttp
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	libaddr "github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 	// "github.com/scionproto/scion/go/lib/snet/squic"
 )
@@ -91,9 +95,20 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 		return nil, initErr
 	}
 
+	// If req.URL.Host is a SCION address, we need to mangle it so it passes through
+	// h2quic without tripping up.
+	raddr, err := snet.AddrFromString(req.URL.Host)
+	if raddr != nil && err == nil {
+		tmp := *req
+		tmp.URL = new(url.URL)
+		*tmp.URL = *req.URL
+		tmp.URL.Host = mangleSCIONAddr(raddr)
+		req = &tmp
+	}
+
 	// set the dial function and QuicConfig once for each Transport
 	t.dialOnce.Do(func() {
-		dial := func(network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
+		dial := func(network, addrStr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
 
 			/* TODO(chaehni):
 			RequestConnectionIDOmission MUST not be set to 'true' when a connection is dialed using an existing net.PacketConn
@@ -105,11 +120,18 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			*/
 			cfg.RequestConnectionIDOmission = false
 
-			host, port, err := net.SplitHostPort(addr)
+			host, port, err := net.SplitHostPort(addrStr)
 			if err != nil {
 				return nil, err
 			}
-			ia, l3, err := scionutil.GetHostByName(host)
+
+			var ia addr.IA
+			var l3 addr.HostAddr
+			if isMangledSCIONAddr(host) {
+				ia, l3, err = unmangleSCIONAddr(host)
+			} else {
+				ia, l3, err = scionutil.GetHostByName(host)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -117,8 +139,9 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			if err != nil {
 				p = 443
 			}
-			l4 := libaddr.NewL4UDPInfo(uint16(p))
-			raddr := &snet.Addr{IA: ia, Host: &libaddr.AppAddr{L3: l3, L4: l4}}
+			l4 := addr.NewL4UDPInfo(uint16(p))
+			raddr := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}
+
 			return t.squicDialSCION(nil, t.LAddr, raddr, cfg)
 		}
 		t.rt = &h2quic.RoundTripper{
@@ -129,6 +152,48 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 	})
 
 	return t.rt.RoundTripOpt(req, opt)
+}
+
+// mangleSCIONAddr encodes the given SCION address so that it can be safely
+// used in the host part of a URL.
+func mangleSCIONAddr(raddr *snet.Addr) string {
+
+	// The HostAddr will be either IPv4 or IPv6 (not a HostSVC-addr).
+	// To make this a valid host string for a URL, replace : for IPv6 addresses by ~. There will
+	// not be any other tildes, so no need to escape them.
+	l3 := raddr.Host.L3.String()
+	l3_mangled := strings.Replace(l3, ":", "~", -1)
+
+	u := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), l3_mangled)
+	if raddr.Host.L4 != nil {
+		u += fmt.Sprintf(":%d", raddr.Host.L4.Port())
+	}
+	return u
+}
+
+// isMangledSCIONAddr checks if this is an address previously encoded with mangleSCIONAddr
+// without port, *after* SplitHostPort has been applied.
+func isMangledSCIONAddr(host string) bool {
+
+	parts := strings.Split(host, "__")
+	return len(parts) == 4 && len(parts[0]) == 0 && len(parts[3]) == 0
+}
+
+// unmangleSCIONAddr decodes and parses a SCION-address previously encoded with mangleSCIONAddr
+// without port, i.e. *after* SplitHostPort has been applied.
+func unmangleSCIONAddr(host string) (addr.IA, addr.HostAddr, error) {
+
+	parts := strings.Split(host, "__")
+	ia, err := addr.IAFromFileFmt(parts[1], false)
+	if err != nil {
+		return addr.IA{}, nil, err
+	}
+	l3_str := strings.Replace(parts[2], "~", ":", -1)
+	l3 := addr.HostFromIPStr(l3_str)
+	if l3 == nil {
+		return addr.IA{}, nil, errors.New("Could not parse IP in SCION-address")
+	}
+	return ia, l3, nil
 }
 
 // Close closes the QUIC connections that this RoundTripper has used
