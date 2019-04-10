@@ -98,7 +98,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 	// If req.URL.Host is a SCION address, we need to mangle it so it passes through
 	// h2quic without tripping up.
 	raddr, err := snet.AddrFromString(req.URL.Host)
-	if raddr != nil && err == nil {
+	if err == nil {
 		tmp := *req
 		tmp.URL = new(url.URL)
 		*tmp.URL = *req.URL
