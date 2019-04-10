@@ -98,10 +98,6 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 	if CheckError(err) {
 		returnError(w, err)
 		return
-	} else if len(paths) == 0 {
-		returnError(w, fmt.Errorf("No paths from %s to %s", clientCCAddr.IA,
-			serverCCAddr.IA))
-		return
 	}
 	log.Debug("PathTopoHandler:", "paths", string(paths))
 
@@ -203,6 +199,9 @@ func removeAllDir(dirName string) {
 func getPathsJSON(local snet.Addr, remote snet.Addr) ([]byte, error) {
 	pathMgr := snet.DefNetwork.PathResolver()
 	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
+	if len(pathSet) == 0 {
+		return nil, fmt.Errorf("No paths from %s to %s", local.IA, remote.IA)
+	}
 	var appPaths []*spathmeta.AppPath
 	for _, path := range pathSet {
 		appPaths = append(appPaths, path)
