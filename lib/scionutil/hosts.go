@@ -26,7 +26,6 @@ import (
 
 	"github.com/netsec-ethz/rains/pkg/rains"
 	libaddr "github.com/scionproto/scion/go/lib/addr"
-	log "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -62,21 +61,12 @@ const (
 func init() {
 	// parse hosts file
 	hostsFile, err := readHostsFile()
-	if err != nil {
-		hostsFile = []byte{}
-	}
-	parseHostsFile(hostsFile)
-	if err != nil {
-		log.Warn("Error parsing hosts file, local name resolution not available", "error", err)
+	if err == nil {
+		parseHostsFile(hostsFile)
 	}
 
 	// read RAINS server address
-	srv, err := readRainsConfig()
-	if err != nil {
-		log.Warn("Could not configure RAINS, remote name resolution not available", "error", err)
-	} else {
-		rainsServer = srv
-	}
+	rainsServer = readRainsConfig()
 }
 
 // AddHost adds a host to the map of known hosts
@@ -170,16 +160,16 @@ func parseHostsFile(hostsFile []byte) {
 	}
 }
 
-func readRainsConfig() (*snet.Addr, error) {
+func readRainsConfig() *snet.Addr {
 	bs, err := ioutil.ReadFile(rainsConfigPath)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	addr, err := snet.AddrFromString(strings.TrimSpace(string(bs)))
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return addr, nil
+	return addr
 }
 
 func addrFromString(addr string) (scionAddress, error) {
