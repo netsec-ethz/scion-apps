@@ -82,7 +82,7 @@ type BwTestGraph struct {
 }
 
 // createBwTestTable operates on the DB to create the bwtests table.
-func createBwTestTable() {
+func createBwTestTable() error {
 	sqlCreateTable := `
     CREATE TABLE IF NOT EXISTS bwtests(
         Inserted BIGINT NOT NULL PRIMARY KEY,
@@ -115,13 +115,11 @@ func createBwTestTable() {
     );
     `
 	_, err := db.Exec(sqlCreateTable)
-	if CheckError(err) {
-		panic(err)
-	}
+	return err
 }
 
 // StoreBwTestItem operates on the DB to insert a BwTestItem.
-func StoreBwTestItem(bwtest *BwTestItem) {
+func StoreBwTestItem(bwtest *BwTestItem) error {
 	sqlInsert := `
     INSERT INTO bwtests(
         Inserted,
@@ -156,12 +154,12 @@ func StoreBwTestItem(bwtest *BwTestItem) {
     ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return err
 	}
 	defer stmt.Close()
 
-	_, err2 := stmt.Exec(
+	_, err = stmt.Exec(
 		bwtest.Inserted,
 		bwtest.ActualDuration,
 		bwtest.CIa,
@@ -191,13 +189,11 @@ func StoreBwTestItem(bwtest *BwTestItem) {
 		bwtest.Error,
 		bwtest.Path,
 		bwtest.Log)
-	if CheckError(err2) {
-		panic(err2)
-	}
+	return err
 }
 
 // ReadBwTestItemsAll operates on the DB to return all bwtests rows.
-func ReadBwTestItemsAll() []BwTestItem {
+func ReadBwTestItemsAll() ([]BwTestItem, error) {
 	sqlReadAll := `
     SELECT
         Inserted,
@@ -233,15 +229,15 @@ func ReadBwTestItemsAll() []BwTestItem {
     ORDER BY datetime(Inserted) DESC
     `
 	rows, err := db.Query(sqlReadAll)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 
 	var result []BwTestItem
 	for rows.Next() {
 		bwtest := BwTestItem{}
-		err2 := rows.Scan(
+		err = rows.Scan(
 			&bwtest.Inserted,
 			&bwtest.ActualDuration,
 			&bwtest.CIa,
@@ -271,17 +267,17 @@ func ReadBwTestItemsAll() []BwTestItem {
 			&bwtest.Error,
 			&bwtest.Path,
 			&bwtest.Log)
-		if CheckError(err2) {
-			panic(err2)
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, bwtest)
 	}
-	return result
+	return result, nil
 }
 
 // ReadBwTestItemsSince operates on the DB to return all bwtests rows
 // which are more recent than the 'since' epoch in ms.
-func ReadBwTestItemsSince(since string) []BwTestGraph {
+func ReadBwTestItemsSince(since string) ([]BwTestGraph, error) {
 	sqlReadSince := `
     SELECT
         Inserted,
@@ -298,15 +294,15 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
     ORDER BY datetime(Inserted) DESC
     `
 	rows, err := db.Query(sqlReadSince, since)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 
 	var result []BwTestGraph
 	for rows.Next() {
 		bwtest := BwTestGraph{}
-		err2 := rows.Scan(
+		err = rows.Scan(
 			&bwtest.Inserted,
 			&bwtest.ActualDuration,
 			&bwtest.CSBandwidth,
@@ -316,30 +312,30 @@ func ReadBwTestItemsSince(since string) []BwTestGraph {
 			&bwtest.Error,
 			&bwtest.Path,
 			&bwtest.Log)
-		if CheckError(err2) {
-			panic(err2)
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, bwtest)
 	}
-	return result
+	return result, nil
 }
 
 // DeleteBwTestItemsBefore operates on the DB to remote all bwtests rows
 // which are more older than the 'before' epoch in ms.
-func DeleteBwTestItemsBefore(before string) int64 {
+func DeleteBwTestItemsBefore(before string) (int64, error) {
 	sqlDeleteBefore := `
     DELETE FROM bwtests
     WHERE Inserted < ?
     `
 	res, err := db.Exec(sqlDeleteBefore, before)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return 0, err
 	}
 	count, err := res.RowsAffected()
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return count, err
 	}
-	return count
+	return count, nil
 }
 
 // MaintainDatabase is a goroutine that runs independanly to cleanup the
@@ -347,7 +343,8 @@ func DeleteBwTestItemsBefore(before string) int64 {
 func MaintainDatabase() {
 	for {
 		before := time.Now().Add(-bwTestDbExpire)
-		count := DeleteBwTestItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
+		count, err := DeleteBwTestItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
+		CheckError(err)
 		if count > 0 {
 			log.Warn(fmt.Sprint("Deleting", count, "bwtests db rows older than", bwTestDbExpire))
 		}

@@ -141,11 +141,16 @@ func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, src
 	since := r.PostFormValue("since")
 	log.Info("Requesting data since", "timestamp", since)
 	// find undisplayed test results
-	bwTestResults := model.ReadBwTestItemsSince(since)
+	bwTestResults, err := model.ReadBwTestItemsSince(since)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
 	log.Debug("Requested data:", "bwTestResults", bwTestResults)
 
 	bwtestsJSON, err := json.Marshal(bwTestResults)
 	if CheckError(err) {
+		returnError(w, err)
 		return
 	}
 	jsonBuf := []byte(`{ "graph": ` + string(bwtestsJSON))

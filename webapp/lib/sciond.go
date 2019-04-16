@@ -38,6 +38,22 @@ func returnError(w http.ResponseWriter, err error) {
 	fmt.Fprintf(w, `{"err":`+strconv.Quote(err.Error())+`}`)
 }
 
+func returnPathHandler(w http.ResponseWriter, pathJson []byte, segJson []byte, err error) {
+	var buffer bytes.Buffer
+	buffer.WriteString(`{"src":"sciond"`)
+	if pathJson != nil {
+		buffer.WriteString(fmt.Sprintf(`,"paths":%s`, pathJson))
+	}
+	if segJson != nil {
+		buffer.WriteString(fmt.Sprintf(`,"segments":%s`, segJson))
+	}
+	if err != nil {
+		buffer.WriteString(fmt.Sprintf(`,"err":%s`, strconv.Quote(err.Error())))
+	}
+	buffer.WriteString(`}`)
+	fmt.Fprintf(w, buffer.String())
+}
+
 // sciond data sources and calls
 
 // PathTopoHandler handles requests for paths, returning results from sciond.
@@ -78,34 +94,55 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	paths := getPaths(*clientCCAddr, *serverCCAddr)
-	if len(paths) == 0 {
-		returnError(w, fmt.Errorf("No paths from %s to %s", clientCCAddr.IA,
-			serverCCAddr.IA))
+	paths, err := getPathsJSON(*clientCCAddr, *serverCCAddr)
+	if CheckError(err) {
+		returnError(w, err)
 		return
 	}
+	log.Debug("PathTopoHandler:", "paths", string(paths))
 
-	jsonPathInfo, _ := json.Marshal(paths)
-	log.Debug("PathTopoHandler:", "jsonPathInfo", string(jsonPathInfo))
+	// Since segments data is supplimentary to paths data, if segments data
+	// fails, provide the error, but we must still allow paths data to return.
+	segments, err := getSegmentsJSON(*clientCCAddr)
+	if CheckError(err) {
+		returnPathHandler(w, paths, nil, err)
+		return
+	}
+	log.Debug("PathTopoHandler:", "segments", string(segments))
 
+	returnPathHandler(w, paths, segments, err)
+}
+
+func getSegmentsJSON(local snet.Addr) ([]byte, error) {
 	// load segments from paths database
-	var dbSrcFile = findDBFilename(clientCCAddr.IA)
-	dbTmpFile := copyDBToTemp(dbSrcFile)
+	var dbSrcFile = findDBFilename(local.IA)
+	dbTmpFile, err := copyDBToTemp(dbSrcFile)
+	if err != nil {
+		return nil, err
+	}
 	// since http.ListenAndServe() blocks, ensure we generate a local db object
 	// which will live only during the http call
-	db := pathdb.InitDB(dbTmpFile)
+	db, err := pathdb.InitDB(dbTmpFile)
+	if err != nil {
+		return nil, err
+	}
 	defer func() {
 		pathdb.CloseDB(db)
 		removeAllDir(filepath.Dir(dbTmpFile))
 	}()
-	segTypes := pathdb.ReadSegTypesAll(db)
-	segments := pathdb.ReadSegmentsAll(db, segTypes)
-
-	jsonSegsInfo, _ := json.Marshal(segments)
-	log.Debug("PathTopoHandler:", "jsonSegsInfo", string(jsonSegsInfo))
-
-	fmt.Fprintf(w, fmt.Sprintf(`{"paths":%s,"segments":%s}`,
-		jsonPathInfo, jsonSegsInfo))
+	segTypes, err := pathdb.ReadSegTypesAll(db)
+	if err != nil {
+		return nil, err
+	}
+	segments, err := pathdb.ReadSegmentsAll(db, segTypes)
+	if err != nil {
+		return nil, err
+	}
+	jsonSegsInfo, err := json.Marshal(segments)
+	if err != nil {
+		return nil, err
+	}
+	return jsonSegsInfo, nil
 }
 
 func findDBFilename(ia addr.IA) string {
@@ -120,37 +157,38 @@ func findDBFilename(ia addr.IA) string {
 }
 
 // returns the name of the created file
-func copyDBToTemp(filename string) string {
+func copyDBToTemp(filename string) (string, error) {
 	copyOneFile := func(dstDir, srcFileName string) error {
 		src, err := os.Open(srcFileName)
-		if CheckError(err) {
-			return fmt.Errorf("Cannot open %s: %v", srcFileName, err)
+		if err != nil {
+			return err
 		}
 		defer src.Close()
 		dstFilename := filepath.Join(dstDir, filepath.Base(srcFileName))
 		dst, err := os.Create(dstFilename)
-		if CheckError(err) {
-			return fmt.Errorf("Cannot open %s: %v", dstFilename, err)
+		if err != nil {
+			return err
 		}
 		defer dst.Close()
 		_, err = io.Copy(dst, src)
-		if CheckError(err) {
-			return fmt.Errorf("Cannot copy %s to %s: %v", srcFileName, dstFilename, err.Error())
+		if err != nil {
+			return err
 		}
 		return nil
 	}
 	dirName, err := ioutil.TempDir("/tmp", "sciond_dump")
-	if CheckError(err) {
-		return err.Error()
+	if err != nil {
+		return "", err
 	}
-
 	err = copyOneFile(dirName, filename)
-	if CheckError(err) {
-		fmt.Fprintf(os.Stderr, "No panic: %v", err)
+	if err != nil {
+		return "", err
 	}
 	err = copyOneFile(dirName, filename+"-wal")
-	CheckError(err)
-	return filepath.Join(dirName, filepath.Base(filename))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dirName, filepath.Base(filename)), nil
 }
 
 func removeAllDir(dirName string) {
@@ -158,14 +196,21 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPaths(local snet.Addr, remote snet.Addr) []*spathmeta.AppPath {
+func getPathsJSON(local snet.Addr, remote snet.Addr) ([]byte, error) {
 	pathMgr := snet.DefNetwork.PathResolver()
 	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
+	if len(pathSet) == 0 {
+		return nil, fmt.Errorf("No paths from %s to %s", local.IA, remote.IA)
+	}
 	var appPaths []*spathmeta.AppPath
 	for _, path := range pathSet {
 		appPaths = append(appPaths, path)
 	}
-	return appPaths
+	jsonPathInfo, err := json.Marshal(appPaths)
+	if err != nil {
+		return nil, err
+	}
+	return jsonPathInfo, nil
 }
 
 // AsTopoHandler handles requests for AS data, returning results from sciond.
