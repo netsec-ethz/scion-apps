@@ -68,6 +68,7 @@
        href="#bwtester">bwtester</a></li>
       <li><a data-toggle="tab" name="camerapp" href="#camerapp">camerapp</a></li>
       <li><a data-toggle="tab" name="sensorapp" href="#sensorapp">sensorapp</a></li>
+      <li><a data-toggle="tab" name="echo" href="#echo">echo</a></li>
      </ul>
      <div id="tab-content-apps" class="tab-content">
 
@@ -78,12 +79,10 @@
         name="bwtest_sec" id="bwtest_sec" type="number"
         style="width: 45px;" min="3" max="11" value="4"> sec.
 
-       <!-- <span id="bwgraphs_text"></span> -->
-
        Additional Argument: <span
         tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_opt" name="addl_opt"
-        style="width: 200px;"> </span>
+        type="text" id="addl_opt" name="addl_opt" style="width: 200px;">
+       </span>
 
 
        <div id="bwtest-cs" class="bwtest-control">
@@ -99,8 +98,8 @@
 
          <div class="bwtest-dial">
           <label for="dial-cs-sec" class="label-dial">seconds</label><input
-           type="text" class="dial" id="dial-cs-sec"
-           name="dial-cs-sec" value="3">
+           type="text" class="dial" id="dial-cs-sec" name="dial-cs-sec"
+           value="3">
          </div>
 
          <div class="bwtest-dial">
@@ -160,8 +159,8 @@
 
          <div class="bwtest-dial">
           <label for="dial-sc-sec" class="label-dial">seconds</label><input
-           type="text" class="dial" id="dial-sc-sec"
-           name="dial-sc-sec" value="3">
+           type="text" class="dial" id="dial-sc-sec" name="dial-sc-sec"
+           value="3">
          </div>
 
          <div class="bwtest-dial">
@@ -246,6 +245,26 @@
 
       </div>
 
+
+      <!-- SCMP ECHO APP CONTENT -->
+      <div id="echo" class="tab-pane fade">
+
+       <div id="svg-sc" class="bwtest-svg">
+        <svg class="svg-dials" viewBox="0 0 300 150">
+        <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
+          marker-end="url(#sc-arrowhead)" />
+        </svg>
+       </div>
+
+       <span id="echo_text"></span><br> Interval: <input
+        name="echo_sec" id="echo_sec" type="number" style="width: 45px;"
+        min="1" max="10" value="1"> sec. Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_optse" name="addl_optse"
+        style="width: 200px;"> </span>
+
+      </div>
+
      </div>
 
     </div>
@@ -260,11 +279,10 @@
      <div id="in-server" class="scion-ia">
       <span>Destination</span><br> <select name="sel_ser"
        id="sel_ser" style="width: 120px;"></select><br>IA: <input
-       type="text" name="ia_ser" id="ia_ser" required
-       placeholder="1-12" pattern="^[0-9]+-[0-9a-fA-F_:\/]+$"
-       style="width: 120px;"> <br>Host: <input
-       type="text" name="addr_ser" id="addr_ser" required
-       placeholder="127.0.0.2"
+       type="text" name="ia_ser" id="ia_ser" required placeholder="1-12"
+       pattern="^[0-9]+-[0-9a-fA-F_:\/]+$" style="width: 120px;">
+      <br>Host: <input type="text" name="addr_ser" id="addr_ser"
+       required placeholder="127.0.0.2"
        pattern="((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){4}$"
        style="width: 125px;"> <br>Port: <input
        name="port_ser" id="port_ser" type="number" required
@@ -367,8 +385,7 @@
 
     <div id="as-iflist">
      <h2>Selected Path Interfaces</h2>
-     <input type="button" value="Update Paths"
-      onclick="requestPaths();" />
+     <input type="button" value="Update Paths" onclick="requestPaths();" />
      <p>
      <p id="path-info"></p>
     </div>
