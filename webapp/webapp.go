@@ -229,16 +229,35 @@ func trcHandler(w http.ResponseWriter, r *http.Request) {
 	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: myIa})
 }
 
-func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem, string) {
-	d := new(model.BwTestItem)
+// There're two CmdItem, BwTestItem and EchoItem
+func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string) {
+	addlOpt := r.PostFormValue("addlOpt")
+
+	if appSel == "echo" { // ###need to be confirmed###
+		d := model.EchoItem{}
+		d.SIa = r.PostFormValue("ia_ser")
+		d.CIa = r.PostFormValue("ia_cli")
+		d.SAddr = r.PostFormValue("addr_ser")
+		d.CAddr = r.PostFormValue("addr_cli")
+
+		// TODO: parse flags (count, interval, duration from http request)
+		// If no flags set then set the default value
+		d.Count = 1
+		d.Interval = 1
+		d.Timeout = 2
+
+		return d, addlOpt
+	}
+
+	d := model.BwTestItem{}
 	d.SIa = r.PostFormValue("ia_ser")
 	d.CIa = r.PostFormValue("ia_cli")
 	d.SAddr = r.PostFormValue("addr_ser")
 	d.CAddr = r.PostFormValue("addr_cli")
 	d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
 	d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
-	addlOpt := r.PostFormValue("addlOpt")
-	if appSel == "bwtester" {
+
+	if appSel == "bwtester" {	
 		d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
 		d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
 		d.CSPackets, _ = strconv.Atoi(r.PostFormValue("dial-cs-pkt"))
@@ -253,11 +272,19 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem,
 	return d, addlOpt
 }
 
-func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []string {
+// d could be either model.BwTestItem or model.EchoItem
+func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
 	installpath := getClientLocationBin(appSel)
+	var isdCli int
+
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
+		d, ok := dOrinial.(model.BwTestItem)
+		if(!ok){
+			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			return nil
+		}
 		optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
 		optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
 		command = append(command, installpath, optServer, optClient)
@@ -272,8 +299,25 @@ func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []strin
 				command = append(command, "-i")
 			}
 		}
+		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
+	
+	case "echo":
+		d, ok := dOrinial.(model.EchoItem)
+		if(!ok){
+			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			return nil
+		}
+		optApp := "echo"
+		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
+		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
+		optCount := fmt.Sprintf("-c=%d", d.Count)
+		optTimeout := fmt.Sprintf("-timeout=%ds", d.Timeout)
+		optInterval := fmt.Sprintf("-interval=%ds", d.Interval)
+		// command = append(command, binname, optApp, optRemote, optLocal, optCount)
+		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
+		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
-	isdCli, _ := strconv.Atoi(strings.Split(d.CIa, "-")[0])
+	
 	if isdCli < 16 {
 		// -sciondFromIA is better for localhost testing, with test isds
 		command = append(command, "-sciondFromIA")
@@ -292,7 +336,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
 		return
 	}
-	if continuous || bwActive {
+	if appSel == "bwtester" && (continuous || bwActive) {
 		// continuous run
 		bwTimeKeepAlive = time.Now()
 		bwRequest = r
@@ -353,10 +397,12 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	appSel := r.PostFormValue("apps")
 	pathStr := r.PostFormValue("pathStr")
-	d, addlOpt := parseRequest2BwtestItem(r, appSel)
-	command := parseBwTest2Cmd(d, appSel, pathStr)
-	command = append(command, addlOpt)
-
+	d, addlOpt := parseRequest2CmdItem(r, appSel)
+	command := parseCmdItem2Cmd(d, appSel, pathStr)
+	if addlOpt != ""{
+		command = append(command, addlOpt)
+	}
+	
 	// execute scion go client app with client/server commands
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
@@ -402,6 +448,8 @@ func getClientCwd(app string) string {
 		cwd = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher")
 	case "bwtester":
 		cwd = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient")
+	case "echo":
+		cwd = path.Join(lib.GOPATH, lib.SCIONROOT, "bin")
 	}
 	return cwd
 }
@@ -416,12 +464,14 @@ func getClientLocationBin(app string) string {
 		binname = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher/imagefetcher")
 	case "bwtester":
 		binname = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient/bwtestclient")
+	case "echo":
+		binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/scmp")
 	}
 	return binname
 }
 
 // Handles piping command line output to logs, database, and http response writer.
-func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteCloser, d *model.BwTestItem, appSel string, pathStr string, cmd *exec.Cmd) {
+func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteCloser, d model.CmdItem, appSel string, pathStr string, cmd *exec.Cmd) {
 	// regex to find matching path in interactive mode
 	var errMsg string
 	// reAvailPath := `(?i:\[ *[0-9]*\] hops:)`
@@ -445,6 +495,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		// read each line from stdout
 		line := scanner.Text()
 		log.Info(line)
+		fmt.Fprintln(os.Stdout, line)
 
 		jsonBuf = append(jsonBuf, []byte(line+"\n")...)
 		// http write response
@@ -487,16 +538,40 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 
 	if appSel == "bwtester" {
 		// parse bwtester data/error
-		lib.ExtractBwtestRespData(string(jsonBuf), d, start)
+		d, ok := d.(model.BwTestItem)
+		if(!ok){
+			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			return
+		}
+		lib.ExtractBwtestRespData(string(jsonBuf), &d, start)
 		if len(errMsg) > 0 {
 			d.Error = errMsg
 		}
 		// store in database
-		err := model.StoreBwTestItem(d)
+		err := model.StoreBwTestItem(&d)
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-		lib.WriteBwtestCsv(d, *staticRoot)
+		lib.WriteBwtestCsv(&d, *staticRoot)
+	}
+
+	if appSel == "echo" {
+		// parse scmp echo data/error
+		d, ok := d.(model.EchoItem)
+		if(!ok){
+			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			return
+		}
+		lib.ExtractEchoRespData(string(jsonBuf), &d)
+		if len(errMsg) > 0 {
+			d.Error = errMsg
+		}
+		// store in database
+		err := model.StoreEchoItem(&d)
+		if CheckError(err) {
+			d.Error = err.Error()
+		}
+
 	}
 }
 

@@ -3,12 +3,16 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"time"
+	"strconv"
 
 	log "github.com/inconshreveable/log15"
+	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var db *sql.DB
-var bwDbVer = 2
+var dbVer = 2
+var dbExpire = time.Duration(24) * time.Hour
 
 // InitDB controls the opening connection to the database.
 func InitDB(filepath string) error {
@@ -33,6 +37,10 @@ func LoadDB() error {
 	if err != nil {
 		return err
 	}
+	err = createEchoTable()
+	if err != nil {
+		return err
+	}
 	version, err := getUserVersion()
 	if err != nil {
 		return err
@@ -48,15 +56,37 @@ func LoadDB() error {
 	if err != nil {
 		return err
 	}
+
 	//set updated version
-	if version < bwDbVer {
-		err := setUserVersion(bwDbVer)
+	if version < dbVer {
+		err := setUserVersion(dbVer)
 		if err != nil {
 			return err
 		}
-		log.Info("Migrated to database version", "version", bwDbVer)
+		log.Info("Migrated to database version", "version", dbVer)
 	}
 	return err
+}
+
+// MaintainDatabase is a goroutine that runs independanly to cleanup the
+// database according to the defined schedule.
+func MaintainDatabase() {
+	for {
+		before := time.Now().Add(-dbExpire)
+
+		count1, err1 := DeleteBwTestItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
+		CheckError(err1)
+		if count1 > 0 {
+			log.Warn(fmt.Sprint("Deleting ", count1, " bwtests db rows older than", dbExpire))
+		}
+
+		count2, err2 := DeleteEchoItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
+		CheckError(err2)
+		if count2 > 0 {
+			log.Warn(fmt.Sprint("Deleting ", count2, " echo db rows older than", dbExpire))
+		}
+		time.Sleep(dbExpire)
+	}
 }
 
 func addColumn(table string, column string) error {
