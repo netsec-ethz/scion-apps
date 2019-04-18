@@ -112,7 +112,8 @@ function initBwGraphs() {
 function showOnlyConsoleGraphs(activeApp) {
     $('#bwtest-continuous').css("display",
             (activeApp == "bwtester") ? "block" : "none");
-    var isConsole = (activeApp == "bwtester" || activeApp == "camerapp" || activeApp == "sensorapp");
+    var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
+            || activeApp == "sensorapp" || activeApp == "echo");
     $('.stdout').css("display", isConsole ? "block" : "none");
 }
 
@@ -426,14 +427,11 @@ function command(continuous) {
         name : "apps",
         value : activeApp
     });
-    if (activeApp == "bwtester") {
+    if (activeApp == "bwtester" || activeApp == "echo") {
         // add extra bwtester options required
         form_data.push({
             name : "continuous",
             value : continuous
-        }, {
-            name : "interval",
-            value : getIntervalMax()
         });
         if (self.segType == 'PATH') { // only full paths allowed
             form_data.push({
@@ -441,6 +439,18 @@ function command(continuous) {
                 value : formatPathString(resPath, self.segNum, self.segType)
             });
         }
+    }
+    if (activeApp == "bwtester") {
+        form_data.push({
+            name : "interval",
+            value : getIntervalMax()
+        });
+    }
+    if (activeApp == "echo") {
+        form_data.push({
+            name : "interval",
+            value : $('#echo_sec').val()
+        });
     }
     if (activeApp == "camerapp") {
         // clear for new image request
@@ -466,6 +476,10 @@ function command(continuous) {
         } else if (activeApp == "bwtester") {
             // check for usable data for graphing
             handleBwResponse(resp, continuous, startTime);
+        } else if (activeApp == "echo") {
+
+            // TODO (mwfarb): implement continuous echo graph
+
         } else {
             handleGeneralResponse();
         }
@@ -508,12 +522,14 @@ function lockTab(href) {
     enableTab("bwtester", "bwtester" == href);
     enableTab("camerapp", "camerapp" == href);
     enableTab("sensorapp", "sensorapp" == href);
+    enableTab("echo", "echo" == href);
 }
 
 function releaseTabs() {
     enableTab("bwtester", true);
     enableTab("camerapp", true);
     enableTab("sensorapp", true);
+    enableTab("echo", true);
 }
 
 function enableTab(href, enable) {
