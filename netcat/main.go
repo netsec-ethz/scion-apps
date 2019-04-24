@@ -12,9 +12,11 @@ import (
 
 	quic "github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/scionproto/scion/go/lib/log"
+	scionlog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
+
+	log "github.com/inconshreveable/log15"
 )
 
 func printUsage() {
@@ -31,19 +33,20 @@ func printUsage() {
 }
 
 func main() {
-	log.SetupLogConsole("debug")
+	scionlog.SetupLogConsole("debug")
+
 	log.Debug("Launching netcat")
 
 	var (
-		remoteAddressString    string
-		port                   uint16
-		localAddrString        string
+		remoteAddressString string
+		port                uint16
+		localAddrString     string
 
 		quicTLSKeyPath         string
 		quicTLSCertificatePath string
-		
-		extraByte              bool
-		listen                 bool
+
+		extraByte bool
+		listen    bool
 	)
 	flag.Usage = printUsage
 	flag.StringVar(&remoteAddressString, "local", "", "Local address string")
