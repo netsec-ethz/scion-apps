@@ -389,8 +389,6 @@ function get_segment_info(segs, type) {
 
 function get_json_seg_topo(paths, segs, src, dst) {
     var now = Date.now();
-    var segments = segs; // edit local copy
-    console.debug("segments received:", segments.length);
     var outSegs = {
         "core_segments" : {
             "if_lists" : []
@@ -402,6 +400,11 @@ function get_json_seg_topo(paths, segs, src, dst) {
             "if_lists" : []
         }
     };
+    if (typeof segs == 'undefined') {
+        return outSegs;
+    }
+    var segments = segs; // edit local copy
+    console.debug("segments received:", segments.length);
     // loop through all paths as benchmark for filtering segments
     var pathIAs = [];
     var pathStr = "";

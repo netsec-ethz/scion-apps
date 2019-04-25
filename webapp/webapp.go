@@ -95,9 +95,15 @@ func main() {
 	templates = prepareTemplates(*staticRoot)
 	// open and manage database
 	dbpath := path.Join(*staticRoot, "webapp.db")
-	model.InitDB(dbpath)
+	err := model.InitDB(dbpath)
+	if CheckFatal(err) {
+		return
+	}
 	defer model.CloseDB()
-	model.LoadDB()
+	err = model.LoadDB()
+	if CheckFatal(err) {
+		return
+	}
 	go model.MaintainDatabase()
 	ensurePath(*staticRoot, "data")
 	// generate client/server default
@@ -150,7 +156,7 @@ func main() {
 	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
 	log.Info("File browser root:", "root", *browseRoot)
 	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
-	err := http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
 	CheckFatal(err)
 }
 
@@ -499,7 +505,10 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 			d.Error = errMsg
 		}
 		// store in database
-		model.StoreBwTestItem(d)
+		err := model.StoreBwTestItem(d)
+		if CheckError(err) {
+			d.Error = err.Error()
+		}
 		lib.WriteBwtestCsv(d, *staticRoot)
 	}
 }

@@ -5,87 +5,91 @@ import (
 	"fmt"
 
 	log "github.com/inconshreveable/log15"
-	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 var db *sql.DB
 var bwDbVer = 2
 
 // InitDB controls the opening connection to the database.
-func InitDB(filepath string) {
+func InitDB(filepath string) error {
 	var err error
 	db, err = sql.Open("sqlite3", filepath)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return err
 	}
 	err = db.Ping()
-	if CheckError(err) {
-		panic(err)
-	}
+	return err
 }
 
 // CloseDB will close the database, only use when app closes.
-func CloseDB() {
+func CloseDB() error {
 	err := db.Close()
-	if CheckError(err) {
-		panic(err)
-	}
+	return err
 }
 
 // LoadDB operates on the DB to load and/or migrate the database.
-func LoadDB() {
-	createBwTestTable()
-	version := getUserVersion()
+func LoadDB() error {
+	err := createBwTestTable()
+	if err != nil {
+		return err
+	}
+	version, err := getUserVersion()
+	if err != nil {
+		return err
+	}
 	log.Info("Loading database version", "version", version)
 	// add successive migrations here
 	if version < 1 {
-		addColumn("bwtests", "Path TEXT")
+		err = addColumn("bwtests", "Path TEXT")
 	}
 	if version < 2 {
-		addColumn("bwtests", "Log TEXT")
+		err = addColumn("bwtests", "Log TEXT")
+	}
+	if err != nil {
+		return err
 	}
 	//set updated version
 	if version < bwDbVer {
-		setUserVersion(bwDbVer)
+		err := setUserVersion(bwDbVer)
+		if err != nil {
+			return err
+		}
 		log.Info("Migrated to database version", "version", bwDbVer)
 	}
+	return err
 }
 
-func addColumn(table string, column string) {
+func addColumn(table string, column string) error {
 	sqlAddCol := fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s;`, table, column)
 	log.Info(sqlAddCol)
 	_, err := db.Exec(sqlAddCol)
-	if CheckError(err) {
-		panic(err)
-	}
+	return err
 }
 
-func getUserVersion() int {
+func getUserVersion() (int, error) {
 	sqlGetVersion := `PRAGMA user_version;`
 	rows, err := db.Query(sqlGetVersion)
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return -1, err
 	}
 	defer rows.Close()
 	var version int
 	for rows.Next() {
 		err := rows.Scan(&version)
-		if CheckError(err) {
-			panic(err)
+		if err != nil {
+			return version, err
 		}
 	}
 	err = rows.Err()
-	if CheckError(err) {
-		panic(err)
+	if err != nil {
+		return version, err
 	}
-	return version
+	return version, nil
 }
 
-func setUserVersion(version int) {
+func setUserVersion(version int) error {
 	sqlSetVersion := fmt.Sprintf(`PRAGMA user_version = %d;`, version)
 	log.Info(sqlSetVersion)
 	_, err := db.Exec(sqlSetVersion)
-	if CheckError(err) {
-		panic(err)
-	}
+	return err
 }
