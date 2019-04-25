@@ -256,11 +256,13 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem,
 func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []string {
 	var command []string
 	binname := getClientLocationBin(appSel)
+	filepath := getClientLocationSrc(appSel)
+	installpath := path.Join(path.Dir(filepath), binname)
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
 		optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
 		optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
-		command = append(command, binname, optServer, optClient)
+		command = append(command, installpath, optServer, optClient)
 		if appSel == "bwtester" {
 			bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
 				d.CSPackets, d.CSBandwidth)
@@ -380,13 +382,13 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 
 func appsBuildCheck(app string) {
 	binname := getClientLocationBin(app)
-	installpath := path.Join(lib.GOPATH, "bin", binname)
+	filepath := getClientLocationSrc(app)
+	installpath := path.Join(path.Dir(filepath), binname)
 	// check for install, and install only if needed
 	if _, err := os.Stat(installpath); os.IsNotExist(err) {
-		filepath := getClientLocationSrc(app)
-		cmd := exec.Command("go", "install")
+		cmd := exec.Command("go", "build")
 		cmd.Dir = path.Dir(filepath)
-		log.Info(fmt.Sprintf("Installing %s...", filepath))
+		log.Info(fmt.Sprintf("Building %s...", filepath))
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
