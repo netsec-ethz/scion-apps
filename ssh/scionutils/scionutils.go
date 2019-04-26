@@ -15,6 +15,7 @@ import (
 
 var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
 
+// SplitHostPort splits a host:port string into host and port variables
 func SplitHostPort(hostport string) (host, port string, err error) {
 	split := addressPortSplitRegex.FindAllStringSubmatch(hostport, -1)
 	if len(split) == 1 {
@@ -24,6 +25,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 	return "", "", fmt.Errorf("Invalid SCION address provided")
 }
 
+// DialSCION dials a SCION host and opens a new QUIC stream
 func DialSCION(remoteAddress string) (*quicconn.QuicConn, error) {
 	localhost, err := scionutil.GetLocalhostString()
 	if err != nil {
@@ -59,6 +61,7 @@ func DialSCION(remoteAddress string) (*quicconn.QuicConn, error) {
 	return &quicconn.QuicConn{Session: sess, Stream: stream}, nil
 }
 
+// ListenSCION listens on the given port with the QUIC protocol, and returns a listener
 func ListenSCION(port uint16) (quic.Listener, error) {
 	localhost, err := scionutil.GetLocalhostString()
 	if err != nil {

@@ -14,9 +14,11 @@ import (
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 )
 
+// ChannelHandlerFunction is a type for channel handlers, such as terminal sessions, tunnels, or X11 forwarding.
 type ChannelHandlerFunction func(newChannel ssh.NewChannel)
 
-type SSHServer struct {
+// Server is a struct containing information about SSH servers.
+type Server struct {
 	authorizedKeysFile string
 
 	configuration *ssh.ServerConfig
@@ -24,8 +26,9 @@ type SSHServer struct {
 	channelHandlers map[string]ChannelHandlerFunction
 }
 
-func Create(config *serverconfig.ServerConfig, version string) (*SSHServer, error) {
-	server := &SSHServer{
+// Create creates a new unconnected Server object.
+func Create(config *serverconfig.ServerConfig, version string) (*Server, error) {
+	server := &Server{
 		authorizedKeysFile: config.AuthorizedKeysFile,
 		channelHandlers:    make(map[string]ChannelHandlerFunction),
 	}
@@ -55,14 +58,14 @@ func Create(config *serverconfig.ServerConfig, version string) (*SSHServer, erro
 	return server, nil
 }
 
-func (s *SSHServer) handleChannels(chans <-chan ssh.NewChannel) {
+func (s *Server) handleChannels(chans <-chan ssh.NewChannel) {
 	// Service the incoming Channel channel in go routine
 	for newChannel := range chans {
 		go s.handleChannel(newChannel)
 	}
 }
 
-func (s *SSHServer) handleChannel(newChannel ssh.NewChannel) {
+func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 	if handler, exists := s.channelHandlers[newChannel.ChannelType()]; exists {
 		handler(newChannel)
 	} else {
@@ -71,7 +74,8 @@ func (s *SSHServer) handleChannel(newChannel ssh.NewChannel) {
 	}
 }
 
-func (s *SSHServer) HandleConnection(conn net.Conn) error {
+// HandleConnection handles a client connection.
+func (s *Server) HandleConnection(conn net.Conn) error {
 	log.Debug("Handling new connection")
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, s.configuration)
 	if err != nil {

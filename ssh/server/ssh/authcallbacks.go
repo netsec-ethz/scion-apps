@@ -9,7 +9,8 @@ import (
 	"github.com/msteinert/pam"
 )
 
-func (s *SSHServer) PasswordAuth(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
+// PasswordAuth authenticates the client using password authentication.
+func (s *Server) PasswordAuth(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
 	t, err := pam.StartFunc("", c.User(), func(s pam.Style, msg string) (string, error) {
 		switch s {
 		case pam.PromptEchoOff:
@@ -49,7 +50,8 @@ func loadAuthorizedKeys(file string) (map[string]bool, error) {
 	return authKeys, nil
 }
 
-func (s *SSHServer) PublicKeyAuth(c ssh.ConnMetadata, pubKey ssh.PublicKey) (*ssh.Permissions, error) {
+// PublicKeyAuth authenticates the client using a public key.
+func (s *Server) PublicKeyAuth(c ssh.ConnMetadata, pubKey ssh.PublicKey) (*ssh.Permissions, error) {
 	authKeys, err := loadAuthorizedKeys(s.authorizedKeysFile)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading authorized files: %v", err)

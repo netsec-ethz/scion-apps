@@ -15,6 +15,7 @@ import (
 type Config interface {
 }
 
+// UpdateFromString updates the given config from the single-line configuration string.
 func UpdateFromString(conf Config, confOption string) error {
 	split := regexp.MustCompile("(.*?)\\s*[\\s=]\\s*(.*)").FindStringSubmatch(confOption)
 	if len(split) < 3 {
@@ -37,6 +38,7 @@ func cToString(valueA interface{}) string {
 	}
 }
 
+// Set sets the given option on the given configuration file.
 func Set(conf Config, name string, valueA interface{}) error {
 	value := cToString(valueA)
 
@@ -67,6 +69,7 @@ func Set(conf Config, name string, valueA interface{}) error {
 	return nil
 }
 
+// SetIfNot sets the given option on the given configuration file if and only if it is not equal to the last parameter.
 func SetIfNot(conf Config, name string, value, not interface{}) (bool, error) {
 	if cToString(value) == cToString(not) {
 		return true, nil
@@ -75,6 +78,7 @@ func SetIfNot(conf Config, name string, value, not interface{}) (bool, error) {
 	}
 }
 
+// UpdateFromFile automatically reads a file and updates the configuration object from its contents.
 func UpdateFromFile(conf Config, path string) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -85,6 +89,7 @@ func UpdateFromFile(conf Config, path string) error {
 	return UpdateFromReader(conf, file)
 }
 
+// UpdateFromReader takes a reader and updates the configuration object from its contents.
 func UpdateFromReader(conf Config, reader io.Reader) error {
 	lines := make([]string, 0)
 

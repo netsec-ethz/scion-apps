@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// ParsePath performs tilde expansion, no-op if the path doesn't begin with a tilde.
 func ParsePath(pth string) string {
 	home := "/"
 

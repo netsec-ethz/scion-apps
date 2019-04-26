@@ -2,10 +2,11 @@ package clientconfig
 
 import (
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/ssh/config"
-	. "github.com/smartystreets/goconvey/convey"
 	"strings"
 	"testing"
+
+	"github.com/netsec-ethz/scion-apps/ssh/config"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestDefaultConfig(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 )
 
-// Dial starts a client connection to the given SSH server over SCION using QUIC.
+// DialSCION starts a client connection to the given SSH server over SCION using QUIC.
 func DialSCION(addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
 	transportStream, err := scionutils.DialSCION(addr)
 	if err != nil {
@@ -25,6 +25,7 @@ func DialSCION(addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
 	return ssh.NewClient(conn, nc, rc), nil
 }
 
+// TunnelDialSCION creates a tunnel using the given SSH client.
 func TunnelDialSCION(client *ssh.Client, addr string) (net.Conn, error) {
 	openChannelData := directSCIONData{
 		addr,

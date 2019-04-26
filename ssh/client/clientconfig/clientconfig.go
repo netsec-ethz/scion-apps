@@ -1,7 +1,6 @@
 package clientconfig
 
-import ()
-
+// ClientConfig is a struct containing configuration for the client.
 type ClientConfig struct {
 	User                   string   `regex:".*"`
 	HostAddress            string   `regex:"(?P<ia>\\d+-[\\d:A-Fa-f]+),\\[(?P<host>[^\\]]+)\\]"`
@@ -12,11 +11,13 @@ type ClientConfig struct {
 	IdentityFile           []string `regex:".*"`
 	LocalForward           string   `regex:".*"`
 	RemoteForward          string   `regex:".*"`
+	UserKnownHostsFile     string   `regex:".*"`
 	ProxyCommand           string   `regex:".*"`
 	QUICCertificatePath    string   `regex:".*"`
 	QUICKeyPath            string   `regex:".*"`
 }
 
+// Create creates a new ClientConfig with the default values.
 func Create() *ClientConfig {
 	return &ClientConfig{
 		HostAddress: "",
@@ -24,6 +25,7 @@ func Create() *ClientConfig {
 		PasswordAuthentication: "yes",
 		PubkeyAuthentication:   "yes",
 		StrictHostKeyChecking:  "ask",
+		UserKnownHostsFile:     "~/.ssh/known_hosts",
 		IdentityFile: []string{
 			"~/.ssh/id_ed25519",
 			"~/.ssh/id_ecdsa",

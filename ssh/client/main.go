@@ -28,24 +28,25 @@ import (
 
 var (
 	// Connection
-	SERVER_ADDRESS = kingpin.Arg("host-address", "Server SCION address (without the port)").Required().String()
-	RUN_COMMAND    = kingpin.Arg("command", "Command to run (empty for pty)").Strings()
-	PORT           = kingpin.Flag("port", "The server's port").Default("0").Short('p').Uint16()
-	LOCAL_FORWARD  = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
-	OPTIONS        = kingpin.Flag("option", "Set an option").Short('o').Strings()
-	VERBOSE        = kingpin.Flag("verbose", "Be verbose").Short('v').Default("false").Bool()
-	CONFIG_FILES   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
-	X_DEAD         = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
+	serverAddress = kingpin.Arg("host-address", "Server SCION address (without the port)").Required().String()
+	runCommand    = kingpin.Arg("command", "Command to run (empty for pty)").Strings()
+	port          = kingpin.Flag("port", "The server's port").Default("0").Short('p').Uint16()
+	localForward  = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
+	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
+	verbose       = kingpin.Flag("verbose", "Be verbose").Short('v').Default("false").Bool()
+	configFiles   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
+	xDead         = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
 
 	// TODO: additional file paths
-	KNOWN_HOSTS_FILE = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
-	IDENTITY_FILE    = kingpin.Flag("identity", "Identity (private key) file").Short('i').ExistingFile()
+	knownHostsFile = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
+	identityFile   = kingpin.Flag("identity", "Identity (private key) file").Short('i').ExistingFile()
 
-	USER = kingpin.Flag("login-name", "Username to login with").String()
+	loginName = kingpin.Flag("login-name", "Username to login with").String()
 )
 
 var clientCCAddr *snet.Addr
 
+// PromptPassword prompts the user for a password to authenticate with.
 func PromptPassword() (secret string, err error) {
 	fmt.Printf("Password: ")
 	password, _ := terminal.ReadPassword(0)
@@ -53,6 +54,7 @@ func PromptPassword() (secret string, err error) {
 	return string(password), nil
 }
 
+// PromptAcceptHostKey prompts the user to accept or reject the given host key.
 func PromptAcceptHostKey(hostname string, remote net.Addr, publicKey string) bool {
 	for {
 		fmt.Printf("Key fingerprint MD5 is: %s do you recognize it? (y/n) ", publicKey)
@@ -81,21 +83,23 @@ func setConfIfNot(conf *clientconfig.ClientConfig, name string, value, not inter
 func createConfig() *clientconfig.ClientConfig {
 	conf := clientconfig.Create()
 
-	for _, configFile := range *CONFIG_FILES {
+	for _, configFile := range *configFiles {
 		updateConfigFromFile(conf, configFile)
 	}
 
-	for _, option := range *OPTIONS {
+	for _, option := range *options {
 		err := config.UpdateFromString(conf, option)
 		if err != nil {
 			log.Debug("Error updating config from --option flag: %v", err)
 		}
 	}
 
-	setConfIfNot(conf, "Port", *PORT, 0)
-	setConfIfNot(conf, "HostAddress", *SERVER_ADDRESS, "")
-	setConfIfNot(conf, "IdentityFile", *IDENTITY_FILE, "")
-	setConfIfNot(conf, "User", *USER, "")
+	setConfIfNot(conf, "Port", *port, 0)
+	setConfIfNot(conf, "HostAddress", *serverAddress, "")
+	setConfIfNot(conf, "IdentityFile", *identityFile, "")
+	setConfIfNot(conf, "LocalForward", *localForward, "")
+	setConfIfNot(conf, "User", *loginName, "")
+	setConfIfNot(conf, "KnownHostsFile", *knownHostsFile, "")
 
 	return conf
 }
@@ -120,12 +124,6 @@ func main() {
 		golog.Panicf("Can't find current user: %s", err)
 	}
 
-	knownHostsFile := *KNOWN_HOSTS_FILE
-	if knownHostsFile == "" {
-		knownHostsFile = "~/.ssh/known_hosts"
-	}
-	knownHostsFile = utils.ParsePath(knownHostsFile)
-
 	localhost, err := scionutil.GetLocalhost()
 	if err != nil {
 		golog.Panicf("Can't get localhost: %v", err)
@@ -148,25 +146,12 @@ func main() {
 		}
 	}
 
-	// Create SSH client
-	sshConfig := &ssh.SSHClientConfig{
-		VerifyHostKey:       conf.StrictHostKeyChecking != "no",
-		VerifyNewKeyHandler: verifyNewKeyHandler,
-		KnownHostKeyFile:    knownHostsFile,
-
-		UsePasswordAuth: conf.PasswordAuthentication == "yes",
-		PassAuthHandler: PromptPassword,
-
-		UsePublicKeyAuth: conf.PubkeyAuthentication == "yes",
-		PrivateKeyPaths:  conf.IdentityFile,
-	}
-
 	remoteUsername := conf.User
 	if remoteUsername == "" {
 		remoteUsername = localUser.Username
 	}
 
-	sshClient, err := ssh.Create(remoteUsername, sshConfig)
+	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler)
 	if err != nil {
 		golog.Panicf("Error creating ssh client: %v", err)
 	}
@@ -177,7 +162,7 @@ func main() {
 	if err != nil {
 		golog.Panicf("Error connecting: %v", err)
 	}
-	defer sshClient.Close()
+	defer sshClient.CloseSession()
 
 	if conf.LocalForward != "" {
 		localForward := strings.SplitN(conf.LocalForward, ":", 2)
@@ -194,7 +179,7 @@ func main() {
 	}
 
 	// TODO Don't just join those!
-	runCommand := strings.Join((*RUN_COMMAND)[:], " ")
+	runCommand := strings.Join((*runCommand)[:], " ")
 
 	if runCommand == "" {
 		err = sshClient.Shell()
@@ -209,12 +194,12 @@ func main() {
 			golog.Panicf("Error connecting pipes: %v", err)
 		}
 
-		err = sshClient.Start(runCommand)
+		err = sshClient.StartSession(runCommand)
 		if err != nil {
 			golog.Panicf("Error running command: %v", err)
 		}
 
-		err = sshClient.Wait()
+		err = sshClient.WaitSession()
 		if err != nil {
 			golog.Panicf("Error waiting for command to complete: %v", err)
 		}

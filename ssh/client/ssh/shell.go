@@ -11,7 +11,8 @@ import (
 	"github.com/docker/docker/pkg/term"
 )
 
-func (client *SSHClient) Shell() error {
+// Shell opens a new Shell session on the server this Client is connected to.
+func (client *Client) Shell() error {
 	var (
 		termWidth, termHeight = 80, 24
 	)
@@ -52,7 +53,7 @@ func (client *SSHClient) Shell() error {
 	// monitor for sigwinch
 	go monWinCh(client.session, os.Stdout.Fd())
 
-	err := client.Wait()
+	err := client.WaitSession()
 	if err != nil {
 		return err
 	}
