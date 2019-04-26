@@ -7,6 +7,7 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
@@ -15,6 +16,9 @@ import (
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 
 	log "github.com/inconshreveable/log15"
+
+	scionlog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 const (
@@ -23,9 +27,8 @@ const (
 
 var (
 	// Connection
-	listenAddress   = kingpin.Flag("address", "SCION address to listen on").Default("").String()
-	useIASCIoNDPath = kingpin.Flag("sciond-path-from-ia", "Use IA address when resolving SCIOND socket path").Short('P').Bool()
-	options         = kingpin.Flag("option", "Set an option").Short('o').Strings()
+	listenAddress = kingpin.Flag("address", "SCION address to listen on").Default("").String()
+	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
 
 	// Configuration file
 	configurationFile = kingpin.Flag("config-file", "SSH server configuration file").Short('f').Default("/etc/ssh/sshd_config").ExistingFile()
@@ -68,14 +71,25 @@ func updateConfigFromFile(conf *serverconfig.ServerConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
+	scionlog.SetupLogConsole("debug")
 
 	log.Debug("Starting SCION SSH server...")
 
 	conf := createConfig()
 
-	err := scionutils.InitSCIONConnection(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath), *useIASCIoNDPath)
+	localhost, err := scionutil.GetLocalhost()
 	if err != nil {
-		golog.Panicf("Error initializing SCION connection: %v", err)
+		golog.Panicf("Can't get localhost: %v", err)
+	}
+
+	err = scionutil.InitSCION(localhost)
+	if err != nil {
+		golog.Panicf("Error initializing SCION: %v", err)
+	}
+
+	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
+	if err != nil {
+		golog.Panicf("Error initializing SQUIC: %v", err)
 	}
 
 	sshServer, err := ssh.Create(conf, version)

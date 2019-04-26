@@ -13,12 +13,14 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
+	scionlog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 
 	log "github.com/inconshreveable/log15"
@@ -26,15 +28,14 @@ import (
 
 var (
 	// Connection
-	SERVER_ADDRESS     = kingpin.Arg("host-address", "Server SCION address (without the port)").Required().String()
-	RUN_COMMAND        = kingpin.Arg("command", "Command to run (empty for pty)").Strings()
-	PORT               = kingpin.Flag("port", "The server's port").Default("0").Short('p').Uint16()
-	USE_IA_SCIOND_PATH = kingpin.Flag("sciond-path-from-ia", "Use IA when resolving SCIOND socket path").Bool()
-	LOCAL_FORWARD      = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
-	OPTIONS            = kingpin.Flag("option", "Set an option").Short('o').Strings()
-	VERBOSE            = kingpin.Flag("verbose", "Be verbose").Short('v').Default("false").Bool()
-	CONFIG_FILES       = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
-	X_DEAD             = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
+	SERVER_ADDRESS = kingpin.Arg("host-address", "Server SCION address (without the port)").Required().String()
+	RUN_COMMAND    = kingpin.Arg("command", "Command to run (empty for pty)").Strings()
+	PORT           = kingpin.Flag("port", "The server's port").Default("0").Short('p').Uint16()
+	LOCAL_FORWARD  = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
+	OPTIONS        = kingpin.Flag("option", "Set an option").Short('o').Strings()
+	VERBOSE        = kingpin.Flag("verbose", "Be verbose").Short('v').Default("false").Bool()
+	CONFIG_FILES   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
+	X_DEAD         = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
 
 	// TODO: additional file paths
 	KNOWN_HOSTS_FILE = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
@@ -110,6 +111,7 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
+	scionlog.SetupLogConsole("debug")
 
 	conf := createConfig()
 
@@ -124,10 +126,19 @@ func main() {
 	}
 	knownHostsFile = utils.ParsePath(knownHostsFile)
 
-	// Initialize SCION library
-	err = scionutils.InitSCIONConnection(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath), *USE_IA_SCIOND_PATH)
+	localhost, err := scionutil.GetLocalhost()
 	if err != nil {
-		golog.Panicf("Error initializing SCION connection: %s", err)
+		golog.Panicf("Can't get localhost: %v", err)
+	}
+
+	err = scionutil.InitSCION(localhost)
+	if err != nil {
+		golog.Panicf("Error initializing SCION: %v", err)
+	}
+
+	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
+	if err != nil {
+		golog.Panicf("Error initializing SQUIC: %v", err)
 	}
 
 	verifyNewKeyHandler := PromptAcceptHostKey

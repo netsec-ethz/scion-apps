@@ -238,7 +238,7 @@
 			"revisionTime": "2018-11-12T14:05:56Z"
 		},
 		{
-			"checksumSHA1": "WD7GMln/NoduJr0DbumjOE59xI8=",
+			"checksumSHA1": "m3MNVovby5ZvMSiXIrfnjda1SMo=",
 			"path": "github.com/kr/pty",
 			"revision": "b6e1bdd4a4f88614e0c6e5e8089c7abed98aae17",
 			"revisionTime": "2019-04-01T03:15:51Z"
@@ -328,7 +328,7 @@
 			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "fV/dWDjobpxleSwnZ4lR1/8hDu4=",
+			"checksumSHA1": "lVlMU1vyM9Svh642UFG1haNui8Q=",
 			"path": "github.com/marten-seemann/qtls",
 			"revision": "65ca381cd298d7e0aef0de8ba523a870ec5a96fe",
 			"revisionTime": "2019-03-29T07:59:07Z"
@@ -794,7 +794,7 @@
 			"revisionTime": "2019-04-17T02:59:34Z"
 		},
 		{
-			"checksumSHA1": "iV2FonJPeLV+iF4JHS3TRRXegF4=",
+			"checksumSHA1": "lyMOyBzKMVR2jJOYQf6Vr/1x77Q=",
 			"path": "golang.org/x/image/font/basicfont",
 			"revision": "59b11bec70c7cc648cf3cc54683683b76d5b5e6b",
 			"revisionTime": "2019-04-17T02:59:34Z"

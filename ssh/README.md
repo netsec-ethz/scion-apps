@@ -17,7 +17,7 @@ sudo apt-get install libpam0g-dev
 
 To generate TLS connection certificates:
 ```
-# These are valid for 365 days, so you'll have to renew them
+# These are valid for 365 days, so you'll have to renew them periodically
 # Client
 cd ~/.ssh
 openssl req -newkey rsa:2048 -nodes -keyout quic-conn-key.pem -x509 -days 365 -out quic-conn-certificate.pem
@@ -32,7 +32,7 @@ cd ~/.ssh
 ssh-keygen -t rsa -f id_rsa
 ```
 
-And create an authorized key file for the server with the public key (note that you'd usually place this in `/etc/ssh/authorized_keys`):
+And create an authorized key file for the server with the public key (note that you'd usually place this in `/home/<user>/.ssh/authorized_keys` whereas `<user>` is the user on the server you want to gain access to, but make sure not to overwrite an existing file):
 ```
 cd $GOPATH/src/github.com/netsec-ethz/scion-apps/ssh/server
 cp ~/.ssh/id_rsa.pub ./authorized_keys
@@ -50,7 +50,7 @@ sudo -E ./server -oPort=2200 -oAuthorizedKeysFile=./authorized_keys
 Running the client:
 ```
 cd $GOPATH/src/github.com/netsec-ethz/scion-apps/ssh/client
-./client 1-11,[127.0.0.1]:2200
+./client -p 2200 1-11,[127.0.0.1]
 ```
 
 Using SCP (make sure you've done `chmod +x ./scp.sh` first):
