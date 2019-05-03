@@ -10,8 +10,6 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-var bwTestDbExpire = time.Duration(24) * time.Hour
-
 // BwTestItem reflects one row in the bwtests table with all columns.
 type BwTestItem struct {
 	Inserted       int64  // v0, ms
@@ -338,16 +336,4 @@ func DeleteBwTestItemsBefore(before string) (int64, error) {
 	return count, nil
 }
 
-// MaintainDatabase is a goroutine that runs independanly to cleanup the
-// database according to the defined schedule.
-func MaintainDatabase() {
-	for {
-		before := time.Now().Add(-bwTestDbExpire)
-		count, err := DeleteBwTestItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
-		CheckError(err)
-		if count > 0 {
-			log.Warn(fmt.Sprint("Deleting", count, "bwtests db rows older than", bwTestDbExpire))
-		}
-		time.Sleep(bwTestDbExpire)
-	}
-}
+
