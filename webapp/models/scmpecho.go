@@ -2,9 +2,7 @@ package models
 
 import (
 	"fmt"
-
-	log "github.com/inconshreveable/log15"
-	. "github.com/netsec-ethz/scion-apps/webapp/util"
+	"reflect"
 )
 
 // EchoItem reflects one row in the echo table with all columns
@@ -16,9 +14,11 @@ type EchoItem struct{
 	PktLoss      bool   // indicating if the packet is lost
 	CmdOutput    string // command output
 	Error        string 
+	Path         string
+	Log          string
 }
 
-// createBwTestTable operates on the DB to create the bwtests table.
+// createEchoTable operates on the DB to create the echo table.
 func createEchoTable() error {
 	sqlCreateTable := `
     CREATE TABLE IF NOT EXISTS echo(
@@ -28,14 +28,38 @@ func createEchoTable() error {
 		ResponseTime INT,
 	    PktLoss BOOL,
 	    CmdOutput TEXT,
-        Error TEXT
+		Error TEXT,
+		Path TEXT,
+		Log TEXT
     );
     `
 	_, err := db.Exec(sqlCreateTable)
 	return err
 }
 
-// StoreBwTestItem operates on the DB to insert a BwTestItem.
+// GetHeaders iterates the EchoItem and returns struct variable names.
+func (echo EchoItem) GetHeaders() []string {
+	e := reflect.ValueOf(&echo).Elem()
+	var s []string
+	for i := 0; i < e.NumField(); i++ {
+		name := e.Type().Field(i).Name
+		s = append(s, name)
+	}
+	return s
+}
+
+// ToSlice iterates the EchoItem and returns struct values.
+func (echo EchoItem) ToSlice() []string {
+	e := reflect.ValueOf(&echo).Elem()
+	var s []string
+	for i := 0; i < e.NumField(); i++ {
+		f := e.Field(i)
+		s = append(s, fmt.Sprintf("%v", f.Interface()))
+	}
+	return s
+}
+
+// StoreEchoItem operates on the DB to insert a EchoItem.
 func StoreEchoItem(echo *EchoItem) error {
 	sqlInsert := `
     INSERT INTO echo(
@@ -45,8 +69,10 @@ func StoreEchoItem(echo *EchoItem) error {
 		ResponseTime,
 	    PktLoss,
 	    CmdOutput,
-        Error
-    ) values(?, ?, ?, ?, ?, ?, ?)
+		Error,
+		Path,
+        Log
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
 	if err != nil {
@@ -61,7 +87,9 @@ func StoreEchoItem(echo *EchoItem) error {
 		echo.ResponseTime,
 		echo.PktLoss,
 		echo.CmdOutput,
-		echo.Error)
+		echo.Error,
+		echo.Path,
+		echo.Log)
 	return err
 }
 
@@ -75,7 +103,9 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 		ResponseTime,
 		PktLoss,
 		CmdOutput,
-		Error
+		Error,
+		Path,
+		Log
 		FROM echo
     ORDER BY datetime(Inserted) DESC
     `
@@ -95,11 +125,13 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 			&echo.ResponseTime,
 			&echo.PktLoss,
 			&echo.CmdOutput,
-			&echo.Error)
+			&echo.Error,
+			&echo.Path,
+			&echo.Log)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, bwtest)
+		result = append(result, echo)
 	}
 	return result, nil
 }
@@ -115,7 +147,9 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 		ResponseTime,
 		PktLoss,
 		CmdOutput,
-		Error
+		Error,
+		Path,
+		Log
 	FROM echo
     WHERE Inserted > ?
     ORDER BY datetime(Inserted) DESC
@@ -136,7 +170,9 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 			&echo.ResponseTime,
 			&echo.PktLoss,
 			&echo.CmdOutput,
-			&echo.Error)
+			&echo.Error,
+			&echo.Path,
+			&echo.Log)
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +181,7 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 	return result, nil
 }
 
-// DeleteEchoItemsBefore operates on the DB to remote all bwtests rows
+// DeleteEchoItemsBefore operates on the DB to remote all echo rows
 // which are more older than the 'before' epoch in ms.
 func DeleteEchoItemsBefore(before string) (int64, error) {
 	sqlDeleteBefore := `

@@ -3,11 +3,6 @@ package models
 import (
 	"fmt"
 	"reflect"
-	"strconv"
-	"time"
-
-	log "github.com/inconshreveable/log15"
-	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 // BwTestItem reflects one row in the bwtests table with all columns.
@@ -109,7 +104,9 @@ func createBwTestTable() error {
         SCArrAvg INT,
         SCArrMin INT,
         SCArrMax INT,
-        Error TEXT
+		Error TEXT,
+		Path TEXT,
+		Log TEXT
     );
     `
 	_, err := db.Exec(sqlCreateTable)
