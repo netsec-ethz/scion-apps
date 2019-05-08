@@ -29,7 +29,7 @@ func printUsage() {
 	fmt.Println("  -local: Local SCION address (default localhost)")
 	fmt.Println("  -b: Send or expect an extra (throw-away) byte before the actual data")
 	fmt.Println("  -tlsKey: TLS key path, only needed when listening (default: ./key.pem)")
-	fmt.Println("  -tlsCertificate: TLS certificate path, only needed when listening (default: ./certificate.pem)")
+	fmt.Println("  -tlsCert: TLS certificate path, only needed when listening (default: ./certificate.pem)")
 }
 
 func main() {
@@ -77,6 +77,10 @@ func main() {
 		}
 	}
 
+	if listen {
+		localAddrString = fmt.Sprintf("%s:%v", localAddrString, port)
+	}
+
 	localAddr, err := snet.AddrFromString(localAddrString)
 	if err != nil {
 		golog.Panicf("Error parsing local address: %v", err)
@@ -112,11 +116,11 @@ func main() {
 	close := func() {
 		err := stream.Close()
 		if err != nil {
-			log.Warn("Error closing stream: %v", err)
+			log.Warn("Error closing stream", "error", err)
 		}
 		err = sess.Close(nil)
 		if err != nil {
-			log.Warn("Error closing session: %v", err)
+			log.Warn("Error closing session", "error", err)
 		}
 	}
 
@@ -127,6 +131,8 @@ func main() {
 	}()
 	io.Copy(stream, os.Stdin)
 	once.Do(close)
+
+	log.Debug("Done, closing now")
 }
 
 func doListen(localAddr *snet.Addr, extraByte bool) (quic.Session, quic.Stream) {
