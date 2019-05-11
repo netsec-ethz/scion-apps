@@ -8,8 +8,12 @@ import (
 // EchoItem reflects one row in the echo table with all columns
 type EchoItem struct{
 	Inserted     int64  // Inserted time
-	Src          string // source address
-	Dst          string // destination address
+	CIa            string 
+	CAddr          string 
+	CPort          int    
+	SIa            string 
+	SAddr          string 
+	SPort          int    
 	ResponseTime int    
 	PktLoss      bool   // indicating if the packet is lost
 	CmdOutput    string // command output
@@ -23,8 +27,12 @@ func createEchoTable() error {
 	sqlCreateTable := `
     CREATE TABLE IF NOT EXISTS echo(
         Inserted BIGINT NOT NULL PRIMARY KEY,
-		Src TEXT,
-		Dst TEXT,
+		CIa TEXT,
+        CAddr TEXT,
+        CPort INT,
+        SIa TEXT,
+        SAddr TEXT,
+        SPort INT,
 		ResponseTime INT,
 	    PktLoss BOOL,
 	    CmdOutput TEXT,
@@ -64,15 +72,19 @@ func StoreEchoItem(echo *EchoItem) error {
 	sqlInsert := `
     INSERT INTO echo(
         Inserted,
-        Src,
-		Dst,
+        CIa,
+        CAddr,
+        CPort,
+        SIa,
+        SAddr,
+        SPort,
 		ResponseTime,
 	    PktLoss,
 	    CmdOutput,
 		Error,
 		Path,
         Log
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
 	if err != nil {
@@ -82,8 +94,12 @@ func StoreEchoItem(echo *EchoItem) error {
 
 	_, err = stmt.Exec(
 		echo.Inserted,
-		echo.Src,
-		echo.Dst,
+		echo.CIa,
+		echo.CAddr,
+		echo.CPort,
+		echo.SIa,
+		echo.SAddr,
+		echo.SPort,
 		echo.ResponseTime,
 		echo.PktLoss,
 		echo.CmdOutput,
@@ -98,8 +114,12 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 	sqlReadAll := `
     SELECT
 		Inserted,
-		Src,
-		Dst,
+		CIa,
+        CAddr,
+        CPort,
+        SIa,
+        SAddr,
+        SPort,
 		ResponseTime,
 		PktLoss,
 		CmdOutput,
@@ -120,8 +140,12 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 		echo := EchoItem{}
 		err = rows.Scan(
 			&echo.Inserted,
-			&echo.Src,
-			&echo.Dst,
+			&echo.CIa,
+			&echo.CAddr,
+			&echo.CPort,
+			&echo.SIa,
+			&echo.SAddr,
+			&echo.SPort,
 			&echo.ResponseTime,
 			&echo.PktLoss,
 			&echo.CmdOutput,
@@ -142,8 +166,12 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 	sqlReadSince := `
     SELECT
 		Inserted,
-		Src,
-		Dst,
+	    CIa,
+		CAddr,
+		CPort,
+		SIa,
+		SAddr,
+		SPort,
 		ResponseTime,
 		PktLoss,
 		CmdOutput,
@@ -165,8 +193,12 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 		echo := EchoItem{}
 		err = rows.Scan(
 			&echo.Inserted,
-			&echo.Src,
-			&echo.Dst,
+			&echo.CIa,
+			&echo.CAddr,
+			&echo.CPort,
+			&echo.SIa,
+			&echo.SAddr,
+			&echo.SPort,
 			&echo.ResponseTime,
 			&echo.PktLoss,
 			&echo.CmdOutput,

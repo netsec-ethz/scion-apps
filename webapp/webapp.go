@@ -414,6 +414,8 @@ func getClientLocationBin(app string) string {
 		binname = "imagefetcher"
 	case "bwtester":
 		binname = "bwtestclient"
+	case "scmpecho":
+		binname = "scmp echo"
 	}
 	return binname
 }
