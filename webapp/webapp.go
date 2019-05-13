@@ -255,9 +255,7 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem,
 
 func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []string {
 	var command []string
-	binname := getClientLocationBin(appSel)
-	filepath := getClientLocationSrc(appSel)
-	installpath := path.Join(path.Dir(filepath), binname)
+	installpath := getClientLocationBin(appSel)
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
 		optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
@@ -362,6 +360,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	// execute scion go client app with client/server commands
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
+	cmd.Dir = getClientCwd(appSel)
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
@@ -381,9 +380,8 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 }
 
 func appsBuildCheck(app string) {
-	binname := getClientLocationBin(app)
 	filepath := getClientLocationSrc(app)
-	installpath := path.Join(path.Dir(filepath), binname)
+	installpath := getClientLocationBin(app)
 	// check for install, and install only if needed
 	if _, err := os.Stat(installpath); os.IsNotExist(err) {
 		cmd := exec.Command("go", "build")
@@ -406,31 +404,44 @@ func appsBuildCheck(app string) {
 	}
 }
 
+// Parses html selection and returns current working directory for execution.
+func getClientCwd(app string) string {
+	var cwd string
+	switch app {
+	case "sensorapp":
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, "sensorapp/sensorfetcher")
+	case "camerapp":
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher")
+	case "bwtester":
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient")
+	}
+	return cwd
+}
+
 // Parses html selection and returns name of app binary.
 func getClientLocationBin(app string) string {
 	var binname string
 	switch app {
 	case "sensorapp":
-		binname = "sensorfetcher"
+		binname = path.Join(lib.GOPATH, lib.LABROOT, "sensorapp/sensorfetcher/sensorfetcher")
 	case "camerapp":
-		binname = "imagefetcher"
+		binname = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher/imagefetcher")
 	case "bwtester":
-		binname = "bwtestclient"
+		binname = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient/bwtestclient")
 	}
 	return binname
 }
 
 // Parses html selection and returns location of app source.
 func getClientLocationSrc(app string) string {
-	slroot := "src/github.com/netsec-ethz/scion-apps"
 	var filepath string
 	switch app {
 	case "sensorapp":
-		filepath = path.Join(lib.GOPATH, slroot, "sensorapp/sensorfetcher/sensorfetcher.go")
+		filepath = path.Join(lib.GOPATH, lib.LABROOT, "sensorapp/sensorfetcher/sensorfetcher.go")
 	case "camerapp":
-		filepath = path.Join(lib.GOPATH, slroot, "camerapp/imagefetcher/imagefetcher.go")
+		filepath = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher/imagefetcher.go")
 	case "bwtester":
-		filepath = path.Join(lib.GOPATH, slroot, "bwtester/bwtestclient/bwtestclient.go")
+		filepath = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient/bwtestclient.go")
 	}
 	return filepath
 }
