@@ -4,7 +4,7 @@ package main
 
 import (
 	"bufio"
-	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -374,31 +374,19 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	err = cmd.Start()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to start err=%v", err)
+		if w != nil {
+			w.Write([]byte(err.Error() + "\n"))
+		}
 	}
 	go writeCmdOutput(w, reader, stdin, d, appSel, pathStr, cmd)
 	cmd.Wait()
 }
 
 func appsBuildCheck(app string) {
-	filepath := getClientLocationSrc(app)
 	installpath := getClientLocationBin(app)
-	// check for install, and install only if needed
 	if _, err := os.Stat(installpath); os.IsNotExist(err) {
-		cmd := exec.Command("go", "build")
-		cmd.Dir = path.Dir(filepath)
-		log.Info(fmt.Sprintf("Building %s...", filepath))
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		err := cmd.Run()
 		CheckError(err)
-		outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
-		if len(outStr) > 0 {
-			log.Info(outStr)
-		}
-		if len(errStr) > 0 {
-			log.Error(errStr)
-		}
+		CheckError(errors.New("App missing, build all apps with 'deps.sh' and 'make'."))
 	} else {
 		log.Info(fmt.Sprintf("Existing install, found %s...", app))
 	}
@@ -430,20 +418,6 @@ func getClientLocationBin(app string) string {
 		binname = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient/bwtestclient")
 	}
 	return binname
-}
-
-// Parses html selection and returns location of app source.
-func getClientLocationSrc(app string) string {
-	var filepath string
-	switch app {
-	case "sensorapp":
-		filepath = path.Join(lib.GOPATH, lib.LABROOT, "sensorapp/sensorfetcher/sensorfetcher.go")
-	case "camerapp":
-		filepath = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher/imagefetcher.go")
-	case "bwtester":
-		filepath = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient/bwtestclient.go")
-	}
-	return filepath
 }
 
 // Handles piping command line output to logs, database, and http response writer.
