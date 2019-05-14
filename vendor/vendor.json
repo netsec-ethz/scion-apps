@@ -152,13 +152,6 @@
 			"revisionTime": "2018-10-23T10:10:25Z"
 		},
 		{
-			"checksumSHA1": "P3zGmsNjW8m15a+nks4FdVpFKwE=",
-			"license": "2-BSD",
-			"path": "github.com/gopherjs/gopherjs/js",
-			"revision": "6f5a3c4a73badf117936d7d61a046e2fab8e2adb",
-			"revisionTime": "2016-10-23T18:47:00Z"
-		},
-		{
 			"checksumSHA1": "UquR8kc0nKU285HwLbkievlLQz4=",
 			"path": "github.com/hashicorp/golang-lru",
 			"revision": "0fb14efe8c47ae851c0034ed7a448854d3d34cf3",
@@ -752,12 +745,6 @@
 			"path": "golang.org/x/image/math/fixed",
 			"revision": "3fc05d484e9f77dd51816890e05f2602e4ca4d65",
 			"revisionTime": "2019-03-12T13:36:53Z"
-		},
-		{
-			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
-			"path": "golang.org/x/net/context",
-			"revision": "c7086645de248775cbf2373cf5ca4d2fa664b8c1",
-			"revisionTime": "2017-11-10T09:49:23Z"
 		},
 		{
 			"checksumSHA1": "pCY4YtdNKVBYRbNvODjx8hj0hIs=",
