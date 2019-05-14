@@ -11,7 +11,7 @@ import (
 )
 
 var db *sql.DB
-var bwDbVer = 2
+var dbVer = 2
 var dbExpire = time.Duration(24) * time.Hour
 
 // InitDB controls the opening connection to the database.
@@ -37,6 +37,10 @@ func LoadDB() error {
 	if err != nil {
 		return err
 	}
+	err = createEchoTable()
+	if err != nil {
+		return err
+	}
 	version, err := getUserVersion()
 	if err != nil {
 		return err
@@ -52,13 +56,14 @@ func LoadDB() error {
 	if err != nil {
 		return err
 	}
+
 	//set updated version
-	if version < bwDbVer {
-		err := setUserVersion(bwDbVer)
+	if version < dbVer {
+		err := setUserVersion(dbVer)
 		if err != nil {
 			return err
 		}
-		log.Info("Migrated to database version", "version", bwDbVer)
+		log.Info("Migrated to database version", "version", dbVer)
 	}
 	return err
 }

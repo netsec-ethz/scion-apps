@@ -7,19 +7,19 @@ import (
 
 // EchoItem reflects one row in the echo table with all columns
 type EchoItem struct{
-	Inserted     int64  // Inserted time
-	CIa            string 
-	CAddr          string 
-	CPort          int    
-	SIa            string 
-	SAddr          string 
-	SPort          int    
-	ResponseTime int    
+	Inserted     int64  // ms Inserted time
+	CIa          string 
+	CAddr        string    
+	SIa          string 
+	SAddr        string 
+	Count        int    // Default 1
+	Timeout	     int    // s Default 2
+	Interval     int    // s Default 1
+	ResponseTime int    // ms
 	PktLoss      bool   // indicating if the packet is lost
 	CmdOutput    string // command output
 	Error        string 
 	Path         string
-	Log          string
 }
 
 // createEchoTable operates on the DB to create the echo table.
@@ -29,16 +29,16 @@ func createEchoTable() error {
         Inserted BIGINT NOT NULL PRIMARY KEY,
 		CIa TEXT,
         CAddr TEXT,
-        CPort INT,
         SIa TEXT,
-        SAddr TEXT,
-        SPort INT,
+		SAddr TEXT,
+		Count INT,
+		Timeout INT,
+		Interval INT,
 		ResponseTime INT,
 	    PktLoss BOOL,
 	    CmdOutput TEXT,
 		Error TEXT,
-		Path TEXT,
-		Log TEXT
+		Path TEXT
     );
     `
 	_, err := db.Exec(sqlCreateTable)
@@ -74,16 +74,16 @@ func StoreEchoItem(echo *EchoItem) error {
         Inserted,
         CIa,
         CAddr,
-        CPort,
         SIa,
-        SAddr,
-        SPort,
+		SAddr,
+		Count,
+		Timeout,
+		Interval,
 		ResponseTime,
 	    PktLoss,
 	    CmdOutput,
 		Error,
-		Path,
-        Log
+		Path
     ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
@@ -96,16 +96,16 @@ func StoreEchoItem(echo *EchoItem) error {
 		echo.Inserted,
 		echo.CIa,
 		echo.CAddr,
-		echo.CPort,
 		echo.SIa,
 		echo.SAddr,
-		echo.SPort,
+		echo.Count,
+		echo.Timeout,
+		echo.Interval,
 		echo.ResponseTime,
 		echo.PktLoss,
 		echo.CmdOutput,
 		echo.Error,
-		echo.Path,
-		echo.Log)
+		echo.Path)
 	return err
 }
 
@@ -116,16 +116,16 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 		Inserted,
 		CIa,
         CAddr,
-        CPort,
         SIa,
-        SAddr,
-        SPort,
+		SAddr,
+		Count,
+		Timeout,
+		Interval,
 		ResponseTime,
 		PktLoss,
 		CmdOutput,
 		Error,
-		Path,
-		Log
+		Path
 		FROM echo
     ORDER BY datetime(Inserted) DESC
     `
@@ -142,16 +142,16 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 			&echo.Inserted,
 			&echo.CIa,
 			&echo.CAddr,
-			&echo.CPort,
 			&echo.SIa,
 			&echo.SAddr,
-			&echo.SPort,
+			&echo.Count,
+			&echo.Timeout,
+			&echo.Interval,
 			&echo.ResponseTime,
 			&echo.PktLoss,
 			&echo.CmdOutput,
 			&echo.Error,
-			&echo.Path,
-			&echo.Log)
+			&echo.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -168,16 +168,16 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 		Inserted,
 	    CIa,
 		CAddr,
-		CPort,
 		SIa,
 		SAddr,
-		SPort,
+		Count,
+		Timeout,
+		Interval,
 		ResponseTime,
 		PktLoss,
 		CmdOutput,
 		Error,
-		Path,
-		Log
+		Path
 	FROM echo
     WHERE Inserted > ?
     ORDER BY datetime(Inserted) DESC
@@ -195,16 +195,16 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 			&echo.Inserted,
 			&echo.CIa,
 			&echo.CAddr,
-			&echo.CPort,
 			&echo.SIa,
 			&echo.SAddr,
-			&echo.SPort,
+			&echo.Count,
+			&echo.Timeout,
+			&echo.Interval,
 			&echo.ResponseTime,
 			&echo.PktLoss,
 			&echo.CmdOutput,
 			&echo.Error,
-			&echo.Path,
-			&echo.Log)
+			&echo.Path)
 		if err != nil {
 			return nil, err
 		}

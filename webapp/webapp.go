@@ -229,16 +229,16 @@ func trcHandler(w http.ResponseWriter, r *http.Request) {
 	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: myIa})
 }
 
-func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem, string) {
-	d := new(model.BwTestItem)
-	d.SIa = r.PostFormValue("ia_ser")
-	d.CIa = r.PostFormValue("ia_cli")
-	d.SAddr = r.PostFormValue("addr_ser")
-	d.CAddr = r.PostFormValue("addr_cli")
-	d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
-	d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
-	addlOpt := r.PostFormValue("addlOpt")
-	if appSel == "bwtester" {
+// There're two CmdItem, BwTestItem and EchoItem
+func parseRequest2CmdItem(r *http.Request, appSel string) (interface{}, string) {
+	
+	if appSel == "echo" { // ###need to be confirmed###
+		d: = new(model.EchoItem)
+	}else{
+		d := new(model.BwTestItem)
+	}
+	
+	if appSel == "bwtester" {	
 		d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
 		d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
 		d.CSPackets, _ = strconv.Atoi(r.PostFormValue("dial-cs-pkt"))
@@ -250,14 +250,29 @@ func parseRequest2BwtestItem(r *http.Request, appSel string) (*model.BwTestItem,
 		d.SCBandwidth = d.SCPackets * d.SCPktSize / d.SCDuration * 8
 		d.SCDuration = d.SCDuration * 1000 // final storage in ms
 	}
+	d.SIa = r.PostFormValue("ia_ser")
+	d.CIa = r.PostFormValue("ia_cli")
+	d.SAddr = r.PostFormValue("addr_ser")
+	d.CAddr = r.PostFormValue("addr_cli")
+	d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
+	d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
+	addlOpt := r.PostFormValue("addlOpt")
 	return d, addlOpt
 }
 
-func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []string {
+// d could be either *model.BwTestItem or *model.EchoItem
+func parseCmdItem2Cmd(dOrinial interface{}, appSel string, pathStr string) []string {
 	var command []string
+	var isdCli int
 	binname := getClientLocationBin(appSel)
+
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
+		d, ok = dOrinial.(model.BwTestItem)
+		if(!ok){
+			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			return nil
+		}
 		optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
 		optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
 		command = append(command, binname, optServer, optClient)
@@ -272,8 +287,21 @@ func parseBwTest2Cmd(d *model.BwTestItem, appSel string, pathStr string) []strin
 				command = append(command, "-i")
 			}
 		}
+		isdCli, _ := strconv.Atoi(strings.Split(d.CIa, "-")[0])
+	
+	case "echo":
+		d, ok = dOrinial.(model.EchoItem)
+		if(!ok){
+			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			return
+		}
+		optClient := fmt.Sprintf("-local=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
+		optServer := fmt.Sprintf("-remote=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
+		optCount = "-c=1"
+		command = append(command, binname, optServer, optClient, optCount)
+		isdCli, _ := strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
-	isdCli, _ := strconv.Atoi(strings.Split(d.CIa, "-")[0])
+	
 	if isdCli < 16 {
 		// -sciondFromIA is better for localhost testing, with test isds
 		command = append(command, "-sciondFromIA")
@@ -353,8 +381,8 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	appSel := r.PostFormValue("apps")
 	pathStr := r.PostFormValue("pathStr")
-	d, addlOpt := parseRequest2BwtestItem(r, appSel)
-	command := parseBwTest2Cmd(d, appSel, pathStr)
+	d, addlOpt := parseRequest2CmdItem(r, appSel)
+	command := parseCmdItem2Cmd(d, appSel, pathStr)
 	command = append(command, addlOpt)
 
 	// execute scion go client app with client/server commands
@@ -414,7 +442,7 @@ func getClientLocationBin(app string) string {
 		binname = "imagefetcher"
 	case "bwtester":
 		binname = "bwtestclient"
-	case "scmpecho":
+	case "echo":
 		binname = "scmp echo"
 	}
 	return binname
@@ -431,6 +459,8 @@ func getClientLocationSrc(app string) string {
 		filepath = path.Join(lib.GOPATH, slroot, "camerapp/imagefetcher/imagefetcher.go")
 	case "bwtester":
 		filepath = path.Join(lib.GOPATH, slroot, "bwtester/bwtestclient/bwtestclient.go")
+	case "echo":
+		filepath = Path.Join(lib.GOPATH, slroot, "")
 	}
 	return filepath
 }
