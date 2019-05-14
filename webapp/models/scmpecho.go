@@ -5,6 +5,12 @@ import (
 	"reflect"
 )
 
+// CmdItem could be either EchoItem or BwTestItem
+type CmdItem interface{
+	GetHeaders() []string
+	ToSlice() []string
+}
+
 // EchoItem reflects one row in the echo table with all columns
 type EchoItem struct{
 	Inserted     int64  // ms Inserted time
@@ -13,7 +19,7 @@ type EchoItem struct{
 	SIa          string 
 	SAddr        string 
 	Count        int    // Default 1
-	Timeout	     int    // s Default 2
+	Timeout  	 int    // s Default 2
 	Interval     int    // s Default 1
 	ResponseTime int    // ms
 	PktLoss      bool   // indicating if the packet is lost
