@@ -48,3 +48,4 @@ sensorapp/sensorfetcher/sensorfetcher
 sensorapp/sensorserver/sensorserver
 webapp/webapp
 tools/pathdb_dump/pathdb_dump
+netcat/netcat
