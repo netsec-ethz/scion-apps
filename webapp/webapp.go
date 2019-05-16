@@ -239,6 +239,13 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 		d.CIa = r.PostFormValue("ia_cli")
 		d.SAddr = r.PostFormValue("addr_ser")
 		d.CAddr = r.PostFormValue("addr_cli")
+
+		// TODO: parse flags (count, interval, duration from http request)
+		// If no flags set then set the default value
+		d.Count = 1
+		d.Interval = 1
+		d.Timeout = 2
+
 		return d, addlOpt
 	}
 
@@ -300,12 +307,14 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			fmt.Println("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
+		optApp := "echo"
 		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optCount := fmt.Sprintf("-c=%d", d.Count)
-		optTimeout := fmt.Sprintf("-timeout=%d", d.Timeout)
-		optInterval := fmt.Sprintf("-interval=%d", d.Interval)
-		command = append(command, binname, optRemote, optLocal, optCount, optTimeout, optInterval)
+		optTimeout := fmt.Sprintf("-timeout=%ds", d.Timeout)
+		optInterval := fmt.Sprintf("-interval=%ds", d.Interval)
+		// command = append(command, binname, optApp, optRemote, optLocal, optCount)
+		command = append(command, binname, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
 	
@@ -390,11 +399,16 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	pathStr := r.PostFormValue("pathStr")
 	d, addlOpt := parseRequest2CmdItem(r, appSel)
 	command := parseCmdItem2Cmd(d, appSel, pathStr)
-	command = append(command, addlOpt)
-
+	if addlOpt != ""{
+		command = append(command, addlOpt)
+	}
+	
 	// execute scion go client app with client/server commands
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
+	if appSel == "echo"{
+		cmd.Dir = "/home/ubuntu/go/src/github.com/scionproto/scion/bin"
+	}
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
@@ -450,7 +464,7 @@ func getClientLocationBin(app string) string {
 	case "bwtester":
 		binname = "bwtestclient"
 	case "echo":
-		binname = "$SC/bin/scmp echo"
+		binname = "./scmp"
 	}
 	return binname
 }
@@ -495,6 +509,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		// read each line from stdout
 		line := scanner.Text()
 		log.Info(line)
+		fmt.Fprintln(os.Stdout, line)
 
 		jsonBuf = append(jsonBuf, []byte(line+"\n")...)
 		// http write response
@@ -561,7 +576,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 			fmt.Println("Parsing error, CmdItem category doesn't match its name")
 			return
 		}
-		//# lib.ExtractEchoRespData(string(jsonBuf), d, start)
+		lib.ExtractEchoRespData(string(jsonBuf), &d)
 		if len(errMsg) > 0 {
 			d.Error = errMsg
 		}

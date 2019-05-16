@@ -22,7 +22,7 @@ type EchoItem struct{
 	Timeout  	 int    // s Default 2
 	Interval     int    // s Default 1
 	ResponseTime int    // ms
-	PktLoss      bool   // indicating if the packet is lost
+	PktLoss      int    // percent Indicating pkt loss rate
 	CmdOutput    string // command output
 	Error        string 
 	Path         string
@@ -41,7 +41,7 @@ func createEchoTable() error {
 		Timeout INT,
 		Interval INT,
 		ResponseTime INT,
-	    PktLoss BOOL,
+	    PktLoss INT,
 	    CmdOutput TEXT,
 		Error TEXT,
 		Path TEXT

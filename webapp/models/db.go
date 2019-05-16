@@ -77,13 +77,13 @@ func MaintainDatabase() {
 		count1, err1 := DeleteBwTestItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
 		CheckError(err1)
 		if count1 > 0 {
-			log.Warn(fmt.Sprint("Deleting", count1, "bwtests db rows older than", dbExpire))
+			log.Warn(fmt.Sprint("Deleting ", count1, " bwtests db rows older than", dbExpire))
 		}
 
 		count2, err2 := DeleteEchoItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
 		CheckError(err2)
 		if count2 > 0 {
-			log.Warn(fmt.Sprint("Deleting", count2, "echo db rows older than", dbExpire))
+			log.Warn(fmt.Sprint("Deleting ", count2, " echo db rows older than", dbExpire))
 		}
 		time.Sleep(dbExpire)
 	}
