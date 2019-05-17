@@ -449,7 +449,7 @@ func getClientCwd(app string) string {
 
 		cwd = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient")
 	case "echo":
-		cwd = "/home/ubuntu/go/src/github.com/scionproto/scion/bin"
+		cwd = path.Join(lib.GOPATH, lib.SCIONROOT, "bin")
 	}
 	return cwd
 }
@@ -465,7 +465,7 @@ func getClientLocationBin(app string) string {
 	case "bwtester":
 		binname = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient/bwtestclient")
 	case "echo":
-		binname = "/home/ubuntu/go/src/github.com/scionproto/scion/bin/scmp"
+		binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/scmp")
 	}
 	return binname
 }
