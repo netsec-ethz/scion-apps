@@ -152,13 +152,6 @@
 			"revisionTime": "2018-10-23T10:10:25Z"
 		},
 		{
-			"checksumSHA1": "P3zGmsNjW8m15a+nks4FdVpFKwE=",
-			"license": "2-BSD",
-			"path": "github.com/gopherjs/gopherjs/js",
-			"revision": "6f5a3c4a73badf117936d7d61a046e2fab8e2adb",
-			"revisionTime": "2016-10-23T18:47:00Z"
-		},
-		{
 			"checksumSHA1": "UquR8kc0nKU285HwLbkievlLQz4=",
 			"path": "github.com/hashicorp/golang-lru",
 			"revision": "0fb14efe8c47ae851c0034ed7a448854d3d34cf3",
@@ -676,30 +669,6 @@
 			"tree": true
 		},
 		{
-			"checksumSHA1": "Vzb+dEH/LTYbvr8RXHmt6xJHz04=",
-			"license": "3-BSD",
-			"path": "github.com/smartystreets/assertions/internal/go-render/render",
-			"revision": "2063fd1cc7c975db70502811a34b06ad034ccdf2",
-			"revisionTime": "2016-07-07T19:03:55Z"
-		},
-		{
-			"checksumSHA1": "SLC6TfV4icQA9l8YJQu8acJYbuo=",
-			"license": "APL 2.0",
-			"path": "github.com/smartystreets/assertions/internal/oglematchers",
-			"revision": "2063fd1cc7c975db70502811a34b06ad034ccdf2",
-			"revisionTime": "2016-07-07T19:03:55Z"
-		},
-		{
-			"checksumSHA1": "ZNcNGA0vNsM39HBFmM6JhHcdsLU=",
-			"comment": "FIXME(kormat): Use fork until https://github.com/smartystreets/goconvey/pull/451 is merged",
-			"license": "MIT",
-			"origin": "github.com/kormat/goconvey",
-			"path": "github.com/smartystreets/goconvey",
-			"revision": "a9793712606dd72b256bcbb0fad0858aa0e72d67",
-			"revisionTime": "2016-10-13T14:27:51Z",
-			"tree": true
-		},
-		{
 			"checksumSHA1": "g27xFm/EIghjjcT3DuGt976CgNo=",
 			"path": "github.com/walle/lll",
 			"revision": "8b13b3fbf7312913fcfdbfa78997b9bd1dbb11af",
@@ -760,10 +729,28 @@
 			"revisionTime": "2018-06-07T13:59:11Z"
 		},
 		{
-			"checksumSHA1": "asZBHvcTKF5gVlI7AYnMlLXRYys=",
+			"checksumSHA1": "eP6ULb7qY83lyYmM7AfaDIRDeXE=",
 			"path": "golang.org/x/crypto/sha3",
-			"revision": "b7391e95e576cacdcdd422573063bc057239113d",
-			"revisionTime": "2019-03-19T22:29:04Z"
+			"revision": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2",
+			"revisionTime": "2018-11-10T06:03:37Z"
+		},
+		{
+			"checksumSHA1": "CQYQ8wELyxPMRYOTDLELVtude/M=",
+			"path": "golang.org/x/image/font",
+			"revision": "3fc05d484e9f77dd51816890e05f2602e4ca4d65",
+			"revisionTime": "2019-03-12T13:36:53Z"
+		},
+		{
+			"checksumSHA1": "iV2FonJPeLV+iF4JHS3TRRXegF4=",
+			"path": "golang.org/x/image/font/basicfont",
+			"revision": "3fc05d484e9f77dd51816890e05f2602e4ca4d65",
+			"revisionTime": "2019-03-12T13:36:53Z"
+		},
+		{
+			"checksumSHA1": "euzvwlMLxyD0hwc+raoVsDLv6j4=",
+			"path": "golang.org/x/image/math/fixed",
+			"revision": "3fc05d484e9f77dd51816890e05f2602e4ca4d65",
+			"revisionTime": "2019-03-12T13:36:53Z"
 		},
 		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
@@ -886,6 +873,30 @@
 			"path": "gopkg.in/yaml.v2",
 			"revision": "a5b47d31c556af34a302ce5d659e6fea44d90de0",
 			"revisionTime": "2016-09-28T15:37:09Z"
+		},
+		{
+			"checksumSHA1": "d+FszpdwcrSQzdoG3w0E2FxQnFQ=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/client/monotime",
+			"path": "roughtime.googlesource.com/go/client/monotime",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
+		},
+		{
+			"checksumSHA1": "dtUYa81+BOxmiK4NjluVowO8g0U=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/config",
+			"path": "roughtime.googlesource.com/go/config",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
+		},
+		{
+			"checksumSHA1": "7TVC3xVndRMynYSO7L/fQG6QIkk=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/protocol",
+			"path": "roughtime.googlesource.com/go/protocol",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
 		},
 		{
 			"checksumSHA1": "Vu7yTzds3lfhARaEKI/8vmhIvLg=",
