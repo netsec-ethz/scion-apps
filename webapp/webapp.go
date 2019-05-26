@@ -275,6 +275,7 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 // d could be either model.BwTestItem or model.EchoItem
 func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
+	var isdCli int
 	installpath := getClientLocationBin(appSel)
 	var isdCli int
 
@@ -447,6 +448,7 @@ func getClientCwd(app string) string {
 	case "camerapp":
 		cwd = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher")
 	case "bwtester":
+
 		cwd = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient")
 	case "echo":
 		cwd = path.Join(lib.GOPATH, lib.SCIONROOT, "bin")
