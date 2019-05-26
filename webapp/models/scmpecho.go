@@ -28,6 +28,17 @@ type EchoItem struct{
 	Path         string
 }
 
+// EchoGraph reflects one row in the echo table with only the 
+// necessary items to display in a graph
+type EchoGraph struct{
+	Inserted     int64
+	ResponseTime int
+	PktLoss      int
+	CmdOutput    string
+	Error        string
+	Path         string
+}
+
 // createEchoTable operates on the DB to create the echo table.
 func createEchoTable() error {
 	sqlCreateTable := `
@@ -168,17 +179,10 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 
 // ReadEchoItemsSince operates on the DB to return all echo rows
 // which are more recent than the 'since' epoch in ms.
-func ReadEchoItemsSince(since string) ([]EchoItem, error) {
+func ReadEchoItemsSince(since string) ([]EchoGraph, error) {
 	sqlReadSince := `
     SELECT
 		Inserted,
-	    CIa,
-		CAddr,
-		SIa,
-		SAddr,
-		Count,
-		Timeout,
-		Interval,
 		ResponseTime,
 		PktLoss,
 		CmdOutput,
@@ -194,18 +198,11 @@ func ReadEchoItemsSince(since string) ([]EchoItem, error) {
 	}
 	defer rows.Close()
 
-	var result []EchoItem
+	var result []EchoGraph
 	for rows.Next() {
-		echo := EchoItem{}
+		echo := EchoGraph{}
 		err = rows.Scan(
 			&echo.Inserted,
-			&echo.CIa,
-			&echo.CAddr,
-			&echo.SIa,
-			&echo.SAddr,
-			&echo.Count,
-			&echo.Timeout,
-			&echo.Interval,
 			&echo.ResponseTime,
 			&echo.PktLoss,
 			&echo.CmdOutput,

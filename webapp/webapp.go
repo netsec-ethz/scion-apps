@@ -242,6 +242,7 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 
 		// TODO: parse flags (count, interval, duration from http request)
 		// If no flags set then set the default value
+		// (to do after finishing the single echo case)
 		d.Count = 1
 		d.Interval = 1
 		d.Timeout = 2
@@ -277,7 +278,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 	var command []string
 	var isdCli int
 	installpath := getClientLocationBin(appSel)
-	var isdCli int
 
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
