@@ -308,7 +308,7 @@ function manageTestData() {
                 if (d.graph != null) {
                     // write data on graph
                     for (var i = 0; i < d.graph.length; i++) {
-                        if (d.graph[i].Log != null) {
+                        if (d.graph[i].Log != null && d.graph[i].Log != "") {
                             // result returned, display it and reset progress
                             handleEndCmdDisplay(d.graph[i].Log);
                         }

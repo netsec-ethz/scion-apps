@@ -6,10 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/roughtime/utils"
 	"github.com/scionproto/scion/go/lib/snet"
 	"golang.org/x/crypto/ed25519"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"roughtime.googlesource.com/go/protocol"
 )
 
@@ -61,7 +62,7 @@ func runServers(configurationFile, privateKeyFile string) {
 }
 
 func serveRequests(bindAddress, connectionProtocol, timedLocation string, privateKey []byte) {
-	sAddr, err := utils.InitSCIONConnection(bindAddress)
+	sAddr, err := scionutil.InitSCIONString(bindAddress)
 	checkErr("Initializing SCION connection", err)
 
 	conn, err := snet.ListenSCION(connectionProtocol, sAddr)

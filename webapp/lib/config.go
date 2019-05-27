@@ -13,8 +13,11 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// SCIONROOT is the root location on the scion infrastructure.
+// SCIONROOT is the root location of the scion infrastructure.
 var SCIONROOT = "src/github.com/scionproto/scion"
+
+// LABROOT is the root location of scionlab apps.
+var LABROOT = "src/github.com/netsec-ethz/scion-apps"
 
 // GOPATH is the root of the GOPATH environment.
 var GOPATH = os.Getenv("GOPATH")

@@ -74,7 +74,6 @@ var (
 )
 
 func init() {
-
 	flag.BoolVar(&interactive, "in", false, "Lets user choose the path to destination")
 	flag.BoolVar(&ver, "v", false, "Print Version Number")
 	flag.BoolVar(&ver, "version", false, "Print Version Number")

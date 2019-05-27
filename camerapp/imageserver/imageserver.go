@@ -155,8 +155,8 @@ func main() {
 		}
 	} else {
 		server, err = scionutil.GetLocalhost()
-		server.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
 		check(err)
+		server.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
 	}
 
 	if sciondFromIA {

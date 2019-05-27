@@ -8,18 +8,10 @@ This implementation also allows users who have a [ThinkerForge](https://www.tink
 
 ## Build
 
-Install roughtime library:
-
-```
-cd $GOPATH/src/
-git clone https://roughtime.googlesource.com/roughtime roughtime.googlesource.com
-```
-
 Build server:
 
 ```
 cd $GOPATH/src/github.com/netsec-ethz/scion-apps/roughtime/timeserver
-go get
 go build
 ```
 
@@ -27,7 +19,6 @@ Build client:
 
 ```
 cd $GOPATH/src/github.com/netsec-ethz/scion-apps/roughtime/timeclient
-go get
 go build
 ```
 
