@@ -15,7 +15,7 @@ import (
 )
 
 // ChannelHandlerFunction is a type for channel handlers, such as terminal sessions, tunnels, or X11 forwarding.
-type ChannelHandlerFunction func(newChannel ssh.NewChannel)
+type ChannelHandlerFunction func(perms *ssh.Permissions, newChannel ssh.NewChannel)
 
 // Server is a struct containing information about SSH servers.
 type Server struct {
@@ -58,16 +58,16 @@ func Create(config *serverconfig.ServerConfig, version string) (*Server, error) 
 	return server, nil
 }
 
-func (s *Server) handleChannels(chans <-chan ssh.NewChannel) {
+func (s *Server) handleChannels(perms *ssh.Permissions, chans <-chan ssh.NewChannel) {
 	// Service the incoming Channel channel in go routine
 	for newChannel := range chans {
-		go s.handleChannel(newChannel)
+		go s.handleChannel(perms, newChannel)
 	}
 }
 
-func (s *Server) handleChannel(newChannel ssh.NewChannel) {
+func (s *Server) handleChannel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 	if handler, exists := s.channelHandlers[newChannel.ChannelType()]; exists {
-		handler(newChannel)
+		handler(perms, newChannel)
 	} else {
 		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", newChannel.ChannelType()))
 		return
@@ -79,16 +79,16 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 	log.Debug("Handling new connection")
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, s.configuration)
 	if err != nil {
-		log.Debug("Failed to create new connection (%s)", err)
+		log.Error("Failed to create new connection", "error", err)
 		conn.Close()
 		return err
 	}
 
-	log.Debug("New SSH connection from %s (%s)", sshConn.RemoteAddr(), sshConn.ClientVersion())
+	log.Debug("New SSH connection", "remoteAddress", sshConn.RemoteAddr(), "clientVersion", sshConn.ClientVersion())
 	// Discard all global out-of-band Requests
 	go ssh.DiscardRequests(reqs)
 	// Accept all channels
-	s.handleChannels(chans)
+	s.handleChannels(sshConn.Permissions, chans)
 
 	return nil
 }

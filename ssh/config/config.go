@@ -12,6 +12,7 @@ import (
 	log "github.com/inconshreveable/log15"
 )
 
+// Config is an interface representing a configuration file
 type Config interface {
 }
 

@@ -31,7 +31,7 @@ func handleTunnelForRemoteConnection(connection ssh.Channel, remoteConnection ne
 	}()
 }
 
-func handleTCPTunnel(newChannel ssh.NewChannel) {
+func handleTCPTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 	extraData := newChannel.ExtraData()
 	addressLen := binary.BigEndian.Uint32(extraData[0:4])
 	address := string(extraData[4 : addressLen+4])
@@ -54,7 +54,7 @@ func handleTCPTunnel(newChannel ssh.NewChannel) {
 	handleTunnelForRemoteConnection(connection, remoteConnection)
 }
 
-func handleSCIONQUICTunnel(newChannel ssh.NewChannel) {
+func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 	extraData := newChannel.ExtraData()
 	addressLen := binary.BigEndian.Uint32(extraData[0:4])
 	address := string(extraData[4 : addressLen+4])
