@@ -1,56 +1,75 @@
 package lib
 
 import (
+	"fmt"
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"net/http"
 
 	log "github.com/inconshreveable/log15"
 	model "github.com/netsec-ethz/scion-apps/webapp/models"
+	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 // results data extraction regex
-var reRespTimeS = `(packet loss, time )(\d*\.?\d*)(s)`
-var reRespTimeMs = `(packet loss, time )(\d*\.?\d*)(ms)`
+var reRunTimeS = `(packet loss, time )(\d*\.?\d*)(s)`
+var reRunTimeMs = `(packet loss, time )(\d*\.?\d*)(ms)`
+var reRespTime = `(scmp_seq=0 time=)(\d*\.?\d*)(ms)`
 var rePktLoss = `(\d+)(% packet loss,)`
 
 // ExtractEchoRespData will parse cmd line output from scmp echo for adding EchoItem fields.
-func ExtractEchoRespData(resp string, d *model.EchoItem) {
+func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
+	// store duration in ms
+	diff := time.Now().Sub(start)
+	d.ActualDuration = int(diff.Nanoseconds() / 1e6)
+
 	// store current epoch in ms
 	d.Inserted = time.Now().UnixNano() / 1e6
 
 	log.Info("resp response", "content", resp)
 
-	var data = make(map[string]string)
+	var data = make(map[string]float32)
 	var path, err string
 	var match bool
 	pathNext := false
 	r := strings.Split(resp, "\n")
 	for i := range r {
-		// match response time in unit s
-		match, _ = regexp.MatchString(reRespTimeS, r[i])
-		if match {
-			re := regexp.MustCompile(reRespTimeS)
+		match, _ = regexp.MatchString(reRespTime, r[i])
+		if match{
+			re := regexp.MustCompile(reRespTime)
 			tStr := re.FindStringSubmatch(r[i])[2]
 			t, _ := strconv.ParseFloat(tStr, 32)
-			tInt := int(t * 1000)
-			data["response_time"] = strconv.Itoa(tInt)
+			data["response_time"] = float32(t)
+		}
+		// match response time in unit ms
+
+		// match run time in unit s
+		match, _ = regexp.MatchString(reRunTimeS, r[i])
+		if match {
+			re := regexp.MustCompile(reRunTimeS)
+			tStr := re.FindStringSubmatch(r[i])[2]
+			t, _ := strconv.ParseFloat(tStr, 32)
+			data["run_time"] = float32(t * 1000)
 		}
 
-		// match response time in unit ms
-		match, _ = regexp.MatchString(reRespTimeMs, r[i])
+		// match run time in unit ms
+		match, _ = regexp.MatchString(reRunTimeMs, r[i])
 		if match {
-			re := regexp.MustCompile(reRespTimeMs)
+			re := regexp.MustCompile(reRunTimeMs)
 			tStr := re.FindStringSubmatch(r[i])[2]
 			t, _ := strconv.ParseFloat(tStr, 32)
-			data["response_time"] = strconv.Itoa(int(t))
+			data["run_time"] = float32(t)
 		}
 
 		// match packet loss
 		match, _ = regexp.MatchString(rePktLoss, r[i])
 		if match {
 			re := regexp.MustCompile(rePktLoss)
-			data["packet_loss"] = re.FindStringSubmatch(r[i])[1] 
+			loss := re.FindStringSubmatch(r[i])[1]
+			l, _ := strconv.ParseFloat(loss, 32)
+			data["packet_loss"] = float32(l)
 		}
 		
 		// save used path (default or interactive) for later user display
@@ -82,9 +101,37 @@ func ExtractEchoRespData(resp string, d *model.EchoItem) {
 	//log.Info("print parsed result", "error", err)
 	//log.Info("print parsed result", "path", path)
 
-	d.ResponseTime, _ = strconv.Atoi(data["response_time"])
-	d.PktLoss, _ = strconv.Atoi(data["packet_loss"])
+	d.RunTime, _ = data["run_time"]
+	d.ResponseTime, _ = data["response_time"]
+	d.PktLoss = int(data["packet_loss"])
 	d.Error = err
 	d.Path = path
 	d.CmdOutput = resp // pipe log output to render in display later
+}
+
+// GetEchoByTimeHandler request the echo results stored since provided time.
+func GetEchoByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
+	r.ParseForm()
+	since := r.PostFormValue("since")
+	log.Info("Requesting echo data since", "timestamp", since)
+	// find undisplayed test results
+	echoResults, err := model.ReadEchoItemsSince(since)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	log.Debug("Requested data:", "echoResults", echoResults)
+
+	echoJSON, err := json.Marshal(echoResults)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	jsonBuf := []byte(`{ "graph": ` + string(echoJSON))
+	json := []byte(`, "active": ` + strconv.FormatBool(active))
+	jsonBuf = append(jsonBuf, json...)
+	jsonBuf = append(jsonBuf, []byte(`}`)...)
+
+	// ensure % if any, is escaped correctly before writing to printf formatter
+	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
 }

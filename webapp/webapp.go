@@ -49,12 +49,24 @@ var id = "webapp"
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
 
-var bwRequest *http.Request
-var bwActive bool
-var bwInterval int
-var bwTimeKeepAlive time.Time
-var bwChanDone = make(chan bool)
-var pathChoiceTimeout = time.Duration(1000) * time.Millisecond
+// Continuous cmd case
+type contCmd int
+const (
+	//iota: 0, BwTest: 0
+	bwTest contCmd = iota
+	echo 
+)
+
+func (t contCmd) String() string {
+    return [...]string{"bwtest", "echo"}[t]
+}
+
+var contCmdRequest *http.Request
+var contCmdActive bool
+var contCmdInterval int
+var contCmdTimeKeepAlive time.Time
+var contCmdChanDone = make(chan bool)
+var pathChoiceTimeout = time.Duration(1000) * time.Millisecond 
 
 var templates *template.Template
 
@@ -283,7 +295,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 	case "bwtester", "camerapp", "sensorapp":
 		d, ok := dOrinial.(model.BwTestItem)
 		if(!ok){
-			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
 		optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
@@ -337,23 +349,33 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
 		return
 	}
-	if appSel == "bwtester" && (continuous || bwActive) {
-		// continuous run
-		bwTimeKeepAlive = time.Now()
-		bwRequest = r
-		bwInterval = interval
-		if !bwActive {
+	if continuous || contCmdActive {
+		// continuous run bwtest
+		contCmdTimeKeepAlive = time.Now()
+		contCmdRequest = r
+		contCmdInterval = interval
+		var t contCmd
+		if appSel == "bwtester" {
+			t = bwTest
+		}else if appSel == "echo" {
+			t = echo
+		}else {
+			log.Error("Cmd type is not valid for continuous case")
+			return
+		}
+
+		if !contCmdActive {
 			// run continuous goroutine
-			bwActive = true
-			go continuousBwTest()
+			contCmdActive = true
+			go continuousCmd(t)
 		} else {
 			// continuous goroutine running?
 			if continuous {
 				// update it
-				log.Info("Updating continuous bwtest...")
+				log.Info(fmt.Sprintf("Updating continuous %s...", t))
 			} else {
 				// end it
-				bwActive = false
+				contCmdActive = false
 			}
 		}
 	} else {
@@ -362,27 +384,28 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func continuousBwTest() {
-	log.Info("Starting continuous bwtest...")
+// Could either be bwtest or echo
+func continuousCmd(t contCmd) {
+	log.Info(fmt.Sprintf("Starting continuous %s...", t))
 	defer func() {
-		log.Info("Ending continuous bwtest...")
+		log.Info(fmt.Sprintf("Ending continuous %s...", t))
 	}()
-	for bwActive {
-		timeUserIdle := time.Since(bwTimeKeepAlive)
+	for contCmdActive {
+		timeUserIdle := time.Since(contCmdTimeKeepAlive)
 		if timeUserIdle > maxContTimeout {
 			log.Warn("Last browser keep-alive expired ", "maxContTimeout", maxContTimeout)
-			bwActive = false
+			contCmdActive = false
 			break
 		}
-		r := bwRequest
+		r := contCmdRequest
 		start := time.Now()
 		executeCommand(nil, r)
 
 		// block on cmd output finish
-		<-bwChanDone
+		<-contCmdChanDone
 		end := time.Now()
 		elapsed := end.Sub(start)
-		interval := time.Duration(bwInterval) * time.Second
+		interval := time.Duration(contCmdInterval) * time.Second
 		// determine sleep interval based on actual test duration
 		remaining := time.Duration(0)
 		if interval > elapsed {
@@ -487,7 +510,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 
 	defer func() {
 		// monitor end of test here
-		go func() { bwChanDone <- true }()
+		go func() { contCmdChanDone <- true }()
 	}()
 
 	pathsAvail := false
@@ -542,7 +565,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		// parse bwtester data/error
 		d, ok := d.(model.BwTestItem)
 		if(!ok){
-			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return
 		}
 		lib.ExtractBwtestRespData(string(jsonBuf), &d, start)
@@ -554,17 +577,17 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-		lib.WriteBwtestCsv(&d, *staticRoot)
+		lib.WriteContCmdCsv(d, *staticRoot, appSel)
 	}
 
 	if appSel == "echo" {
 		// parse scmp echo data/error
 		d, ok := d.(model.EchoItem)
 		if(!ok){
-			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return
 		}
-		lib.ExtractEchoRespData(string(jsonBuf), &d)
+		lib.ExtractEchoRespData(string(jsonBuf), &d, start)
 		if len(errMsg) > 0 {
 			d.Error = errMsg
 		}
@@ -573,7 +596,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-
+		lib.WriteContCmdCsv(d, *staticRoot, appSel)
 	}
 }
 
@@ -582,7 +605,11 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
-	lib.GetBwByTimeHandler(w, r, bwActive, *staticRoot)
+	lib.GetBwByTimeHandler(w, r, contCmdActive, *staticRoot)
+}
+
+func getEchoByTimeHandler(w http.ResponseWriter, r *http.Request) {
+	lib.GetEchoByTimeHandler(w, r, contCmdActive, *staticRoot)
 }
 
 // Handles locating most recent image formatting it for graphic display in response.
