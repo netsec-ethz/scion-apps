@@ -15,6 +15,7 @@
 package modes
 
 import (
+	"io"
 	golog "log"
 
 	quic "github.com/lucas-clemente/quic-go"
@@ -52,32 +53,41 @@ func (conn *sessConn) Close() error {
 }
 
 // DoListenQUIC listens on a QUIC socket
-func DoListenQUIC(localAddr *snet.Addr) *sessConn {
+func DoListenQUIC(localAddr *snet.Addr) chan io.ReadWriteCloser {
 	listener, err := squic.ListenSCION(nil, localAddr, &quic.Config{KeepAlive: true})
 	if err != nil {
 		golog.Panicf("Can't listen on address %v: %v", localAddr, err)
 	}
 
-	sess, err := listener.Accept()
-	if err != nil {
-		golog.Panicf("Can't accept listener: %v", err)
-	}
+	conns := make(chan io.ReadWriteCloser)
+	go func() {
+		for {
+			sess, err := listener.Accept()
+			if err != nil {
+				log.Crit("Can't accept listener: %v", err)
+				continue
+			}
 
-	stream, err := sess.AcceptStream()
-	if err != nil {
-		golog.Panicf("Can't accept stream: %v", err)
-	}
+			stream, err := sess.AcceptStream()
+			if err != nil {
+				log.Crit("Can't accept stream: %v", err)
+				continue
+			}
 
-	log.Debug("Connected!")
+			log.Debug("New connection")
 
-	return &sessConn{
-		sess:   sess,
-		stream: stream,
-	}
+			conns <- &sessConn{
+				sess:   sess,
+				stream: stream,
+			}
+		}
+	}()
+
+	return conns
 }
 
 // DoDialQUIC dials with a QUIC socket
-func DoDialQUIC(localAddr, remoteAddr *snet.Addr) *sessConn {
+func DoDialQUIC(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
 	sess, err := squic.DialSCION(nil, localAddr, remoteAddr, &quic.Config{KeepAlive: true})
 	if err != nil {
 		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)

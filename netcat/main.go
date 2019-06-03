@@ -20,6 +20,7 @@ import (
 	"io"
 	golog "log"
 	"os"
+	"os/exec"
 	"strconv"
 	"sync"
 
@@ -45,13 +46,12 @@ var (
 	listen    bool
 
 	udpMode bool
-)
 
-type anyConn interface {
-	Read(b []byte) (n int, err error)
-	Write(b []byte) (n int, err error)
-	Close() error
-}
+	repeatAfter  bool
+	repeatDuring bool
+
+	commandString string
+)
 
 func printUsage() {
 	fmt.Println("netcat [flags] host-address port")
@@ -61,11 +61,15 @@ func printUsage() {
 	fmt.Println("Note that due to the nature of the UDP/QUIC protocols, the server will only notice incoming clients once data has been sent. You can use the -b argument (on both sides) to force clients to send an extra byte which will then be ignored by the server")
 	fmt.Println("Available flags:")
 	fmt.Println("  -h: Show help")
+	fmt.Println("  -l: Listen mode")
+	fmt.Println("  -k: After the connection ended, accept new connections again. Requires -l flag. Incompatible with -K flag")
+	fmt.Println("  -K: After the connection has been established, accept new connections again. Requires -l and -c flags. Incompatible with -k flag")
+	fmt.Println("  -c: Instead of piping the connection to stdin/stdout, run the given command using /bin/sh")
 	fmt.Println("  -u: UDP mode")
 	fmt.Println("  -local: Local SCION address (default localhost)")
 	fmt.Println("  -b: Send or expect an extra (throw-away) byte before the actual data")
-	fmt.Println("  -tlsKey: TLS key path. Only allowed with -l flag (default: ./key.pem)")
-	fmt.Println("  -tlsCert: TLS certificate path. Only allowed with -l flag (default: ./certificate.pem)")
+	fmt.Println("  -tlsKey: TLS key path. Requires -l flag (default: ./key.pem)")
+	fmt.Println("  -tlsCert: TLS certificate path. Requires -l flag (default: ./certificate.pem)")
 }
 
 func main() {
@@ -80,12 +84,27 @@ func main() {
 	flag.BoolVar(&extraByte, "b", false, "Expect extra byte")
 	flag.BoolVar(&listen, "l", false, "Listen mode")
 	flag.BoolVar(&udpMode, "u", false, "UDP mode")
+	flag.BoolVar(&repeatAfter, "k", false, "Accept new connections after connection end")
+	flag.BoolVar(&repeatDuring, "K", false, "Accept multiple connections concurrently")
+	flag.StringVar(&commandString, "c", "", "Command")
 	flag.Parse()
 
 	tail := flag.Args()
 	if !(len(tail) == 1 && listen) && !(len(tail) == 2 && !listen) {
-		printUsage()
 		golog.Panicf("Incorrect number of arguments! Arguments: %v", tail)
+	}
+
+	if repeatAfter && repeatDuring {
+		golog.Panicf("-k and -K flags are exclusive!")
+	}
+	if repeatAfter && !listen {
+		golog.Panicf("-k flag requires -l flag!")
+	}
+	if repeatDuring && !listen {
+		golog.Panicf("-K flag requires -l flag!")
+	}
+	if repeatDuring && commandString == "" {
+		golog.Panicf("-K flag requires -c flag!")
 	}
 
 	remoteAddressString = tail[0]
@@ -118,48 +137,108 @@ func main() {
 		golog.Panicf("Error initializing SCION connection: %v", err)
 	}
 
-	var conn anyConn
+	var conns chan io.ReadWriteCloser
 
 	if listen {
-		conn = doListen(localAddr)
+		conns = doListen(localAddr)
 	} else {
 		remoteAddr, err := snet.AddrFromString(fmt.Sprintf("%s:%v", remoteAddressString, port))
 		if err != nil {
 			golog.Panicf("Can't parse remote address %s: %v", remoteAddressString)
 		}
 
-		conn = doDial(localAddr, remoteAddr)
+		conns = make(chan io.ReadWriteCloser, 1)
+		conns <- doDial(localAddr, remoteAddr)
 	}
 
-	close := func() {
-		err := conn.Close()
-		if err != nil {
-			log.Warn("Error closing connection", "error", err)
+	if repeatAfter {
+		isAvailable := make(chan bool, 1)
+		for conn := range conns {
+			go func() {
+				select {
+				case isAvailable <- true:
+					pipeConn(conn)
+					<-isAvailable
+				default:
+					conn.Close()
+				}
+			}()
 		}
+	} else if repeatDuring {
+		for conn := range conns {
+			go pipeConn(conn)
+		}
+	} else {
+		conn := <-conns // Pipe the first incoming connection
+		go func() {
+			for conn := range conns {
+				// Reject all other incoming connections
+				conn.Close()
+			}
+		}()
+		pipeConn(conn)
 	}
 
-	var once sync.Once
-	go func() {
-		_, err := io.Copy(conn, os.Stdin)
-		if err != nil {
-			log.Warn("Error copying from stdin", "error", err)
-		}
-		once.Do(close)
-		if err != nil {
-			golog.Panicf("Copying from stdin failed! %v", err)
-		}
-	}()
-	_, err = io.Copy(os.Stdout, conn)
-	if err != nil {
-		log.Warn("Error copying to stdout", "error", err)
-	}
-	once.Do(close)
+	// Note that we don't close the connection currently
 
 	log.Debug("Done, closing now")
 }
 
-func doDial(localAddr, remoteAddr *snet.Addr) anyConn {
-	var conn anyConn
+func pipeConn(conn io.ReadWriteCloser) {
+	closeThis := func() {
+		log.Debug("Closing connection...", "conn", conn)
+		err := conn.Close()
+		if err != nil {
+			log.Crit("Error closing connection", "conn", conn)
+		}
+	}
+
+	var reader io.Reader
+	var writer io.Writer
+	if commandString == "" {
+		reader = os.Stdin
+		writer = os.Stdout
+	} else {
+		cmd := exec.Command("/bin/sh", "-c", commandString)
+		log.Debug("Created cmd object", "cmd", cmd, "commandString", commandString)
+		var err error
+		writer, err = cmd.StdinPipe()
+		if err != nil {
+			log.Crit("Error getting command's stdin pipe", "cmd", cmd)
+			return
+		}
+		reader, err = cmd.StdoutPipe()
+		if err != nil {
+			log.Crit("Error getting command's stdout pipe", "cmd", cmd)
+			return
+		}
+		err = cmd.Start()
+		if err != nil {
+			log.Crit("Error starting command", "cmd", cmd, "err", err)
+			return
+		}
+	}
+
+	var once sync.Once
+
+	go func() {
+		_, err := io.Copy(conn, reader)
+		if err != nil {
+			log.Warn("Error copying from (std/process) input", "conn", conn, "error", err)
+		}
+		once.Do(closeThis)
+	}()
+	_, err := io.Copy(writer, conn)
+	if err != nil {
+		log.Warn("Error copying to (std/process) output", "conn", conn, "error", err)
+	}
+	once.Do(closeThis)
+
+	log.Debug("Connection closed", "conn", conn)
+}
+
+func doDial(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
+	var conn io.ReadWriteCloser
 	if udpMode {
 		conn = modes.DoDialUDP(localAddr, remoteAddr)
 	} else {
@@ -178,25 +257,39 @@ func doDial(localAddr, remoteAddr *snet.Addr) anyConn {
 	return conn
 }
 
-func doListen(localAddr *snet.Addr) anyConn {
+func doListen(localAddr *snet.Addr) chan io.ReadWriteCloser {
 	err := squic.Init(quicTLSKeyPath, quicTLSCertificatePath)
 	if err != nil {
 		golog.Panicf("Error initializing squic: %v", err)
 	}
 
-	var conn anyConn
+	var conns chan io.ReadWriteCloser
 	if udpMode {
-		conn = modes.DoListenUDP(localAddr)
+		conns = modes.DoListenUDP(localAddr)
 	} else {
-		conn = modes.DoListenQUIC(localAddr)
+		conns = modes.DoListenQUIC(localAddr)
 	}
 
+	var nconns chan io.ReadWriteCloser
 	if extraByte {
-		buf := make([]byte, 1)
-		io.ReadAtLeast(conn, buf, 1)
+		nconns = make(chan io.ReadWriteCloser, 16)
+		go func() {
+			for conn := range conns {
+				buf := make([]byte, 1)
+				_, err := io.ReadAtLeast(conn, buf, 1)
+				if err != nil {
+					log.Crit("Failed to read extra byte!", "err", err, "conn", conn)
+					continue
+				}
 
-		log.Debug("Received extra byte!", "extraByte", buf)
+				log.Debug("Received extra byte", "connection", conn, "extraByte", buf)
+
+				nconns <- conn
+			}
+		}()
+	} else {
+		nconns = conns
 	}
 
-	return conn
+	return nconns
 }

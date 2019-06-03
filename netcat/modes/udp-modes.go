@@ -15,8 +15,8 @@
 package modes
 
 import (
+	"io"
 	golog "log"
-	"net"
 
 	"github.com/scionproto/scion/go/lib/snet"
 
@@ -27,6 +27,8 @@ import (
 type udpListenConn struct {
 	requests  chan<- []byte
 	responses <-chan int
+	available <-chan bool
+	isClosed  bool
 	write     func(b []byte) (int, error)
 	close     func() error
 }
@@ -45,7 +47,7 @@ func (conn *udpListenConn) Close() error {
 }
 
 // DoDialUDP dials with a UDP socket
-func DoDialUDP(localAddr, remoteAddr *snet.Addr) net.Conn {
+func DoDialUDP(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
 	conn, err := snet.DialSCION("udp4", localAddr, remoteAddr)
 	if err != nil {
 		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)
@@ -57,7 +59,7 @@ func DoDialUDP(localAddr, remoteAddr *snet.Addr) net.Conn {
 }
 
 // DoListenUDP listens on a UDP socket
-func DoListenUDP(localAddr *snet.Addr) *udpListenConn {
+func DoListenUDP(localAddr *snet.Addr) chan io.ReadWriteCloser {
 	conn, err := snet.ListenSCION("udp4", localAddr)
 	if err != nil {
 		golog.Panicf("Can't listen on address %v: %v", localAddr, err)
@@ -66,7 +68,7 @@ func DoListenUDP(localAddr *snet.Addr) *udpListenConn {
 	readRequests := make(map[string](chan []byte))
 	readResponses := make(map[string](chan int))
 
-	conns := make(chan *udpListenConn)
+	conns := make(chan io.ReadWriteCloser)
 
 	go func() {
 		buf := make([]byte, 65536)
@@ -91,6 +93,7 @@ func DoListenUDP(localAddr *snet.Addr) *udpListenConn {
 				conns <- &udpListenConn{
 					requests:  nbufChan,
 					responses: nrespChan,
+					isClosed:  false,
 					write: func(b []byte) (n int, err error) {
 						return conn.WriteToSCION(b, addr)
 					},
@@ -109,7 +112,7 @@ func DoListenUDP(localAddr *snet.Addr) *udpListenConn {
 			for from < n {
 				nbuf, open := <-nbufChan
 				if !open {
-					log.Debug("Connection closed", "buf", string(nbuf))
+					log.Debug("Connection closed")
 					break
 				}
 				written := copy(nbuf, buf[from:n])
@@ -119,16 +122,5 @@ func DoListenUDP(localAddr *snet.Addr) *udpListenConn {
 		}
 	}()
 
-	/*close := func() {
-		conn.Close()
-		close(conns)
-	}*/
-
-	nconn := <-conns
-	go func() {
-		for c := range conns {
-			c.Close()
-		}
-	}()
-	return nconn
+	return conns
 }
