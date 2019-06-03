@@ -21,7 +21,7 @@ To generate TLS connection certificates:
 # Client
 cd ~/.ssh
 openssl req -newkey rsa:2048 -nodes -keyout quic-conn-key.pem -x509 -days 365 -out quic-conn-certificate.pem
-# Server
+-# Server
 cd /etc/ssh
 sudo openssl req -newkey rsa:2048 -nodes -keyout quic-conn-key.pem -x509 -days 365 -out quic-conn-certificate.pem
 ```
@@ -50,7 +50,7 @@ sudo -E ./server -oPort=2200 -oAuthorizedKeysFile=./authorized_keys
 Running the client:
 ```
 cd $GOPATH/src/github.com/netsec-ethz/scion-apps/ssh/client
-./client -p 2200 1-11,[127.0.0.1]
+./client -p 2200 1-11,[127.0.0.1] -oUser=username
 ```
 
 Using SCP (make sure you've done `chmod +x ./scp.sh` first):

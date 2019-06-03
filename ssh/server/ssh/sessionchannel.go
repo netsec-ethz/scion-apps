@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/user"
+	"strconv"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -39,6 +41,35 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 
 	execCmd := func(name string, arg ...string) error {
 		cmd := exec.Command(name, arg...)
+		username, ok := perms.CriticalOptions["user"]
+		var usr *user.User
+		if ok {
+			var err error
+			usr, err = user.Lookup(username)
+			if err != nil {
+				return err
+			}
+		} else {
+			usr, err = user.Current()
+			if err != nil {
+				return err
+			}
+		}
+		uid, err := strconv.ParseUint(usr.Uid, 10, 32)
+		if err != nil {
+			return err
+		}
+		gid, err := strconv.ParseUint(usr.Gid, 10, 32)
+		if err != nil {
+			return err
+		}
+		if cmd.SysProcAttr == nil {
+			cmd.SysProcAttr = &syscall.SysProcAttr{}
+		}
+		cmd.SysProcAttr.Credential = &syscall.Credential{
+			Uid: uint32(uid),
+			Gid: uint32(gid),
+		}
 		close := func() {
 			cmd.Process.Kill()
 			err := cmd.Wait()
@@ -47,19 +78,15 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 			}
 
 			tb := []byte{0, 0, 0, 0}
-			connection.SendRequest("exit-status", false, tb)
+			_, err = connection.SendRequest("exit-status", false, tb)
+			if err != nil {
+				log.Error("Error sending exit status", "error", err)
+			}
 
 			once.Do(closeConn)
 
 			log.Debug("Session closed")
 		}
-
-		var pipesWait sync.WaitGroup
-		pipesWait.Add(2)
-		go func() {
-			pipesWait.Wait()
-			close()
-		}()
 
 		if hasRequestedPty {
 			log.Debug("Creating pty...")
@@ -70,12 +97,14 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 
 			var once sync.Once
 			go func() {
-				io.Copy(connection, cmdf)
-				pipesWait.Done()
+				_, err := io.Copy(connection, cmdf)
+				log.Debug("Pty to connection copy ended", "error", err)
+				once.Do(close)
 			}()
 			go func() {
-				io.Copy(cmdf, connection)
-				pipesWait.Done()
+				_, err := io.Copy(cmdf, connection)
+				log.Debug("Connection to pty copy ended", "error", err)
+				once.Do(close)
 			}()
 
 			termLen := ptyPayload[3]
@@ -98,6 +127,13 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 			}
 
 			// we want to wait for stdout and stderr before closing connection, but don't really mind about stdin
+			var pipesWait sync.WaitGroup
+			pipesWait.Add(2)
+			go func() {
+				pipesWait.Wait()
+				close()
+			}()
+
 			go func() {
 				_, err := io.Copy(stdin, connection)
 				log.Debug("Stdin copy ended", "error", err)

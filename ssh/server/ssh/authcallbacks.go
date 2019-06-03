@@ -26,7 +26,11 @@ func (s *Server) PasswordAuth(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions
 		return nil, fmt.Errorf("Authenticate: %s", err.Error())
 	}
 
-	return nil, nil
+	return &ssh.Permissions{
+		CriticalOptions: map[string]string{
+			"user": c.User(),
+		},
+	}, nil
 }
 
 func loadAuthorizedKeys(file string) (map[string]bool, error) {
@@ -59,8 +63,11 @@ func (s *Server) PublicKeyAuth(c ssh.ConnMetadata, pubKey ssh.PublicKey) (*ssh.P
 
 	if authKeys[string(pubKey.Marshal())] {
 		return &ssh.Permissions{
-			// Record the public key used for authentication.
+			CriticalOptions: map[string]string{
+				"user": c.User(),
+			},
 			Extensions: map[string]string{
+				// Record the public key used for authentication
 				"pubkey-fp": ssh.FingerprintSHA256(pubKey),
 			},
 		}, nil
