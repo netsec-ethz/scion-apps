@@ -204,35 +204,52 @@ func pipeConn(conn io.ReadWriteCloser) {
 		var err error
 		writer, err = cmd.StdinPipe()
 		if err != nil {
-			log.Crit("Error getting command's stdin pipe", "cmd", cmd)
+			log.Crit("Error getting command's stdin pipe", "cmd", cmd, "err", err)
 			return
 		}
 		reader, err = cmd.StdoutPipe()
 		if err != nil {
-			log.Crit("Error getting command's stdout pipe", "cmd", cmd)
+			log.Crit("Error getting command's stdout pipe", "cmd", cmd, "err", err)
 			return
 		}
+		errreader, err := cmd.StderrPipe()
+		if err != nil {
+			log.Crit("Error getting command's stderr pipe", "cmd", cmd, "err", err)
+			return
+		}
+		go func() {
+			io.Copy(os.Stderr, errreader)
+		}()
 		err = cmd.Start()
 		if err != nil {
 			log.Crit("Error starting command", "cmd", cmd, "err", err)
 			return
 		}
+		prevCloseThis := closeThis
+		closeThis = func() {
+			log.Debug("Waiting for command to end...")
+			err := cmd.Wait()
+			if err != nil {
+				log.Warn("Command exited with error", "err", err)
+			}
+			prevCloseThis()
+		}
 	}
 
-	var once sync.Once
+	var pipesWait sync.WaitGroup
+	pipesWait.Add(2)
 
 	go func() {
 		_, err := io.Copy(conn, reader)
-		if err != nil {
-			log.Warn("Error copying from (std/process) input", "conn", conn, "error", err)
-		}
-		once.Do(closeThis)
+		log.Debug("Done copying from (std/process) input", "conn", conn, "error", err)
+		pipesWait.Done()
 	}()
 	_, err := io.Copy(writer, conn)
-	if err != nil {
-		log.Warn("Error copying to (std/process) output", "conn", conn, "error", err)
-	}
-	once.Do(closeThis)
+	log.Debug("Done copying to (std/process) output", "conn", conn, "error", err)
+	pipesWait.Done()
+
+	pipesWait.Wait()
+	closeThis()
 
 	log.Debug("Connection closed", "conn", conn)
 }
