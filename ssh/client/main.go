@@ -57,7 +57,7 @@ func PromptPassword() (secret string, err error) {
 // PromptAcceptHostKey prompts the user to accept or reject the given host key.
 func PromptAcceptHostKey(hostname string, remote net.Addr, publicKey string) bool {
 	for {
-		fmt.Printf("Key fingerprint MD5 is: %s do you recognize it? (y/n) ", publicKey)
+		fmt.Printf("Key fingerprint SHA256 is: %s do you recognize it? (y/n) ", publicKey)
 		var answer string
 		fmt.Scanln(&answer)
 		answer = strings.ToLower(answer)

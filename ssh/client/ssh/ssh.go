@@ -1,7 +1,7 @@
 package ssh
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -291,7 +291,7 @@ func (client *Client) verifyHostKey(hostname string, remote net.Addr, key ssh.Pu
 		case *knownhosts.KeyError:
 			if len(e.Want) == 0 {
 				// It's an unknown key, prompt user!
-				hash := md5.New()
+				hash := sha256.New()
 				hash.Write(key.Marshal())
 				if client.promptForForeignKeyConfirmation(hostname, remote, fmt.Sprintf("%x", hash.Sum(nil))) {
 					newLine := knownhosts.Line([]string{remote.String()}, key)
