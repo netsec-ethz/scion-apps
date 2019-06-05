@@ -70,5 +70,31 @@
    "addr": "192.168.1.111",
    "port": 42003
   }
+ ],
+ "echo": [
+  {
+   "name": "17-ffaa:0:1107 Attachment Point",
+   "isdas": "17-ffaa:0:1107",
+   "addr": "10.0.8.1",
+   "port": 30100
+  },
+  {
+   "name": "18-ffaa:0:1202 Attachment Point",
+   "isdas": "18-ffaa:0:1202",
+   "addr": "10.0.8.1",
+   "port": 30100
+  },
+  {
+   "name": "19-ffaa:0:1303 Attachment Point",
+   "isdas": "19-ffaa:0:1303",
+   "addr": "10.0.8.1",
+   "port": 30100
+  },
+  {
+   "name": "20-ffaa:0:1404 Attachment Point",
+   "isdas": "20-ffaa:0:1404",
+   "addr": "10.0.8.1",
+   "port": 30100
+  }
  ]
 }
