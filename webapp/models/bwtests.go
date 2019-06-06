@@ -330,5 +330,3 @@ func DeleteBwTestItemsBefore(before string) (int64, error) {
 	}
 	return count, nil
 }
-
-

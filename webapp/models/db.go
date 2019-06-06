@@ -3,8 +3,8 @@ package models
 import (
 	"database/sql"
 	"fmt"
-	"time"
 	"strconv"
+	"time"
 
 	log "github.com/inconshreveable/log15"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"

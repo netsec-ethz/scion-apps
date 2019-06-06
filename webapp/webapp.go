@@ -51,14 +51,15 @@ var maxContTimeout = time.Duration(10) * time.Minute
 
 // Continuous cmd case
 type contCmd int
+
 const (
 	//iota: 0, BwTest: 0
 	bwTest contCmd = iota
-	echo 
+	echo
 )
 
 func (t contCmd) String() string {
-    return [...]string{"bwtest", "echo"}[t]
+	return [...]string{"bwtest", "echo"}[t]
 }
 
 var contCmdRequest *http.Request
@@ -66,7 +67,7 @@ var contCmdActive bool
 var contCmdInterval int
 var contCmdTimeKeepAlive time.Time
 var contCmdChanDone = make(chan bool)
-var pathChoiceTimeout = time.Duration(1000) * time.Millisecond 
+var pathChoiceTimeout = time.Duration(1000) * time.Millisecond
 
 var templates *template.Template
 
@@ -270,7 +271,7 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 	d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
 	d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
 
-	if appSel == "bwtester" {	
+	if appSel == "bwtester" {
 		d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
 		d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
 		d.CSPackets, _ = strconv.Atoi(r.PostFormValue("dial-cs-pkt"))
@@ -288,12 +289,13 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 // d could be either model.BwTestItem or model.EchoItem
 func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
+	var isdCli int
 	installpath := getClientLocationBin(appSel)
 
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
 		d, ok := dOrinial.(model.BwTestItem)
-		if(!ok){
+		if !ok {
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
@@ -312,10 +314,10 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			}
 		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
-	
+
 	case "echo":
 		d, ok := dOrinial.(model.EchoItem)
-		if(!ok){
+		if !ok {
 			fmt.Println("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
@@ -329,7 +331,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
-	
+
 	if isdCli < 16 {
 		// -sciondFromIA is better for localhost testing, with test isds
 		command = append(command, "-sciondFromIA")
@@ -356,9 +358,9 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		var t contCmd
 		if appSel == "bwtester" {
 			t = bwTest
-		}else if appSel == "echo" {
+		} else if appSel == "echo" {
 			t = echo
-		}else {
+		} else {
 			log.Error("Cmd type is not valid for continuous case")
 			return
 		}
@@ -422,10 +424,10 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	pathStr := r.PostFormValue("pathStr")
 	d, addlOpt := parseRequest2CmdItem(r, appSel)
 	command := parseCmdItem2Cmd(d, appSel, pathStr)
-	if addlOpt != ""{
+	if addlOpt != "" {
 		command = append(command, addlOpt)
 	}
-	
+
 	// execute scion go client app with client/server commands
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
@@ -562,7 +564,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 	if appSel == "bwtester" {
 		// parse bwtester data/error
 		d, ok := d.(model.BwTestItem)
-		if(!ok){
+		if !ok {
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return
 		}
@@ -581,7 +583,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 	if appSel == "echo" {
 		// parse scmp echo data/error
 		d, ok := d.(model.EchoItem)
-		if(!ok){
+		if !ok {
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return
 		}

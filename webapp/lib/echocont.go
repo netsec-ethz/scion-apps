@@ -1,22 +1,22 @@
 package lib
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"net/http"
 
 	log "github.com/inconshreveable/log15"
 	model "github.com/netsec-ethz/scion-apps/webapp/models"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
+
 // results data extraction regex
-var reRunTimeS = `(packet loss, time )(\d*\.?\d*)(s)`
-var reRunTimeMs = `(packet loss, time )(\d*\.?\d*)(ms)`
-var reRespTime = `(scmp_seq=0 time=)(\d*\.?\d*)(ms)`
+var reRunTime = `(packet loss, time )(\S*)`
+var reRespTime = `(scmp_seq=0 time=)(\S*)`
 var rePktLoss = `(\d+)(% packet loss,)`
 
 // ExtractEchoRespData will parse cmd line output from scmp echo for adding EchoItem fields.
@@ -31,36 +31,29 @@ func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 	log.Info("resp response", "content", resp)
 
 	var data = make(map[string]float32)
+	// -1 if no match for response time, indicating response timeout or packets out of order
+	data["response_time"] = -1
 	var path, err string
 	var match bool
 	pathNext := false
 	r := strings.Split(resp, "\n")
 	for i := range r {
+		// match response time in unit ms
 		match, _ = regexp.MatchString(reRespTime, r[i])
-		if match{
+		if match {
 			re := regexp.MustCompile(reRespTime)
 			tStr := re.FindStringSubmatch(r[i])[2]
-			t, _ := strconv.ParseFloat(tStr, 32)
-			data["response_time"] = float32(t)
-		}
-		// match response time in unit ms
-
-		// match run time in unit s
-		match, _ = regexp.MatchString(reRunTimeS, r[i])
-		if match {
-			re := regexp.MustCompile(reRunTimeS)
-			tStr := re.FindStringSubmatch(r[i])[2]
-			t, _ := strconv.ParseFloat(tStr, 32)
-			data["run_time"] = float32(t * 1000)
+			t, _ := time.ParseDuration(tStr)
+			data["response_time"] = float32(t.Nanoseconds()) / 1e6
 		}
 
-		// match run time in unit ms
-		match, _ = regexp.MatchString(reRunTimeMs, r[i])
+		// match run time
+		match, _ = regexp.MatchString(reRunTime, r[i])
 		if match {
-			re := regexp.MustCompile(reRunTimeMs)
+			re := regexp.MustCompile(reRunTime)
 			tStr := re.FindStringSubmatch(r[i])[2]
-			t, _ := strconv.ParseFloat(tStr, 32)
-			data["run_time"] = float32(t)
+			t, _ := time.ParseDuration(tStr)
+			data["run_time"] = float32(t.Nanoseconds()) / 1e6
 		}
 
 		// match packet loss
@@ -71,7 +64,7 @@ func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 			l, _ := strconv.ParseFloat(loss, 32)
 			data["packet_loss"] = float32(l)
 		}
-		
+
 		// save used path (default or interactive) for later user display
 		if pathNext {
 			path = strings.TrimSpace(r[i])

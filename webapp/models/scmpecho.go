@@ -6,41 +6,41 @@ import (
 )
 
 // CmdItem could be either EchoItem or BwTestItem
-type CmdItem interface{
+type CmdItem interface {
 	GetHeaders() []string
 	ToSlice() []string
 }
 
 // EchoItem reflects one row in the echo table with all columns
-type EchoItem struct{
-	Inserted     int64  // ms Inserted time
-	ActualDuration int
-	CIa          string 
-	CAddr        string    
-	SIa          string 
-	SAddr        string 
-	Count        int    // Default 1
-	Timeout  	 int    // s Default 2
-	Interval     int    // s Default 1
-	ResponseTime float32// ms
-	RunTime	     float32
-	PktLoss      int    // percent Indicating pkt loss rate
-	CmdOutput    string // command output
-	Error        string 
-	Path         string
+type EchoItem struct {
+	Inserted       int64 // ms Inserted time
+	ActualDuration int   // ms
+	CIa            string
+	CAddr          string
+	SIa            string
+	SAddr          string
+	Count          int     // Default 1
+	Timeout        int     // s Default 2
+	Interval       int     // s Default 1
+	ResponseTime   float32 // ms
+	RunTime        float32
+	PktLoss        int    // percent Indicating pkt loss rate
+	CmdOutput      string // command output
+	Error          string
+	Path           string
 }
 
-// EchoGraph reflects one row in the echo table with only the 
+// EchoGraph reflects one row in the echo table with only the
 // necessary items to display in a graph
-type EchoGraph struct{
-	Inserted     int64
+type EchoGraph struct {
+	Inserted       int64
 	ActualDuration int
-	ResponseTime float32
-	RunTime      float32
-	PktLoss      int
-	CmdOutput    string
-	Error        string
-	Path         string
+	ResponseTime   float32
+	RunTime        float32
+	PktLoss        int
+	CmdOutput      string
+	Error          string
+	Path           string
 }
 
 // createEchoTable operates on the DB to create the echo table.
