@@ -67,6 +67,9 @@ func GetDefaultDispatcher() string {
 // GetLocalhost returns a local SCION address an application can bind to
 func GetLocalhost() (*snet.Addr, error) {
 	str, err := GetLocalhostString()
+	if err != nil {
+		return nil, err
+	}
 	addr, err := snet.AddrFromString(str)
 	if err != nil {
 		return nil, err
