@@ -119,6 +119,7 @@ func main() {
 	}
 	go model.MaintainDatabase()
 	ensurePath(*staticRoot, "data")
+	ensurePath(*staticRoot, "data/images")
 	// generate client/server default
 	lib.GenClientNodeDefaults(*staticRoot)
 	lib.GenServerNodeDefaults(*staticRoot)
@@ -133,6 +134,7 @@ func main() {
 	appsBuildCheck("bwtester")
 	appsBuildCheck("camerapp")
 	appsBuildCheck("sensorapp")
+	appsBuildCheck("echo")
 
 	serveExact("/favicon.ico", "./favicon.ico")
 	http.HandleFunc("/", mainHandler)
@@ -155,6 +157,7 @@ func main() {
 	http.HandleFunc("/getbwbytime", getBwByTimeHandler)
 	http.HandleFunc("/healthcheck", healthCheckHandler)
 	http.HandleFunc("/dirview", dirViewHandler)
+	http.HandleFunc("/getechobytime", getEchoByTimeHandler)
 
 	//ported from scion-viz
 	http.HandleFunc("/config", lib.ConfigHandler)
@@ -318,7 +321,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 	case "echo":
 		d, ok := dOrinial.(model.EchoItem)
 		if !ok {
-			fmt.Println("Parsing error, CmdItem category doesn't match its name")
+			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
 		optApp := "echo"
@@ -327,7 +330,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optCount := fmt.Sprintf("-c=%d", d.Count)
 		optTimeout := fmt.Sprintf("-timeout=%ds", d.Timeout)
 		optInterval := fmt.Sprintf("-interval=%ds", d.Interval)
-		// command = append(command, binname, optApp, optRemote, optLocal, optCount)
 		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
@@ -457,7 +459,7 @@ func appsBuildCheck(app string) {
 	installpath := getClientLocationBin(app)
 	if _, err := os.Stat(installpath); os.IsNotExist(err) {
 		CheckError(err)
-		CheckError(errors.New("App missing, build all apps with 'deps.sh' and 'make'."))
+		CheckError(errors.New("App missing, build all apps with 'deps.sh' and 'make install'."))
 	} else {
 		log.Info(fmt.Sprintf("Existing install, found %s...", app))
 	}
@@ -468,11 +470,11 @@ func getClientCwd(app string) string {
 	var cwd string
 	switch app {
 	case "sensorapp":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, "sensorapp/sensorfetcher")
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, ".")
 	case "camerapp":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher")
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, "webapp/data/images")
 	case "bwtester":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient")
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, ".")
 	case "echo":
 		cwd = path.Join(lib.GOPATH, lib.SCIONROOT, "bin")
 	}
@@ -484,11 +486,11 @@ func getClientLocationBin(app string) string {
 	var binname string
 	switch app {
 	case "sensorapp":
-		binname = path.Join(lib.GOPATH, lib.LABROOT, "sensorapp/sensorfetcher/sensorfetcher")
+		binname = path.Join(lib.GOPATH, "bin/sensorfetcher")
 	case "camerapp":
-		binname = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher/imagefetcher")
+		binname = path.Join(lib.GOPATH, "bin/imagefetcher")
 	case "bwtester":
-		binname = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient/bwtestclient")
+		binname = path.Join(lib.GOPATH, "bin/bwtestclient")
 	case "echo":
 		binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/scmp")
 	}
@@ -520,7 +522,6 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		// read each line from stdout
 		line := scanner.Text()
 		log.Info(line)
-		fmt.Fprintln(os.Stdout, line)
 
 		jsonBuf = append(jsonBuf, []byte(line+"\n")...)
 		// http write response

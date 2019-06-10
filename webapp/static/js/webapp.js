@@ -99,9 +99,9 @@ function initBwGraphs() {
     var scColAch = $('#svg-server circle').css("fill");
     var csColReq = $('#svg-cs line').css("stroke");
     var scColReq = $('#svg-sc line').css("stroke");
-    chartCS = drawBwtestSingleDir('cs', 'upload (mbps)', false, csColReq,
+    chartCS = drawBwtestSingleDir('cs', 'Upload (mbps)', false, csColReq,
             csColAch);
-    chartSC = drawBwtestSingleDir('sc', 'download (mbps)', true, scColReq,
+    chartSC = drawBwtestSingleDir('sc', 'Download (mbps)', true, scColReq,
             scColAch);
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
@@ -119,11 +119,12 @@ function showOnlyConsoleGraphs(activeApp) {
 
 function handleSwitchTabs() {
     var activeApp = $('.nav-tabs .active > a').attr('name');
-    var isBwtest = (activeApp == "bwtester");
+    var isCont = (activeApp == "bwtester" || activeApp == "echo");
+    enableContControls(isCont);
     // show/hide graphs for bwtester
     showOnlyConsoleGraphs(activeApp);
     var checked = $('#switch_cont').prop('checked');
-    if (checked && !isBwtest) {
+    if (checked && !isCont) {
         $("#switch_cont").prop('checked', false);
         enableTestControls(true);
         releaseTabs();
@@ -134,7 +135,8 @@ function handleSwitchTabs() {
 function handleSwitchContTest(checked) {
     if (checked) {
         enableTestControls(false);
-        lockTab("bwtester");
+        var activeApp = $('.nav-tabs .active > a').attr('name');
+        lockTab(activeApp);
         // starts continuous tests
         manageTestData();
     } else {
@@ -272,7 +274,7 @@ function manageTickData() {
 
 function manageTestData() {
     // setup interval to request data point updates, only in range
-    now = (new Date()).getTime();
+    var now = (new Date()).getTime();
     maxTimeBwDb = (new Date(now - (xAxisSec * 1000))).getTime();
     lastTimeBwDb = (lastTimeBwDb < maxTimeBwDb ? maxTimeBwDb : lastTimeBwDb);
     intervalGraphData = setInterval(function() {
@@ -286,59 +288,104 @@ function manageTestData() {
         var form_data = {
             since : lastTimeBwDb
         };
+        var activeApp = $('.nav-tabs .active > a').attr('name');
         if (!commandProg && checked) {
-            var activeApp = $('.nav-tabs .active > a').attr('name');
             handleStartCmdDisplay(activeApp);
         }
         console.info('req:', JSON.stringify(form_data));
-        $.post("/getbwbytime", form_data, function(json) {
-            d = JSON.parse(json);
-            console.info('resp:', JSON.stringify(d));
-            if (d != null) {
-                if (d.active != null) {
-                    $('#switch_cont').prop("checked", d.active);
-                    if (d.active) {
-                        enableTestControls(false);
-                        lockTab("bwtester");
-                    } else {
-                        enableTestControls(true);
-                        releaseTabs();
-                        clearInterval(intervalGraphData);
-                    }
-                }
-                if (d.graph != null) {
-                    // write data on graph
-                    for (var i = 0; i < d.graph.length; i++) {
-                        if (d.graph[i].Log != null && d.graph[i].Log != "") {
-                            // result returned, display it and reset progress
-                            handleEndCmdDisplay(d.graph[i].Log);
-                        }
-                        var data = {
-                            'cs' : {
-                                'bandwidth' : d.graph[i].CSBandwidth,
-                                'throughput' : d.graph[i].CSThroughput,
-                                'path' : d.graph[i].Path,
-                            },
-                            'sc' : {
-                                'bandwidth' : d.graph[i].SCBandwidth,
-                                'throughput' : d.graph[i].SCThroughput,
-                                'path' : d.graph[i].Path,
-                            },
-                        };
-                        // update with errors, if any
-                        updateBwErrors(data.cs, 'cs', d.graph[i].Error);
-                        updateBwErrors(data.sc, 'sc', d.graph[i].Error);
-
-                        console.info(JSON.stringify(data));
-                        console.info('continous bwtester', 'duration:',
-                                d.graph[i].ActualDuration, 'ms');
-                        updateBwGraph(data, d.graph[i].Inserted)
-                    }
-                }
-            }
-        });
+        if (activeApp == "bwtester") {
+            requestBwTestByTime(form_data);
+        } else if (activeApp == "echo") {
+            requestEchoByTime(form_data);
+        }
         lastTimeBwDb = now;
     }, dataIntervalMs);
+}
+
+function requestBwTestByTime(form_data) {
+    $.post("/getbwbytime", form_data, function(json) {
+        var d = JSON.parse(json);
+        console.info('resp:', JSON.stringify(d));
+        if (d != null) {
+            if (d.active != null) {
+                $('#switch_cont').prop("checked", d.active);
+                if (d.active) {
+                    enableTestControls(false);
+                    lockTab("bwtester");
+                } else {
+                    enableTestControls(true);
+                    releaseTabs();
+                    clearInterval(intervalGraphData);
+                }
+            }
+            if (d.graph != null) {
+                // write data on graph
+                for (var i = 0; i < d.graph.length; i++) {
+                    if (d.graph[i].Log != null && d.graph[i].Log != "") {
+                        // result returned, display it and reset progress
+                        handleEndCmdDisplay(d.graph[i].Log);
+                    }
+                    var data = {
+                        'cs' : {
+                            'bandwidth' : d.graph[i].CSBandwidth,
+                            'throughput' : d.graph[i].CSThroughput,
+                            'path' : d.graph[i].Path,
+                        },
+                        'sc' : {
+                            'bandwidth' : d.graph[i].SCBandwidth,
+                            'throughput' : d.graph[i].SCThroughput,
+                            'path' : d.graph[i].Path,
+                        },
+                    };
+                    // update with errors, if any
+                    updateBwErrors(data.cs, 'cs', d.graph[i].Error);
+                    updateBwErrors(data.sc, 'sc', d.graph[i].Error);
+
+                    console.info(JSON.stringify(data));
+                    console.info('continuous bwtester', 'duration:',
+                            d.graph[i].ActualDuration, 'ms');
+                    // use the time the test began
+                    var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
+                    updateBwGraph(data, time)
+                }
+            }
+        }
+    });
+}
+
+function requestEchoByTime(form_data) {
+    $.post("/getechobytime", form_data, function(json) {
+        var d = JSON.parse(json);
+        console.info('resp:', JSON.stringify(d));
+        if (d != null) {
+            if (d.active != null) {
+                $('#switch_cont').prop("checked", d.active);
+                if (d.active) {
+                    enableTestControls(false);
+                    lockTab("echo");
+                } else {
+                    enableTestControls(true);
+                    releaseTabs();
+                    clearInterval(intervalGraphData);
+                }
+            }
+            if (d.graph != null) {
+                // write data on graph
+                for (var i = 0; i < d.graph.length; i++) {
+                    if (d.graph[i].CmdOutput != null
+                            && d.graph[i].CmdOutput != "") {
+                        // result returned, display it and reset progress
+                        handleEndCmdDisplay(d.graph[i].CmdOutput);
+                    }
+
+                    console.info('continuous echo', 'duration:',
+                            d.graph[i].ActualDuration, 'ms');
+
+                    // TODO (mwfarb): complete echo graph
+                }
+            }
+        }
+    });
 }
 
 function refreshTickData(chart, newTime) {
@@ -475,8 +522,9 @@ function command(continuous) {
             handleImageResponse(resp);
         } else if (activeApp == "bwtester") {
             // check for usable data for graphing
-            handleBwResponse(resp, continuous, startTime);
+            handleContResponse(resp, continuous, startTime);
         } else if (activeApp == "echo") {
+            handleContResponse(resp, continuous, startTime);
 
             // TODO (mwfarb): implement continuous echo graph
 
@@ -515,7 +563,10 @@ function handleEndCmdDisplay(resp) {
 
 function enableTestControls(enable) {
     $("#button_cmd").prop('disabled', !enable);
-    $("#button_reset").prop('disabled', !enable);
+}
+
+function enableContControls(enable) {
+    $("#switch_cont").prop('disabled', !enable);
 }
 
 function lockTab(href) {
@@ -566,7 +617,7 @@ function getIntervalMax() {
     return max;
 }
 
-function handleBwResponse(resp, continuous, startTime) {
+function handleContResponse(resp, continuous, startTime) {
     // check for continuous testing
     var checked = $('#switch_cont').prop('checked');
     if (!checked && !commandProg) {
