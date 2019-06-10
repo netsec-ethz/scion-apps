@@ -30,6 +30,7 @@ var dataIntervalMs = 1000;
 var progIntervalMs = 500
 var chartCS;
 var chartSC;
+var chartSE;
 var lastTime;
 var lastTimeBwDb = new Date((new Date()).getTime() - (xAxisSec * 1000));
 
@@ -58,6 +59,7 @@ var imageText = 'Execute camerapp to retrieve an image.';
 var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
+var echoText = 'Execute echo to measure response time.';
 
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
@@ -85,7 +87,7 @@ function initBwGraphs() {
         setChartUtc(checked);
     });
 
-    updateBwInterval();
+    // updateBwInterval();
 
     // charts update on tab switch
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
@@ -99,10 +101,11 @@ function initBwGraphs() {
     var scColAch = $('#svg-server circle').css("fill");
     var csColReq = $('#svg-cs line').css("stroke");
     var scColReq = $('#svg-sc line').css("stroke");
-    chartCS = drawBwtestSingleDir('cs', 'upload (mbps)', false, csColReq,
+    chartCS = drawBwtestSingleDir('cs', 'Upload (mbps)', false, csColReq,
             csColAch);
-    chartSC = drawBwtestSingleDir('sc', 'download (mbps)', true, scColReq,
+    chartSC = drawBwtestSingleDir('sc', 'Download (mbps)', true, scColReq,
             scColAch);
+    chartSE = drawPingGraph('echo-graph', 'Echo Response (ms)');
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
     manageTickData();
@@ -112,6 +115,9 @@ function initBwGraphs() {
 function showOnlyConsoleGraphs(activeApp) {
     $('#bwtest-continuous').css("display",
             (activeApp == "bwtester") ? "block" : "none");
+    $('#images').css("display", (activeApp == "camerapp") ? "block" : "none");
+    $('#echo-continuous').css("display",
+            (activeApp == "echo") ? "block" : "none");
     var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
             || activeApp == "sensorapp" || activeApp == "echo");
     $('.stdout').css("display", isConsole ? "block" : "none");
@@ -190,7 +196,7 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
         } ],
         tooltip : {
             enabled : true,
-            formatter : formatTooltip,
+            formatter : formatBwTooltip,
         },
         legend : {
             y : -15,
@@ -234,11 +240,71 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
     return chart;
 }
 
-function formatTooltip() {
+function drawPingGraph(div_id, yAxisLabel) {
+    var chart = Highcharts.chart(div_id, {
+        chart : {
+            type : 'column'
+        },
+        title : {
+            text : null
+        },
+        xAxis : {
+            type : 'datetime',
+        },
+        yAxis : {
+            min : 0,
+            minTickInterval : 1, // keep 0.1 errors visible
+            title : {
+                text : yAxisLabel
+            }
+        },
+        legend : {
+            enabled : false
+        },
+        tooltip : {
+            enabled : true,
+            formatter : formatPingTooltip,
+        },
+        credits : {
+            enabled : true,
+            text : 'Download Data',
+            href : './data/',
+        },
+        exporting : {
+            enabled : false
+        },
+        plotOptions : {
+            column : {
+                pointWidth : 8
+            }
+        },
+        series : [ {
+            name : yAxisLabel,
+            data : loadSetupData(),
+            dataLabels : {
+                enabled : false,
+            }
+        } ]
+    });
+    return chart;
+}
+
+function formatBwTooltip() {
     var tooltip = '<b>' + this.series.name + '</b><br/>'
             + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
             + Highcharts.numberFormat(this.y, 2) + ' mbps<br/><i>'
             + this.point.path + '</i>';
+    if (this.point.error != null) {
+        tooltip += '<br/><b>' + this.point.error + '</b>';
+    }
+    return tooltip;
+}
+
+function formatPingTooltip() {
+    var tooltip = '<b>' + this.series.name + '</b><br/>'
+            + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
+            + Highcharts.numberFormat(this.y, 3) + ' ms<br/>' + this.point.loss
+            + '% packet loss<br/><i>' + this.point.path + '</i>';
     if (this.point.error != null) {
         tooltip += '<br/><b>' + this.point.error + '</b>';
     }
@@ -267,6 +333,7 @@ function manageTickData() {
         var newTime = (new Date()).getTime();
         refreshTickData(chartCS, newTime);
         refreshTickData(chartSC, newTime);
+        refreshTickData(chartSE, newTime);
     }, tickMs);
 }
 
@@ -276,6 +343,7 @@ function manageTestData() {
     maxTimeBwDb = (new Date(now - (xAxisSec * 1000))).getTime();
     lastTimeBwDb = (lastTimeBwDb < maxTimeBwDb ? maxTimeBwDb : lastTimeBwDb);
     intervalGraphData = setInterval(function() {
+        var startTime = (new Date()).getTime();
         // update continuous test parameters
         var checked = $('#switch_cont').prop('checked');
         if (checked) {
@@ -292,6 +360,7 @@ function manageTestData() {
         }
         console.info('req:', JSON.stringify(form_data));
         $.post("/getbwbytime", form_data, function(json) {
+            var startTime = (new Date()).getTime();
             d = JSON.parse(json);
             console.info('resp:', JSON.stringify(d));
             if (d != null) {
@@ -332,7 +401,55 @@ function manageTestData() {
                         console.info(JSON.stringify(data));
                         console.info('continous bwtester', 'duration:',
                                 d.graph[i].ActualDuration, 'ms');
-                        updateBwGraph(data, d.graph[i].Inserted)
+                        // use the time the test began
+                        var time = d.graph[i].Inserted
+                                - d.graph[i].ActualDuration;
+                        updateBwGraph(data, time)
+                    }
+                }
+            }
+        });
+        $.post("/getechobytime", form_data, function(json) {
+            d = JSON.parse(json);
+            console.info('resp:', JSON.stringify(d));
+            if (d != null) {
+                if (d.active != null) {
+                    $('#switch_cont').prop("checked", d.active);
+                    if (d.active) {
+                        enableTestControls(false);
+                        lockTab("echo");
+                    } else {
+                        enableTestControls(true);
+                        releaseTabs();
+                        clearInterval(intervalGraphData);
+                    }
+                }
+                if (d.graph != null) {
+                    // write data on graph
+                    for (var i = 0; i < d.graph.length; i++) {
+                        if (d.graph[i].CmdOutput != null
+                                && d.graph[i].CmdOutput != "") {
+                            // result returned, display it and reset progress
+                            handleEndCmdDisplay(d.graph[i].CmdOutput);
+                        }
+                        var data = {
+                            'responseTime' : d.graph[i].ResponseTime,
+                            'runTime' : d.graph[i].RunTime,
+                            'loss' : d.graph[i].PktLoss,
+                            'path' : d.graph[i].Path,
+                            'error' : d.graph[i].Error,
+                        };
+                        if (data.runTime == 0) {
+                            // for other errors, use execution time
+                            data.runTime = d.graph[i].ActualDuration;
+                        }
+                        console.info(JSON.stringify(data));
+                        console.info('continous echo', 'duration:',
+                                d.graph[i].ActualDuration, 'ms');
+                        // use the time the test began
+                        var time = d.graph[i].Inserted
+                                - d.graph[i].ActualDuration;
+                        updatePingGraph(chartSE, data, time)
                     }
                 }
             }
@@ -351,19 +468,23 @@ function refreshTickData(chart, newTime) {
     // manually remove all left side ticks < left side time
     // wait for adding hidden ticks to draw
     var draw = false;
-    removeOldPoints(series0, lastTime, draw);
-    removeOldPoints(series1, lastTime, draw);
+    if (series0)
+        removeOldPoints(series0, lastTime, draw);
+    if (series1)
+        removeOldPoints(series1, lastTime, draw);
     // manually add hidden right side ticks, time = now
     // do all drawing here to avoid accordioning redraws
     // do not shift points since we manually remove before this
     draw = true;
-    series0.addPoint([ x, y ], draw, shift);
-    series1.addPoint([ x, y ], draw, shift);
+    if (series0)
+        series0.addPoint([ x, y ], draw, shift);
+    if (series1)
+        series1.addPoint([ x, y ], draw, shift);
 }
 
 function removeOldPoints(series, lastTime, draw) {
     for (var i = 0; i < series.data.length; i++) {
-        if (series.data[i].x < lastTime) {
+        if (series.data[i] && series.data[i].x < lastTime) {
             series.removePoint(i, draw);
         }
     }
@@ -410,6 +531,32 @@ function updateBwChart(chart, dataDir, time) {
     }
 }
 
+function updatePingGraph(chart, data, time) {
+    // manually add visible right side ticks, time = now
+    // wait for adding hidden ticks to draw, for consistancy
+    // do not shift points since we manually remove before this
+    var draw = false;
+    var shift = false;
+    if (data.error || data.loss > 0 || data.responseTime == 0) {
+        chart.series[0].addPoint({
+            x : time,
+            y : data.runTime,
+            loss : data.loss,
+            path : data.path,
+            error : data.error,
+            color : '#f00',
+        }, draw, shift);
+    } else {
+        chart.series[0].addPoint({
+            x : time,
+            y : data.responseTime,
+            loss : data.loss,
+            path : data.path,
+            color : '#0f0',
+        }, draw, shift);
+    }
+}
+
 function endProgress() {
     clearInterval(commandProg);
     commandProg = false;
@@ -432,6 +579,10 @@ function command(continuous) {
         form_data.push({
             name : "continuous",
             value : continuous
+        }, {
+            name : "interval",
+            value : $('#interval_sec').val()
+        // value : getIntervalMax()
         });
         if (self.segType == 'PATH') { // only full paths allowed
             form_data.push({
@@ -475,11 +626,10 @@ function command(continuous) {
             handleImageResponse(resp);
         } else if (activeApp == "bwtester") {
             // check for usable data for graphing
-            handleBwResponse(resp, continuous, startTime);
+            handleContResponse(resp, continuous, startTime);
         } else if (activeApp == "echo") {
-
-            // TODO (mwfarb): implement continuous echo graph
-
+            // check for usable data for graphing
+            handleContResponse(resp, continuous, startTime);
         } else {
             handleGeneralResponse();
         }
@@ -561,12 +711,12 @@ function handleImageResponse(resp) {
 function getIntervalMax() {
     var cs = $('#dial-cs-sec').val();
     var sc = $('#dial-sc-sec').val();
-    var cont = $('#bwtest_sec').val();
+    var cont = $('#interval_sec').val();
     var max = Math.max(cs, sc, cont);
     return max;
 }
 
-function handleBwResponse(resp, continuous, startTime) {
+function handleContResponse(resp, continuous, startTime) {
     // check for continuous testing
     var checked = $('#switch_cont').prop('checked');
     if (!checked && !commandProg) {
@@ -582,14 +732,14 @@ function handleBwResponse(resp, continuous, startTime) {
 function updateBwInterval() {
     var cs = $('#dial-cs-sec').val() * 1000;
     var sc = $('#dial-sc-sec').val() * 1000;
-    var cont = $('#bwtest_sec').val() * 1000;
+    var cont = $('#interval_sec').val() * 1000;
     var max = Math.max(cs, sc);
     if (cont != (max + bwIntervalBufMs)) {
-        $('#bwtest_sec').val((max + bwIntervalBufMs) / 1000);
+        $('#interval_sec').val((max + bwIntervalBufMs) / 1000);
     }
     // update interval minimum
     var min = Math.min(cs, sc);
-    $('#bwtest_sec').prop('min', min / 1000);
+    $('#interval_sec').prop('min', min / 1000);
 }
 
 function updateBwErrors(dataDir, dir, err) {
@@ -690,6 +840,7 @@ function setDefaults() {
     $('#stats_text').text(sensorText);
     $('#bwtest_text').text(bwText);
     $('#bwgraphs_text').text(bwgraphsText);
+    $('#echo_text').text(echoText);
 
     onchange_radio('cs', 'size');
     onchange_radio('sc', 'size');
@@ -756,10 +907,10 @@ function initDials(dir) {
             return Number(Math.round(v + 'e' + 2) + 'e-' + 2);
         },
     };
-    $('#dial-' + dir + '-sec').knob(extend(prop_sec, dial_prop_arc));
-    $('#dial-' + dir + '-size').knob(extend(prop_size, dial_prop_arc));
-    $('#dial-' + dir + '-pkt').knob(extend(prop_pkt, dial_prop_text));
-    $('#dial-' + dir + '-bw').knob(extend(prop_bw, dial_prop_arc));
+    // $('#dial-' + dir + '-sec').knob(extend(prop_sec, dial_prop_arc));
+    // $('#dial-' + dir + '-size').knob(extend(prop_size, dial_prop_arc));
+    // $('#dial-' + dir + '-pkt').knob(extend(prop_pkt, dial_prop_text));
+    // $('#dial-' + dir + '-bw').knob(extend(prop_bw, dial_prop_arc));
 }
 
 function onchange_radio(dir, value) {
@@ -894,7 +1045,7 @@ function onchange_sec(dir, v, min, max, lock) {
         }
     }
     // special case: update continuous interval
-    updateBwInterval();
+    // updateBwInterval();
 }
 
 function onchange_size(dir, v, min, max, lock) {

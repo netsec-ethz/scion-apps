@@ -56,7 +56,8 @@ svg.svg-dials {
 .column-center {
  float: left;
  width: 500px;
- height: 300px;
+ height: 150px;
+ font-size: 12px;
 }
 
 .row:after {
@@ -66,6 +67,14 @@ svg.svg-dials {
  overflow: scroll;
 }
 
+/* TAB ECHO */
+#echo-continuous .chart {
+ height: 200px;
+ width: 698px;
+ overflow: hidden;
+ float: left;
+}
+
 /* TAB BWTESTER */
 .bwtest-dial {
  width: 100px;
@@ -73,11 +82,28 @@ svg.svg-dials {
  margin-top: 15px;
 }
 
+.bw-cs-col, .bw-sc-col {
+  width: 50%;
+}
+
+.bwtest-input {
+ /*
+ width: 50px;
+ display: inline-block;
+ margin-top: 15px;
+ */
+}
+
+.input-sm {
+ width: 60px;
+ padding: 5px;
+}
+
 .bwtest-dials {
- height: 140px;
+ height: 70px;
  width: 500px;
  margin: 0 auto;
- text-align: center;
+ text-align: right;
 }
 
 .label-dial {
@@ -99,7 +125,7 @@ svg.svg-dials {
 
 /* TAB CAMERAPP */
 #images {
- max-height: 280px;
+ max-height: 200px;
  overflow: hidden;
 }
 
@@ -119,7 +145,8 @@ img {
 .column-ia {
  float: left;
  width: 200px;
- height: 342px;
+ height: 210px;
+ font-size: 12px;
 }
 
 .scion-ia {

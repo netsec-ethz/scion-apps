@@ -119,6 +119,7 @@ func main() {
 	}
 	go model.MaintainDatabase()
 	ensurePath(*staticRoot, "data")
+	ensurePath(*staticRoot, "data/images")
 	// generate client/server default
 	lib.GenClientNodeDefaults(*staticRoot)
 	lib.GenServerNodeDefaults(*staticRoot)
@@ -155,6 +156,7 @@ func main() {
 	http.HandleFunc("/getbwbytime", getBwByTimeHandler)
 	http.HandleFunc("/healthcheck", healthCheckHandler)
 	http.HandleFunc("/dirview", dirViewHandler)
+	http.HandleFunc("/getechobytime", getEchoByTimeHandler)
 
 	//ported from scion-viz
 	http.HandleFunc("/config", lib.ConfigHandler)
@@ -244,7 +246,7 @@ func trcHandler(w http.ResponseWriter, r *http.Request) {
 
 // There're two CmdItem, BwTestItem and EchoItem
 func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string) {
-	addlOpt := r.PostFormValue("addlOpt")
+	addlOpt := r.PostFormValue("addl_opt")
 
 	if appSel == "echo" { // ###need to be confirmed###
 		d := model.EchoItem{}
@@ -468,11 +470,11 @@ func getClientCwd(app string) string {
 	var cwd string
 	switch app {
 	case "sensorapp":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, "sensorapp/sensorfetcher")
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, ".")
 	case "camerapp":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, "camerapp/imagefetcher")
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, "webapp/data/images")
 	case "bwtester":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, "bwtester/bwtestclient")
+		cwd = path.Join(lib.GOPATH, lib.LABROOT, ".")
 	case "echo":
 		cwd = path.Join(lib.GOPATH, lib.SCIONROOT, "bin")
 	}
@@ -520,7 +522,6 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		// read each line from stdout
 		line := scanner.Text()
 		log.Info(line)
-		fmt.Fprintln(os.Stdout, line)
 
 		jsonBuf = append(jsonBuf, []byte(line+"\n")...)
 		// http write response

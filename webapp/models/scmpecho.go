@@ -47,7 +47,7 @@ type EchoGraph struct {
 func createEchoTable() error {
 	sqlCreateTable := `
     CREATE TABLE IF NOT EXISTS echo(
-		Inserted BIGINT NOT NULL PRIMARY KEY,
+        Inserted BIGINT NOT NULL PRIMARY KEY,
         ActualDuration INT,
         CIa TEXT,
         CAddr TEXT,
@@ -94,21 +94,21 @@ func (echo EchoItem) ToSlice() []string {
 func StoreEchoItem(echo *EchoItem) error {
 	sqlInsert := `
     INSERT INTO echo(
-		Inserted,
-		ActualDuration,
+        Inserted,
+        ActualDuration,
         CIa,
         CAddr,
         SIa,
-		SAddr,
-		Count,
-		Timeout,
-		Interval,
-		ResponseTime,
-		RunTime,
-	    PktLoss,
-	    CmdOutput,
-		Error,
-		Path
+        SAddr,
+        Count,
+        Timeout,
+        Interval,
+        ResponseTime,
+        RunTime,
+        PktLoss,
+        CmdOutput,
+        Error,
+        Path
     ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
@@ -140,22 +140,22 @@ func StoreEchoItem(echo *EchoItem) error {
 func ReadEchoItemsAll() ([]EchoItem, error) {
 	sqlReadAll := `
     SELECT
-		Inserted,
-		ActualDuration,
-		CIa,
+        Inserted,
+        ActualDuration,
+        CIa,
         CAddr,
         SIa,
-		SAddr,
-		Count,
-		Timeout,
-		Interval,
-		ResponseTime,
-		RunTime,
-		PktLoss,
-		CmdOutput,
-		Error,
-		Path
-		FROM echo
+        SAddr,
+        Count,
+        Timeout,
+        Interval,
+        ResponseTime,
+        RunTime,
+        PktLoss,
+        CmdOutput,
+        Error,
+        Path
+        FROM echo
     ORDER BY datetime(Inserted) DESC
     `
 	rows, err := db.Query(sqlReadAll)
@@ -196,15 +196,15 @@ func ReadEchoItemsAll() ([]EchoItem, error) {
 func ReadEchoItemsSince(since string) ([]EchoGraph, error) {
 	sqlReadSince := `
     SELECT
-		Inserted,
-		ActualDuration,
-		ResponseTime,
-		RunTime,
-		PktLoss,
-		CmdOutput,
-		Error,
-		Path
-	FROM echo
+        Inserted,
+        ActualDuration,
+        ResponseTime,
+        RunTime,
+        PktLoss,
+        CmdOutput,
+        Error,
+        Path
+    FROM echo
     WHERE Inserted > ?
     ORDER BY datetime(Inserted) DESC
     `
