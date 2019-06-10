@@ -51,3 +51,6 @@ tools/pathdb_dump/pathdb_dump
 netcat/netcat
 roughtime/timeclient/timeclient
 roughtime/timeserver/timeserver
+
+# vscode workspace
+*.code-workspace

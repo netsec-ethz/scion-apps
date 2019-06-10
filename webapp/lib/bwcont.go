@@ -139,7 +139,7 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
 	r.ParseForm()
 	since := r.PostFormValue("since")
-	log.Info("Requesting data since", "timestamp", since)
+	log.Info("Requesting bwtest data since", "timestamp", since)
 	// find undisplayed test results
 	bwTestResults, err := model.ReadBwTestItemsSince(since)
 	if CheckError(err) {
@@ -171,28 +171,28 @@ func removeOuterQuotes(s string) string {
 	return s
 }
 
-// WriteBwtestCsv appends the bwtest data in csv-format to srcpath.
-func WriteBwtestCsv(bwtest *model.BwTestItem, srcpath string) {
+// WriteContCmdCsv appends the continuous cmd data (bwtest or echo) in csv-format to srcpath.
+func WriteContCmdCsv(d model.CmdItem, srcpath string, appSel string) {
 	// newfile name for every day
-	dataFileBwtester := "data/bwtester-" + time.Now().Format("2006-01-02") + ".csv"
-	bwdataPath := path.Join(srcpath, dataFileBwtester)
+	dataFileCmd := "data/" + appSel + "-" + time.Now().Format("2006-01-02") + ".csv"
+	cmdDataPath := path.Join(srcpath, dataFileCmd)
 	// write headers if file is new
 	writeHeader := false
-	if _, err := os.Stat(dataFileBwtester); os.IsNotExist(err) {
+	if _, err := os.Stat(dataFileCmd); os.IsNotExist(err) {
 		writeHeader = true
 	}
 	// open/create file
-	f, err := os.OpenFile(bwdataPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile(cmdDataPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if CheckError(err) {
 		return
 	}
 	w := csv.NewWriter(f)
 	// export headers if this is a new file
 	if writeHeader {
-		headers := bwtest.GetHeaders()
+		headers := d.GetHeaders()
 		w.Write(headers)
 	}
-	values := bwtest.ToSlice()
+	values := d.ToSlice()
 	w.Write(values)
 	w.Flush()
 }
