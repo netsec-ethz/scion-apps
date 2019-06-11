@@ -12,6 +12,9 @@ deps:
 clean:
 	@$(foreach d,$(SRCDIRS),cd $(ROOT_DIR)/$(d) && go clean;)
 
+install: all
+	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)
+
 # using eval to create as many rules as we have $TARGETS
 # each target corresponds to the binary file name (e.g. sensorapp/sensorserver/sensorserver)
 define gobuild_tmpl = 
