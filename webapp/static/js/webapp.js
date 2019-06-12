@@ -87,7 +87,7 @@ function initBwGraphs() {
         setChartUtc(checked);
     });
 
-    // updateBwInterval();
+    updateBwInterval();
 
     // charts update on tab switch
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
@@ -345,7 +345,6 @@ function manageTestData() {
     maxTimeBwDb = (new Date(now - (xAxisSec * 1000))).getTime();
     lastTimeBwDb = (lastTimeBwDb < maxTimeBwDb ? maxTimeBwDb : lastTimeBwDb);
     intervalGraphData = setInterval(function() {
-        var startTime = (new Date()).getTime();
         // update continuous test parameters
         var checked = $('#switch_cont').prop('checked');
         if (checked) {
@@ -425,45 +424,43 @@ function requestEchoByTime(form_data) {
     $.post("/getechobytime", form_data, function(json) {
         var d = JSON.parse(json);
         console.info('resp:', JSON.stringify(d));
-            if (d != null) {
-                if (d.active != null) {
-                    $('#switch_cont').prop("checked", d.active);
-                    if (d.active) {
-                        enableTestControls(false);
-                        lockTab("echo");
-                    } else {
-                        enableTestControls(true);
-                        releaseTabs();
-                        clearInterval(intervalGraphData);
-                    }
+        if (d != null) {
+            if (d.active != null) {
+                $('#switch_cont').prop("checked", d.active);
+                if (d.active) {
+                    enableTestControls(false);
+                    lockTab("echo");
+                } else {
+                    enableTestControls(true);
+                    releaseTabs();
+                    clearInterval(intervalGraphData);
                 }
-                if (d.graph != null) {
-                    // write data on graph
-                    for (var i = 0; i < d.graph.length; i++) {
-                        if (d.graph[i].CmdOutput != null
-                                && d.graph[i].CmdOutput != "") {
-                            // result returned, display it and reset progress
-                            handleEndCmdDisplay(d.graph[i].CmdOutput);
-                        }
-                        var data = {
-                            'responseTime' : d.graph[i].ResponseTime,
-                            'runTime' : d.graph[i].RunTime,
-                            'loss' : d.graph[i].PktLoss,
-                            'path' : d.graph[i].Path,
-                            'error' : d.graph[i].Error,
-                        };
-                        if (data.runTime == 0) {
-                            // for other errors, use execution time
-                            data.runTime = d.graph[i].ActualDuration;
-                        }
-                        console.info(JSON.stringify(data));
-                        console.info('continous echo', 'duration:',
-                                d.graph[i].ActualDuration, 'ms');
-                        // use the time the test began
-                        var time = d.graph[i].Inserted
-                                - d.graph[i].ActualDuration;
-                        updatePingGraph(chartSE, data, time)
+            }
+            if (d.graph != null) {
+                // write data on graph
+                for (var i = 0; i < d.graph.length; i++) {
+                    if (d.graph[i].CmdOutput != null
+                            && d.graph[i].CmdOutput != "") {
+                        // result returned, display it and reset progress
+                        handleEndCmdDisplay(d.graph[i].CmdOutput);
                     }
+                    var data = {
+                        'responseTime' : d.graph[i].ResponseTime,
+                        'runTime' : d.graph[i].RunTime,
+                        'loss' : d.graph[i].PktLoss,
+                        'path' : d.graph[i].Path,
+                        'error' : d.graph[i].Error,
+                    };
+                    if (data.runTime == 0) {
+                        // for other errors, use execution time
+                        data.runTime = d.graph[i].ActualDuration;
+                    }
+                    console.info(JSON.stringify(data));
+                    console.info('continous echo', 'duration:',
+                            d.graph[i].ActualDuration, 'ms');
+                    // use the time the test began
+                    var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
+                    updatePingGraph(chartSE, data, time)
                 }
             }
         }
@@ -549,13 +546,17 @@ function updatePingGraph(chart, data, time) {
     // do not shift points since we manually remove before this
     var draw = false;
     var shift = false;
-    if (data.error || data.loss > 0 || data.responseTime == 0) {
+    if (data.error || data.loss > 0 || data.responseTime <= 0) {
+        var error = 'An error occured.';
+        if (data.loss > 0) {
+            error = 'Response timeout.';
+        }
         chart.series[0].addPoint({
             x : time,
             y : data.runTime,
             loss : data.loss,
             path : data.path,
-            error : data.error,
+            error : data.error ? data.error : error,
             color : '#f00',
         }, draw, shift);
     } else {
@@ -591,10 +592,6 @@ function command(continuous) {
         form_data.push({
             name : "continuous",
             value : continuous
-        }, {
-            name : "interval",
-            value : $('#interval_sec').val()
-        // value : getIntervalMax()
         });
         if (self.segType == 'PATH') { // only full paths allowed
             form_data.push({
@@ -641,6 +638,8 @@ function command(continuous) {
             handleContResponse(resp, continuous, startTime);
         } else if (activeApp == "echo") {
             // check for usable data for graphing
+            handleContResponse(resp, continuous, startTime);
+        } else {
             handleGeneralResponse();
         }
     }).fail(function(error) {
@@ -724,7 +723,7 @@ function handleImageResponse(resp) {
 function getIntervalMax() {
     var cs = $('#dial-cs-sec').val();
     var sc = $('#dial-sc-sec').val();
-    var cont = $('#interval_sec').val();
+    var cont = $('#bwtest_sec').val();
     var max = Math.max(cs, sc, cont);
     return max;
 }
@@ -745,14 +744,14 @@ function handleContResponse(resp, continuous, startTime) {
 function updateBwInterval() {
     var cs = $('#dial-cs-sec').val() * 1000;
     var sc = $('#dial-sc-sec').val() * 1000;
-    var cont = $('#interval_sec').val() * 1000;
+    var cont = $('#bwtest_sec').val() * 1000;
     var max = Math.max(cs, sc);
     if (cont != (max + bwIntervalBufMs)) {
-        $('#interval_sec').val((max + bwIntervalBufMs) / 1000);
+        $('#bwtest_sec').val((max + bwIntervalBufMs) / 1000);
     }
     // update interval minimum
     var min = Math.min(cs, sc);
-    $('#interval_sec').prop('min', min / 1000);
+    $('#bwtest_sec').prop('min', min / 1000);
 }
 
 function updateBwErrors(dataDir, dir, err) {
@@ -920,10 +919,10 @@ function initDials(dir) {
             return Number(Math.round(v + 'e' + 2) + 'e-' + 2);
         },
     };
-    // $('#dial-' + dir + '-sec').knob(extend(prop_sec, dial_prop_arc));
-    // $('#dial-' + dir + '-size').knob(extend(prop_size, dial_prop_arc));
-    // $('#dial-' + dir + '-pkt').knob(extend(prop_pkt, dial_prop_text));
-    // $('#dial-' + dir + '-bw').knob(extend(prop_bw, dial_prop_arc));
+    $('#dial-' + dir + '-sec').knob(extend(prop_sec, dial_prop_arc));
+    $('#dial-' + dir + '-size').knob(extend(prop_size, dial_prop_arc));
+    $('#dial-' + dir + '-pkt').knob(extend(prop_pkt, dial_prop_text));
+    $('#dial-' + dir + '-bw').knob(extend(prop_bw, dial_prop_arc));
 }
 
 function onchange_radio(dir, value) {
@@ -1058,7 +1057,7 @@ function onchange_sec(dir, v, min, max, lock) {
         }
     }
     // special case: update continuous interval
-    // updateBwInterval();
+    updateBwInterval();
 }
 
 function onchange_size(dir, v, min, max, lock) {

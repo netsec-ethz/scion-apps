@@ -56,7 +56,7 @@ svg.svg-dials {
 .column-center {
  float: left;
  width: 500px;
- height: 150px;
+ height: 300px;
  font-size: 12px;
 }
 
@@ -82,28 +82,11 @@ svg.svg-dials {
  margin-top: 15px;
 }
 
-.bw-cs-col, .bw-sc-col {
-  width: 50%;
-}
-
-.bwtest-input {
- /*
- width: 50px;
- display: inline-block;
- margin-top: 15px;
- */
-}
-
-.input-sm {
- width: 60px;
- padding: 5px;
-}
-
 .bwtest-dials {
- height: 70px;
+ height: 140px;
  width: 500px;
  margin: 0 auto;
- text-align: right;
+ text-align: center;
 }
 
 .label-dial {
@@ -125,7 +108,7 @@ svg.svg-dials {
 
 /* TAB CAMERAPP */
 #images {
- max-height: 200px;
+ max-height: 280px;
  overflow: hidden;
 }
 
@@ -145,7 +128,7 @@ img {
 .column-ia {
  float: left;
  width: 200px;
- height: 210px;
+ height: 342px;
  font-size: 12px;
 }
 

@@ -75,7 +75,15 @@
       <!-- BANDWIDTH TEST APP CONTENT -->
       <div id="bwtester" class="tab-pane fade in active">
 
-       <span id="bwtest_text"></span><br>
+       <span id="bwtest_text"></span><br> Interval: <input
+        name="bwtest_sec" id="bwtest_sec" type="number"
+        style="width: 45px;" min="3" max="11" value="4"> sec.
+
+       Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_opt" name="addl_opt" style="width: 200px;">
+       </span>
+
 
        <div id="bwtest-cs" class="bwtest-control">
 
@@ -86,15 +94,15 @@
         </svg>
         </div>
 
-        <div id="dials-cs" class="bwtest-dials bw-cs-col">
+        <div id="dials-cs" class="bwtest-dials">
 
-         <div class="bwtest-input">
+         <div class="bwtest-dial">
           <label for="dial-cs-sec" class="label-dial">seconds</label><input
-           type="text" class="input-sm" id="dial-cs-sec"
-           name="dial-cs-sec" value="3">
+           type="text" class="dial" id="dial-cs-sec" name="dial-cs-sec"
+           value="3">
          </div>
 
-         <div class="bwtest-input">
+         <div class="bwtest-dial">
           <div class="pretty p-svg p-curve p-pulse">
            <input type="radio" id="cs-radio-size" name="cs-dial"
             value="size" checked>
@@ -103,11 +111,11 @@
              size (b)</label>
            </div>
           </div>
-          <input type="text" class="input-sm" id="dial-cs-size"
+          <input type="text" class="dial" id="dial-cs-size"
            name="dial-cs-size" value="1000">
          </div>
 
-         <div class="bwtest-input">
+         <div class="bwtest-dial div-pkt">
           <div class="pretty p-svg p-curve p-pulse">
            <input type="radio" id="cs-radio-pkt" name="cs-dial"
             value="pkt">
@@ -115,11 +123,11 @@
             <img class="svg" src="static/img/lock-locked.svg"> <label>packets</label>
            </div>
           </div>
-          <input type="text" class="input-sm" id="dial-cs-pkt"
+          <input type="text" class="dial" id="dial-cs-pkt"
            name="dial-cs-pkt" value="30">
          </div>
 
-         <div class="bwtest-input">
+         <div class="bwtest-dial">
           <div class="pretty p-svg p-curve p-pulse">
            <input type="radio" id="cs-radio-bw" name="cs-dial"
             value="bw">
@@ -128,7 +136,7 @@
              (mbps)</label>
            </div>
           </div>
-          <input type="text" class="input-sm" id="dial-cs-bw"
+          <input type="text" class="dial" id="dial-cs-bw"
            name="dial-cs-bw" value="0.08">
          </div>
 
@@ -139,7 +147,7 @@
 
 
        <div id="bwtest-sc" class="bwtest-control">
-        <!--
+
         <div id="svg-sc" class="bwtest-svg">
          <svg class="svg-dials" viewBox="0 0 300 150">
         <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
@@ -147,7 +155,7 @@
         </svg>
         </div>
 
-         <div id="dials-sc" class="bwtest-dials">
+        <div id="dials-sc" class="bwtest-dials">
 
          <div class="bwtest-dial">
           <label for="dial-sc-sec" class="label-dial">seconds</label><input
@@ -193,7 +201,7 @@
            name="dial-sc-bw" value="0.08">
          </div>
 
-        </div> -->
+        </div>
 
        </div>
        <!-- SC END -->
@@ -211,6 +219,11 @@
        </div>
 
        <div id="image_text"></div>
+       Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_optca" name="addl_optca"
+        style="width: 200px;"> </span>
+       <div id="images"></div>
 
       </div>
 
@@ -225,22 +238,13 @@
        </div>
 
        <div id="stats_text"></div>
+       Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_optsa" name="addl_optsa"
+        style="width: 200px;"> </span>
 
       </div>
 
-      <!-- SCMP ECHO APP CONTENT -->
-      <div id="echo" class="tab-pane fade">
-
-       <div id="svg-sc" class="bwtest-svg">
-        <svg class="svg-dials" viewBox="0 0 300 150">
-        <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
-          marker-end="url(#sc-arrowhead)" />
-        </svg>
-       </div>
-
-       <span id="echo_text"></span>
-
-      </div>
 
       <!-- SCMP ECHO APP CONTENT -->
       <div id="echo" class="tab-pane fade">
@@ -311,9 +315,6 @@
         </div>
        </div>
 
-       Interval: <input name="interval_sec" id="interval_sec"
-        type="number" style="width: 50px;" min="1" max="11" value="1">
-       sec.
        <div class="pretty p-switch">
         <input id="switch_utc" type="checkbox" checked />
         <div class="state">
@@ -321,10 +322,6 @@
         </div>
        </div>
 
-       Additional Argument: <span
-        tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_opt" name="addl_opt" style="width: 150px;">
-       </span>
       </div>
 
       <div id="webapp-console-graph">

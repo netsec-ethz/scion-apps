@@ -629,12 +629,6 @@ function requestPaths() {
             $('#path-info').html(
                     get_path_html(data.paths, resCore, resUp, resDown, true));
 
-            // store updated paths
-            for (var idx = 0; idx < resPath.if_lists.length; idx++) {
-                var hops = formatPathString(resPath, idx, 'PATH');
-                console.warn('PATH', idx + 1, hops); // TODO: remove debug
-            }
-
             // clear graphs, new paths, remove selection
             removePaths();
             self.segType = undefined;
