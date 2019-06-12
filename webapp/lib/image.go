@@ -73,7 +73,7 @@ func findNewestFileExt(dir, extRegEx string) (imgFilename string, imgTimestamp i
 
 // FindImageInfoHandler locating most recent image and writing text info data about it.
 func FindImageInfoHandler(w http.ResponseWriter, r *http.Request) {
-	filesDir := "."
+	filesDir := path.Join(GOPATH, LABROOT, "webapp/data/images")
 	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
 	if imgFilename == "" {
 		return
@@ -84,7 +84,7 @@ func FindImageInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 // FindImageHandler locating most recent image formatting it for graphic display in response.
 func FindImageHandler(w http.ResponseWriter, r *http.Request, browserAddr string, port int) {
-	filesDir := "."
+	filesDir := path.Join(GOPATH, LABROOT, "webapp/data/images")
 	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
 	if imgFilename == "" {
 		fmt.Fprint(w, "Error: Unable to find image file locally.")
@@ -111,6 +111,6 @@ func FindImageHandler(w http.ResponseWriter, r *http.Request, browserAddr string
 		panic("Unhandled image type!")
 	}
 	CheckError(err)
-	url := fmt.Sprintf("http://%s:%d/%s/%s", browserAddr, port, "images", imgFilename)
+	url := fmt.Sprintf("http://%s:%d/%s/%s", browserAddr, port, "data/images", imgFilename)
 	writeJpegTemplate(w, &rawImage, url)
 }

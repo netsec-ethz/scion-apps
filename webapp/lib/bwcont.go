@@ -31,6 +31,8 @@ var reItMax = `(?i:interarrival time max:\s*)([0-9.-]*)(?:\s*ms)`
 var reErr1 = `(?i:err=*)"(.*?)"`
 var reErr2 = `(?i:crit msg=*)"(.*?)"`
 var reErr3 = `(?i:error:\s*)([\s\S]*)`
+var reErr4 = `(?i:eror:\s*)([\s\S]*)`
+var reErr5 = `(?i:crit:\s*)([\s\S]*)`
 var reUPath = `(?i:using path:)`
 
 // ExtractBwtestRespData will parse cmd line output from bwtester for adding BwTestItem fields.
@@ -98,6 +100,8 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 		match1, _ := regexp.MatchString(reErr1, r[i])
 		match2, _ := regexp.MatchString(reErr2, r[i])
 		match3, _ := regexp.MatchString(reErr3, r[i])
+		match4, _ := regexp.MatchString(reErr4, r[i])
+		match5, _ := regexp.MatchString(reErr5, r[i])
 
 		if match1 {
 			re := regexp.MustCompile(reErr1)
@@ -107,6 +111,12 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 			err = re.FindStringSubmatch(r[i])[1]
 		} else if match3 {
 			re := regexp.MustCompile(reErr3)
+			err = re.FindStringSubmatch(r[i])[1]
+		} else if match4 {
+			re := regexp.MustCompile(reErr4)
+			err = re.FindStringSubmatch(r[i])[1]
+		} else if match5 {
+			re := regexp.MustCompile(reErr5)
 			err = re.FindStringSubmatch(r[i])[1]
 		} else if err == "" && r[i] != "" {
 			// fallback to first line if err msg needed
