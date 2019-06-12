@@ -74,7 +74,7 @@ func DoListenQUIC(localAddr *snet.Addr) chan io.ReadWriteCloser {
 				continue
 			}
 
-			log.Debug("New connection")
+			log.Info("New QUIC connection")
 
 			conns <- &sessConn{
 				sess:   sess,

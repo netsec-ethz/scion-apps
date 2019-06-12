@@ -83,9 +83,9 @@ func DoListenUDP(localAddr *snet.Addr) chan io.ReadWriteCloser {
 			nrespChan := readResponses[addrStr]
 			if !contained {
 				// create new UDP connection
-				log.Debug("New UDP connection", "addr", addrStr)
+				log.Info("New UDP connection", "addr", addrStr)
 				nbufChan = make(chan []byte)
-				nrespChan = make(chan int)
+				nrespChan = make(chan int, 1)
 
 				readRequests[addrStr] = nbufChan
 				readResponses[addrStr] = nrespChan
@@ -99,9 +99,7 @@ func DoListenUDP(localAddr *snet.Addr) chan io.ReadWriteCloser {
 					},
 					close: func() (err error) {
 						close(nbufChan)
-						close(nrespChan)
 						delete(readRequests, addrStr)
-						delete(readResponses, addrStr)
 						return nil
 					},
 				}
@@ -112,7 +110,7 @@ func DoListenUDP(localAddr *snet.Addr) chan io.ReadWriteCloser {
 			for from < n {
 				nbuf, open := <-nbufChan
 				if !open {
-					log.Debug("Connection closed")
+					log.Debug("UDP connection closed with unread data remaining in buffer, discarding it")
 					break
 				}
 				written := copy(nbuf, buf[from:n])
