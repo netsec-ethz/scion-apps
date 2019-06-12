@@ -51,6 +51,9 @@ var (
 	repeatDuring bool
 
 	commandString string
+
+	verboseMode     bool
+	veryVerboseMode bool
 )
 
 func printUsage() {
@@ -62,23 +65,21 @@ func printUsage() {
 	fmt.Println("Available flags:")
 	fmt.Println("  -h: Show help")
 	fmt.Println("  -l: Listen mode")
-	fmt.Println("  -k: After the connection ended, accept new connections again. Requires -l flag. Incompatible with -K flag")
-	fmt.Println("  -K: After the connection has been established, accept new connections again. Requires -l and -c flags. Incompatible with -k flag")
+	fmt.Println("  -k: After the connection ended, accept new connections. Requires -l flag. If -u flag is present, requires -c flag. Incompatible with -K flag")
+	fmt.Println("  -K: After the connection has been established, accept new connections. Requires -l and -c flags. Incompatible with -k flag")
 	fmt.Println("  -c: Instead of piping the connection to stdin/stdout, run the given command using /bin/sh")
 	fmt.Println("  -u: UDP mode")
 	fmt.Println("  -local: Local SCION address (default localhost)")
 	fmt.Println("  -b: Send or expect an extra (throw-away) byte before the actual data")
 	fmt.Println("  -tlsKey: TLS key path. Requires -l flag (default: ./key.pem)")
 	fmt.Println("  -tlsCert: TLS certificate path. Requires -l flag (default: ./certificate.pem)")
+	fmt.Println("  -v: Enable verbose mode")
+	fmt.Println("  -vv: Enable very verbose mode")
 }
 
 func main() {
-	scionlog.SetupLogConsole("debug")
-
-	log.Debug("Launching netcat")
-
 	flag.Usage = printUsage
-	flag.StringVar(&remoteAddressString, "local", "", "Local address string")
+	flag.StringVar(&localAddrString, "local", "", "Local address string")
 	flag.StringVar(&quicTLSKeyPath, "tlsKey", "./key.pem", "TLS key path")
 	flag.StringVar(&quicTLSCertificatePath, "tlsCert", "./certificate.pem", "TLS certificate path")
 	flag.BoolVar(&extraByte, "b", false, "Expect extra byte")
@@ -87,7 +88,17 @@ func main() {
 	flag.BoolVar(&repeatAfter, "k", false, "Accept new connections after connection end")
 	flag.BoolVar(&repeatDuring, "K", false, "Accept multiple connections concurrently")
 	flag.StringVar(&commandString, "c", "", "Command")
+	flag.BoolVar(&verboseMode, "v", false, "Verbose mode")
+	flag.BoolVar(&veryVerboseMode, "vv", false, "Very verbose mode")
 	flag.Parse()
+
+	if veryVerboseMode {
+		scionlog.SetupLogConsole("debug")
+	} else if verboseMode {
+		scionlog.SetupLogConsole("info")
+	} else {
+		scionlog.SetupLogConsole("error")
+	}
 
 	tail := flag.Args()
 	if !(len(tail) == 1 && listen) && !(len(tail) == 2 && !listen) {
@@ -103,9 +114,14 @@ func main() {
 	if repeatDuring && !listen {
 		golog.Panicf("-K flag requires -l flag!")
 	}
+	if repeatAfter && udpMode && commandString == "" {
+		golog.Panicf("-k flag in UDP mode requires -c flag!")
+	}
 	if repeatDuring && commandString == "" {
 		golog.Panicf("-K flag requires -c flag!")
 	}
+
+	log.Info("Launching netcat")
 
 	remoteAddressString = tail[0]
 	port64, err := strconv.ParseUint(tail[len(tail)-1], 10, 16)
@@ -160,6 +176,7 @@ func main() {
 					pipeConn(conn)
 					<-isAvailable
 				default:
+					log.Info("Closing new connection as there's already a connection", "conn", conn)
 					conn.Close()
 				}
 			}()
@@ -192,6 +209,8 @@ func pipeConn(conn io.ReadWriteCloser) {
 			log.Crit("Error closing connection", "conn", conn)
 		}
 	}
+
+	log.Info("Piping new connection", "conn", conn)
 
 	var reader io.Reader
 	var writer io.Writer
@@ -251,7 +270,7 @@ func pipeConn(conn io.ReadWriteCloser) {
 	pipesWait.Wait()
 	closeThis()
 
-	log.Debug("Connection closed", "conn", conn)
+	log.Info("Connection closed", "conn", conn)
 }
 
 func doDial(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
