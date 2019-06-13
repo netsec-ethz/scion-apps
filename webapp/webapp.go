@@ -247,7 +247,7 @@ func trcHandler(w http.ResponseWriter, r *http.Request) {
 
 // There're two CmdItem, BwTestItem and EchoItem
 func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string) {
-	addlOpt := r.PostFormValue("addlOpt")
+	addlOpt := r.PostFormValue("addl_opt")
 
 	if appSel == "echo" { // ###need to be confirmed###
 		d := model.EchoItem{}

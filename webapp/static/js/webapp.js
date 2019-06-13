@@ -30,6 +30,7 @@ var dataIntervalMs = 1000;
 var progIntervalMs = 500
 var chartCS;
 var chartSC;
+var chartSE;
 var lastTime;
 var lastTimeBwDb = new Date((new Date()).getTime() - (xAxisSec * 1000));
 
@@ -58,6 +59,7 @@ var imageText = 'Execute camerapp to retrieve an image.';
 var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
+var echoText = 'Execute echo to measure response time.';
 
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
@@ -103,6 +105,7 @@ function initBwGraphs() {
             csColAch);
     chartSC = drawBwtestSingleDir('sc', 'Download (mbps)', true, scColReq,
             scColAch);
+    chartSE = drawPingGraph('echo-graph', 'Echo Response (ms)');
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
     manageTickData();
@@ -112,6 +115,9 @@ function initBwGraphs() {
 function showOnlyConsoleGraphs(activeApp) {
     $('#bwtest-continuous').css("display",
             (activeApp == "bwtester") ? "block" : "none");
+    $('#images').css("display", (activeApp == "camerapp") ? "block" : "none");
+    $('#echo-continuous').css("display",
+            (activeApp == "echo") ? "block" : "none");
     var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
             || activeApp == "sensorapp" || activeApp == "echo");
     $('.stdout').css("display", isConsole ? "block" : "none");
@@ -192,7 +198,7 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
         } ],
         tooltip : {
             enabled : true,
-            formatter : formatTooltip,
+            formatter : formatBwTooltip,
         },
         legend : {
             y : -15,
@@ -236,11 +242,71 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
     return chart;
 }
 
-function formatTooltip() {
+function drawPingGraph(div_id, yAxisLabel) {
+    var chart = Highcharts.chart(div_id, {
+        chart : {
+            type : 'column'
+        },
+        title : {
+            text : null
+        },
+        xAxis : {
+            type : 'datetime',
+        },
+        yAxis : {
+            min : 0,
+            minTickInterval : 1, // keep 0.1 errors visible
+            title : {
+                text : yAxisLabel
+            }
+        },
+        legend : {
+            enabled : false
+        },
+        tooltip : {
+            enabled : true,
+            formatter : formatPingTooltip,
+        },
+        credits : {
+            enabled : true,
+            text : 'Download Data',
+            href : './data/',
+        },
+        exporting : {
+            enabled : false
+        },
+        plotOptions : {
+            column : {
+                pointWidth : 8
+            }
+        },
+        series : [ {
+            name : yAxisLabel,
+            data : loadSetupData(),
+            dataLabels : {
+                enabled : false,
+            }
+        } ]
+    });
+    return chart;
+}
+
+function formatBwTooltip() {
     var tooltip = '<b>' + this.series.name + '</b><br/>'
             + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
             + Highcharts.numberFormat(this.y, 2) + ' mbps<br/><i>'
             + this.point.path + '</i>';
+    if (this.point.error != null) {
+        tooltip += '<br/><b>' + this.point.error + '</b>';
+    }
+    return tooltip;
+}
+
+function formatPingTooltip() {
+    var tooltip = '<b>' + this.series.name + '</b><br/>'
+            + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
+            + Highcharts.numberFormat(this.y, 3) + ' ms<br/>' + this.point.loss
+            + '% packet loss<br/><i>' + this.point.path + '</i>';
     if (this.point.error != null) {
         tooltip += '<br/><b>' + this.point.error + '</b>';
     }
@@ -269,6 +335,7 @@ function manageTickData() {
         var newTime = (new Date()).getTime();
         refreshTickData(chartCS, newTime);
         refreshTickData(chartSC, newTime);
+        refreshTickData(chartSE, newTime);
     }, tickMs);
 }
 
@@ -377,11 +444,23 @@ function requestEchoByTime(form_data) {
                         // result returned, display it and reset progress
                         handleEndCmdDisplay(d.graph[i].CmdOutput);
                     }
-
-                    console.info('continuous echo', 'duration:',
+                    var data = {
+                        'responseTime' : d.graph[i].ResponseTime,
+                        'runTime' : d.graph[i].RunTime,
+                        'loss' : d.graph[i].PktLoss,
+                        'path' : d.graph[i].Path,
+                        'error' : d.graph[i].Error,
+                    };
+                    if (data.runTime == 0) {
+                        // for other errors, use execution time
+                        data.runTime = d.graph[i].ActualDuration;
+                    }
+                    console.info(JSON.stringify(data));
+                    console.info('continous echo', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
-
-                    // TODO (mwfarb): complete echo graph
+                    // use the time the test began
+                    var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
+                    updatePingGraph(chartSE, data, time)
                 }
             }
         }
@@ -398,19 +477,23 @@ function refreshTickData(chart, newTime) {
     // manually remove all left side ticks < left side time
     // wait for adding hidden ticks to draw
     var draw = false;
-    removeOldPoints(series0, lastTime, draw);
-    removeOldPoints(series1, lastTime, draw);
+    if (series0)
+        removeOldPoints(series0, lastTime, draw);
+    if (series1)
+        removeOldPoints(series1, lastTime, draw);
     // manually add hidden right side ticks, time = now
     // do all drawing here to avoid accordioning redraws
     // do not shift points since we manually remove before this
     draw = true;
-    series0.addPoint([ x, y ], draw, shift);
-    series1.addPoint([ x, y ], draw, shift);
+    if (series0)
+        series0.addPoint([ x, y ], draw, shift);
+    if (series1)
+        series1.addPoint([ x, y ], draw, shift);
 }
 
 function removeOldPoints(series, lastTime, draw) {
     for (var i = 0; i < series.data.length; i++) {
-        if (series.data[i].x < lastTime) {
+        if (series.data[i] && series.data[i].x < lastTime) {
             series.removePoint(i, draw);
         }
     }
@@ -453,6 +536,36 @@ function updateBwChart(chart, dataDir, time) {
             x : time,
             y : tp,
             path : dataDir.path,
+        }, draw, shift);
+    }
+}
+
+function updatePingGraph(chart, data, time) {
+    // manually add visible right side ticks, time = now
+    // wait for adding hidden ticks to draw, for consistancy
+    // do not shift points since we manually remove before this
+    var draw = false;
+    var shift = false;
+    if (data.error || data.loss > 0 || data.responseTime <= 0) {
+        var error = 'An error occured.';
+        if (data.loss > 0) {
+            error = 'Response timeout.';
+        }
+        chart.series[0].addPoint({
+            x : time,
+            y : data.runTime,
+            loss : data.loss,
+            path : data.path,
+            error : data.error ? data.error : error,
+            color : '#f00',
+        }, draw, shift);
+    } else {
+        chart.series[0].addPoint({
+            x : time,
+            y : data.responseTime,
+            loss : data.loss,
+            path : data.path,
+            color : '#0f0',
         }, draw, shift);
     }
 }
@@ -524,10 +637,8 @@ function command(continuous) {
             // check for usable data for graphing
             handleContResponse(resp, continuous, startTime);
         } else if (activeApp == "echo") {
+            // check for usable data for graphing
             handleContResponse(resp, continuous, startTime);
-
-            // TODO (mwfarb): implement continuous echo graph
-
         } else {
             handleGeneralResponse();
         }
@@ -741,6 +852,7 @@ function setDefaults() {
     $('#stats_text').text(sensorText);
     $('#bwtest_text').text(bwText);
     $('#bwgraphs_text').text(bwgraphsText);
+    $('#echo_text').text(echoText);
 
     onchange_radio('cs', 'size');
     onchange_radio('sc', 'size');
