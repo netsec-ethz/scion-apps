@@ -123,13 +123,13 @@ function showOnlyConsoleGraphs(activeApp) {
     $('#echo-continuous').css("display",
             (activeApp == "echo") ? "block" : "none");
     var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
-            || activeApp == "sensorapp" || activeApp == "echo");
+            || activeApp == "sensorapp" || activeApp == "echo" || activeApp == "traceroute");
     $('.stdout').css("display", isConsole ? "block" : "none");
 }
 
 function handleSwitchTabs() {
     var activeApp = $('.nav-tabs .active > a').attr('name');
-    var isCont = (activeApp == "bwtester" || activeApp == "echo");
+    var isCont = (activeApp == "bwtester" || activeApp == "echo" || activeApp == "traceroute");
     enableContControls(isCont);
     // show/hide graphs for bwtester
     showOnlyConsoleGraphs(activeApp);
@@ -369,6 +369,8 @@ function manageTestData() {
             requestBwTestByTime(form_data);
         } else if (activeApp == "echo") {
             requestEchoByTime(form_data);
+        } else if (activeApp == "traceroute") {
+            requestTraceRouteByTime(form_data);
         }
         lastTimeBwDb = now;
     }, dataIntervalMs);
@@ -466,6 +468,42 @@ function requestEchoByTime(form_data) {
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updatePingGraph(chartSE, data, time)
+                }
+            }
+        }
+    });
+}
+
+function requestTraceRouteByTime(form_data) {
+    $.post("/gettraceroutebytime", form_data, function(json) {
+        var d = JSON.parse(json);
+        console.info('resp:', JSON.stringify(d));
+        if (d != null) {
+            if (d.active != null) {
+                $('#switch_cont').prop("checked", d.active);
+                if (d.active) {
+                    enableTestControls(false);
+                    lockTab("traceroute");
+                } else {
+                    enableTestControls(true);
+                    releaseTabs();
+                    clearInterval(intervalGraphData);
+                }
+            }
+            if (d.graph != null) {
+                // write data on graph
+                for (var i = 0; i < d.graph.length; i++) {
+                    if (d.graph[i].CmdOutput != null
+                            && d.graph[i].CmdOutput != "") {
+                        // result returned, display it and reset progress
+                        handleEndCmdDisplay(d.graph[i].CmdOutput);
+                    }
+
+                    console.info(JSON.stringify(data));
+                    console.info('continous traceroute', 'duration:',
+                            d.graph[i].ActualDuration, 'ms');
+
+                    // TODO (mwfarb): implement traceroute graph
                 }
             }
         }
@@ -596,7 +634,8 @@ function command(continuous) {
         name : "apps",
         value : activeApp
     });
-    if (activeApp == "bwtester" || activeApp == "echo") {
+    if (activeApp == "bwtester" || activeApp == "echo"
+            || activeApp == "traceroute") {
         // add extra bwtester options required
         form_data.push({
             name : "continuous",
@@ -648,6 +687,8 @@ function command(continuous) {
         } else if (activeApp == "echo") {
             // check for usable data for graphing
             handleContResponse(resp, continuous, startTime);
+        } else if (activeApp == "traceroute") {
+            handleContResponse(resp, continuous, startTime);
         } else {
             handleGeneralResponse();
         }
@@ -695,6 +736,7 @@ function lockTab(href) {
     enableTab("camerapp", "camerapp" == href);
     enableTab("sensorapp", "sensorapp" == href);
     enableTab("echo", "echo" == href);
+    enableTab("traceroute", "traceroute" == href);
 }
 
 function releaseTabs() {
@@ -702,6 +744,7 @@ function releaseTabs() {
     enableTab("camerapp", true);
     enableTab("sensorapp", true);
     enableTab("echo", true);
+    enableTab("traceroute", true);
 }
 
 function enableTab(href, enable) {
