@@ -17,6 +17,7 @@ package scionutil
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -39,9 +40,12 @@ const (
 )
 
 // ChoosePathInteractive presents the user a selection of paths to choose from
-func ChoosePathInteractive(local, remote *snet.Addr) *sciond.PathReplyEntry {
+func ChoosePathInteractive(local, remote *snet.Addr) (*sciond.PathReplyEntry, error) {
 	if snet.DefNetwork == nil {
-		InitSCION(local)
+		err := InitSCION(local)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pathMgr := snet.DefNetwork.PathResolver()
@@ -50,7 +54,7 @@ func ChoosePathInteractive(local, remote *snet.Addr) *sciond.PathReplyEntry {
 	var selectedPath *spathmeta.AppPath
 
 	if len(pathSet) == 0 {
-		return nil
+		return nil, errors.New("No paths available to remote destination")
 	}
 
 	re := regexp.MustCompile(`\d{1,4}-([0-9a-f]{1,4}:){2}[0-9a-f]{1,4}`)
@@ -76,13 +80,16 @@ func ChoosePathInteractive(local, remote *snet.Addr) *sciond.PathReplyEntry {
 	}
 	entry := selectedPath.Entry
 	fmt.Printf("Using path:\n %s\n", re.ReplaceAllStringFunc(entry.Path.String(), color.Cyan))
-	return entry
+	return entry, nil
 }
 
 // ChoosePathByMetric chooses the best path based on the metric pathAlgo
-func ChoosePathByMetric(pathAlgo int, local, remote *snet.Addr) *sciond.PathReplyEntry {
+func ChoosePathByMetric(pathAlgo int, local, remote *snet.Addr) (*sciond.PathReplyEntry, error) {
 	if snet.DefNetwork == nil {
-		InitSCION(local)
+		err := InitSCION(local)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pathMgr := snet.DefNetwork.PathResolver()
@@ -96,10 +103,10 @@ func ChoosePathByMetric(pathAlgo int, local, remote *snet.Addr) *sciond.PathRepl
 	}
 
 	if len(pathSet) == 0 {
-		return nil
+		return nil, errors.New("No paths available to remote destination")
 	}
 
-	return pathSelection(pathSet, pathAlgo).Entry
+	return pathSelection(pathSet, pathAlgo).Entry, nil
 }
 
 func pathSelection(pathSet spathmeta.AppPathSet, pathAlgo int) *spathmeta.AppPath {
