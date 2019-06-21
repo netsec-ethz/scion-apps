@@ -26,7 +26,9 @@ import (
 	. "github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/lib/shttp"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 func main() {
@@ -54,11 +56,19 @@ func main() {
 	l4 := addr.NewL4UDPInfo(40002)
 	raddr := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}
 
+	var entry *sciond.PathReplyEntry
 	if *interactive {
-		ChoosePathInteractive(laddr, raddr)
+		entry, err = ChoosePathInteractive(laddr, raddr)
 	} else {
-		ChoosePathByMetric(Shortest, laddr, raddr)
+		entry, err = ChoosePathByMetric(Shortest, laddr, raddr)
 	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	raddr.Path = spath.New(entry.Path.FwdPath)
+	raddr.NextHop, _ = entry.HostInfo.Overlay()
+	raddr.Path.InitOffsets()
 
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{

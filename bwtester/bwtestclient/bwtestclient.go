@@ -338,7 +338,7 @@ func main() {
 	var pathEntry *sciond.PathReplyEntry
 	if !serverCCAddr.IA.Eq(clientCCAddr.IA) {
 		if interactive {
-			pathEntry = scionutil.ChoosePathInteractive(clientCCAddr, serverCCAddr)
+			pathEntry, err = scionutil.ChoosePathInteractive(clientCCAddr, serverCCAddr)
 		} else {
 			var metric int
 			if pathAlgo == "mtu" {
@@ -346,11 +346,12 @@ func main() {
 			} else if pathAlgo == "shortest" {
 				metric = scionutil.Shortest
 			}
-			pathEntry = scionutil.ChoosePathByMetric(metric, clientCCAddr, serverCCAddr)
+			pathEntry, err = scionutil.ChoosePathByMetric(metric, clientCCAddr, serverCCAddr)
 		}
-		if pathEntry == nil {
-			LogFatal("No paths available to remote destination")
+		if err != nil {
+			LogFatal(err.Error())
 		}
+
 		serverCCAddr.Path = spath.New(pathEntry.Path.FwdPath)
 		serverCCAddr.Path.InitOffsets()
 		serverCCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
