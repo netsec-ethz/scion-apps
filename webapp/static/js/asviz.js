@@ -49,12 +49,6 @@ function getTab() {
  * Creates on-click handler that will draw/hide selected path arcs.
  */
 function setupPathSelection() {
-    // add style to list of paths and segments
-    $('li[seg-type="CORE"]').children().css("color", colorSegCore);
-    $('li[seg-type="DOWN"]').children().css("color", colorSegDown);
-    $('li[seg-type="UP"]').children().css("color", colorSegUp);
-    $('li[seg-type="PATH"]').children().css("color", colorPaths);
-
     // handle path graph-only selection and color
     $("#as-iflist ul > li").click(function() {
         var type = $(this).attr("seg-type");

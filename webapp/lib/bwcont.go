@@ -34,6 +34,7 @@ var reErr3 = `(?i:error:\s*)([\s\S]*)`
 var reErr4 = `(?i:eror:\s*)([\s\S]*)`
 var reErr5 = `(?i:crit:\s*)([\s\S]*)`
 var reUPath = `(?i:using path:)`
+var reSPath = `(?i:path=*)"(.*?)"`
 
 // ExtractBwtestRespData will parse cmd line output from bwtester for adding BwTestItem fields.
 func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
@@ -91,7 +92,11 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 			data[dir]["arrival_max"] = re.FindStringSubmatch(r[i])[1]
 		}
 		// save used path (default or interactive) for later user display
-		if pathNext {
+		match, _ := regexp.MatchString(reSPath, r[i])
+		if match {
+			re := regexp.MustCompile(reSPath)
+			path = re.FindStringSubmatch(r[i])[1]
+		} else if pathNext {
 			path = strings.TrimSpace(r[i])
 		}
 		match, _ = regexp.MatchString(reUPath, r[i])
