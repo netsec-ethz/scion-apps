@@ -4,14 +4,12 @@
 	"package": [
 		{
 			"checksumSHA1": "9NFR6RG8H2fNyKHscGmuGLQhRm4=",
-			"origin": "github.com/docker/docker/vendor/github.com/Azure/go-ansiterm",
 			"path": "github.com/Azure/go-ansiterm",
 			"revision": "3cd54c28fd7281f995d134d2e0d74582a90b2f14",
 			"revisionTime": "2019-04-25T00:25:05Z"
 		},
 		{
 			"checksumSHA1": "3/UphB+6Hbx5otA4PjFjvObT+L4=",
-			"origin": "github.com/docker/docker/vendor/github.com/Azure/go-ansiterm/winterm",
 			"path": "github.com/Azure/go-ansiterm/winterm",
 			"revision": "3cd54c28fd7281f995d134d2e0d74582a90b2f14",
 			"revisionTime": "2019-04-25T00:25:05Z"
@@ -231,7 +229,6 @@
 		},
 		{
 			"checksumSHA1": "uKoo85DVwvdZLliXjWmHuOoof5M=",
-			"origin": "github.com/docker/docker/vendor/github.com/konsorten/go-windows-terminal-sequences",
 			"path": "github.com/konsorten/go-windows-terminal-sequences",
 			"revision": "3cd54c28fd7281f995d134d2e0d74582a90b2f14",
 			"revisionTime": "2019-04-25T00:25:05Z"
@@ -662,7 +659,6 @@
 		},
 		{
 			"checksumSHA1": "Tx+N13P+lGKgx5LXb2FcNkezzvU=",
-			"origin": "github.com/docker/docker/vendor/github.com/sirupsen/logrus",
 			"path": "github.com/sirupsen/logrus",
 			"revision": "3cd54c28fd7281f995d134d2e0d74582a90b2f14",
 			"revisionTime": "2019-04-25T00:25:05Z"

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	log "github.com/inconshreveable/log15"
 
@@ -190,21 +189,18 @@ func (client *Client) StartTunnel(localPort uint16, addr string) error {
 				sess, err := localListener.Accept()
 				if err != nil {
 					log.Debug("Error accepting tunnel listener: ", err)
-					time.Sleep(time.Second)
 					continue
 				}
 
 				stream, err := sess.AcceptStream()
 				if err != nil {
 					log.Debug("Error accepting tunnel listener session: ", err)
-					time.Sleep(time.Second)
 					continue
 				}
 
 				err = client.forward(addr, &quicconn.QuicConn{Session: sess, Stream: stream})
 				if err != nil {
 					log.Debug("Error forwarding connection: ", err)
-					time.Sleep(time.Second)
 					continue
 				}
 			}
@@ -221,14 +217,12 @@ func (client *Client) StartTunnel(localPort uint16, addr string) error {
 				localConn, err := localListener.Accept()
 				if err != nil {
 					log.Debug("Error accepting tunnel listener: ", err)
-					time.Sleep(time.Second)
 					continue
 				}
 
 				err = client.forward(addr, localConn)
 				if err != nil {
 					log.Debug("Error forwarding connection: ", err)
-					time.Sleep(time.Second)
 					continue
 				}
 			}
