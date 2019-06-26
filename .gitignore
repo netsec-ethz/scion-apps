@@ -51,3 +51,8 @@ tools/pathdb_dump/pathdb_dump
 netcat/netcat
 ssh/client/client
 ssh/server/server
+roughtime/timeclient/timeclient
+roughtime/timeserver/timeserver
+
+# vscode workspace
+*.code-workspace

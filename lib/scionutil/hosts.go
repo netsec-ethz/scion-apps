@@ -18,11 +18,15 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"os"
+	"path"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/netsec-ethz/rains/pkg/rains"
 	libaddr "github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 type scionAddress struct {
@@ -30,11 +34,23 @@ type scionAddress struct {
 	l3 libaddr.HostAddr
 }
 
+// hosts file
 var (
 	hostFilePath = "/etc/hosts"
 	addrRegexp   = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\]`)
-	hosts        map[string]scionAddress // hostname -> scionAddress
-	revHosts     map[string][]string     // SCION address w/o port -> hostnames
+	hosts        = make(map[string]scionAddress) // hostname -> scionAddress
+	revHosts     = make(map[string][]string)     // SCION address w/o port -> hostnames
+)
+
+// RAINS
+var (
+	rainsConfigPath = path.Join(os.Getenv("SC"), "gen", "rains.cfg")
+	ctx             = "."                    // use global context
+	qType           = rains.OTScionAddr4     // request SCION IPv4 addresses
+	qOpts           = []rains.Option{}       // no options
+	expire          = 5 * time.Minute        // sensible expiry date?
+	timeout         = 500 * time.Millisecond // timeout for query
+	rainsServer     *snet.Addr               // resolver address
 )
 
 const (
@@ -43,19 +59,20 @@ const (
 )
 
 func init() {
+	// parse hosts file
 	hostsFile, err := readHostsFile()
-	if err != nil {
-		hostsFile = []byte{}
+	if err == nil {
+		parseHostsFile(hostsFile)
 	}
-	parseHostsFile(hostsFile)
-	if err != nil {
-		log.Fatal(err)
-	}
+
+	// read RAINS server address
+	rainsServer = readRainsConfig()
 }
 
 // AddHost adds a host to the map of known hosts
 // An error is returned if the address has a wrong format or
 // the hostname already exists
+// The added host will not persist between program executions
 func AddHost(hostname, address string) error {
 	if addrs, ok := hosts[hostname]; ok {
 		return fmt.Errorf("Host %q already exists, address(es): %v", hostname, addrs)
@@ -72,14 +89,35 @@ func AddHost(hostname, address string) error {
 
 // GetHostByName returns the IA and HostAddr corresponding to hostname
 func GetHostByName(hostname string) (libaddr.IA, libaddr.HostAddr, error) {
+	// try to resolve hostname locally
 	addr, ok := hosts[hostname]
-	if !ok {
-		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found", hostname)
+	if ok {
+		return addr.ia, addr.l3, nil
 	}
-	return addr.ia, addr.l3, nil
+
+	if rainsServer == nil {
+		return libaddr.IA{}, nil, fmt.Errorf("Could not resolve %q, no RAINS server configured", hostname)
+	}
+
+	// fall back to RAINS
+
+	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
+	// The timeout value has been decreased to counter this behavior until the problem is resolved.
+	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
+	if err != nil {
+		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found: %v", hostname, err)
+	}
+	scionAddr, err := addrFromString(reply[qType])
+	if err != nil {
+		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q invalid: %v", hostname, err)
+	}
+
+	return scionAddr.ia, scionAddr.l3, nil
+
 }
 
 // GetHostnamesByAddress returns the hostnames corresponding to address
+// TODO: (chaehni) RAINS address query to resolve address to name
 func GetHostnamesByAddress(address string) ([]string, error) {
 	match := addrRegexp.FindString(address)
 	host, ok := revHosts[match]
@@ -98,8 +136,6 @@ func readHostsFile() ([]byte, error) {
 }
 
 func parseHostsFile(hostsFile []byte) {
-	hosts = make(map[string]scionAddress)
-	revHosts = make(map[string][]string)
 	lines := bytes.Split(hostsFile, []byte("\n"))
 	for _, line := range lines {
 		fields := strings.Fields(string(line))
@@ -124,8 +160,23 @@ func parseHostsFile(hostsFile []byte) {
 	}
 }
 
+func readRainsConfig() *snet.Addr {
+	bs, err := ioutil.ReadFile(rainsConfigPath)
+	if err != nil {
+		return nil
+	}
+	addr, err := snet.AddrFromString(strings.TrimSpace(string(bs)))
+	if err != nil {
+		return nil
+	}
+	return addr
+}
+
 func addrFromString(addr string) (scionAddress, error) {
 	parts := addrRegexp.FindStringSubmatch(addr)
+	if parts == nil {
+		return scionAddress{}, fmt.Errorf("No valid SCION address: %q", addr)
+	}
 	ia, err := libaddr.IAFromString(parts[iaIndex])
 	if err != nil {
 		return scionAddress{}, fmt.Errorf("Invalid IA string: %v", parts[iaIndex])

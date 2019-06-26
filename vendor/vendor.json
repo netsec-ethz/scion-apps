@@ -103,6 +103,12 @@
 			"revisionTime": "2018-03-06T13:52:33Z"
 		},
 		{
+			"checksumSHA1": "I9USlnFClp2E/Ap9vfano+H7/bk=",
+			"path": "github.com/britram/borat",
+			"revision": "f891bcfcfb9b69c58b8348ec13eadad5bf2a5a2d",
+			"revisionTime": "2018-10-11T13:03:14Z"
+		},
+		{
 			"checksumSHA1": "PYXuf7wvcj492uWhjvmXlyyQUYc=",
 			"path": "github.com/cheekybits/genny/generic",
 			"revision": "9127e812e1e9e501ce899a18121d316ecb52e4ba",
@@ -168,13 +174,6 @@
 			"path": "github.com/google/gopacket/layers",
 			"revision": "a35e09f9f224786863ce609de910bc82fc4d4faf",
 			"revisionTime": "2018-10-23T10:10:25Z"
-		},
-		{
-			"checksumSHA1": "P3zGmsNjW8m15a+nks4FdVpFKwE=",
-			"license": "2-BSD",
-			"path": "github.com/gopherjs/gopherjs/js",
-			"revision": "6f5a3c4a73badf117936d7d61a046e2fab8e2adb",
-			"revisionTime": "2016-10-23T18:47:00Z"
 		},
 		{
 			"checksumSHA1": "UquR8kc0nKU285HwLbkievlLQz4=",
@@ -375,6 +374,90 @@
 			"path": "github.com/msteinert/pam",
 			"revision": "f29b9f28d6f9a1f6c4e6fd5db731999eb946574b",
 			"revisionTime": "2019-02-15T18:06:59Z"
+    },
+    {
+      "checksumSHA1": "oAzVVzZ8G62Tc8Z6QKKuFmI79bk=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/algorithmTypes",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "74bjp4b7F8YZIKKsMTfTF1cPafU=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/cbor",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "JF0HSoKCifEckCKfi9eX54lxUb0=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/connection",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "1WY5z5R39nDBaunrcEnUs1l0itI=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/datastructures/bitarray",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "vq0RzZ/9ctflFEOJ4nn/arquwwA=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/keys",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "7n3dj+WS6lVlWGXNLfVYzPOT8tU=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/message",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "gR86BQoomx0zX22xefse2trtHJw=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/object",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "aaQD2Wm6Q9yETQaqk0bByLgYyNE=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/query",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "I3t/4fX/VIEUBhaEZlja2G0EcBE=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/section",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "lCbtqf/yBKG45tYEZs9SvjODing=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/signature",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "0mE6gU++UPNzNQmeRkQmTah/C/U=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/token",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "DqmAjSj4jCz7MIk72DFhu8WxzWw=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/util",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "chhRV8twUksUbKcKaRMmXhWKRlQ=",
+			"path": "github.com/netsec-ethz/rains/internal/pkg/zonefile",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
+		},
+		{
+			"checksumSHA1": "jup0QWu5f6W4YKZkZ1YZnWlfKJ4=",
+			"path": "github.com/netsec-ethz/rains/pkg/rains",
+			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
+			"revisionTime": "2019-03-25T15:14:30Z"
 		},
 		{
 			"checksumSHA1": "SQi5yeNb9HnAMRpEhQgcv9x9yKc=",
@@ -800,6 +883,12 @@
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "d864b10871cd4370fe574816b489c819c675ccc7",
 			"revisionTime": "2019-04-22T17:19:08Z"
+    },
+    {
+			"checksumSHA1": "eP6ULb7qY83lyYmM7AfaDIRDeXE=",
+			"path": "golang.org/x/crypto/sha3",
+			"revision": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2",
+			"revisionTime": "2018-11-10T06:03:37Z"
 		},
 		{
 			"checksumSHA1": "CQYQ8wELyxPMRYOTDLELVtude/M=",
@@ -946,6 +1035,30 @@
 			"path": "gopkg.in/yaml.v2",
 			"revision": "a5b47d31c556af34a302ce5d659e6fea44d90de0",
 			"revisionTime": "2016-09-28T15:37:09Z"
+		},
+		{
+			"checksumSHA1": "d+FszpdwcrSQzdoG3w0E2FxQnFQ=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/client/monotime",
+			"path": "roughtime.googlesource.com/go/client/monotime",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
+		},
+		{
+			"checksumSHA1": "dtUYa81+BOxmiK4NjluVowO8g0U=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/config",
+			"path": "roughtime.googlesource.com/go/config",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
+		},
+		{
+			"checksumSHA1": "7TVC3xVndRMynYSO7L/fQG6QIkk=",
+			"comment": "using this fork in github until we know how to govendor fetch from the real path",
+			"origin": "github.com/juagargi/roughtime/go/protocol",
+			"path": "roughtime.googlesource.com/go/protocol",
+			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
+			"revisionTime": "2018-10-29T22:37:29Z"
 		},
 		{
 			"checksumSHA1": "Vu7yTzds3lfhARaEKI/8vmhIvLg=",

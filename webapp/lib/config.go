@@ -13,8 +13,11 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// SCIONROOT is the root location on the scion infrastructure.
+// SCIONROOT is the root location of the scion infrastructure.
 var SCIONROOT = "src/github.com/scionproto/scion"
+
+// LABROOT is the root location of scionlab apps.
+var LABROOT = "src/github.com/netsec-ethz/scion-apps"
 
 // GOPATH is the root of the GOPATH environment.
 var GOPATH = os.Getenv("GOPATH")
@@ -95,7 +98,10 @@ func GenServerNodeDefaults(srcpath string) {
 		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefImg + `}], `)
 	jsonBuf = append(jsonBuf, json...)
 	json = []byte(`"sensorapp": [{"name":"localhost","isdas":"` +
-		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefSen + `}] `)
+		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefSen + `}], `)
+	jsonBuf = append(jsonBuf, json...)
+	json = []byte(`"echo": [{"name":"localhost","isdas":"` +
+		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefSen + `}]`)
 	jsonBuf = append(jsonBuf, json...)
 
 	jsonBuf = append(jsonBuf, []byte(` }`)...)

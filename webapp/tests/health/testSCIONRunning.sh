@@ -15,7 +15,7 @@ then
 else
     error_exit "Variable \$SC is not properly set."
 fi
-    
+
 cd $SC
 status="$(bash $SC/scion.sh status 2>&1)"
 if [[ $status ]]
@@ -37,7 +37,7 @@ fi
 # check if /gen and /gen/ia and /run/shm/sciond and /run/shm/dispatcher directories are present and if they contain a default.sock file, fail if not
 
 # check if a directory $1 exists and if it contains a file $2
-check_presence(){   
+check_presence(){
 if [[ ! -d "$1" ]]
 then
     error_exit "Directory $1 doesn't exist, please contact us."
@@ -53,8 +53,15 @@ else
 fi
 }
 
+# get local IA
+iaFile=$(cat $SC/gen/ia)
+isd=$(echo ${iaFile} | cut -d"-" -f1)
+
 check_presence $SC/gen ia
-check_presence /run/shm/sciond default.sock
+if [ $isd -ge 16 ]; then
+    # not used for localhost testing
+    check_presence /run/shm/sciond default.sock
+fi
 check_presence /run/shm/dispatcher default.sock
 
-echo "Test for SCION running succeeds."	 
+echo "Test for SCION running succeeds."

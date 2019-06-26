@@ -115,11 +115,11 @@ func main() {
 	// Create the SCION UDP socket
 	if len(serverCCAddrStr) == 0 {
 		serverCCAddr, err = scionutil.GetLocalhost()
-		serverCCAddr.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
 		if err != nil {
 			printUsage()
-			LogFatal("Unable to start server", "err", err)
+			LogFatal("Unable to start server, please provide the server address manually", "err", err)
 		}
+		serverCCAddr.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
 	} else {
 		serverCCAddr, err = snet.AddrFromString(serverCCAddrStr)
 		if err != nil {

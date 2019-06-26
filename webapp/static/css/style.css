@@ -57,6 +57,7 @@ svg.svg-dials {
  float: left;
  width: 500px;
  height: 300px;
+ font-size: 12px;
 }
 
 .row:after {
@@ -64,6 +65,14 @@ svg.svg-dials {
  display: table;
  clear: both;
  overflow: scroll;
+}
+
+/* TAB ECHO */
+#echo-continuous .chart {
+ height: 200px;
+ width: 698px;
+ overflow: hidden;
+ float: left;
 }
 
 /* TAB BWTESTER */
@@ -120,6 +129,7 @@ img {
  float: left;
  width: 200px;
  height: 342px;
+ font-size: 12px;
 }
 
 .scion-ia {

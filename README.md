@@ -8,7 +8,7 @@ More information on [SCION](https://www.scion-architecture.net/), and [tutorials
 
 To build:
 1. run once the provided script `deps.sh` to set up the dependencies
-2. run `make` to build all projects
+2. run `make install` to build all projects and install into `$GOPATH/bin`
 
 
 ## bat

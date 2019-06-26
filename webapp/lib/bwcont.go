@@ -31,6 +31,8 @@ var reItMax = `(?i:interarrival time max:\s*)([0-9.-]*)(?:\s*ms)`
 var reErr1 = `(?i:err=*)"(.*?)"`
 var reErr2 = `(?i:crit msg=*)"(.*?)"`
 var reErr3 = `(?i:error:\s*)([\s\S]*)`
+var reErr4 = `(?i:eror:\s*)([\s\S]*)`
+var reErr5 = `(?i:crit:\s*)([\s\S]*)`
 var reUPath = `(?i:using path:)`
 
 // ExtractBwtestRespData will parse cmd line output from bwtester for adding BwTestItem fields.
@@ -98,6 +100,8 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 		match1, _ := regexp.MatchString(reErr1, r[i])
 		match2, _ := regexp.MatchString(reErr2, r[i])
 		match3, _ := regexp.MatchString(reErr3, r[i])
+		match4, _ := regexp.MatchString(reErr4, r[i])
+		match5, _ := regexp.MatchString(reErr5, r[i])
 
 		if match1 {
 			re := regexp.MustCompile(reErr1)
@@ -107,6 +111,12 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 			err = re.FindStringSubmatch(r[i])[1]
 		} else if match3 {
 			re := regexp.MustCompile(reErr3)
+			err = re.FindStringSubmatch(r[i])[1]
+		} else if match4 {
+			re := regexp.MustCompile(reErr4)
+			err = re.FindStringSubmatch(r[i])[1]
+		} else if match5 {
+			re := regexp.MustCompile(reErr5)
 			err = re.FindStringSubmatch(r[i])[1]
 		} else if err == "" && r[i] != "" {
 			// fallback to first line if err msg needed
@@ -139,13 +149,18 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
 	r.ParseForm()
 	since := r.PostFormValue("since")
-	log.Info("Requesting data since", "timestamp", since)
+	log.Info("Requesting bwtest data since", "timestamp", since)
 	// find undisplayed test results
-	bwTestResults := model.ReadBwTestItemsSince(since)
+	bwTestResults, err := model.ReadBwTestItemsSince(since)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
 	log.Debug("Requested data:", "bwTestResults", bwTestResults)
 
 	bwtestsJSON, err := json.Marshal(bwTestResults)
 	if CheckError(err) {
+		returnError(w, err)
 		return
 	}
 	jsonBuf := []byte(`{ "graph": ` + string(bwtestsJSON))
@@ -166,28 +181,28 @@ func removeOuterQuotes(s string) string {
 	return s
 }
 
-// WriteBwtestCsv appends the bwtest data in csv-format to srcpath.
-func WriteBwtestCsv(bwtest *model.BwTestItem, srcpath string) {
+// WriteContCmdCsv appends the continuous cmd data (bwtest or echo) in csv-format to srcpath.
+func WriteContCmdCsv(d model.CmdItem, srcpath string, appSel string) {
 	// newfile name for every day
-	dataFileBwtester := "data/bwtester-" + time.Now().Format("2006-01-02") + ".csv"
-	bwdataPath := path.Join(srcpath, dataFileBwtester)
+	dataFileCmd := "data/" + appSel + "-" + time.Now().Format("2006-01-02") + ".csv"
+	cmdDataPath := path.Join(srcpath, dataFileCmd)
 	// write headers if file is new
 	writeHeader := false
-	if _, err := os.Stat(dataFileBwtester); os.IsNotExist(err) {
+	if _, err := os.Stat(dataFileCmd); os.IsNotExist(err) {
 		writeHeader = true
 	}
 	// open/create file
-	f, err := os.OpenFile(bwdataPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	f, err := os.OpenFile(cmdDataPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if CheckError(err) {
 		return
 	}
 	w := csv.NewWriter(f)
 	// export headers if this is a new file
 	if writeHeader {
-		headers := bwtest.GetHeaders()
+		headers := d.GetHeaders()
 		w.Write(headers)
 	}
-	values := bwtest.ToSlice()
+	values := d.ToSlice()
 	w.Write(values)
 	w.Flush()
 }

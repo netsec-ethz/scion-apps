@@ -42,12 +42,14 @@ func main() {
 
 	if *clientAddress != "" {
 		cAddr, err = scionutil.InitSCIONString(*clientAddress)
+		checkErr("InitSCIONString", err)
 	} else {
 		cAddr, err = scionutil.GetLocalhost()
+		checkErr("GetLocalhost", err)
 		cAddr.Host.L4 = addr.NewL4UDPInfo(0)
-		scionutil.InitSCION(cAddr)
+		err = scionutil.InitSCION(cAddr)
+		checkErr("InitSCION", err)
 	}
-	checkErr("Init SCION", err)
 
 	if cAddr.Host.L4.Port() != 0 {
 		log.Panicf("Application port must be set to 0, currently its %d", cAddr.Host.L4.Port())
