@@ -103,7 +103,7 @@ func MaintainDatabase() {
 		count, err = DeleteHopItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
 		CheckError(err)
 		if count > 0 {
-			log.Warn(fmt.Sprint("Deleting ", count, " traceroute db rows older than", dbExpire))
+			log.Warn(fmt.Sprint("Deleting ", count, " hops db rows older than", dbExpire))
 		}
 		time.Sleep(dbExpire)
 	}
