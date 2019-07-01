@@ -63,12 +63,16 @@ var echoText = 'Execute echo to measure response time.';
 
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
+    command(false);
+};
+
+function failContinuousOff() {
     var checked = $('#switch_cont').prop('checked');
-    if (checked) {
+    if (!checked) {
         // send command to end continuous test
         command(false);
     }
-};
+}
 
 function initBwGraphs() {
     // continuous test default: off
@@ -220,14 +224,12 @@ function drawBwtestSingleDir(dir, yAxisLabel, legend, reqCol, achCol) {
         series : [ {
             name : 'attempted',
             data : loadSetupData(),
-            color : reqCol,
             marker : {
                 symbol : 'triangle-down'
             },
         }, {
             name : 'achieved',
             data : loadSetupData(),
-            color : achCol,
             marker : {
                 symbol : 'triangle'
             },
@@ -254,8 +256,6 @@ function drawPingGraph(div_id, yAxisLabel) {
             type : 'datetime',
         },
         yAxis : {
-            min : 0,
-            minTickInterval : 1, // keep 0.1 errors visible
             title : {
                 text : yAxisLabel
             }
@@ -292,10 +292,10 @@ function drawPingGraph(div_id, yAxisLabel) {
 }
 
 function formatBwTooltip() {
-    var tooltip = '<b>' + this.series.name + '</b><br/>'
-            + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
-            + Highcharts.numberFormat(this.y, 2) + ' mbps<br/><i>'
-            + this.point.path + '</i>';
+    var tooltip = '<b>' + this.series.name + '</b><br/>';
+    tooltip += Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>';
+    tooltip += Highcharts.numberFormat(this.y, 2) + ' mbps<br/>';
+    tooltip += '<i>' + this.point.path + '</i>';
     if (this.point.error != null) {
         tooltip += '<br/><b>' + this.point.error + '</b>';
     }
@@ -303,10 +303,13 @@ function formatBwTooltip() {
 }
 
 function formatPingTooltip() {
-    var tooltip = '<b>' + this.series.name + '</b><br/>'
-            + Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>'
-            + Highcharts.numberFormat(this.y, 3) + ' ms<br/>' + this.point.loss
-            + '% packet loss<br/><i>' + this.point.path + '</i>';
+    var tooltip = '<b>' + this.series.name + '</b><br/>';
+    tooltip += Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>';
+    tooltip += Highcharts.numberFormat(this.y, 3) + ' ms<br/>';
+    if (this.point.loss > 0) {
+        tooltip += this.point.loss + '% packet loss<br/>';
+    }
+    tooltip += '<i>' + this.point.path + '</i>';
     if (this.point.error != null) {
         tooltip += '<br/><b>' + this.point.error + '</b>';
     }
@@ -331,6 +334,7 @@ function manageTickData() {
     ticks = xAxisSec * granularity;
     tickMs = 1000 / granularity;
     xLeftTrimMs = 1000 / granularity;
+    clearInterval(intervalGraphTick); // prevent overlap
     intervalGraphTick = setInterval(function() {
         var newTime = (new Date()).getTime();
         refreshTickData(chartCS, newTime);
@@ -344,6 +348,7 @@ function manageTestData() {
     var now = (new Date()).getTime();
     maxTimeBwDb = (new Date(now - (xAxisSec * 1000))).getTime();
     lastTimeBwDb = (lastTimeBwDb < maxTimeBwDb ? maxTimeBwDb : lastTimeBwDb);
+    clearInterval(intervalGraphData); // prevent overlap
     intervalGraphData = setInterval(function() {
         // update continuous test parameters
         var checked = $('#switch_cont').prop('checked');
@@ -375,10 +380,10 @@ function requestBwTestByTime(form_data) {
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
             if (d.active != null) {
-                $('#switch_cont').prop("checked", d.active);
                 if (d.active) {
                     enableTestControls(false);
                     lockTab("bwtester");
+                    failContinuousOff();
                 } else {
                     enableTestControls(true);
                     releaseTabs();
@@ -426,10 +431,10 @@ function requestEchoByTime(form_data) {
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
             if (d.active != null) {
-                $('#switch_cont').prop("checked", d.active);
                 if (d.active) {
                     enableTestControls(false);
                     lockTab("echo");
+                    failContinuousOff();
                 } else {
                     enableTestControls(true);
                     releaseTabs();
@@ -513,13 +518,14 @@ function updateBwChart(chart, dataDir, time) {
     // do not shift points since we manually remove before this
     var draw = false;
     var shift = false;
+    var color = getPathColor(dataDir.path.match("\\[.*]"));
     if (dataDir.error) {
         chart.series[0].addPoint({
             x : time,
             y : bw,
             path : dataDir.path,
             error : dataDir.error,
-            color : '#f00',
+            color : '#ff000033', // errors in faint red
             marker : {
                 symbol : 'diamond',
             }
@@ -529,6 +535,7 @@ function updateBwChart(chart, dataDir, time) {
             x : time,
             y : bw,
             path : dataDir.path,
+            color : color,
         }, draw, shift);
     }
     if (tp > 0) {
@@ -536,6 +543,7 @@ function updateBwChart(chart, dataDir, time) {
             x : time,
             y : tp,
             path : dataDir.path,
+            color : color,
         }, draw, shift);
     }
 }
@@ -546,18 +554,19 @@ function updatePingGraph(chart, data, time) {
     // do not shift points since we manually remove before this
     var draw = false;
     var shift = false;
+    var color = getPathColor(data.path.match("\\[.*]"))
     if (data.error || data.loss > 0 || data.responseTime <= 0) {
-        var error = 'An error occured.';
+        var error = 'Command terminated.';
         if (data.loss > 0) {
             error = 'Response timeout.';
         }
         chart.series[0].addPoint({
             x : time,
-            y : data.runTime,
+            y : data.runTime, // errors show full run time
             loss : data.loss,
             path : data.path,
             error : data.error ? data.error : error,
-            color : '#f00',
+            color : '#ff000033', // errors in faint red
         }, draw, shift);
     } else {
         chart.series[0].addPoint({
@@ -565,7 +574,7 @@ function updatePingGraph(chart, data, time) {
             y : data.responseTime,
             loss : data.loss,
             path : data.path,
-            color : '#0f0',
+            color : color,
         }, draw, shift);
     }
 }
@@ -660,6 +669,7 @@ function handleStartCmdDisplay(activeApp) {
     $("#results").append("Executing ");
     $('#results').append(activeApp);
     $('#results').append(" client");
+    clearInterval(commandProg); // prevent overlap
     commandProg = setInterval(function() {
         $('#results').append('.');
         i += 1;

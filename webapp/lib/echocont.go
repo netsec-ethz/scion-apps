@@ -76,23 +76,27 @@ func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 		match1, _ := regexp.MatchString(reErr1, r[i])
 		match2, _ := regexp.MatchString(reErr2, r[i])
 		match3, _ := regexp.MatchString(reErr3, r[i])
+		match4, _ := regexp.MatchString(reErr4, r[i])
+		match5, _ := regexp.MatchString(reErr5, r[i])
 
 		if match1 {
 			re := regexp.MustCompile(reErr1)
 			err = re.FindStringSubmatch(r[i])[1]
-			//log.Info("match1", "err", err)
 		} else if match2 {
 			re := regexp.MustCompile(reErr2)
 			err = re.FindStringSubmatch(r[i])[1]
 		} else if match3 {
 			re := regexp.MustCompile(reErr3)
 			err = re.FindStringSubmatch(r[i])[1]
+		} else if match4 {
+			re := regexp.MustCompile(reErr4)
+			err = re.FindStringSubmatch(r[i])[1]
+		} else if match5 {
+			re := regexp.MustCompile(reErr5)
+			err = re.FindStringSubmatch(r[i])[1]
 		}
 	}
 	log.Info("app response", "data", data)
-
-	//log.Info("print parsed result", "error", err)
-	//log.Info("print parsed result", "path", path)
 
 	d.RunTime, _ = data["run_time"]
 	d.ResponseTime, _ = data["response_time"]

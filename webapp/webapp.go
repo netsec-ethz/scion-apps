@@ -46,6 +46,9 @@ var rootmarker = ".webapp"
 var myIa string
 var id = "webapp"
 
+const reAvailPath = `(?i:available paths to)`
+const reRemoveAnsi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
+
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
 
@@ -331,6 +334,10 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optTimeout := fmt.Sprintf("-timeout=%ds", d.Timeout)
 		optInterval := fmt.Sprintf("-interval=%ds", d.Interval)
 		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
+		if len(pathStr) > 0 {
+			// if path choice provided, use interactive mode
+			command = append(command, "-i")
+		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
 
@@ -437,12 +444,13 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
-	cmd.Stderr = os.Stderr
 	stdin, err := cmd.StdinPipe()
+	CheckError(err)
+	stderr, err := cmd.StderrPipe()
 	CheckError(err)
 	stdout, err := cmd.StdoutPipe()
 	CheckError(err)
-	reader := bufio.NewReader(stdout)
+	reader := io.MultiReader(stdout, stderr)
 
 	err = cmd.Start()
 	if err != nil {
@@ -501,8 +509,6 @@ func getClientLocationBin(app string) string {
 func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteCloser, d model.CmdItem, appSel string, pathStr string, cmd *exec.Cmd) {
 	// regex to find matching path in interactive mode
 	var errMsg string
-	// reAvailPath := `(?i:\[ *[0-9]*\] hops:)`
-	reAvailPath := `(?i:available paths to)`
 	rePathStr := `\[(.*?)\].*` + regexp.QuoteMeta(pathStr)
 	interactive := len(pathStr) > 0
 	if interactive {
@@ -515,12 +521,13 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		go func() { contCmdChanDone <- true }()
 	}()
 
+	var re = regexp.MustCompile(reRemoveAnsi)
 	pathsAvail := false
 	jsonBuf := []byte(``)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		// read each line from stdout
-		line := scanner.Text()
+		line := re.ReplaceAllString(scanner.Text(), "")
 		log.Info(line)
 
 		jsonBuf = append(jsonBuf, []byte(line+"\n")...)

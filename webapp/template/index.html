@@ -337,6 +337,7 @@
         <div id="echo-graph" class="chart"></div>
        </div>
 
+       <!-- COMMAND OUTPUT -->
        <div class="stdout">
         <div id="results"></div>
        </div>
@@ -387,7 +388,9 @@
     </div>
 
     <div id="as-iflist">
-     <h2>Selected Path Interfaces</h2>
+     <h2>
+      Available Paths <span class='badge'>hops</span>
+     </h2>
      <input type="button" value="Update Paths" onclick="requestPaths();" />
      <p>
      <p id="path-info"></p>
