@@ -1,9 +1,9 @@
 #!/bin/bash
 # test will fail for non-zero exit and/or bytes in stderr
 
-# get local IA
-iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia)
-ia=$(echo $iaFile | sed "s/_/:/g")
+# allow IA via args, ignoring gen/ia
+ia=$(echo $1 | sed "s/_/:/g")
+iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $ia"
 
 # get local IP

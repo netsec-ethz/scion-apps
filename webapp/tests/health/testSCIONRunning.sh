@@ -53,13 +53,16 @@ else
 fi
 }
 
-# get local IA
-iaFile=$(cat $SC/gen/ia)
+# allow IA via args, ignoring gen/ia
+ia=$(echo $1 | sed "s/_/:/g")
+iaFile=$(echo $1 | sed "s/:/_/g")
+echo "IA found: $ia"
+
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 
-check_presence $SC/gen ia
 if [ $isd -ge 16 ]; then
     # not used for localhost testing
+    check_presence $SC/gen ia
     check_presence /run/shm/sciond default.sock
 fi
 check_presence /run/shm/dispatcher default.sock

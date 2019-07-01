@@ -36,10 +36,17 @@ body {
      <span class="icon-bar"></span> <span class="icon-bar"></span> <span
       class="icon-bar"></span>
     </button>
-    <a class="navbar-brand" href="#">SCIONLab {{.MyIA}}</a>
+    <a class="navbar-brand" href="#">SCIONLab</a>
    </div>
    <div class="navbar-inverse collapse navbar-collapse" id="myNavbar">
     <ul class="nav navbar-nav navbar-left">
+     <li id="nav-srcia" class="dropdown"><a id="ia-selected"
+      class="dropdown-toggle" data-toggle="dropdown" href="#">{{.MyIA}}
+       <span class="caret"></span>
+     </a>
+      <ul id="ia-dropdown-menu" class="dropdown-menu">
+       <!-- server will populate list with available IAs -->
+      </ul>
      <li><a id="nav-health" href="/">Health</a></li>
      <li><a id="nav-apps" href="/apps">Apps</a></li>
      <!--<li><a id="nav-files" href="/dirview">Files</a></li> -->
@@ -52,4 +59,50 @@ body {
    </div>
   </div>
  </nav>
+
+ <script type="text/javascript">
+        $(window).on("load", function() {
+            $.post("/getias", function(data) {
+                console.info(data);
+
+                // on document load, request full list of available IAs
+                var ias = JSON.parse(data);
+                ias.sort();
+                for (i in ias) {
+                    var ia_str = ias[i].replace(/_/g, ":");
+                    var a = $('<a/>', {
+                        name : ias[i],
+                        href : '#',
+                        html : ia_str
+                    });
+                    var li = $('<li/>');
+                    li.append(a);
+                    var ul = $('#ia-dropdown-menu');
+                    ul.append(li);
+                }
+
+                // after IA list is populated, and after window load, attach clicks
+
+                // set click handler only after list populated
+                $('.dropdown-menu a').click(function(e) {
+                    // handle nav-srcia selection
+                    var a = $('#ia-selected');
+                    a.text($(this).text());
+                    a.append(' <span class="caret"></span>');
+
+                    // log chosen IA
+                    console.warn("ia choice:", e.target.name);
+                    var data = {
+                        myIA : e.target.text
+                    };
+                    // set chosen IA in server
+                    $.post("/setuseropt", data, function(json) {
+                        // reload this page, no cache
+                        location.reload(true);
+                    });
+                });
+            });
+        });
+    </script>
+
  {{end}}

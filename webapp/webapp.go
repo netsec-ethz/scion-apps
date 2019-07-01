@@ -1,9 +1,12 @@
 // go run webapp.go -a 0.0.0.0 -p 8080 -r .
 
+// NOTE: Webapp relies on SCIONs configuration for some of its fucntionality.
+// If the topology changes, webapp should be restarted as well.
 package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -43,11 +46,13 @@ var port = flag.Int("p", 8000, "Port of server host.")
 var cmdBufLen = 1024
 var browserAddr = "127.0.0.1"
 var rootmarker = ".webapp"
-var myIa string
+var settings lib.UserSetting
 var id = "webapp"
 
 const reAvailPath = `(?i:available paths to)`
 const reRemoveAnsi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
+
+var localIAs []string
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -123,15 +128,13 @@ func main() {
 	go model.MaintainDatabase()
 	ensurePath(*staticRoot, "data")
 	ensurePath(*staticRoot, "data/images")
-	// generate client/server default
-	lib.GenClientNodeDefaults(*staticRoot)
-	lib.GenServerNodeDefaults(*staticRoot)
 
-	myIa = lib.GetLocalIa()
-	if len(myIa) == 0 {
-		myIa = lib.GetCliIaDef()
-	}
-	log.Info("IA loaded:", "myIa", myIa)
+	initLocalIaOptions()
+	log.Info("IA loaded:", "myIa", settings.MyIA)
+
+	// generate client/server default
+	lib.GenClientNodeDefaults(*staticRoot, settings.MyIA)
+	lib.GenServerNodeDefaults(*staticRoot, localIAs)
 
 	refreshRootDirectory()
 	appsBuildCheck("bwtester")
@@ -139,6 +142,36 @@ func main() {
 	appsBuildCheck("sensorapp")
 	appsBuildCheck("echo")
 
+	initServeHandlers()
+	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
+	log.Info("File browser root:", "root", *browseRoot)
+	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
+	CheckFatal(err)
+}
+
+// load list of locally available IAs and determine user choices
+func initLocalIaOptions() {
+	localIAs = lib.ScanLocalIAs()
+	settings = lib.ReadClientsUser(*staticRoot)
+
+	// if read myia not in list, pick default
+	iaExists := false
+	for _, ia := range localIAs {
+		if ia == string(settings.MyIA) {
+			iaExists = true
+		}
+	}
+
+	// check for saved MyIA or use first available
+	if !iaExists || len(settings.MyIA) == 0 {
+		settings.MyIA = localIAs[0]
+	}
+	settings.MyIA = strings.Replace(settings.MyIA, "_", ":", -1)
+	lib.WriteClientsUser(*staticRoot, settings)
+}
+
+func initServeHandlers() {
 	serveExact("/favicon.ico", "./favicon.ico")
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/about", aboutHandler)
@@ -161,6 +194,8 @@ func main() {
 	http.HandleFunc("/healthcheck", healthCheckHandler)
 	http.HandleFunc("/dirview", dirViewHandler)
 	http.HandleFunc("/getechobytime", getEchoByTimeHandler)
+	http.HandleFunc("/getias", getIAsHandler)
+	http.HandleFunc("/setuseropt", setUserOptionsHandler)
 
 	//ported from scion-viz
 	http.HandleFunc("/config", lib.ConfigHandler)
@@ -171,12 +206,6 @@ func main() {
 	http.HandleFunc("/getastopo", lib.AsTopoHandler)
 	http.HandleFunc("/getcrt", lib.CrtHandler)
 	http.HandleFunc("/gettrc", lib.TrcHandler)
-
-	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
-	log.Info("File browser root:", "root", *browseRoot)
-	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
-	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
-	CheckFatal(err)
 }
 
 func logRequestHandler(handler http.Handler) http.Handler {
@@ -216,36 +245,36 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: myIa})
+	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: settings.MyIA})
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.WriteHeader(status)
-	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: myIa})
+	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: settings.MyIA})
 }
 
 func dirViewHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: myIa})
+	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: settings.MyIA})
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "about", &Page{Title: "SCIONLab About", MyIA: myIa})
+	display(w, "about", &Page{Title: "SCIONLab About", MyIA: settings.MyIA})
 }
 
 func appsHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: myIa})
+	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: settings.MyIA})
 }
 
 func astopoHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: myIa})
+	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: settings.MyIA})
 }
 
 func crtHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "crt", &Page{Title: "SCIONLab Cert", MyIA: myIa})
+	display(w, "crt", &Page{Title: "SCIONLab Cert", MyIA: settings.MyIA})
 }
 
 func trcHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: myIa})
+	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: settings.MyIA})
 }
 
 // There're two CmdItem, BwTestItem and EchoItem
@@ -609,7 +638,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, *staticRoot)
+	lib.HealthCheckHandler(w, r, *staticRoot, settings.MyIA)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
@@ -627,6 +656,24 @@ func findImageHandler(w http.ResponseWriter, r *http.Request) {
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
 	lib.GetNodesHandler(w, r, *staticRoot)
+}
+
+func getIAsHandler(w http.ResponseWriter, r *http.Request) {
+	// in:nil, out:list[ias]
+	iasJSON, _ := json.Marshal(localIAs)
+	fmt.Fprintf(w, string(iasJSON))
+}
+
+func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
+	// in:myIA , out:nil, set locally
+	myIa := r.PostFormValue("myIA")
+	settings = lib.ReadClientsUser(*staticRoot)
+	settings.MyIA = myIa
+
+	// save myIA to file
+	lib.WriteClientsUser(*staticRoot, settings)
+	lib.GenClientNodeDefaults(*staticRoot, settings.MyIA)
+	log.Info("IA set:", "myIa", settings.MyIA)
 }
 
 // Used to workaround cache-control issues by ensuring root specified by user

@@ -44,7 +44,7 @@ type ResHealthCheck struct {
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) {
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string, ia string) {
 	hcResFp := path.Join(srcpath, resFileHealthCheck)
 	// read specified tests from json definition
 	fp := path.Join(srcpath, defFileHealthCheck)
@@ -78,7 +78,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string) 
 		pass := true
 		log.Info(test.Script + ": " + test.Desc)
 		// execute script
-		cmd := exec.Command("bash", test.Script)
+		cmd := exec.Command("bash", test.Script, ia)
 		cmd.Dir = filepath.Dir(fp)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout

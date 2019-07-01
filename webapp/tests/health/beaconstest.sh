@@ -7,9 +7,9 @@ timeout_ms=20000
 # oldest accept age of last PCB
 pcb_ms=10000
 
-# get local IA
-iaFile=$(cat ~/go/src/github.com/scionproto/scion/gen/ia)
-ia=$(echo $iaFile | sed "s/_/:/g")
+# allow IA via args, ignoring gen/ia
+ia=$(echo $1 | sed "s/_/:/g")
+iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $ia"
 
 # format log file and beacons grep string
