@@ -18,8 +18,8 @@ type TracerouteItem struct {
 	Error          string
 }
 
-// HopItem reflects one row in the Hop table with all columns.
-type HopItem struct {
+// TrHopItem reflects one row in the Hop table with all columns.
+type TrHopItem struct {
 	Inserted   int64 // ms Inserted time as primary key
 	RunTimeKey int64 // ms, represent the inserted key in the corresponding entry in traceroute table
 	Ord        int
@@ -53,8 +53,8 @@ func (tr TracerouteItem) ToSlice() []string {
 	return s
 }
 
-// GetHeaders iterates the HopItem and returns struct variable names.
-func (hop HopItem) GetHeaders() []string {
+// GetHeaders iterates the TrHopItem and returns struct variable names.
+func (hop TrHopItem) GetHeaders() []string {
 	e := reflect.ValueOf(&hop).Elem()
 	var s []string
 	for i := 0; i < e.NumField(); i++ {
@@ -64,8 +64,8 @@ func (hop HopItem) GetHeaders() []string {
 	return s
 }
 
-// ToSlice iterates the HopItem and returns struct values.
-func (hop HopItem) ToSlice() []string {
+// ToSlice iterates the TrHopItem and returns struct values.
+func (hop TrHopItem) ToSlice() []string {
 	e := reflect.ValueOf(&hop).Elem()
 	var s []string
 	for i := 0; i < e.NumField(); i++ {
@@ -75,9 +75,9 @@ func (hop HopItem) ToSlice() []string {
 	return s
 }
 
-// TracerouteGraph reflects one row in the Traceroute table joint with Hop table with only the
+// TracerouteHelper reflects one row in the Traceroute table joint with Hop table with only the
 // necessary items to display in a graph.
-type TracerouteGraph struct {
+type TracerouteHelper struct {
 	Inserted       int64 // ms Inserted time of the TracerouteItem
 	ActualDuration int   // ms
 	Ord            int
@@ -88,6 +88,26 @@ type TracerouteGraph struct {
 	RespTime2      float32 // ms
 	RespTime3      float32 // ms
 	CmdOutput      string  // command output
+	Error          string
+}
+
+// Store only part of the TrHopItem information used for display in the graph
+type ReducedTrHopItem struct {
+	HopIa     string
+	HopAddr   string
+	IntfID    int
+	RespTime1 float32 // ms
+	RespTime2 float32 // ms
+	RespTime3 float32 // ms
+}
+
+// We parse the result SQL query first in TracerouteHelper structs and then convert them into
+// TracerouteGraph in order to avoid redundancy
+type TracerouteGraph struct {
+	Inserted       int64
+	ActualDuration int
+	TrHops         []ReducedTrHopItem
+	CmdOutput      string // command output
 	Error          string
 }
 
@@ -110,9 +130,9 @@ func createTracerouteTable() error {
 	return err
 }
 
-func createHopTable() error {
+func createTrHopTable() error {
 	sqlCreateTable := `
-    CREATE TABLE IF NOT EXISTS hops(
+    CREATE TABLE IF NOT EXISTS trhops(
         Inserted BIGINT NOT NULL PRIMARY KEY,
         RunTimeKey BIGINT,
     	Ord INT,
@@ -162,10 +182,10 @@ func StoreTracerouteItem(tr *TracerouteItem) error {
 	return err
 }
 
-// StoreHopItem operates on the DB to insert a HopItem.
-func StoreHopItem(hop *HopItem) error {
+// StoreTrHopItem operates on the DB to insert a TrHopItem.
+func StoreTrHopItem(hop *TrHopItem) error {
 	sqlInsert := `
-    INSERT INTO hops(
+    INSERT INTO trhops(
 		Inserted,
         RunTimeKey,
         Ord,
@@ -239,7 +259,7 @@ func ReadTracerouteItemsAll() ([]TracerouteItem, error) {
 	return result, nil
 }
 
-// ReadTracerouteItemsSince operates on the DB to return all rows in traceroute join hops
+// ReadTracerouteItemsSince operates on the DB to return all rows in traceroute join trhops
 // which are more recent than the 'since' epoch in ms.
 func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 	sqlReadSince := `
@@ -267,10 +287,10 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 				CmdOutput,
 				Error
 			FROM traceroute
-			WHERE Inserted > ?
-			ORDER BY datetime(Inserted) DESC
+			WHERE Inserted > ?			
 	) AS a
-	INNER JOIN hops AS h ON a.Inserted = h.RunTimeKey
+	INNER JOIN trhops AS h ON a.Inserted = h.RunTimeKey
+	ORDER BY datetime(a.Inserted) DESC
     `
 	rows, err := db.Query(sqlReadSince, since)
 	if err != nil {
@@ -278,27 +298,70 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 	}
 	defer rows.Close()
 
-	var result []TracerouteGraph
+	var result []TracerouteHelper
 	for rows.Next() {
-		trg := TracerouteGraph{}
+		trf := TracerouteHelper{}
 		err = rows.Scan(
-			&trg.Inserted,
-			&trg.ActualDuration,
-			&trg.Ord,
-			&trg.HopIa,
-			&trg.HopAddr,
-			&trg.IntfID,
-			&trg.RespTime1,
-			&trg.RespTime2,
-			&trg.RespTime3,
-			&trg.CmdOutput,
-			&trg.Error)
+			&trf.Inserted,
+			&trf.ActualDuration,
+			&trf.Ord,
+			&trf.HopIa,
+			&trf.HopAddr,
+			&trf.IntfID,
+			&trf.RespTime1,
+			&trf.RespTime2,
+			&trf.RespTime3,
+			&trf.CmdOutput,
+			&trf.Error)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, trg)
+		result = append(result, trf)
 	}
-	return result, nil
+
+	var graphEntries []TracerouteGraph
+	var lastEntryInsertedTime int64 = 0
+
+	// Store the infos of the last hop
+	var inserted int64
+	var actualDuration int
+	var trhops []ReducedTrHopItem
+	var cmdOutput string
+	var errors string
+
+	for _, hop := range result {
+		if lastEntryInsertedTime == 0 {
+			lastEntryInsertedTime = hop.Inserted
+			trhops = nil
+		} else if lastEntryInsertedTime != hop.Inserted {
+			trg := TracerouteGraph{Inserted: inserted,
+				ActualDuration: actualDuration,
+				TrHops:         trhops,
+				CmdOutput:      cmdOutput,
+				Error:          errors}
+
+			lastEntryInsertedTime = hop.Inserted
+			graphEntries = append(graphEntries, trg)
+			trhops = nil
+		} else {
+
+		}
+
+		inserted = hop.Inserted
+		actualDuration = hop.ActualDuration
+		cmdOutput = hop.CmdOutput
+		errors = hop.Error
+
+		rth := ReducedTrHopItem{HopIa: hop.HopIa,
+			HopAddr:   hop.HopAddr,
+			IntfID:    hop.IntfID,
+			RespTime1: hop.RespTime1,
+			RespTime2: hop.RespTime2,
+			RespTime3: hop.RespTime3}
+		trhops = append(trhops, rth)
+	}
+
+	return graphEntries, nil
 }
 
 // DeleteTracerouteItemsBefore operates on the DB to remote all traceroute rows
@@ -319,11 +382,11 @@ func DeleteTracerouteItemsBefore(before string) (int64, error) {
 	return count, nil
 }
 
-// DeleteHopItemsBefore operates on the DB to remote all hops rows
+// DeleteTrHopItemsBefore operates on the DB to remote all trhops rows
 // which are more older than the 'before' epoch in ms.
-func DeleteHopItemsBefore(before string) (int64, error) {
+func DeleteTrHopItemsBefore(before string) (int64, error) {
 	sqlDeleteBefore := `
-    DELETE FROM hops
+    DELETE FROM trhops
     WHERE RunTimeKey < ?
     `
 	res, err := db.Exec(sqlDeleteBefore, before)

@@ -27,7 +27,7 @@ func ExtractTracerouteRespData(resp string, d *model.TracerouteItem, start time.
 	// store current epoch in ms
 	d.Inserted = time.Now().UnixNano() / 1e6
 
-	log.Info("resp response", "content", resp)
+	//log.Info("resp response", "content", resp)
 
 	var err string
 	r := strings.Split(resp, "\n")
@@ -65,7 +65,7 @@ func ExtractTracerouteRespData(resp string, d *model.TracerouteItem, start time.
 
 // Extract the hop info from traceroute response and store them in the db related to hop
 func handleHopData(line string, runTimeKey int64) {
-	d := model.HopItem{}
+	d := model.TrHopItem{}
 	d.RunTimeKey = runTimeKey
 	// store current epoch in ms
 	d.Inserted = time.Now().UnixNano() / 1e6
@@ -101,12 +101,8 @@ func handleHopData(line string, runTimeKey int64) {
 		d.RespTime2 = RespTime[1]
 		d.RespTime3 = RespTime[2]
 
-		for _, l := range d.ToSlice() {
-			log.Info(l)
-		}
-
 		//store hop information in db
-		err := model.StoreHopItem(&d)
+		err := model.StoreTrHopItem(&d)
 		if err != nil {
 			log.Error("Error occur when storing hop items")
 			fmt.Println("err=%v", err)
@@ -139,6 +135,7 @@ func GetTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request, active b
 	jsonBuf = append(jsonBuf, json...)
 	jsonBuf = append(jsonBuf, []byte(`}`)...)
 
+	log.Debug(string(jsonBuf))
 	// ensure % if any, is escaped correctly before writing to printf formatter
 	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
 }

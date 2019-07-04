@@ -139,6 +139,7 @@ func main() {
 	appsBuildCheck("camerapp")
 	appsBuildCheck("sensorapp")
 	appsBuildCheck("echo")
+	appsBuildCheck("traceroute")
 
 	serveExact("/favicon.ico", "./favicon.ico")
 	http.HandleFunc("/", mainHandler)
@@ -362,6 +363,10 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		command = append(command, installpath, optApp, optRemote, optLocal, optTimeout)
+		if len(pathStr) > 0 {
+			// if path choice provided, use interactive mode
+			command = append(command, "-i")
+		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
 
@@ -554,7 +559,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 	for scanner.Scan() {
 		// read each line from stdout
 		line := re.ReplaceAllString(scanner.Text(), "")
-		log.Info(line)
+		// log.Info(line)
 
 		jsonBuf = append(jsonBuf, []byte(line+"\n")...)
 		// http write response
