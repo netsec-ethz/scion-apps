@@ -45,7 +45,7 @@ func LoadDB() error {
 	if err != nil {
 		return err
 	}
-	err = createHopTable()
+	err = createTrHopTable()
 	if err != nil {
 		return err
 	}
@@ -100,10 +100,10 @@ func MaintainDatabase() {
 			log.Warn(fmt.Sprint("Deleting ", count, " traceroute db rows older than", dbExpire))
 		}
 
-		count, err = DeleteHopItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
+		count, err = DeleteTrHopItemsBefore(strconv.FormatInt(before.UnixNano()/1e6, 10))
 		CheckError(err)
 		if count > 0 {
-			log.Warn(fmt.Sprint("Deleting ", count, " hops db rows older than", dbExpire))
+			log.Warn(fmt.Sprint("Deleting ", count, " trhops db rows older than", dbExpire))
 		}
 		time.Sleep(dbExpire)
 	}
