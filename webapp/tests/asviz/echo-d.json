@@ -1,0 +1,15 @@
+{
+ "graph": [
+  {
+   "Inserted": 1562683883823,
+   "ActualDuration": 263,
+   "ResponseTime": 13.352,
+   "RunTime": 226.525,
+   "PktLoss": 0,
+   "CmdOutput": "Using path:\n Hops: [1-ff00:0:111 103>4094 1-ff00:0:112] Mtu: 1450\n104 bytes from 1-ff00:0:112,[127.0.0.2] scmp_seq=0 time=13.352ms\n\n--- 1-ff00:0:112,[[127.0.0.2]] statistics ---\n1 packets transmitted, 1 received, 0% packet loss, time 226.525ms\n",
+   "Path": "Hops: [1-ff00:0:111 103>4094 1-ff00:0:112] Mtu: 1450",
+   "Error": ""
+  }
+ ],
+ "active": false
+}
