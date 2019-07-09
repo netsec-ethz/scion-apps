@@ -3,6 +3,7 @@ var iaLabels;
 var iaLocations = [];
 var iaGeoLoc;
 var g = {};
+var jPathColors = [];
 
 function setupDebug(src, dst) {
     var src = $('#ia_cli').val();
@@ -12,6 +13,24 @@ function setupDebug(src, dst) {
     var isd = parseInt(src.split('-')[0]);
     if (isd <= 15) {
         g['debug'] = true; // test ISD found, set debug
+    }
+}
+
+var cMissingPath = '#cccccc';
+var cPaths = [ "#3366cc", "#dc3912", "#ff9900", "#109618", "#990099",
+        "#0099c6", "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499",
+        "#22aa99", "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067",
+        "#329262", "#5574a6", "#3b3eac" ];
+function path_colors(n) {
+    return cPaths[n % cPaths.length];
+}
+
+function getPathColor(hops) {
+    var idx = jPathColors.indexOf(hops + '');
+    if (idx < 0) {
+        return cMissingPath;
+    } else {
+        return path_colors(idx);
     }
 }
 
@@ -326,13 +345,42 @@ function drawTopo(src, dst, paths, segs) {
     }, width, height);
 }
 
+function formatPathJson(paths, idx) {
+    if (typeof idx === 'undefined') {
+        return '';
+    }
+    var ent = paths[idx].Entry;
+    var hops = ent.Path.Interfaces;
+    var path = "[";
+    for (var i = 0; i < hops.length; i += 2) {
+        var prev = hops[i];
+        var next = hops[i + 1];
+        if (i > 0) {
+            path += ' ';
+        }
+        path += iaRaw2Read(prev.RawIsdas) + ' ' + prev.IfID + '>' + next.IfID;
+        if (i == (hops.length - 2)) {
+            path += ' ' + iaRaw2Read(next.RawIsdas);
+        }
+    }
+    path += "]";
+    return path;
+}
+
 function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
     var html = "<ul class='tree'>";
     for (p in paths) {
-        html += "<li seg-type='PATH' seg-num=" + p + "><a href='#'>PATH "
-                + (parseInt(p) + 1) + "</a>";
+
         var ent = paths[p].Entry;
         var exp = new Date(0);
+        if_ = ent.Path.Interfaces;
+        var hops = if_.length / 2;
+
+        var style = "style='background-color: "
+                + getPathColor(formatPathJson(paths, parseInt(p))) + "; '";
+        html += "<li seg-type='PATH' seg-num=" + p + "><a " + style
+                + " href='#'>PATH " + (parseInt(p) + 1)
+                + "</a> <span class='badge'>" + hops + "</span>";
         exp.setUTCSeconds(ent.Path.ExpTime);
         html += "<ul>";
         html += "<li><a href='#'>Mtu: " + ent.Path.Mtu + "</a>";
@@ -347,9 +395,6 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         html += "<li><a href='#'>Port: " + ent.HostInfo.Port + "</a>";
         html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
-        if_ = ent.Path.Interfaces;
-        var hops = if_.length / 2;
-        html += "<li><a href='#'>Hops: " + hops + "</a>";
         for (i in if_) {
             html += "<li><a href='#'>" + iaRaw2Read(if_[i].RawIsdas) + " ("
                     + if_[i].IfID + ")</a>";
@@ -365,19 +410,33 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
     return html;
 }
 
+// add style to list of paths and segments
+function getSegColor(type) {
+    if (type == "CORE") {
+        return colorSegCore;
+    } else if (type == "DOWN") {
+        return colorSegDown;
+    } else if (type == "UP") {
+        return colorSegUp;
+    } else {
+        return colorPaths;
+    }
+}
+
 function get_segment_info(segs, type) {
     var html = "";
     for (s in segs.if_lists) {
-        html += "<li seg-type='" + type + "' seg-num=" + s + "><a href='#'>"
-                + type + " SEGMENT " + (parseInt(s) + 1) + "</a>";
         var exp = new Date(0);
         exp.setUTCSeconds(segs.if_lists[s].expTime);
+        if_ = segs.if_lists[s].interfaces;
+        var hops = if_.length / 2;
+        var style = "style='color: " + getSegColor(type) + ";'";
+        html += "<li seg-type='" + type + "' seg-num=" + s + "><a " + style
+                + " href='#'>" + type + " SEGMENT " + (parseInt(s) + 1)
+                + "</a> <span class='badge'>" + hops + "</span>";
         html += "<ul>";
         html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
-        if_ = segs.if_lists[s].interfaces;
-        var hops = if_.length / 2;
-        html += "<li><a href='#'>Hops: " + hops + "</a>";
         for (i in if_) {
             html += "<li><a href='#'>" + if_[i].ISD + "-" + if_[i].AS + " ("
                     + if_[i].IFID + ")</a>";
@@ -624,6 +683,14 @@ function requestPaths() {
             resCore = resSegs.core_segments;
             resUp = resSegs.up_segments;
             resDown = resSegs.down_segments;
+
+            // store incoming paths
+            for (var idx = 0; idx < resPath.if_lists.length; idx++) {
+                var hops = formatPathString(resPath, idx, 'PATH');
+                if (!jPathColors.includes(hops)) {
+                    jPathColors.push(hops);
+                }
+            }
 
             jTopo = get_json_path_links(resPath, resCore, resUp, resDown);
             $('#path-info').html(
