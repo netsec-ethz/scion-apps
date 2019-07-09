@@ -16,6 +16,7 @@ type TracerouteItem struct {
 	Timeout        float32 // s Default 2
 	CmdOutput      string  // command output
 	Error          string
+	Path           string
 }
 
 // TrHopItem reflects one row in the Hop table with all columns.
@@ -89,6 +90,7 @@ type TracerouteHelper struct {
 	RespTime3      float32 // ms
 	CmdOutput      string  // command output
 	Error          string
+	Path           string
 }
 
 // Store only part of the TrHopItem information used for display in the graph
@@ -101,7 +103,7 @@ type ReducedTrHopItem struct {
 	RespTime3 float32 // ms
 }
 
-// We parse the result SQL query first in TracerouteHelper structs and then convert them into
+// parse the result SQL query first in TracerouteHelper structs and then convert them into
 // TracerouteGraph in order to avoid redundancy
 type TracerouteGraph struct {
 	Inserted       int64
@@ -109,6 +111,7 @@ type TracerouteGraph struct {
 	TrHops         []ReducedTrHopItem
 	CmdOutput      string // command output
 	Error          string
+	Path           string
 }
 
 // createTracerouteTable operates on the DB to create the traceroute table.
@@ -123,7 +126,8 @@ func createTracerouteTable() error {
         SAddr TEXT,
 		Timeout REAL,
 		CmdOutput TEXT,
-		Error TEXT
+		Error TEXT,
+		Path TEXT
     );
     `
 	_, err := db.Exec(sqlCreateTable)
@@ -160,8 +164,9 @@ func StoreTracerouteItem(tr *TracerouteItem) error {
         SAddr,
 		Timeout,
 		CmdOutput,
-		Error
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
+		Error,
+		Path
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
 	if err != nil {
@@ -178,7 +183,8 @@ func StoreTracerouteItem(tr *TracerouteItem) error {
 		tr.SAddr,
 		tr.Timeout,
 		tr.CmdOutput,
-		tr.Error)
+		tr.Error,
+		tr.Path)
 	return err
 }
 
@@ -228,7 +234,8 @@ func ReadTracerouteItemsAll() ([]TracerouteItem, error) {
 		SAddr,
 		Timeout,
 		CmdOutput,
-		Error
+		Error,
+		Path
 	FROM traceroute
     ORDER BY datetime(Inserted) DESC
     `
@@ -250,7 +257,8 @@ func ReadTracerouteItemsAll() ([]TracerouteItem, error) {
 			&tr.SAddr,
 			&tr.Timeout,
 			&tr.CmdOutput,
-			&tr.Error)
+			&tr.Error,
+			&tr.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +282,8 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 		h.RespTime2,     
 		h.RespTime3,	   
 		a.CmdOutput,       
-		a.Error       
+		a.Error,
+		a.Path       
 	FROM (
 			SELECT
 				Inserted,
@@ -285,7 +294,8 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 				SAddr,
 				Timeout,
 				CmdOutput,
-				Error
+				Error,
+				Path
 			FROM traceroute
 			WHERE Inserted > ?			
 	) AS a
@@ -312,7 +322,8 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 			&trf.RespTime2,
 			&trf.RespTime3,
 			&trf.CmdOutput,
-			&trf.Error)
+			&trf.Error,
+			&trf.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -320,37 +331,37 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 	}
 
 	var graphEntries []TracerouteGraph
-	var lastEntryInsertedTime int64 = 0
+	var lastEntryInsertedTime int64
 
 	// Store the infos of the last hop
 	var inserted int64
 	var actualDuration int
 	var trhops []ReducedTrHopItem
-	var cmdOutput string
-	var errors string
+	var cmdOutput, path, errors string
 
 	for _, hop := range result {
 		if lastEntryInsertedTime == 0 {
 			lastEntryInsertedTime = hop.Inserted
 			trhops = nil
 		} else if lastEntryInsertedTime != hop.Inserted {
-			trg := TracerouteGraph{Inserted: inserted,
+			trg := TracerouteGraph{
+				Inserted:       inserted,
 				ActualDuration: actualDuration,
 				TrHops:         trhops,
 				CmdOutput:      cmdOutput,
-				Error:          errors}
+				Error:          errors,
+				Path:           path}
 
 			lastEntryInsertedTime = hop.Inserted
 			graphEntries = append(graphEntries, trg)
 			trhops = nil
-		} else {
-
 		}
 
 		inserted = hop.Inserted
 		actualDuration = hop.ActualDuration
 		cmdOutput = hop.CmdOutput
 		errors = hop.Error
+		path = hop.Path
 
 		rth := ReducedTrHopItem{HopIa: hop.HopIa,
 			HopAddr:   hop.HopAddr,

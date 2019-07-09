@@ -29,9 +29,17 @@ func ExtractTracerouteRespData(resp string, d *model.TracerouteItem, start time.
 
 	//log.Info("resp response", "content", resp)
 
-	var err string
+	var path, err string
+	pathNext := false
 	r := strings.Split(resp, "\n")
 	for i := range r {
+		// save used path (default or interactive) for later user display
+		if pathNext {
+			path = strings.TrimSpace(r[i])
+		}
+		match, _ := regexp.MatchString(reUPath, r[i])
+		pathNext = match
+
 		// evaluate error message potential
 		match1, _ := regexp.MatchString(reErr1, r[i])
 		match2, _ := regexp.MatchString(reErr2, r[i])
@@ -58,9 +66,11 @@ func ExtractTracerouteRespData(resp string, d *model.TracerouteItem, start time.
 
 		handleHopData(r[i], d.Inserted)
 	}
+	log.Debug("***Path: " + path)
 
 	d.Error = err
 	d.CmdOutput = resp // pipe log output to render in display later
+	d.Path = path
 }
 
 // Extract the hop info from traceroute response and store them in the db related to hop
@@ -104,11 +114,8 @@ func handleHopData(line string, runTimeKey int64) {
 		//store hop information in db
 		err := model.StoreTrHopItem(&d)
 		if err != nil {
-			log.Error("Error occur when storing hop items")
-			fmt.Println("err=%v", err)
+			log.Error(fmt.Sprintf("Error storing hop items: %v", err))
 		}
-
-		//log.Info("hop match")
 	}
 }
 

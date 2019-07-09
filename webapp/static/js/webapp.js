@@ -499,7 +499,6 @@ function requestTraceRouteByTime(form_data) {
                         handleEndCmdDisplay(d.graph[i].CmdOutput);
                     }
 
-                    console.info(JSON.stringify(data));
                     console.info('continous traceroute', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
 
