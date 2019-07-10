@@ -22,6 +22,9 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+
+	log "github.com/inconshreveable/log15"
+	"github.com/kormat/fmt15"
 )
 
 const (
@@ -145,9 +148,9 @@ func parseBwtestParameters(s string) BwtestParameters {
 	}
 	if a[3] == WildcardChar {
 		wildcards -= 1
-		if wildcards == 0 {
-			fmt.Printf("Target bandwidth is %d\n", a2*a3*8/a1)
-		}
+		//if wildcards == 0 {
+		//	fmt.Printf("Target bandwidth is %d\n", a2*a3*8/a1)
+		//}
 	} else {
 		a4 = parseBandwidth(a[3])
 		// allow a deviation of up to one packet per 1 second interval, since we do not send half-packets
@@ -279,6 +282,11 @@ func main() {
 		receiveDone sync.Mutex // used to signal when the HandleDCConnReceive goroutine has completed
 	)
 
+	log.Root().SetHandler(log.MultiHandler(
+		log.LvlFilterHandler(log.LvlWarn,
+			log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
+		))
+
 	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
 	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
@@ -377,8 +385,8 @@ func main() {
 		serverDCAddr.Path = spath.New(pathEntry.Path.FwdPath)
 		serverDCAddr.Path.InitOffsets()
 		serverDCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
-		fmt.Printf("Client DC \tNext Hop %v\tServer Host %v\n",
-			serverDCAddr.NextHop, serverDCAddr.Host)
+		//fmt.Printf("Client DC \tNext Hop %v\tServer Host %v\n",
+		//	serverDCAddr.NextHop, serverDCAddr.Host)
 	}
 
 	// Data channel connection
@@ -404,12 +412,12 @@ func main() {
 	}
 	serverBwp = parseBwtestParameters(serverBwpStr)
 	serverBwp.Port = uint16(serverPort + 1)
-	fmt.Println("\nTest parameters:")
-	fmt.Println("clientDCAddr -> serverDCAddr", clientDCAddr, "->", serverDCAddr)
-	fmt.Printf("client->server: %d seconds, %d bytes, %d packets\n",
-		int(clientBwp.BwtestDuration/time.Second), clientBwp.PacketSize, clientBwp.NumPackets)
-	fmt.Printf("server->client: %d seconds, %d bytes, %d packets\n",
-		int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
+	//fmt.Println("\nTest parameters:")
+	//fmt.Println("clientDCAddr -> serverDCAddr", clientDCAddr, "->", serverDCAddr)
+	//fmt.Printf("client->server: %d seconds, %d bytes, %d packets\n",
+	//	int(clientBwp.BwtestDuration/time.Second), clientBwp.PacketSize, clientBwp.NumPackets)
+	//fmt.Printf("server->client: %d seconds, %d bytes, %d packets\n",
+	//	int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
 
 	t := time.Now()
 	expFinishTimeSend := t.Add(serverBwp.BwtestDuration + MaxRTT + GracePeriodSend)
@@ -487,18 +495,18 @@ func main() {
 
 	receiveDone.Lock()
 
-	fmt.Println("\nS->C results")
-	att := 8 * serverBwp.PacketSize * serverBwp.NumPackets / int64(serverBwp.BwtestDuration/time.Second)
-	ach := 8 * serverBwp.PacketSize * res.CorrectlyReceived / int64(serverBwp.BwtestDuration/time.Second)
-	fmt.Printf("Attempted bandwidth: %d bps / %.2f Mbps\n", att, float64(att)/1000000)
-	fmt.Printf("Achieved bandwidth: %d bps / %.2f Mbps\n", ach, float64(ach)/1000000)
-	fmt.Println("Loss rate:", (serverBwp.NumPackets-res.CorrectlyReceived)*100/serverBwp.NumPackets, "%")
-	variance := res.IPAvar
-	average := res.IPAavg
-	fmt.Printf("Interarrival time variance: %dms, average interarrival time: %dms\n",
-		variance/1e6, average/1e6)
-	fmt.Printf("Interarrival time min: %dms, interarrival time max: %dms\n",
-		res.IPAmin/1e6, res.IPAmax/1e6)
+	//fmt.Println("\nS->C results")
+	//att := 8 * serverBwp.PacketSize * serverBwp.NumPackets / int64(serverBwp.BwtestDuration/time.Second)
+	//ach := 8 * serverBwp.PacketSize * res.CorrectlyReceived / int64(serverBwp.BwtestDuration/time.Second)
+	//fmt.Printf("Attempted bandwidth: %d bps / %.2f Mbps\n", att, float64(att)/1000000)
+	//fmt.Printf("Achieved bandwidth: %d bps / %.2f Mbps\n", ach, float64(ach)/1000000)
+	//fmt.Println("Loss rate:", (serverBwp.NumPackets-res.CorrectlyReceived)*100/serverBwp.NumPackets, "%")
+	//variance := res.IPAvar
+	//average := res.IPAavg
+	//fmt.Printf("Interarrival time variance: %dms, average interarrival time: %dms\n",
+	//	variance/1e6, average/1e6)
+	//fmt.Printf("Interarrival time min: %dms, interarrival time max: %dms\n",
+	//	res.IPAmin/1e6, res.IPAmax/1e6)
 
 	// Fetch results from server
 	numtries = 0
@@ -533,7 +541,7 @@ func main() {
 				Check(fmt.Errorf("Results could not be found or PRG key was incorrect, abort"))
 			}
 			// pktbuf[1] contains number of seconds to wait for results
-			fmt.Println("We need to sleep for", pktbuf[1], "seconds before we can get the results")
+			//fmt.Println("We need to sleep for", pktbuf[1], "seconds before we can get the results")
 			time.Sleep(time.Duration(pktbuf[1]) * time.Second)
 			// We don't increment numtries as this was not a lost packet or other communication error
 			continue
@@ -556,18 +564,53 @@ func main() {
 			numtries++
 			continue
 		}
-		fmt.Println("\nC->S results")
-		att = 8 * clientBwp.PacketSize * clientBwp.NumPackets / int64(clientBwp.BwtestDuration/time.Second)
-		ach = 8 * clientBwp.PacketSize * sres.CorrectlyReceived / int64(clientBwp.BwtestDuration/time.Second)
-		fmt.Printf("Attempted bandwidth: %d bps / %.2f Mbps\n", att, float64(att)/1000000)
-		fmt.Printf("Achieved bandwidth: %d bps / %.2f Mbps\n", ach, float64(ach)/1000000)
-		fmt.Println("Loss rate:", (clientBwp.NumPackets-sres.CorrectlyReceived)*100/clientBwp.NumPackets, "%")
-		variance := sres.IPAvar
-		average := sres.IPAavg
-		fmt.Printf("Interarrival time variance: %dms, average interarrival time: %dms\n",
-			variance/1e6, average/1e6)
-		fmt.Printf("Interarrival time min: %dms, interarrival time max: %dms\n",
-			sres.IPAmin/1e6, sres.IPAmax/1e6)
+		//fmt.Println("\nC->S results")
+		//att = 8 * clientBwp.PacketSize * clientBwp.NumPackets / int64(clientBwp.BwtestDuration/time.Second)
+		//ach = 8 * clientBwp.PacketSize * sres.CorrectlyReceived / int64(clientBwp.BwtestDuration/time.Second)
+		//fmt.Printf("Attempted bandwidth: %d bps / %.2f Mbps\n", att, float64(att)/1000000)
+		//fmt.Printf("Achieved bandwidth: %d bps / %.2f Mbps\n", ach, float64(ach)/1000000)
+		//fmt.Println("Loss rate:", (clientBwp.NumPackets-sres.CorrectlyReceived)*100/clientBwp.NumPackets, "%")
+		//variance := sres.IPAvar
+		//average := sres.IPAavg
+		//fmt.Printf("Interarrival time variance: %dms, average interarrival time: %dms\n",
+		//	variance/1e6, average/1e6)
+		//fmt.Printf("Interarrival time min: %dms, interarrival time max: %dms\n",
+		//	sres.IPAmin/1e6, sres.IPAmax/1e6)
+
+		influxMeasurementName := "netsec_bw_tester"
+		source := fmt.Sprintf("%s\\,[%v]", clientDCAddr.IA, clientDCAddr.Host.L3)
+		destination := fmt.Sprintf("%s\\,[%v]", serverDCAddr.IA, serverDCAddr.Host.L3)
+		uploadAttempted := 8 * clientBwp.PacketSize * clientBwp.NumPackets / int64(clientBwp.BwtestDuration/time.Second)
+		uploadAchieved := 8 * clientBwp.PacketSize * sres.CorrectlyReceived / int64(clientBwp.BwtestDuration/time.Second)
+		uploadTimeAverage := sres.IPAavg
+		uploadTimeMin := sres.IPAmin
+		uploadTimeMax := sres.IPAmax
+		uploadTimeVariance := sres.IPAvar
+		downloadAttempted := 8 * serverBwp.PacketSize * serverBwp.NumPackets / int64(serverBwp.BwtestDuration/time.Second)
+		downloadAchieved := 8 * serverBwp.PacketSize * res.CorrectlyReceived / int64(serverBwp.BwtestDuration/time.Second)
+		downloadTimeAverage := res.IPAavg
+		downloadTimeMin := res.IPAmin
+		downloadTimeMax := res.IPAmax
+		downloadTimeVariance := res.IPAvar
+
+		fmt.Printf("%s," +
+			"source=%s," +
+			"destination=%s" +
+			" " +
+			"upload_attempted=%d," +
+			"upload_achieved=%d," +
+			"upload_time_average=%d," +
+			"upload_time_min=%d," +
+			"upload_time_max=%d," +
+			"upload_time_variance=%d," +
+			"download_attempted=%d," +
+			"download_achieved=%d," +
+			"download_time_average=%d," +
+			"download_time_min=%d," +
+			"download_time_max=%d," +
+			"download_time_variance=%d" +
+			"\n", influxMeasurementName, source, destination, uploadAttempted, uploadAchieved, uploadTimeAverage, uploadTimeMin, uploadTimeMax, uploadTimeVariance, downloadAttempted, downloadAchieved, downloadTimeAverage, downloadTimeMin, downloadTimeMax, downloadTimeVariance)
+
 		return
 	}
 
