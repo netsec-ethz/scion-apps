@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	filedriver "github.com/goftp/file-driver"
-	"github.com/goftp/server"
+	filedriver "gitea.com/goftp/file-driver"
 	"github.com/jlaffaye/ftp"
 	"github.com/stretchr/testify/assert"
+	"goftp.io/server"
 )
 
 func runServer(t *testing.T, execute func()) {
