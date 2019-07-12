@@ -130,7 +130,7 @@ func GetTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request, active b
 		returnError(w, err)
 		return
 	}
-	log.Debug("Requested data:", "tracerouteResults", tracerouteResults)
+	// log.Debug("Requested data:", "tracerouteResults", tracerouteResults)
 
 	tracerouteJSON, err := json.Marshal(tracerouteResults)
 	if CheckError(err) {
@@ -142,7 +142,7 @@ func GetTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request, active b
 	jsonBuf = append(jsonBuf, json...)
 	jsonBuf = append(jsonBuf, []byte(`}`)...)
 
-	log.Debug(string(jsonBuf))
+	//log.Debug(string(jsonBuf))
 	// ensure % if any, is escaped correctly before writing to printf formatter
 	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
 }

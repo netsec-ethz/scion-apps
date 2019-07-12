@@ -374,9 +374,9 @@
 			"path": "github.com/msteinert/pam",
 			"revision": "f29b9f28d6f9a1f6c4e6fd5db731999eb946574b",
 			"revisionTime": "2019-02-15T18:06:59Z"
-		},
-		{
-			"checksumSHA1": "oAzVVzZ8G62Tc8Z6QKKuFmI79bk=",
+    },
+    {
+      "checksumSHA1": "oAzVVzZ8G62Tc8Z6QKKuFmI79bk=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/algorithmTypes",
 			"revision": "ea31b8af8390375bf72b810804de21f17036a5d0",
 			"revisionTime": "2019-03-25T15:14:30Z"
@@ -873,12 +873,6 @@
 			"revisionTime": "2018-06-07T13:59:11Z"
 		},
 		{
-			"checksumSHA1": "eP6ULb7qY83lyYmM7AfaDIRDeXE=",
-			"path": "golang.org/x/crypto/sha3",
-			"revision": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2",
-			"revisionTime": "2018-11-10T06:03:37Z"
-		},
-		{
 			"checksumSHA1": "MlXjI8z02yIKwBpYVCyhbcWynMU=",
 			"path": "golang.org/x/crypto/ssh",
 			"revision": "c05e17bb3b2dca130fc919668a96b4bec9eb9442",
@@ -889,6 +883,12 @@
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "d864b10871cd4370fe574816b489c819c675ccc7",
 			"revisionTime": "2019-04-22T17:19:08Z"
+    },
+    {
+			"checksumSHA1": "eP6ULb7qY83lyYmM7AfaDIRDeXE=",
+			"path": "golang.org/x/crypto/sha3",
+			"revision": "3d3f9f413869b949e48070b5bc593aa22cc2b8f2",
+			"revisionTime": "2018-11-10T06:03:37Z"
 		},
 		{
 			"checksumSHA1": "CQYQ8wELyxPMRYOTDLELVtude/M=",
