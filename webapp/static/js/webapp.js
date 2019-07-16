@@ -843,12 +843,14 @@ function updateNode(node) {
                 .attr('name');
         var app_nodes = nodes[node][activeApp];
         var sel = $('#sel_' + node).find("option:selected").attr('value');
-        $('#ia_' + node).val(app_nodes[sel].isdas.replace(/_/g, ":"));
-        $('#addr_' + node).val(app_nodes[sel].addr);
-        $('#port_' + node).val(app_nodes[sel].port);
-        if (node == 'ser') {
-            // server node change complete, update paths
-            requestPaths();
+        if (sel != null) {
+            $('#ia_' + node).val(app_nodes[sel].isdas.replace(/_/g, ":"));
+            $('#addr_' + node).val(app_nodes[sel].addr);
+            $('#port_' + node).val(app_nodes[sel].port);
+            if (node == 'ser') {
+                // server node change complete, update paths
+                requestPaths();
+            }
         }
     }
 }

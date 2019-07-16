@@ -36,7 +36,7 @@
      <div id="in-client" class="scion-ia">
       <span>Source</span><br> <select name="sel_cli" id="sel_cli"
        style="width: 120px;"></select><br>IA: <input type="text"
-       name="ia_cli" id="ia_cli" required placeholder="1-11"
+       name="ia_cli" id="ia_cli" required placeholder="1-ff00:0:111"
        pattern="^[0-9]+-[0-9a-fA-F_:\/]+$" style="width: 120px;"><br>Host:
       <input type="text" name="addr_cli" id="addr_cli" required
        placeholder="127.0.0.3"
@@ -279,10 +279,10 @@
      <div id="in-server" class="scion-ia">
       <span>Destination</span><br> <select name="sel_ser"
        id="sel_ser" style="width: 120px;"></select><br>IA: <input
-       type="text" name="ia_ser" id="ia_ser" required placeholder="1-12"
-       pattern="^[0-9]+-[0-9a-fA-F_:\/]+$" style="width: 120px;">
-      <br>Host: <input type="text" name="addr_ser" id="addr_ser"
-       required placeholder="127.0.0.2"
+       type="text" name="ia_ser" id="ia_ser" required
+       placeholder="1-ff00:0:112" pattern="^[0-9]+-[0-9a-fA-F_:\/]+$"
+       style="width: 120px;"> <br>Host: <input type="text"
+       name="addr_ser" id="addr_ser" required placeholder="127.0.0.2"
        pattern="((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){4}$"
        style="width: 125px;"> <br>Port: <input
        name="port_ser" id="port_ser" type="number" required

@@ -1,6 +1,6 @@
 // go run webapp.go -a 0.0.0.0 -p 8080 -r .
 
-// NOTE: Webapp relies on SCIONs configuration for some of its fucntionality.
+// NOTE: Webapp relies on SCION's configuration for some of its functionality.
 // If the topology changes, webapp should be restarted as well.
 package main
 
@@ -153,22 +153,20 @@ func main() {
 // load list of locally available IAs and determine user choices
 func initLocalIaOptions() {
 	localIAs = lib.ScanLocalIAs()
-	settings = lib.ReadClientsUser(*staticRoot)
+	settings = lib.ReadUserSetting(*staticRoot)
 
 	// if read myia not in list, pick default
-	iaExists := false
-	for _, ia := range localIAs {
-		if ia == string(settings.MyIA) {
-			iaExists = true
-		}
-	}
+	iaExists := lib.StringInSlice(localIAs, settings.MyIA)
 
 	// check for saved MyIA or use first available
-	if !iaExists || len(settings.MyIA) == 0 {
-		settings.MyIA = localIAs[0]
+	if !iaExists {
+		if len(localIAs) > 0 {
+			settings.MyIA = localIAs[0]
+		} else {
+			settings.MyIA = ""
+		}
 	}
-	settings.MyIA = strings.Replace(settings.MyIA, "_", ":", -1)
-	lib.WriteClientsUser(*staticRoot, settings)
+	lib.WriteUserSetting(*staticRoot, settings)
 }
 
 func initServeHandlers() {
@@ -482,7 +480,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	reader := io.MultiReader(stdout, stderr)
 
 	err = cmd.Start()
-	if err != nil {
+	if CheckError(err) {
 		fmt.Fprintf(os.Stderr, "Failed to start err=%v", err)
 		if w != nil {
 			w.Write([]byte(err.Error() + "\n"))
@@ -667,11 +665,11 @@ func getIAsHandler(w http.ResponseWriter, r *http.Request) {
 func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
 	// in:myIA , out:nil, set locally
 	myIa := r.PostFormValue("myIA")
-	settings = lib.ReadClientsUser(*staticRoot)
+	settings = lib.ReadUserSetting(*staticRoot)
 	settings.MyIA = myIa
 
 	// save myIA to file
-	lib.WriteClientsUser(*staticRoot, settings)
+	lib.WriteUserSetting(*staticRoot, settings)
 	lib.GenClientNodeDefaults(*staticRoot, settings.MyIA)
 	log.Info("IA set:", "myIa", settings.MyIA)
 }

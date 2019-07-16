@@ -56,7 +56,7 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 		Interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(expiryTime, 0)}
 }
 
-// ReadSegTypesAll operates on the DB to return all SegTyoe rows.
+// ReadSegTypesAll operates on the DB to return all SegType rows.
 func ReadSegTypesAll(db *sql.DB) (map[int64]proto.PathSegType, error) {
 	sqlReadAll := `
     SELECT

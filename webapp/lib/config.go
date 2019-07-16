@@ -44,9 +44,8 @@ type UserSetting struct {
 	MyIA string `json:"myIa"`
 }
 
-// WriteClientsUser writes the settings to disk.
-func WriteClientsUser(srcpath string, settings UserSetting) {
-	settings.MyIA = strings.Replace(settings.MyIA, "_", ":", -1)
+// WriteUserSetting writes the settings to disk.
+func WriteUserSetting(srcpath string, settings UserSetting) {
 	cliUserFp := path.Join(srcpath, cfgFileCliUser)
 	settingsJSON, _ := json.Marshal(settings)
 
@@ -54,36 +53,34 @@ func WriteClientsUser(srcpath string, settings UserSetting) {
 	CheckError(err)
 }
 
-// ReadClientsUser reads the settings from disk.
-func ReadClientsUser(srcpath string) UserSetting {
+// ReadUserSetting reads the settings from disk.
+func ReadUserSetting(srcpath string) UserSetting {
 	var settings UserSetting
 	cliUserFp := path.Join(srcpath, cfgFileCliUser)
 
 	// no problem when user settings not set yet
 	raw, err := ioutil.ReadFile(cliUserFp)
 	log.Debug("ReadClientsUser", "settings", string(raw))
-	if err != nil {
+	if !CheckError(err) {
 		json.Unmarshal([]byte(raw), &settings)
 	}
-	settings.MyIA = strings.Replace(settings.MyIA, "_", ":", -1)
 	return settings
 }
 
 // ScanLocalIAs will load list of locally available IAs
 func ScanLocalIAs() []string {
 	var localIAs []string
-	var reIaFilePathDir = `\/ISD[0-9]+\/AS\w+$`
 	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
 	var searchPath = path.Join(GOPATH, SCIONROOT, "gen")
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
-		if f.IsDir() {
-			match, _ := regexp.MatchString(reIaFilePathDir, path)
+		if f != nil && f.IsDir() {
+			match, _ := regexp.MatchString(reIaFilePathCap, path)
 			if match {
-				match, _ := regexp.MatchString(reIaFilePathCap, path)
-				if match {
-					re := regexp.MustCompile(reIaFilePathCap)
-					capture := re.FindStringSubmatch(path)
-					ia := capture[1] + "-" + capture[2]
+				re := regexp.MustCompile(reIaFilePathCap)
+				capture := re.FindStringSubmatch(path)
+				ia := capture[1] + "-" + capture[2]
+				ia = strings.Replace(ia, "_", ":", -1) // convert once
+				if !StringInSlice(localIAs, ia) {
 					log.Debug("Local IA Found:", "ia", ia)
 					localIAs = append(localIAs, ia)
 				}
@@ -93,6 +90,16 @@ func ScanLocalIAs() []string {
 	})
 	sort.Strings(localIAs)
 	return localIAs
+}
+
+// StringInSlice can check a slice for a unique string
+func StringInSlice(arr []string, i string) bool {
+	for _, v := range arr {
+		if v == i {
+			return true
+		}
+	}
+	return false
 }
 
 // Makes interfaces sortable, by preferred name

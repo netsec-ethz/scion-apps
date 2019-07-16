@@ -4,7 +4,7 @@
 # allow IA via args, ignoring gen/ia
 ia=$(echo $1 | sed "s/_/:/g")
 iaFile=$(echo $1 | sed "s/:/_/g")
-echo "IA found: $ia"
+echo "IA found: $iaFile"
 
 # get local IP
 ip=$(hostname -I | cut -d" " -f1)

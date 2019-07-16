@@ -18,11 +18,11 @@ import (
 	"strings"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/proto"
@@ -61,13 +61,7 @@ func getNetworkByIA(iaCli string) (*snet.SCIONNetwork, error) {
 		return nil, err
 	}
 	dispatcherPath := "/run/shm/dispatcher/default.sock"
-	var sciondPath string
-	isdCli, _ := strconv.Atoi(strings.Split(iaCli, "-")[0])
-	if isdCli < 16 {
-		sciondPath = sciond.GetDefaultSCIONDPath(&ia)
-	} else {
-		sciondPath = sciond.GetDefaultSCIONDPath(nil)
-	}
+	sciondPath := scionutil.GetSCIONDPath(&ia)
 	if snet.DefNetwork == nil {
 		err := snet.Init(ia, sciondPath, dispatcherPath)
 		if CheckError(err) {

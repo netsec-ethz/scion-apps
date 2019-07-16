@@ -67,20 +67,21 @@ body {
 
                 // on document load, request full list of available IAs
                 var ias = JSON.parse(data);
-                ias.sort();
-                for (i in ias) {
-                    var ia_str = ias[i].replace(/_/g, ":");
-                    var a = $('<a/>', {
-                        name : ias[i],
-                        href : '#',
-                        html : ia_str
-                    });
-                    var li = $('<li/>');
-                    li.append(a);
-                    var ul = $('#ia-dropdown-menu');
-                    ul.append(li);
+                if (ias != null) {
+                    ias.sort();
+                    for (i in ias) {
+                        var ia_str = ias[i];
+                        var a = $('<a/>', {
+                            name : ias[i],
+                            href : '#',
+                            html : ia_str
+                        });
+                        var li = $('<li/>');
+                        li.append(a);
+                        var ul = $('#ia-dropdown-menu');
+                        ul.append(li);
+                    }
                 }
-
                 // after IA list is populated, and after window load, attach clicks
 
                 // set click handler only after list populated

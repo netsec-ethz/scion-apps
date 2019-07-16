@@ -8,9 +8,8 @@ timeout_ms=20000
 pcb_ms=10000
 
 # allow IA via args, ignoring gen/ia
-ia=$(echo $1 | sed "s/_/:/g")
 iaFile=$(echo $1 | sed "s/:/_/g")
-echo "IA found: $ia"
+echo "IA found: $iaFile"
 
 # format log file and beacons grep string
 logfile=~/go/src/github.com/scionproto/scion/logs/bs${iaFile}-1.DEBUG
