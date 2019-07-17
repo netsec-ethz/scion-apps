@@ -197,8 +197,11 @@ func unmangleSCIONAddr(host string) (addr.IA, addr.HostAddr, error) {
 }
 
 // Close closes the QUIC connections that this RoundTripper has used
-func (t *Transport) Close() error {
-	err := t.rt.Close()
+func (t *Transport) Close() (err error) {
+
+	if t.rt != nil {
+		err = t.rt.Close()
+	}
 
 	// quic.Session.Close (which is called by RoundTripper.Close()) will NOT
 	// close the underlying connections, so we do it manually here.
