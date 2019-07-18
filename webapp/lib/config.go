@@ -71,13 +71,12 @@ func ReadUserSetting(srcpath string) UserSetting {
 func ScanLocalIAs() []string {
 	var localIAs []string
 	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
+	re := regexp.MustCompile(reIaFilePathCap)
 	var searchPath = path.Join(GOPATH, SCIONROOT, "gen")
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.IsDir() {
-			match, _ := regexp.MatchString(reIaFilePathCap, path)
-			if match {
-				re := regexp.MustCompile(reIaFilePathCap)
-				capture := re.FindStringSubmatch(path)
+			capture := re.FindStringSubmatch(path)
+			if len(capture) > 0 {
 				ia := capture[1] + "-" + capture[2]
 				ia = strings.Replace(ia, "_", ":", -1) // convert once
 				if !StringInSlice(localIAs, ia) {

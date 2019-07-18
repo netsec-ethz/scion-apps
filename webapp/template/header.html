@@ -67,7 +67,7 @@ body {
 
                 // on document load, request full list of available IAs
                 var ias = JSON.parse(data);
-                if (ias != null) {
+                if (ias != null && ias.length > 0) {
                     ias.sort();
                     for (i in ias) {
                         var ia_str = ias[i];
@@ -81,6 +81,8 @@ body {
                         var ul = $('#ia-dropdown-menu');
                         ul.append(li);
                     }
+                } else {
+                    showError('Local IA not found. Is SCION installed?');
                 }
                 // after IA list is populated, and after window load, attach clicks
 
