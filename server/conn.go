@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -33,7 +32,6 @@ type Conn struct {
 	auth          Auth
 	logger        Logger
 	server        *Server
-	tlsConfig     *tls.Config
 	sessionID     string
 	namePrefix    string
 	reqUser       string
@@ -42,7 +40,6 @@ type Conn struct {
 	lastFilePos   int64
 	appendData    bool
 	closed        bool
-	tls           bool
 }
 
 func (conn *Conn) LoginUser() string {
@@ -140,19 +137,6 @@ func (conn *Conn) Close() {
 		conn.dataConn.Close()
 		conn.dataConn = nil
 	}
-}
-
-func (conn *Conn) upgradeToTLS() error {
-	conn.logger.Print(conn.sessionID, "Upgrading connectiion to TLS")
-	tlsConn := tls.Server(conn.conn, conn.tlsConfig)
-	err := tlsConn.Handshake()
-	if err == nil {
-		conn.conn = tlsConn
-		conn.controlReader = bufio.NewReader(tlsConn)
-		conn.controlWriter = bufio.NewWriter(tlsConn)
-		conn.tls = true
-	}
-	return err
 }
 
 // receiveLine accepts a single line FTP command and co-ordinates an

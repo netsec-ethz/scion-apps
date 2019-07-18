@@ -5,7 +5,6 @@
 package server
 
 import (
-	"crypto/tls"
 	"io"
 	"net"
 	"os"
@@ -105,7 +104,6 @@ type ftpPassiveSocket struct {
 	logger    Logger
 	lock      sync.Mutex // protects conn and err
 	err       error
-	tlsConfig *tls.Config
 }
 
 // Detect if an error is "bind: address already in use"
@@ -134,13 +132,12 @@ func isErrorAddressAlreadyInUse(err error) bool {
 	return false
 }
 
-func newPassiveSocket(host string, port func() int, logger Logger, sessionID string, tlsConfig *tls.Config) (DataSocket, error) {
+func newPassiveSocket(host string, port func() int, logger Logger, sessionID string) (DataSocket, error) {
 	socket := new(ftpPassiveSocket)
 	socket.ingress = make(chan []byte)
 	socket.egress = make(chan []byte)
 	socket.logger = logger
 	socket.host = host
-	socket.tlsConfig = tlsConfig
 	const retries = 10
 	var err error
 	for i := 1; i <= retries; i++ {
@@ -235,9 +232,6 @@ func (socket *ftpPassiveSocket) GoListenAndServe(sessionID string) (err error) {
 	}
 
 	socket.port = port
-	if socket.tlsConfig != nil {
-		listener = tls.NewListener(listener, socket.tlsConfig)
-	}
 
 	socket.lock.Lock()
 	go func() {

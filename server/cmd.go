@@ -26,7 +26,6 @@ var (
 		"ADAT": commandAdat{},
 		"ALLO": commandAllo{},
 		"APPE": commandAppe{},
-		"AUTH": commandAuth{},
 		"CDUP": commandCdup{},
 		"CWD":  commandCwd{},
 		"CCC":  commandCcc{},
@@ -378,7 +377,7 @@ func (cmd commandEpsv) RequireAuth() bool {
 
 func (cmd commandEpsv) Execute(conn *Conn, param string) {
 	addr := conn.passiveListenIP()
-	socket, err := newPassiveSocket(addr, conn.PassivePort, conn.logger, conn.sessionID, conn.tlsConfig)
+	socket, err := newPassiveSocket(addr, conn.PassivePort, conn.logger, conn.sessionID)
 	if err != nil {
 		log.Println(err)
 		conn.writeMessage(425, "Data connection failed")
@@ -647,7 +646,7 @@ func (cmd commandPasv) RequireAuth() bool {
 
 func (cmd commandPasv) Execute(conn *Conn, param string) {
 	listenIP := conn.passiveListenIP()
-	socket, err := newPassiveSocket(listenIP, conn.PassivePort, conn.logger, conn.sessionID, conn.tlsConfig)
+	socket, err := newPassiveSocket(listenIP, conn.PassivePort, conn.logger, conn.sessionID)
 	if err != nil {
 		conn.writeMessage(425, "Data connection failed")
 		return
@@ -893,32 +892,6 @@ func (cmd commandAdat) Execute(conn *Conn, param string) {
 	conn.writeMessage(550, "Action not taken")
 }
 
-type commandAuth struct{}
-
-func (cmd commandAuth) IsExtend() bool {
-	return false
-}
-
-func (cmd commandAuth) RequireParam() bool {
-	return true
-}
-
-func (cmd commandAuth) RequireAuth() bool {
-	return false
-}
-
-func (cmd commandAuth) Execute(conn *Conn, param string) {
-	if param == "TLS" && conn.tlsConfig != nil {
-		conn.writeMessage(234, "AUTH command OK")
-		err := conn.upgradeToTLS()
-		if err != nil {
-			conn.logger.Printf("Error upgrading connection to TLS %v", err.Error())
-		}
-	} else {
-		conn.writeMessage(550, "Action not taken")
-	}
-}
-
 type commandCcc struct{}
 
 func (cmd commandCcc) IsExtend() bool {
@@ -988,7 +961,7 @@ func (cmd commandPbsz) RequireAuth() bool {
 }
 
 func (cmd commandPbsz) Execute(conn *Conn, param string) {
-	if conn.tls && param == "0" {
+	if param == "0" {
 		conn.writeMessage(200, "OK")
 	} else {
 		conn.writeMessage(550, "Action not taken")
@@ -1010,10 +983,8 @@ func (cmd commandProt) RequireAuth() bool {
 }
 
 func (cmd commandProt) Execute(conn *Conn, param string) {
-	if conn.tls && param == "P" {
+	if param == "P" {
 		conn.writeMessage(200, "OK")
-	} else if conn.tls {
-		conn.writeMessage(536, "Only P level is supported")
 	} else {
 		conn.writeMessage(550, "Action not taken")
 	}
@@ -1198,9 +1169,5 @@ func (cmd commandUser) RequireAuth() bool {
 
 func (cmd commandUser) Execute(conn *Conn, param string) {
 	conn.reqUser = param
-	if conn.tls || conn.tlsConfig == nil {
-		conn.writeMessage(331, "User name ok, password required")
-	} else {
-		conn.writeMessage(534, "Unsecured login not allowed. AUTH TLS required")
-	}
+	conn.writeMessage(331, "User name ok, password required")
 }

@@ -7,7 +7,6 @@ package server
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -157,21 +156,6 @@ func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 
 	driver.Init(c)
 	return c
-}
-
-func simpleTLSConfig(certFile, keyFile string) (*tls.Config, error) {
-	config := &tls.Config{}
-	if config.NextProtos == nil {
-		config.NextProtos = []string{"ftp"}
-	}
-
-	var err error
-	config.Certificates = make([]tls.Certificate, 1)
-	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, err
-	}
-	return config, nil
 }
 
 // ListenAndServe asks a new Server to begin accepting client connections. It
