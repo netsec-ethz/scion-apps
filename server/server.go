@@ -44,18 +44,6 @@ type ServerOpts struct {
 	// a production environment you will probably want to change this to 21.
 	Port int
 
-	// use tls, default is false
-	TLS bool
-
-	// if tls used, cert file is required
-	CertFile string
-
-	// if tls used, key file is required
-	KeyFile string
-
-	// If ture TLS is used in RFC4217 mode
-	ExplicitFTPS bool
-
 	WelcomeMessage string
 
 	// A logger implementation, if nil the StdLogger is used
@@ -71,7 +59,6 @@ type Server struct {
 	listenTo  string
 	logger    Logger
 	listener  net.Listener
-	tlsConfig *tls.Config
 	ctx       context.Context
 	cancel    context.CancelFunc
 	feats     string
@@ -120,11 +107,6 @@ func serverOptsWithDefaults(opts *ServerOpts) *ServerOpts {
 		newOpts.Logger = opts.Logger
 	}
 
-	newOpts.TLS = opts.TLS
-	newOpts.KeyFile = opts.KeyFile
-	newOpts.CertFile = opts.CertFile
-	newOpts.ExplicitFTPS = opts.ExplicitFTPS
-
 	newOpts.PublicIp = opts.PublicIp
 	newOpts.PassivePorts = opts.PassivePorts
 
@@ -172,7 +154,6 @@ func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 	c.server = server
 	c.sessionID = newSessionID()
 	c.logger = server.logger
-	c.tlsConfig = server.tlsConfig
 
 	driver.Init(c)
 	return c
@@ -206,22 +187,8 @@ func (server *Server) ListenAndServe() error {
 	var err error
 	var curFeats = featCmds
 
-	if server.ServerOpts.TLS {
-		server.tlsConfig, err = simpleTLSConfig(server.CertFile, server.KeyFile)
-		if err != nil {
-			return err
-		}
+	listener, err = net.Listen("tcp", server.listenTo)
 
-		curFeats += " AUTH TLS\n PBSZ\n PROT\n"
-
-		if server.ServerOpts.ExplicitFTPS {
-			listener, err = net.Listen("tcp", server.listenTo)
-		} else {
-			listener, err = tls.Listen("tcp", server.listenTo, server.tlsConfig)
-		}
-	} else {
-		listener, err = net.Listen("tcp", server.listenTo)
-	}
 	if err != nil {
 		return err
 	}
