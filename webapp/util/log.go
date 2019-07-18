@@ -4,24 +4,26 @@ import (
 	log "github.com/inconshreveable/log15"
 )
 
+// CheckError handles Error logging
 func CheckError(e error) bool {
 	if e != nil {
-		LogError("Error:", "err", e)
+		logError("Error:", "err", e)
 	}
 	return e != nil
 }
 
+// CheckFatal handles Fatal logging
 func CheckFatal(e error) bool {
 	if e != nil {
-		LogFatal("Fatal:", "err", e)
+		logFatal("Fatal:", "err", e)
 	}
 	return e != nil
 }
 
-func LogError(msg string, a ...interface{}) {
+func logError(msg string, a ...interface{}) {
 	log.Error(msg, a...)
 }
 
-func LogFatal(msg string, a ...interface{}) {
+func logFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
 }
