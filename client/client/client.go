@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/elwin/transmit2/mode"
 
@@ -34,12 +35,38 @@ func run() error {
 		return err
 	}
 
-	/*
-		err = conn.Stor("stor.txt", strings.NewReader("Hello World!"))
-		if err != nil {
-			return err
-		}
-	*/
+	err = ReadAndWrite(conn)
+	if err != nil {
+		return err
+	}
+
+	err = conn.Mode(mode.Stream)
+	if err != nil {
+		return err
+	}
+
+	err = ReadAndWrite(conn)
+	if err != nil {
+		return err
+	}
+
+	entries, err := conn.List("/")
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		fmt.Printf("- %s (%d)\n", entry.Name, entry.Size)
+	}
+
+	return conn.Quit()
+}
+
+func ReadAndWrite(conn *ftp.ServerConn) error {
+	err := conn.Stor("stor.txt", strings.NewReader("Hello World!"))
+	if err != nil {
+		return err
+	}
 
 	res, err := conn.Retr("retr.txt")
 
@@ -55,16 +82,5 @@ func run() error {
 
 	fmt.Printf("Read %d bytes\n", n)
 
-	res.Close()
-
-	entries, err := conn.List("/")
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		fmt.Printf("- %s (%d)\n", entry.Name, entry.Size)
-	}
-
-	return conn.Quit()
+	return res.Close()
 }

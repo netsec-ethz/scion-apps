@@ -56,7 +56,8 @@ func (s *WriterSocket) Write(p []byte) (n int, err error) {
 
 		s.segmentChannel <- striping.NewSegment(data, s.written)
 
-		s.written += cur - to
+		s.written += to - cur
+
 		cur = to
 	}
 }

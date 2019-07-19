@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	mode2 "github.com/elwin/transmit2/mode"
+
 	"github.com/elwin/transmit2/socket"
 )
 
@@ -479,7 +481,12 @@ func (c *ServerConn) Mode(mode byte) error {
 		return fmt.Errorf("failed to set Mode %v: %d - %s", mode, code, line)
 	}
 
-	c.extended = true
+	if mode == mode2.Stream {
+		c.extended = false
+	} else if mode == mode2.ExtendedBlockMode {
+		c.extended = true
+	}
+
 	return nil
 }
 
