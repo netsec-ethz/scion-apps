@@ -1,13 +1,14 @@
 package ftp
 
 import (
-	"net"
 	"time"
+
+	"github.com/elwin/transmit2/socket"
 )
 
 // Response represents a data-connection
 type Response struct {
-	conn   net.Conn
+	conn   socket.DataSocket
 	c      *ServerConn
 	closed bool
 }

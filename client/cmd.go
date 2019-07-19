@@ -9,6 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/elwin/transmit2/logger"
+
+	"github.com/elwin/transmit2/socket"
 )
 
 // Login authenticates the client with specified user and password.
@@ -187,18 +191,14 @@ func (c *ServerConn) getDataConnPort() (string, int, error) {
 }
 
 // openDataConn creates a new FTP data connection.
-func (c *ServerConn) openDataConn() (net.Conn, error) {
+func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 	host, port, err := c.getDataConnPort()
 	if err != nil {
 		return nil, err
 	}
 
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	if c.options.dialFunc != nil {
-		return c.options.dialFunc("tcp", addr)
-	}
-
-	return c.options.dialer.Dial("tcp", addr)
+	return socket.NewActiveSocket(addr, &logger.StdLogger{})
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
@@ -214,7 +214,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 
 // cmdDataConnFrom executes a command which require a FTP data connection.
 // Issues a REST FTP command to specify the number of bytes to skip for the transfer.
-func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (net.Conn, error) {
+func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (socket.DataSocket, error) {
 	conn, err := c.openDataConn()
 	if err != nil {
 		return nil, err

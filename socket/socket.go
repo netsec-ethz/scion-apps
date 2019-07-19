@@ -17,8 +17,9 @@ import (
 // DataSocket describes a data socket is used to send non-control data between the client and
 // server.
 type DataSocket interface {
-	Host() string
 
+	// For server: local hostname and port
+	Host() string
 	Port() int
 
 	// the standard io.Reader interface
@@ -32,7 +33,12 @@ type DataSocket interface {
 
 	// the standard io.Closer interface
 	Close() error
+
+	// Set deadline associated with connection (client)
+	SetDeadline(t time.Time) error
 }
+
+var _ DataSocket = &ftpPassiveSocket{}
 
 type ftpPassiveSocket struct {
 	conn   net.Conn
@@ -67,6 +73,22 @@ func isErrorAddressAlreadyInUse(err error) bool {
 		return true
 	}
 	return false
+}
+
+func NewActiveSocket(addr string, logger logger.Logger) (DataSocket, error) {
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	socket := new(ftpPassiveSocket)
+	socket.conn = conn
+	socket.logger = logger
+
+	socket.host = "clienthost"
+	socket.port = 9999
+
+	return socket, nil
 }
 
 func NewPassiveSocket(host string, port func() int, logger logger.Logger, sessionID string) (DataSocket, error) {
@@ -123,6 +145,10 @@ func (socket *ftpPassiveSocket) Write(p []byte) (n int, err error) {
 		return 0, socket.err
 	}
 	return socket.conn.Write(p)
+}
+
+func (socket *ftpPassiveSocket) SetDeadline(t time.Time) error {
+	return socket.conn.SetDeadline(t)
 }
 
 func (socket *ftpPassiveSocket) Close() error {
