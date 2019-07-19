@@ -3,14 +3,13 @@ package ftp
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/elwin/transmit2/logger"
 
 	"github.com/elwin/transmit2/socket"
 )
@@ -132,73 +131,55 @@ func (c *ServerConn) epsv() (port int, err error) {
 }
 
 // pasv issues a "PASV" command to get a port number for a data connection.
-func (c *ServerConn) pasv() (host string, port int, err error) {
-	_, line, err := c.cmd(StatusPassiveMode, "PASV")
-	if err != nil {
-		return
-	}
-
-	// PASV response format : 227 Entering Passive Mode (h1,h2,h3,h4,p1,p2).
-	start := strings.Index(line, "(")
-	end := strings.LastIndex(line, ")")
-	if start == -1 || end == -1 {
-		err = errors.New("invalid PASV response format")
-		return
-	}
-
-	// We have to split the response string
-	pasvData := strings.Split(line[start+1:end], ",")
-
-	if len(pasvData) < 6 {
-		err = errors.New("invalid PASV response format")
-		return
-	}
-
-	// Let's compute the port number
-	portPart1, err1 := strconv.Atoi(pasvData[4])
-	if err1 != nil {
-		err = err1
-		return
-	}
-
-	portPart2, err2 := strconv.Atoi(pasvData[5])
-	if err2 != nil {
-		err = err2
-		return
-	}
-
-	// Recompose port
-	port = portPart1*256 + portPart2
-
-	// Make the IP address to connect to
-	host = strings.Join(pasvData[0:4], ".")
-	return
+func (c *ServerConn) pasv() (port int, err error) {
+	return c.epsv()
 }
 
 // getDataConnPort returns a host, port for a new data connection
 // it uses the best available method to do so
-func (c *ServerConn) getDataConnPort() (string, int, error) {
-	if !c.options.disableEPSV && !c.skipEPSV {
-		if port, err := c.epsv(); err == nil {
-			return c.host, port, nil
-		}
-
-		// if there is an error, skip EPSV for the next attempts
-		c.skipEPSV = true
-	}
-
+func (c *ServerConn) getDataConnPort() (int, error) {
 	return c.pasv()
+}
+
+func (c *ServerConn) getDataConnPorts() ([]net.Addr, error) {
+	return c.spas()
 }
 
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
-	host, port, err := c.getDataConnPort()
-	if err != nil {
-		return nil, err
-	}
+	if c.extended {
 
-	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	return socket.NewActiveSocket(addr, &logger.StdLogger{})
+		addrs, err := c.spas()
+		if err != nil {
+			return nil, err
+		}
+
+		sockets := make([]socket.DataSocket, len(addrs))
+		for i := range sockets {
+			sockets[i], err = socket.NewActiveSocket(addrs[i].String(), c.logger)
+
+			if err != nil {
+
+				// Close already opened sockets
+				for j := 0; j < i; j++ {
+					sockets[j].Close()
+				}
+
+				return nil, err
+			}
+		}
+
+		return socket.NewMultiSocket(sockets, 500), nil
+
+	} else {
+		port, err := c.getDataConnPort()
+		if err != nil {
+			return nil, err
+		}
+
+		addr := net.JoinHostPort(c.host, strconv.Itoa(port))
+		return socket.NewActiveSocket(addr, c.logger)
+	}
 }
 
 // cmd is a helper function to execute a command and check for the expected FTP
@@ -486,4 +467,51 @@ func (c *ServerConn) Logout() error {
 func (c *ServerConn) Quit() error {
 	c.conn.Cmd("QUIT")
 	return c.conn.Close()
+}
+
+// GridFTP Extensions (https://www.ogf.org/documents/GFD.20.pdf)
+
+// Switch Mode
+func (c *ServerConn) Mode(mode byte) error {
+	code, line, err := c.cmd(StatusCommandOK, "MODE %s", string(mode))
+
+	if err != nil {
+		return fmt.Errorf("failed to set Mode %v: %d - %s", mode, code, line)
+	}
+
+	c.extended = true
+	return nil
+}
+
+// Striped Passive
+//
+// This command is analogous to the PASV command, but allows an array of
+// host/port connections to be returned. This enables STRIPING, that is,
+// multiple network endpoints (multi-homed hosts, or multiple hosts) to
+// participate in the transfer.
+func (c *ServerConn) spas() ([]net.Addr, error) {
+	_, line, err := c.cmd(StatusExtendedPassiveMode, "SPAS")
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(line, "\n")
+
+	var addrs []net.Addr
+
+	for _, line = range lines {
+		if !strings.HasPrefix(line, " ") {
+			continue
+		}
+
+		addr, err := net.ResolveTCPAddr("tcp", strings.TrimLeft(line, " "))
+
+		if err != nil {
+			return nil, err
+		}
+
+		addrs = append(addrs, addr)
+	}
+
+	return addrs, nil
 }

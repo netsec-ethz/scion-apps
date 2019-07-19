@@ -43,6 +43,9 @@ type Conn struct {
 	lastFilePos   int64
 	appendData    bool
 	closed        bool
+	extended      bool
+	parallelism   int
+	maxChunkSize  int
 }
 
 func (conn *Conn) LoginUser() string {

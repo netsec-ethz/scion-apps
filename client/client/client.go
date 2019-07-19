@@ -1,10 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"os"
-	"strings"
+
+	"github.com/elwin/transmit2/mode"
 
 	ftp "github.com/elwin/transmit2/client"
 )
@@ -28,19 +29,32 @@ func run() error {
 		return err
 	}
 
-	err = conn.Stor("stor.txt", strings.NewReader("Hello World!"))
+	err = conn.Mode(mode.ExtendedBlockMode)
 	if err != nil {
 		return err
 	}
 
-	res, err := conn.Retr("stor.txt")
+	/*
+		err = conn.Stor("stor.txt", strings.NewReader("Hello World!"))
+		if err != nil {
+			return err
+		}
+	*/
 
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(res)
+	res, err := conn.Retr("retr.txt")
+
+	f, err := os.Create("/Users/elwin/ftp/result.txt")
 	if err != nil {
 		return err
 	}
-	fmt.Printf("- %s\n", buf)
+
+	n, err := io.Copy(f, res)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Read %d bytes\n", n)
+
 	res.Close()
 
 	entries, err := conn.List("/")

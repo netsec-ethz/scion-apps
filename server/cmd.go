@@ -68,6 +68,7 @@ var (
 		"XMKD": commandMkd{},
 		"XPWD": commandPwd{},
 		"XRMD": commandRmd{},
+		"SPAS": commandSpas{},
 	}
 )
 
@@ -511,9 +512,19 @@ func (cmd commandMode) RequireAuth() bool {
 
 func (cmd commandMode) Execute(conn *Conn, param string) {
 	if strings.ToUpper(param) == "S" {
+		// Stream Mode
+		conn.extended = false
 		conn.writeMessage(200, "OK")
+
+	} else if strings.ToUpper(param) == "E" {
+		// Extended Block Mode
+		conn.extended = true
+		conn.parallelism = 4
+		conn.maxChunkSize = 500
+		conn.writeMessage(200, "OK")
+
 	} else {
-		conn.writeMessage(504, "MODE is an obsolete command")
+		conn.writeMessage(504, "MODE is an obsolete command, only (S)tream and (E)xtended Mode supported")
 	}
 }
 
@@ -1104,4 +1115,56 @@ func (cmd commandUser) RequireAuth() bool {
 func (cmd commandUser) Execute(conn *Conn, param string) {
 	conn.reqUser = param
 	conn.writeMessage(331, "User name ok, password required")
+}
+
+// GridFTP Extensions (https://www.ogf.org/documents/GFD.20.pdf)
+
+// Striped Passive
+//
+// This command is analogous to the PASV command, but allows an array of
+// host/port connections to be returned. This enables STRIPING, that is,
+// multiple network endpoints (multi-homed hosts, or multiple hosts) to
+// participate in the transfer.
+type commandSpas struct{}
+
+func (cmd commandSpas) IsExtend() bool {
+	return true
+}
+
+func (cmd commandSpas) RequireParam() bool {
+	return false
+}
+
+func (cmd commandSpas) RequireAuth() bool {
+	return true
+}
+
+func (cmd commandSpas) Execute(conn *Conn, param string) {
+
+	sockets := make([]socket2.DataSocket, conn.parallelism)
+	listenIP := conn.passiveListenIP()
+	var err error
+	line := "Entering Striped Passive Mode\n"
+
+	for i := range sockets {
+		sockets[i], err = socket2.NewPassiveSocket(listenIP, conn.PassivePort, conn.logger, conn.sessionID)
+
+		if err != nil {
+			conn.writeMessage(425, "Data connection failed")
+
+			// Close already opened sockets
+			for j := 0; j < i; j++ {
+				sockets[i].Close()
+			}
+		}
+
+		addr := sockets[i].Host() + ":" + strconv.Itoa(sockets[i].Port())
+
+		line += " " + addr + "\r\n"
+	}
+
+	conn.writeMessageMultiline(229, line)
+
+	conn.dataConn = socket2.NewMultiSocket(sockets, conn.maxChunkSize)
+
 }

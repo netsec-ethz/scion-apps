@@ -26,7 +26,7 @@ type DataSocket interface {
 	Read(p []byte) (n int, err error)
 
 	// the standard io.ReaderFrom interface
-	ReadFrom(r io.Reader) (int64, error)
+	// ReadFrom(r io.Reader) (int64, error)
 
 	// the standard io.Writer interface
 	Write(p []byte) (n int, err error)

@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/textproto"
 	"time"
+
+	"github.com/elwin/transmit2/logger"
 )
 
 // EntryType describes the different types of an Entry.
@@ -31,8 +33,9 @@ type ServerConn struct {
 
 	// Server capabilities discovered at runtime
 	features      map[string]string
-	skipEPSV      bool
 	mlstSupported bool
+	extended      bool
+	logger        logger.Logger
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -105,6 +108,7 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		features: make(map[string]string),
 		conn:     textproto.NewConn(sourceConn),
 		host:     remoteAddr.IP.String(),
+		logger:   &logger.StdLogger{},
 	}
 
 	_, _, err := c.conn.ReadResponse(StatusReady)
