@@ -1,8 +1,6 @@
 package striping
 
 import (
-	"fmt"
-
 	"github.com/elwin/transmit2/queue"
 )
 
@@ -25,7 +23,6 @@ func (q *SegmentQueue) Push(segment *Segment) {
 }
 
 func (q *SegmentQueue) Pop() *Segment {
-	fmt.Println("Popping")
 	return q.internal.Pop().(*Segment)
 }
 
