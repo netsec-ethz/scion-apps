@@ -8,9 +8,9 @@ package main
 
 import (
 	"flag"
-	filedriver "github.com/elwin/file-driver"
 	"log"
 
+	filedriver "github.com/elwin/file-driver"
 
 	"goftp.io/server"
 )
