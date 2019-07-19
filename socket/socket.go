@@ -1,8 +1,4 @@
-// Copyright 2018 The goftp Authors. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
-package server
+package socket
 
 import (
 	"io"
@@ -14,6 +10,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/elwin/transmit2/logger"
 )
 
 // DataSocket describes a data socket is used to send non-control data between the client and
@@ -36,74 +34,13 @@ type DataSocket interface {
 	Close() error
 }
 
-type ftpActiveSocket struct {
-	conn   *net.TCPConn
-	host   string
-	port   int
-	logger Logger
-}
-
-func newActiveSocket(remote string, port int, logger Logger, sessionID string) (DataSocket, error) {
-	connectTo := net.JoinHostPort(remote, strconv.Itoa(port))
-
-	logger.Print(sessionID, "Opening active data connection to "+connectTo)
-
-	raddr, err := net.ResolveTCPAddr("tcp", connectTo)
-
-	if err != nil {
-		logger.Print(sessionID, err)
-		return nil, err
-	}
-
-	tcpConn, err := net.DialTCP("tcp", nil, raddr)
-
-	if err != nil {
-		logger.Print(sessionID, err)
-		return nil, err
-	}
-
-	socket := new(ftpActiveSocket)
-	socket.conn = tcpConn
-	socket.host = remote
-	socket.port = port
-	socket.logger = logger
-
-	return socket, nil
-}
-
-func (socket *ftpActiveSocket) Host() string {
-	return socket.host
-}
-
-func (socket *ftpActiveSocket) Port() int {
-	return socket.port
-}
-
-func (socket *ftpActiveSocket) Read(p []byte) (n int, err error) {
-	return socket.conn.Read(p)
-}
-
-func (socket *ftpActiveSocket) ReadFrom(r io.Reader) (int64, error) {
-	return socket.conn.ReadFrom(r)
-}
-
-func (socket *ftpActiveSocket) Write(p []byte) (n int, err error) {
-	return socket.conn.Write(p)
-}
-
-func (socket *ftpActiveSocket) Close() error {
-	return socket.conn.Close()
-}
-
 type ftpPassiveSocket struct {
-	conn      net.Conn
-	port      int
-	host      string
-	ingress   chan []byte
-	egress    chan []byte
-	logger    Logger
-	lock      sync.Mutex // protects conn and err
-	err       error
+	conn   net.Conn
+	port   int
+	host   string
+	logger logger.Logger
+	lock   sync.Mutex // protects conn and err
+	err    error
 }
 
 // Detect if an error is "bind: address already in use"
@@ -132,10 +69,8 @@ func isErrorAddressAlreadyInUse(err error) bool {
 	return false
 }
 
-func newPassiveSocket(host string, port func() int, logger Logger, sessionID string) (DataSocket, error) {
+func NewPassiveSocket(host string, port func() int, logger logger.Logger, sessionID string) (DataSocket, error) {
 	socket := new(ftpPassiveSocket)
-	socket.ingress = make(chan []byte)
-	socket.egress = make(chan []byte)
 	socket.logger = logger
 	socket.host = host
 	const retries = 10

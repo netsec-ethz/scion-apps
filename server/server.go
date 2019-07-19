@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+
+	"github.com/elwin/transmit2/logger"
 )
 
 // Version returns the library version
@@ -46,7 +48,7 @@ type ServerOpts struct {
 	WelcomeMessage string
 
 	// A logger implementation, if nil the StdLogger is used
-	Logger Logger
+	Logger logger.Logger
 }
 
 // Server is the root of your FTP application. You should instantiate one
@@ -55,12 +57,12 @@ type ServerOpts struct {
 // Always use the NewServer() method to create a new Server.
 type Server struct {
 	*ServerOpts
-	listenTo  string
-	logger    Logger
-	listener  net.Listener
-	ctx       context.Context
-	cancel    context.CancelFunc
-	feats     string
+	listenTo string
+	logger   logger.Logger
+	listener net.Listener
+	ctx      context.Context
+	cancel   context.CancelFunc
+	feats    string
 }
 
 // ErrServerClosed is returned by ListenAndServe() or Serve() when a shutdown
@@ -101,7 +103,7 @@ func serverOptsWithDefaults(opts *ServerOpts) *ServerOpts {
 		newOpts.Auth = opts.Auth
 	}
 
-	newOpts.Logger = &StdLogger{}
+	newOpts.Logger = &logger.StdLogger{}
 	if opts.Logger != nil {
 		newOpts.Logger = opts.Logger
 	}

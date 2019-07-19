@@ -5,11 +5,12 @@
 package server
 
 import (
-	"encoding/binary"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
+
+	socket2 "github.com/elwin/transmit2/socket"
 )
 
 type Command interface {
@@ -277,22 +278,7 @@ func (cmd commandEprt) RequireAuth() bool {
 }
 
 func (cmd commandEprt) Execute(conn *Conn, param string) {
-	delim := string(param[0:1])
-	parts := strings.Split(param, delim)
-	addressFamily, err := strconv.Atoi(parts[1])
-	host := parts[2]
-	port, err := strconv.Atoi(parts[3])
-	if addressFamily != 1 && addressFamily != 2 {
-		conn.writeMessage(522, "Network protocol not supported, use (1,2)")
-		return
-	}
-	socket, err := newActiveSocket(host, port, conn.logger, conn.sessionID)
-	if err != nil {
-		conn.writeMessage(425, "Data connection failed")
-		return
-	}
-	conn.dataConn = socket
-	conn.writeMessage(200, "Connection established ("+strconv.Itoa(port)+")")
+	conn.writeMessage(502, "Active mode not supported, use passive mode instead")
 }
 
 // commandLprt responds to the LPRT FTP command. It allows the client to
@@ -313,49 +299,8 @@ func (cmd commandLprt) RequireAuth() bool {
 }
 
 func (cmd commandLprt) Execute(conn *Conn, param string) {
-	// No tests for this code yet
+	conn.writeMessage(502, "Active mode not supported, use passive mode instead")
 
-	parts := strings.Split(param, ",")
-
-	addressFamily, err := strconv.Atoi(parts[0])
-	if addressFamily != 4 {
-		conn.writeMessage(522, "Network protocol not supported, use 4")
-		return
-	}
-
-	addressLength, err := strconv.Atoi(parts[1])
-	if addressLength != 4 {
-		conn.writeMessage(522, "Network IP length not supported, use 4")
-		return
-	}
-
-	host := strings.Join(parts[2:2+addressLength], ".")
-
-	portLength, err := strconv.Atoi(parts[2+addressLength])
-	portAddress := parts[3+addressLength : 3+addressLength+portLength]
-
-	// Convert string[] to byte[]
-	portBytes := make([]byte, portLength)
-	for i := range portAddress {
-		p, _ := strconv.Atoi(portAddress[i])
-		portBytes[i] = byte(p)
-	}
-
-	// convert the bytes to an int
-	port := int(binary.BigEndian.Uint16(portBytes))
-
-	// if the existing connection is on the same host/port don't reconnect
-	if conn.dataConn.Host() == host && conn.dataConn.Port() == port {
-		return
-	}
-
-	socket, err := newActiveSocket(host, port, conn.logger, conn.sessionID)
-	if err != nil {
-		conn.writeMessage(425, "Data connection failed")
-		return
-	}
-	conn.dataConn = socket
-	conn.writeMessage(200, "Connection established ("+strconv.Itoa(port)+")")
 }
 
 // commandEpsv responds to the EPSV FTP command. It allows the client to
@@ -377,7 +322,7 @@ func (cmd commandEpsv) RequireAuth() bool {
 
 func (cmd commandEpsv) Execute(conn *Conn, param string) {
 	addr := conn.passiveListenIP()
-	socket, err := newPassiveSocket(addr, conn.PassivePort, conn.logger, conn.sessionID)
+	socket, err := socket2.NewPassiveSocket(addr, conn.PassivePort, conn.logger, conn.sessionID)
 	if err != nil {
 		log.Println(err)
 		conn.writeMessage(425, "Data connection failed")
@@ -646,7 +591,7 @@ func (cmd commandPasv) RequireAuth() bool {
 
 func (cmd commandPasv) Execute(conn *Conn, param string) {
 	listenIP := conn.passiveListenIP()
-	socket, err := newPassiveSocket(listenIP, conn.PassivePort, conn.logger, conn.sessionID)
+	socket, err := socket2.NewPassiveSocket(listenIP, conn.PassivePort, conn.logger, conn.sessionID)
 	if err != nil {
 		conn.writeMessage(425, "Data connection failed")
 		return
@@ -679,18 +624,7 @@ func (cmd commandPort) RequireAuth() bool {
 }
 
 func (cmd commandPort) Execute(conn *Conn, param string) {
-	nums := strings.Split(param, ",")
-	portOne, _ := strconv.Atoi(nums[4])
-	portTwo, _ := strconv.Atoi(nums[5])
-	port := (portOne * 256) + portTwo
-	host := nums[0] + "." + nums[1] + "." + nums[2] + "." + nums[3]
-	socket, err := newActiveSocket(host, port, conn.logger, conn.sessionID)
-	if err != nil {
-		conn.writeMessage(425, "Data connection failed")
-		return
-	}
-	conn.dataConn = socket
-	conn.writeMessage(200, "Connection established ("+strconv.Itoa(port)+")")
+	conn.writeMessage(502, "Active mode not supported, use passive mode instead")
 }
 
 // commandPwd responds to the PWD FTP command.

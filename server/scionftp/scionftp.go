@@ -12,7 +12,7 @@ import (
 
 	filedriver "github.com/elwin/file-driver"
 
-	"goftp.io/server"
+	"github.com/elwin/transmit2/server"
 )
 
 func main() {

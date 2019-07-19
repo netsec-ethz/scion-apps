@@ -17,6 +17,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/elwin/transmit2/logger"
+	"github.com/elwin/transmit2/socket"
 )
 
 const (
@@ -27,10 +30,10 @@ type Conn struct {
 	conn          net.Conn
 	controlReader *bufio.Reader
 	controlWriter *bufio.Writer
-	dataConn      DataSocket
+	dataConn      socket.DataSocket
 	driver        Driver
 	auth          Auth
-	logger        Logger
+	logger        logger.Logger
 	server        *Server
 	sessionID     string
 	namePrefix    string

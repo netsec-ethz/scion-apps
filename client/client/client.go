@@ -52,5 +52,5 @@ func run() error {
 		fmt.Printf("- %s (%d)\n", entry.Name, entry.Size)
 	}
 
-	return nil
+	return conn.Quit()
 }
