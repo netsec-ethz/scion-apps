@@ -195,11 +195,6 @@ func DialWithDialFunc(f func(network, address string) (net.Conn, error)) DialOpt
 	}}
 }
 
-// Connect is an alias to Dial, for backward compatibility
-func Connect(addr string) (*ServerConn, error) {
-	return Dial(addr)
-}
-
 // DialTimeout initializes the connection to the specified ftp server address.
 //
 // It is generally followed by a call to Login() as most FTP commands require
