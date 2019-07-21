@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/elwin/transmit2/scion"
+
 	socket2 "github.com/elwin/transmit2/socket"
 )
 
@@ -321,17 +323,26 @@ func (cmd commandEpsv) RequireAuth() bool {
 	return true
 }
 
+// TODO: Close listener?
 func (cmd commandEpsv) Execute(conn *Conn, param string) {
-	addr := conn.passiveListenIP()
-	socket, err := socket2.NewPassiveSocket(addr, conn.PassivePort, conn.logger, conn.sessionID)
+
+	listener, err := conn.NewListener()
+
 	if err != nil {
 		log.Println(err)
 		conn.writeMessage(425, "Data connection failed")
 		return
 	}
-	conn.dataConn = socket
-	msg := fmt.Sprintf("Entering Extended Passive Mode (|||%d|)", socket.Port())
+	msg := fmt.Sprintf("Entering Extended Passive Mode (|||%d|)", listener.Port())
 	conn.writeMessage(229, msg)
+
+	socket, err := listener.Accept()
+	if err != nil {
+		conn.writeMessage(426, "Connection closed, failed to open data connection")
+		return
+	}
+	conn.dataConn = socket2.NewScionSocket(socket)
+
 }
 
 // commandList responds to the LIST FTP command. It allows the client to retreive
@@ -601,19 +612,7 @@ func (cmd commandPasv) RequireAuth() bool {
 }
 
 func (cmd commandPasv) Execute(conn *Conn, param string) {
-	listenIP := conn.passiveListenIP()
-	socket, err := socket2.NewPassiveSocket(listenIP, conn.PassivePort, conn.logger, conn.sessionID)
-	if err != nil {
-		conn.writeMessage(425, "Data connection failed")
-		return
-	}
-	conn.dataConn = socket
-	p1 := socket.Port() / 256
-	p2 := socket.Port() - (p1 * 256)
-	quads := strings.Split(listenIP, ".")
-	target := fmt.Sprintf("(%s,%s,%s,%s,%d,%d)", quads[0], quads[1], quads[2], quads[3], p1, p2)
-	msg := "Entering Passive Mode " + target
-	conn.writeMessage(227, msg)
+	commandEpsv{}.Execute(conn, param)
 }
 
 // commandPort responds to the PORT FTP command.
@@ -1142,28 +1141,47 @@ func (cmd commandSpas) RequireAuth() bool {
 func (cmd commandSpas) Execute(conn *Conn, param string) {
 
 	sockets := make([]socket2.DataSocket, conn.parallelism)
-	listenIP := conn.passiveListenIP()
+	listener := make([]*scion.Listener, conn.parallelism)
 	var err error
+
 	line := "Entering Striped Passive Mode\n"
 
-	for i := range sockets {
-		sockets[i], err = socket2.NewPassiveSocket(listenIP, conn.PassivePort, conn.logger, conn.sessionID)
+	for i := range listener {
+		listener[i], err = conn.NewListener()
 
 		if err != nil {
 			conn.writeMessage(425, "Data connection failed")
 
 			// Close already opened sockets
 			for j := 0; j < i; j++ {
-				sockets[i].Close()
+				listener[i].Close()
 			}
+			return
 		}
 
-		addr := sockets[i].Host() + ":" + strconv.Itoa(sockets[i].Port())
+		// Addr().String() return
+		// 1-ff00:0:110,[127.0.0.1]:5848 (UDP)
+		// Remove Protocol first
+		addr := strings.Split(listener[i].Addr().String(), " ")[0]
 
 		line += " " + addr + "\r\n"
 	}
 
 	conn.writeMessageMultiline(229, line)
+
+	for i := range listener {
+		connection, err := listener[i].Accept()
+		if err != nil {
+			conn.writeMessage(426, "Connection closed, failed to open data connection")
+
+			// Close already opened sockets
+			for j := 0; j < i; j++ {
+				listener[i].Close()
+			}
+			return
+		}
+		sockets[i] = socket2.NewScionSocket(connection)
+	}
 
 	conn.dataConn = socket2.NewMultiSocket(sockets, conn.maxChunkSize)
 

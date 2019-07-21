@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
+	"math/rand"
 	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/elwin/transmit2/scion"
+	"github.com/scionproto/scion/go/lib/snet"
 
 	mode2 "github.com/elwin/transmit2/mode"
 
@@ -143,12 +146,13 @@ func (c *ServerConn) getDataConnPort() (int, error) {
 	return c.pasv()
 }
 
-func (c *ServerConn) getDataConnPorts() ([]net.Addr, error) {
+func (c *ServerConn) getDataConnPorts() ([]*snet.Addr, error) {
 	return c.spas()
 }
 
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
+
 	if c.extended {
 
 		addrs, err := c.spas()
@@ -158,7 +162,16 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
 		sockets := make([]socket.DataSocket, len(addrs))
 		for i := range sockets {
-			sockets[i], err = socket.NewActiveSocket(addrs[i].String(), c.logger)
+
+			// TODO: Why do we need new port?
+			port := rand.Intn(10000) + 50000
+			newAddr, err := scion.ReplacePort(c.local, port)
+
+			if err != nil {
+				return nil, err
+			}
+
+			conn, err := scion.Dial(newAddr, addrs[i])
 
 			if err != nil {
 
@@ -169,6 +182,9 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
 				return nil, err
 			}
+
+			sockets[i] = socket.NewScionSocket(conn)
+
 		}
 
 		return socket.NewMultiSocket(sockets, 500), nil
@@ -179,8 +195,14 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			return nil, err
 		}
 
-		addr := net.JoinHostPort(c.host, strconv.Itoa(port))
-		return socket.NewActiveSocket(addr, c.logger)
+		addr, err := scion.ReplacePort(c.remote, port)
+		if err != nil {
+			return nil, err
+		}
+
+		conn, err := scion.Dial(c.local, addr)
+
+		return socket.NewScionSocket(conn), nil
 	}
 }
 
@@ -496,7 +518,7 @@ func (c *ServerConn) Mode(mode byte) error {
 // host/port connections to be returned. This enables STRIPING, that is,
 // multiple network endpoints (multi-homed hosts, or multiple hosts) to
 // participate in the transfer.
-func (c *ServerConn) spas() ([]net.Addr, error) {
+func (c *ServerConn) spas() ([]*snet.Addr, error) {
 	_, line, err := c.cmd(StatusExtendedPassiveMode, "SPAS")
 	if err != nil {
 		return nil, err
@@ -504,14 +526,14 @@ func (c *ServerConn) spas() ([]net.Addr, error) {
 
 	lines := strings.Split(line, "\n")
 
-	var addrs []net.Addr
+	var addrs []*snet.Addr
 
 	for _, line = range lines {
 		if !strings.HasPrefix(line, " ") {
 			continue
 		}
 
-		addr, err := net.ResolveTCPAddr("tcp", strings.TrimLeft(line, " "))
+		addr, err := snet.AddrFromString(strings.TrimLeft(line, " "))
 
 		if err != nil {
 			return nil, err

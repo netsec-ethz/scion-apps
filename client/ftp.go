@@ -10,6 +10,10 @@ import (
 	"net/textproto"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/snet"
+
+	"github.com/elwin/transmit2/scion"
+
 	"github.com/elwin/transmit2/logger"
 )
 
@@ -27,10 +31,9 @@ const (
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
 type ServerConn struct {
-	options *dialOptions
-	conn    *textproto.Conn
-	host    string
-
+	options       *dialOptions
+	conn          *textproto.Conn
+	local, remote *snet.Addr
 	// Server capabilities discovered at runtime
 	features      map[string]string
 	mlstSupported bool
@@ -47,11 +50,10 @@ type DialOption struct {
 type dialOptions struct {
 	context     context.Context
 	dialer      net.Dialer
-	conn        net.Conn
+	conn        *scion.Connection
 	disableEPSV bool
 	location    *time.Location
 	debugOutput io.Writer
-	dialFunc    func(network, address string) (net.Conn, error)
 }
 
 // Entry describes a file and is returned by List().
@@ -63,7 +65,7 @@ type Entry struct {
 }
 
 // Dial connects to the specified address with optinal options
-func Dial(addr string, options ...DialOption) (*ServerConn, error) {
+func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	do := &dialOptions{}
 	for _, option := range options {
 		option.setup(do)
@@ -73,45 +75,48 @@ func Dial(addr string, options ...DialOption) (*ServerConn, error) {
 		do.location = time.UTC
 	}
 
-	tconn := do.conn
-	if tconn == nil {
+	localAddr, err := snet.AddrFromString(local)
+	if err != nil {
+		return nil, err
+	}
+
+	remoteAddr, err := snet.AddrFromString(local)
+	if err != nil {
+		return nil, err
+	}
+
+	conn := do.conn
+	if conn == nil {
 		var err error
 
-		if do.dialFunc != nil {
-			tconn, err = do.dialFunc("tcp", addr)
-		} else {
-			ctx := do.context
+		ctx := do.context
 
-			if ctx == nil {
-				ctx = context.Background()
-			}
-
-			tconn, err = do.dialer.DialContext(ctx, "tcp", addr)
+		if ctx == nil {
+			ctx = context.Background()
 		}
+
+		conn, err = scion.DialAddr(local, remote)
 
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Use the resolved IP address in case addr contains a domain name
-	// If we use the domain name, we might not resolve to the same IP.
-	remoteAddr := tconn.RemoteAddr().(*net.TCPAddr)
-
-	var sourceConn io.ReadWriteCloser = tconn
+	var sourceConn io.ReadWriteCloser = conn
 	if do.debugOutput != nil {
-		sourceConn = newDebugWrapper(tconn, do.debugOutput)
+		sourceConn = newDebugWrapper(conn, do.debugOutput)
 	}
 
 	c := &ServerConn{
 		options:  do,
 		features: make(map[string]string),
 		conn:     textproto.NewConn(sourceConn),
-		host:     remoteAddr.IP.String(),
+		local:    localAddr,
+		remote:   remoteAddr,
 		logger:   &logger.StdLogger{},
 	}
 
-	_, _, err := c.conn.ReadResponse(StatusReady)
+	_, _, err = c.conn.ReadResponse(StatusReady)
 	if err != nil {
 		c.Quit()
 		return nil, err
@@ -144,13 +149,6 @@ func DialWithDialer(dialer net.Dialer) DialOption {
 	}}
 }
 
-// DialWithNetConn returns a DialOption that configures the ServerConn with the underlying net.Conn
-func DialWithNetConn(conn net.Conn) DialOption {
-	return DialOption{func(do *dialOptions) {
-		do.conn = conn
-	}}
-}
-
 // DialWithDisabledEPSV returns a DialOption that configures the ServerConn with EPSV disabled
 // Note that EPSV is only used when advertised in the server features.
 func DialWithDisabledEPSV(disabled bool) DialOption {
@@ -160,7 +158,7 @@ func DialWithDisabledEPSV(disabled bool) DialOption {
 }
 
 // DialWithLocation returns a DialOption that configures the ServerConn with specified time.Location
-// The lococation is used to parse the dates sent by the server which are in server's timezone
+// The location is used to parse the dates sent by the server which are in server's timezone
 func DialWithLocation(location *time.Location) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.location = location
@@ -183,22 +181,10 @@ func DialWithDebugOutput(w io.Writer) DialOption {
 	}}
 }
 
-// DialWithDialFunc returns a DialOption that configures the ServerConn to use the
-// specified function to establish both control and data connections
-//
-// If used together with the DialWithNetConn option, the DialWithNetConn
-// takes precedence for the control connection, while data connections will
-// be established using function specified with the DialWithDialFunc option
-func DialWithDialFunc(f func(network, address string) (net.Conn, error)) DialOption {
-	return DialOption{func(do *dialOptions) {
-		do.dialFunc = f
-	}}
-}
-
 // DialTimeout initializes the connection to the specified ftp server address.
 //
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
-func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
-	return Dial(addr, DialWithTimeout(timeout))
+func DialTimeout(local, remote string, timeout time.Duration) (*ServerConn, error) {
+	return Dial(local, remote, DialWithTimeout(timeout))
 }

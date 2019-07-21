@@ -1,17 +1,8 @@
 package socket
 
 import (
-	"io"
-	"net"
-	"os"
-	"runtime"
-	"strconv"
-	"strings"
-	"sync"
-	"syscall"
+	"github.com/elwin/transmit2/scion"
 	"time"
-
-	"github.com/elwin/transmit2/logger"
 )
 
 // DataSocket describes a data socket is used to send non-control data between the client and
@@ -37,6 +28,27 @@ type DataSocket interface {
 	// Set deadline associated with connection (client)
 	SetDeadline(t time.Time) error
 }
+
+var _ DataSocket = &ScionSocket{}
+
+type ScionSocket struct {
+	*scion.Connection
+}
+
+func (socket *ScionSocket) Host() string {
+	return socket.Connection.LocalAddr().String()
+}
+
+func (socket *ScionSocket) Port() int {
+	port, _ := scion.GetPort(socket.LocalAddr())
+	return port
+}
+
+func NewScionSocket(conn *scion.Connection) *ScionSocket {
+	return &ScionSocket{conn}
+}
+
+/*
 
 var _ DataSocket = &ftpPassiveSocket{}
 
@@ -91,7 +103,7 @@ func NewActiveSocket(addr string, logger logger.Logger) (DataSocket, error) {
 	return socket, nil
 }
 
-func NewPassiveSocket(host string, port func() int, logger logger.Logger, sessionID string) (DataSocket, error) {
+func NewPassiveSocket(host string, logger logger.Logger, sessionID string) (DataSocket, error) {
 	socket := new(ftpPassiveSocket)
 	socket.logger = logger
 	socket.host = host
@@ -209,3 +221,4 @@ func (socket *ftpPassiveSocket) GoListenAndServe(sessionID string) (err error) {
 	}()
 	return nil
 }
+*/

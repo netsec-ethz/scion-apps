@@ -6,13 +6,13 @@ package server
 
 import (
 	"bufio"
-	"crypto/rand"
+	crypto "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/elwin/transmit2/scion"
 	"io"
-	"log"
-	mrand "math/rand"
+	"math/rand"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -24,6 +24,7 @@ import (
 
 const (
 	defaultWelcomeMessage = "Welcome to the Go FTP Server"
+	listenerRetries = 10
 )
 
 type Conn struct {
@@ -56,47 +57,28 @@ func (conn *Conn) IsLogin() bool {
 	return len(conn.user) > 0
 }
 
-func (conn *Conn) PublicIp() string {
-	return conn.server.PublicIp
-}
+func (conn *Conn) NewListener() (*scion.Listener, error) {
 
-func (conn *Conn) passiveListenIP() string {
-	var listenIP string
-	if len(conn.PublicIp()) > 0 {
-		listenIP = conn.PublicIp()
-	} else {
-		listenIP = conn.conn.LocalAddr().(*net.TCPAddr).IP.String()
-	}
+	var err error
+	var listener *scion.Listener
 
-	lastIdx := strings.LastIndex(listenIP, ":")
-	if lastIdx <= 0 {
-		return listenIP
-	}
-	return listenIP[:lastIdx]
-}
+	for i := 0; i < listenerRetries; i++ {
 
-func (conn *Conn) PassivePort() int {
-	if len(conn.server.PassivePorts) > 0 {
-		portRange := strings.Split(conn.server.PassivePorts, "-")
-
-		if len(portRange) != 2 {
-			log.Println("empty port")
-			return 0
+		port := rand.Intn(1000) + 5000
+		addr := conn.server.Hostname + ":" + strconv.Itoa(port)
+		listener, err = scion.Listen(addr)
+		if err == nil {
+			break
 		}
-
-		minPort, _ := strconv.Atoi(strings.TrimSpace(portRange[0]))
-		maxPort, _ := strconv.Atoi(strings.TrimSpace(portRange[1]))
-
-		return minPort + mrand.Intn(maxPort-minPort)
 	}
-	// let system automatically chose one port
-	return 0
+
+	return listener, err
 }
 
 // returns a random 20 char string that can be used as a unique session ID
 func newSessionID() string {
 	hash := sha256.New()
-	_, err := io.CopyN(hash, rand.Reader, 50)
+	_, err := io.CopyN(hash, crypto.Reader, 50)
 	if err != nil {
 		return "????????????????????"
 	}

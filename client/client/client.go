@@ -20,7 +20,11 @@ func main() {
 }
 
 func run() error {
-	conn, err := ftp.Dial("localhost:2121", ftp.DialWithDebugOutput(os.Stdout))
+
+	remote := "1-ff00:0:110,[127.0.0.1]:2121"
+	local := "1-ff00:0:112,[127.0.0.1]:4000"
+
+	conn, err := ftp.Dial(local, remote, ftp.DialWithDebugOutput(os.Stdout))
 	if err != nil {
 		return err
 	}

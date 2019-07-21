@@ -33,7 +33,7 @@ func main() {
 		Perm:     server.NewSimplePerm("user", "group"),
 	}
 
-	opts := &server.ServerOpts{
+	opts := &server.Opts{
 		Factory:  factory,
 		Port:     *port,
 		Hostname: *host,

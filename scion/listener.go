@@ -5,27 +5,55 @@ import (
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 	"io"
 	"net"
 	"strings"
 )
-
-var _ net.Listener = Listener{}
 
 type Listener struct {
 	quicListener quic.Listener
 	local        *snet.Addr
 }
 
-func (listener Listener) Addr() net.Addr {
+func Listen(address string) (*Listener, error) {
+
+	addr, err := snet.AddrFromString(address)
+	if err != nil {
+		return nil, err
+	}
+
+	err = initNetwork(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	listener, err := squic.ListenSCION(nil, addr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to listen: %s", err)
+	}
+
+	return &Listener{
+		listener,
+		addr,
+	}, nil
+}
+
+func (listener *Listener) Port() int {
+	port, _ := GetPort(listener.Addr())
+	return port
+}
+
+
+func (listener *Listener) Addr() net.Addr {
 	return listener.local
 }
 
-func (listener Listener) Close() error {
+func (listener *Listener) Close() error {
 	return listener.quicListener.Close()
 }
 
-func (listener Listener) Accept() (net.Conn, error) {
+func (listener *Listener) Accept() (*Connection, error) {
 
 	session, err := listener.quicListener.Accept()
 	if err != nil {

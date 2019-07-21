@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/elwin/transmit2/scion"
 	"net"
 	"strconv"
 
@@ -21,7 +22,7 @@ func Version() string {
 }
 
 // ServerOpts contains parameters for server.NewServer()
-type ServerOpts struct {
+type Opts struct {
 	// The factory that will be used to create a new FTPDriver instance for
 	// each client connection. This is a mandatory option.
 	Factory DriverFactory
@@ -34,12 +35,6 @@ type ServerOpts struct {
 	// The hostname that the FTP server should listen on. Optional, defaults to
 	// "::", which means all hostnames on ipv4 and ipv6.
 	Hostname string
-
-	// Public IP of the server
-	PublicIp string
-
-	// Passive ports
-	PassivePorts string
 
 	// The port that the FTP should listen on. Optional, defaults to 3000. In
 	// a production environment you will probably want to change this to 21.
@@ -56,10 +51,10 @@ type ServerOpts struct {
 //
 // Always use the NewServer() method to create a new Server.
 type Server struct {
-	*ServerOpts
+	*Opts
 	listenTo string
 	logger   logger.Logger
-	listener net.Listener
+	listener *scion.Listener
 	ctx      context.Context
 	cancel   context.CancelFunc
 	feats    string
@@ -71,10 +66,10 @@ var ErrServerClosed = errors.New("ftp: Server closed")
 
 // serverOptsWithDefaults copies an ServerOpts struct into a new struct,
 // then adds any default values that are missing and returns the new data.
-func serverOptsWithDefaults(opts *ServerOpts) *ServerOpts {
-	var newOpts ServerOpts
+func serverOptsWithDefaults(opts *Opts) *Opts {
+	var newOpts Opts
 	if opts == nil {
-		opts = &ServerOpts{}
+		opts = &Opts{}
 	}
 	if opts.Hostname == "" {
 		newOpts.Hostname = "::"
@@ -82,7 +77,7 @@ func serverOptsWithDefaults(opts *ServerOpts) *ServerOpts {
 		newOpts.Hostname = opts.Hostname
 	}
 	if opts.Port == 0 {
-		newOpts.Port = 3000
+		newOpts.Port = 2121
 	} else {
 		newOpts.Port = opts.Port
 	}
@@ -108,9 +103,6 @@ func serverOptsWithDefaults(opts *ServerOpts) *ServerOpts {
 		newOpts.Logger = opts.Logger
 	}
 
-	newOpts.PublicIp = opts.PublicIp
-	newOpts.PassivePorts = opts.PassivePorts
-
 	return &newOpts
 }
 
@@ -131,11 +123,11 @@ func serverOptsWithDefaults(opts *ServerOpts) *ServerOpts {
 //     }
 //     server  := server.NewServer(opts)
 //
-func NewServer(opts *ServerOpts) *Server {
+func NewServer(opts *Opts) *Server {
 	opts = serverOptsWithDefaults(opts)
 	s := new(Server)
-	s.ServerOpts = opts
-	s.listenTo = net.JoinHostPort(opts.Hostname, strconv.Itoa(opts.Port))
+	s.Opts = opts
+	s.listenTo = opts.Hostname + ":" + strconv.Itoa(opts.Port)
 	s.logger = opts.Logger
 	return s
 }
@@ -169,11 +161,11 @@ func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 // listening on the same port.
 //
 func (server *Server) ListenAndServe() error {
-	var listener net.Listener
+	var listener *scion.Listener
 	var err error
 	var curFeats = featCmds
 
-	listener, err = net.Listen("tcp", server.listenTo)
+	listener, err = scion.Listen(server.listenTo)
 
 	if err != nil {
 		return err
@@ -189,12 +181,12 @@ func (server *Server) ListenAndServe() error {
 // Serve accepts connections on a given net.Listener and handles each
 // request in a new goroutine.
 //
-func (server *Server) Serve(l net.Listener) error {
+func (server *Server) Serve(l *scion.Listener) error {
 	server.listener = l
 	server.ctx, server.cancel = context.WithCancel(context.Background())
 	sessionID := ""
 	for {
-		tcpConn, err := server.listener.Accept()
+		conn, err := server.listener.Accept()
 		if err != nil {
 			select {
 			case <-server.ctx.Done():
@@ -210,9 +202,9 @@ func (server *Server) Serve(l net.Listener) error {
 		driver, err := server.Factory.NewDriver()
 		if err != nil {
 			server.logger.Printf(sessionID, "Error creating driver, aborting client connection: %v", err)
-			tcpConn.Close()
+			conn.Close()
 		} else {
-			ftpConn := server.newConn(tcpConn, driver)
+			ftpConn := server.newConn(conn, driver)
 			go ftpConn.Serve()
 		}
 	}
@@ -226,6 +218,6 @@ func (server *Server) Shutdown() error {
 	if server.listener != nil {
 		return server.listener.Close()
 	}
-	// server wasnt even started
+	// server wasn't even started
 	return nil
 }

@@ -3,13 +3,13 @@ package scion
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
+
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
-	"io"
-	"net"
 )
 
-func Dial(local, remote *snet.Addr) (net.Conn, error) {
+func Dial(local, remote *snet.Addr) (*Connection, error) {
 
 	err := initNetwork(local)
 	if err != nil {
@@ -39,7 +39,7 @@ func Dial(local, remote *snet.Addr) (net.Conn, error) {
 	return NewSQuicConnection(stream, local, remote), nil
 }
 
-func DialAddr(localAddr, remoteAddr string) (net.Conn, error) {
+func DialAddr(localAddr, remoteAddr string) (*Connection, error) {
 
 	local, err := snet.AddrFromString(localAddr)
 	if err != nil {
