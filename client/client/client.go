@@ -40,16 +40,6 @@ func run() error {
 		return err
 	}
 
-	err = conn.Mode(mode.Stream)
-	if err != nil {
-		return err
-	}
-
-	err = ReadAndWrite(conn)
-	if err != nil {
-		return err
-	}
-
 	entries, err := conn.List("/")
 	if err != nil {
 		return err
@@ -70,7 +60,7 @@ func ReadAndWrite(conn *ftp.ServerConn) error {
 
 	res, err := conn.Retr("retr.txt")
 
-	f, err := os.Create("/Users/elwin/ftp/result.txt")
+	f, err := os.Create("/home/elwin/ftp/result.txt")
 	if err != nil {
 		return err
 	}
