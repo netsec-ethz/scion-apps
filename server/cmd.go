@@ -323,10 +323,10 @@ func (cmd commandEpsv) RequireAuth() bool {
 	return true
 }
 
-// TODO: Close listener?
 func (cmd commandEpsv) Execute(conn *Conn, param string) {
 
 	listener, err := conn.NewListener()
+	defer listener.Close()
 
 	if err != nil {
 		log.Println(err)

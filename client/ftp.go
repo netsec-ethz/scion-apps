@@ -38,6 +38,7 @@ type ServerConn struct {
 	features      map[string]string
 	mlstSupported bool
 	extended      bool
+	maxChunkSize  int
 	logger        logger.Logger
 }
 
@@ -48,12 +49,12 @@ type DialOption struct {
 
 // dialOptions contains all the options set by DialOption.setup
 type dialOptions struct {
-	context     context.Context
-	dialer      net.Dialer
-	conn        *scion.Connection
-	disableEPSV bool
-	location    *time.Location
-	debugOutput io.Writer
+	context      context.Context
+	dialer       net.Dialer
+	disableEPSV  bool
+	location     *time.Location
+	debugOutput  io.Writer
+	maxChunkSize int
 }
 
 // Entry describes a file and is returned by List().
@@ -85,21 +86,21 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		return nil, err
 	}
 
-	conn := do.conn
-	if conn == nil {
-		var err error
+	ctx := do.context
 
-		ctx := do.context
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-		if ctx == nil {
-			ctx = context.Background()
-		}
+	maxChunkSize := do.maxChunkSize
+	if maxChunkSize == 0 {
+		maxChunkSize = 500
+	}
 
-		conn, err = scion.DialAddr(local, remote)
+	conn, err := scion.DialAddr(local, remote)
 
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	var sourceConn io.ReadWriteCloser = conn
@@ -108,12 +109,13 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	}
 
 	c := &ServerConn{
-		options:  do,
-		features: make(map[string]string),
-		conn:     textproto.NewConn(sourceConn),
-		local:    localAddr,
-		remote:   remoteAddr,
-		logger:   &logger.StdLogger{},
+		options:      do,
+		features:     make(map[string]string),
+		conn:         textproto.NewConn(sourceConn),
+		local:        localAddr,
+		remote:       remoteAddr,
+		logger:       &logger.StdLogger{},
+		maxChunkSize: maxChunkSize,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)
@@ -178,6 +180,12 @@ func DialWithContext(ctx context.Context) DialOption {
 func DialWithDebugOutput(w io.Writer) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.debugOutput = w
+	}}
+}
+
+func DialWithMaxChunkSize(maxChunkSize int) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.maxChunkSize = maxChunkSize
 	}}
 }
 

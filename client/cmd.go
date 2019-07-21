@@ -187,7 +187,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
 		}
 
-		return socket.NewMultiSocket(sockets, 500), nil
+		return socket.NewMultiSocket(sockets, c.maxChunkSize), nil
 
 	} else {
 		port, err := c.getDataConnPort()
