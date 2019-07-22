@@ -28,11 +28,17 @@ var xLeftTrimMs = 1000 / granularity;
 var bwIntervalBufMs = 1000;
 var dataIntervalMs = 1000;
 var progIntervalMs = 500
-var chartCS;
-var chartSC;
-var chartSE;
+var chartCS, chartSC, chartSE, chartSpeedUp, chartSpeedDown;
 var lastTime;
 var lastTimeBwDb = new Date((new Date()).getTime() - (xAxisSec * 1000));
+
+// speedtest
+var stIntervalSec = 0.5;
+var stDurSec = 1;
+var stPktSize = 1000;
+var stStartBandwidth = 1000000; // 1MB
+var stCSBandwidth = stStartBandwidth;
+var stSCBandwidth = stStartBandwidth;
 
 var dial_prop_all = {
     // dial constants
@@ -54,12 +60,14 @@ var dial_prop_text = {
 };
 
 // instruction information
-var bwText = 'Dial values can be typed, edited, clicked, or scrolled to change.';
+var bwText = 'Bandwidth test dial values can be typed, edited, clicked, or scrolled to change.';
 var imageText = 'Execute camerapp to retrieve an image.';
 var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
-var echoText = 'Execute echo to measure response time.';
+var echoText = 'Execute echo to measure response time overall.';
+var tracerouteText = 'Execute traceroute to measure response time between hops.';
+var speedtestText = 'Run continuous speedtest to measure throughput.';
 
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
@@ -110,6 +118,12 @@ function initBwGraphs() {
     chartSC = drawBwtestSingleDir('sc', 'Download (mbps)', true, scColReq,
             scColAch);
     chartSE = drawPingGraph('echo-graph', 'Echo Response (ms)');
+
+    // TODO: (mwfarb) Firefox is throwing "Error: Permission denied to access
+    // property 'jQuery2200.........'"
+    chartSpeedUp = drawSpeedGraph('speedup-graph', 'Upload', csColAch);
+    chartSpeedDown = drawSpeedGraph('speeddown-graph', 'Download', scColAch);
+
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
     manageTickData();
@@ -117,21 +131,25 @@ function initBwGraphs() {
 }
 
 function showOnlyConsoleGraphs(activeApp) {
-    $('#bwtest-continuous').css("display",
-            (activeApp == "bwtester") ? "block" : "none");
+    $('#bwtest-continuous').css(
+            "display",
+            (activeApp == "bwtester" || activeApp == "speedtest") ? "block"
+                    : "none");
     $('#images').css("display", (activeApp == "camerapp") ? "block" : "none");
     $('#echo-continuous').css("display",
             (activeApp == "echo") ? "block" : "none");
     var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
-            || activeApp == "sensorapp" || activeApp == "echo" || activeApp == "traceroute");
+            || activeApp == "sensorapp" || activeApp == "echo"
+            || activeApp == "traceroute" || activeApp == "speedtest");
     $('.stdout').css("display", isConsole ? "block" : "none");
 }
 
 function handleSwitchTabs() {
     var activeApp = $('.nav-tabs .active > a').attr('name');
-    var isCont = (activeApp == "bwtester" || activeApp == "echo" || activeApp == "traceroute");
+    var isCont = (activeApp == "bwtester" || activeApp == "echo"
+            || activeApp == "traceroute" || activeApp == "speedtest");
     enableContControls(isCont);
-    // show/hide graphs for bwtester
+    // show/hide graphs for continuous
     showOnlyConsoleGraphs(activeApp);
     var checked = $('#switch_cont').prop('checked');
     if (checked && !isCont) {
@@ -291,6 +309,129 @@ function drawPingGraph(div_id, yAxisLabel) {
     return chart;
 }
 
+function drawSpeedGraph(div_id, title, color) {
+    var min = 1; // TODO: perhaps 0.1 but it does skew the view
+    var max = 1000;
+    var chart = Highcharts.chart(div_id, {
+        chart : {
+            type : 'gauge',
+            plotBackgroundColor : null,
+            plotBackgroundImage : null,
+            plotBorderWidth : 0,
+            plotShadow : false
+        },
+        title : {
+            text : null
+        },
+        pane : {
+            startAngle : -150,
+            endAngle : 150,
+            background : [ {
+                backgroundColor : {
+                    linearGradient : {
+                        x1 : 0,
+                        y1 : 0,
+                        x2 : 0,
+                        y2 : 1
+                    },
+                    stops : [ [ 0, '#FFF' ], [ 1, '#333' ] ]
+                },
+                borderWidth : 0,
+                outerRadius : '109%'
+            }, {
+                backgroundColor : {
+                    linearGradient : {
+                        x1 : 0,
+                        y1 : 0,
+                        x2 : 0,
+                        y2 : 1
+                    },
+                    stops : [ [ 0, '#333' ], [ 1, '#FFF' ] ]
+                },
+                borderWidth : 1,
+                outerRadius : '107%'
+            }, {
+            // default background
+            }, {
+                backgroundColor : '#DDD',
+                borderWidth : 0,
+                outerRadius : '105%',
+                innerRadius : '103%'
+            } ]
+        },
+        yAxis : [ {
+            min : min,
+            max : max,
+            type : 'logarithmic',
+            allowDecimals : true,
+            minorTickInterval : 'auto',
+            title : {
+                text : 'Mbps',
+                y : 10
+            },
+            tickPositions : [ 0, Math.log10(2), Math.log10(5), Math.log10(10),
+                    Math.log10(25), Math.log10(50), Math.log10(100),
+                    Math.log10(250), Math.log10(500), Math.log10(1000) ],
+            plotBands : [ {
+                color : {
+                    linearGradient : [ 0, 150, 300, 150 ],
+                    stops : [ [ 0, 'rgb(255, 255, 255)' ], [ 1, color ] ]
+                },
+                from : min,
+                to : max
+            } ],
+        } ],
+        credits : {
+            enabled : false
+        },
+        series : [ {
+            name : title + ' Speed',
+            data : [ {
+                y : 0,
+                color : "#000",
+                dial : {
+                    backgroundColor : "#0000",
+                },
+            }, {
+                y : 0,
+                color : "#000",
+                dial : {
+                    backgroundColor : "#0000",
+                    borderWidth : 0,
+                    radius : "70%"
+                },
+            } ],
+            tooltip : {
+                valueSuffix : ' Mbps'
+            },
+            dataLabels : [ {
+                borderWidth : 0,
+                verticalAlign : 'bottom',
+                style : {
+                    fontSize : '24px'
+                },
+                y : 40,
+                formatter : function() {
+                    return Highcharts.numberFormat(this.series.data[0].y, 2)
+                },
+            }, {
+                borderWidth : 0,
+                verticalAlign : 'bottom',
+                color : "#777",
+                style : {
+                    fontSize : '12px'
+                },
+                y : 100,
+                formatter : function() {
+                    var max = Highcharts.numberFormat(this.series.data[1].y, 2)
+                    return 'max ' + max;
+                },
+            } ],
+        } ]
+    });
+    return chart;
+}
+
 function formatBwTooltip() {
     var tooltip = '<b>' + this.series.name + '</b><br/>';
     tooltip += Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>';
@@ -371,6 +512,8 @@ function manageTestData() {
             requestEchoByTime(form_data);
         } else if (activeApp == "traceroute") {
             requestTraceRouteByTime(form_data);
+        } else if (activeApp == "speedtest") {
+            requestSpeedtest(form_data);
         }
         lastTimeBwDb = now;
     }, dataIntervalMs);
@@ -411,13 +554,20 @@ function requestBwTestByTime(form_data) {
                             'path' : d.graph[i].Path,
                         },
                     };
+                    console.info(JSON.stringify(data));
+                    console.info('continuous bwtester', 'duration:',
+                            d.graph[i].ActualDuration, 'ms');
+
                     // update with errors, if any
                     updateBwErrors(data.cs, 'cs', d.graph[i].Error);
                     updateBwErrors(data.sc, 'sc', d.graph[i].Error);
 
-                    console.info(JSON.stringify(data));
-                    console.info('continuous bwtester', 'duration:',
-                            d.graph[i].ActualDuration, 'ms');
+                    // check to make sure path stays open
+                    if (d.graph[i].Path != null && d.graph[i].Path.length > 0) {
+                        var path = d.graph[i].Path.match("\\[.*]");
+                        openPath(path, true);
+                    }
+
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updateBwGraph(data, time)
@@ -465,6 +615,13 @@ function requestEchoByTime(form_data) {
                     console.info(JSON.stringify(data));
                     console.info('continous echo', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+
+                    // check to make sure path stays open
+                    if (d.graph[i].Path != null && d.graph[i].Path.length > 0) {
+                        var path = d.graph[i].Path.match("\\[.*]");
+                        openPath(path, true);
+                    }
+
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updatePingGraph(chartSE, data, time)
@@ -502,11 +659,99 @@ function requestTraceRouteByTime(form_data) {
                     console.info('continous traceroute', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
 
+                    // check to make sure path stays open
+                    if (d.graph[i].Path != null && d.graph[i].Path.length > 0) {
+                        var path = d.graph[i].Path.match("\\[.*]");
+                        openPath(path, true);
+                    }
+
                     // TODO (mwfarb): implement traceroute graph
                 }
             }
         }
     });
+}
+
+function requestSpeedtest(form_data) {
+    $.post("/getbwbytime", form_data, function(json) {
+        var d = JSON.parse(json);
+        console.info('resp:', JSON.stringify(d));
+        if (d != null) {
+            if (d.active != null) {
+                if (d.active) {
+                    enableTestControls(false);
+                    lockTab("speedtest");
+                    failContinuousOff();
+                } else {
+                    enableTestControls(true);
+                    releaseTabs();
+                    clearInterval(intervalGraphData);
+
+                    // TODO: check to make sure path stays
+                    // closed
+                }
+            }
+            if (d.graph != null) {
+                // write data on graph
+                for (var i = 0; i < d.graph.length; i++) {
+                    if (d.graph[i].Log != null && d.graph[i].Log != "") {
+                        // result returned, display it and reset
+                        // progress
+                        handleEndCmdDisplay(d.graph[i].Log);
+                    }
+                    var data = {
+                        'cs' : {
+                            'bandwidth' : d.graph[i].CSBandwidth,
+                            'throughput' : d.graph[i].CSThroughput,
+                            'path' : d.graph[i].Path,
+                        },
+                        'sc' : {
+                            'bandwidth' : d.graph[i].SCBandwidth,
+                            'throughput' : d.graph[i].SCThroughput,
+                            'path' : d.graph[i].Path,
+                        },
+                    };
+                    // update with errors, if any
+                    updateBwErrors(data.cs, 'cs', d.graph[i].Error);
+                    updateBwErrors(data.sc, 'sc', d.graph[i].Error);
+
+                    console.info(JSON.stringify(data));
+                    console.info('continuous speedtest', 'duration:',
+                            d.graph[i].ActualDuration, 'ms');
+
+                    // check to make sure path stays open
+                    if (d.graph[i].Path != null && d.graph[i].Path.length > 0) {
+                        var path = d.graph[i].Path.match("\\[.*]");
+                        openPath(path, true);
+                    }
+
+                    // use the time the test began
+                    var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
+                    updateBwGraph(data, time);
+                    updateSpeetestGraph(d.graph[i], time);
+
+                    // no error, increment bandwidth
+                    if (d.graph[i].Error == null
+                            || d.graph[i].Error.length == 0) {
+                        if (increaseBw(data.cs.bandwidth, data.cs.throughput)) {
+                            stCSBandwidth = stCSBandwidth * 2;
+                        }
+                        if (increaseBw(data.sc.bandwidth, data.sc.throughput)) {
+                            stSCBandwidth = stSCBandwidth * 2;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function increaseBw(bandwidth, throughput) {
+    if (bandwidth <= 0) {
+        return false;
+    }
+    var loss = (1 - (throughput / bandwidth));
+    return loss == 0;
 }
 
 function refreshTickData(chart, newTime) {
@@ -616,6 +861,100 @@ function updatePingGraph(chart, data, time) {
     }
 }
 
+function updateSpeetestGraph(data, time) {
+    var path = data.Path.match("\\[.*]");
+    var color = getPathColor(path);
+    var num = parseInt(getPathNum(path)) + 1;
+    var style = "style='background-color: " + color + "; '";
+    var html = "<span class='path-text' " + style + ">PATH " + num
+            + "</span> <i>" + data.Path + "</i>";
+    if (data.Error) {
+        html += "<br><b style='background-color: text-color: red;' >"
+                + data.Error + "</b>"
+    }
+    $("#speedtest_text").html(html);
+    console.debug(html)
+    updateGaugeDataPoints(chartSpeedUp, data.CSThroughput / 1000000, color);
+    updateGaugeDataPoints(chartSpeedDown, data.SCThroughput / 1000000, color);
+}
+
+function updateGaugeDataPoints(chart, tput, color) {
+    // actual dial
+    var points = chart.series[0].points;
+    points[0].update({
+        y : tput,
+        dial : {
+            backgroundColor : (tput > 0 ? '#000' : '#0000'),
+        },
+    });
+    // max dial, max label
+    chart.series[0].options.dataLabels[1].color = color;
+    if (points[0].y > points[1].y) {
+        points[1].update({
+            y : points[0].y,
+            dial : {
+                backgroundColor : (points[0].y > 0 ? color : '#0000'),
+                borderWidth : 0,
+                radius : "70%"
+            },
+        });
+    }
+}
+
+function get_pkts(bw, size, sec) {
+    var pkts = bw / size * sec;
+    return pkts / 8;
+}
+
+function get_bws(pkt, size, sec) {
+    var bw = pkt * size / sec;
+    return bw * 8;
+}
+
+function setSpeedtestParam(form_data, csBandwidth, scBandwidth) {
+    var pkt_cs = Math.floor(get_pkts(csBandwidth, stPktSize, stDurSec));
+    var pkt_sc = Math.floor(get_pkts(scBandwidth, stPktSize, stDurSec));
+    // packets must be whole for bandwidth
+    var bw_cs = get_bws(pkt_cs, stPktSize, stDurSec);
+    var bw_sc = get_bws(pkt_sc, stPktSize, stDurSec);
+
+    for (var i = 0; i < form_data.length; i++) {
+        switch (form_data[i].name) {
+        case "apps":
+            form_data[i].value = "bwtester";
+            break;
+        case "interval":
+            form_data[i].value = stIntervalSec.toString();
+            break;
+        case "dial-cs-sec":
+            form_data[i].value = stDurSec.toString();
+            break;
+        case "dial-sc-sec":
+            form_data[i].value = stDurSec.toString();
+            break;
+        case "dial-cs-size":
+            form_data[i].value = stPktSize.toString();
+            break;
+        case "dial-sc-size":
+            form_data[i].value = stPktSize.toString();
+            break;
+        case "dial-cs-pkt":
+            form_data[i].value = pkt_cs.toString();
+            break;
+        case "dial-sc-pkt":
+            form_data[i].value = pkt_sc.toString();
+            break;
+        case "dial-cs-bw":
+            form_data[i].value = bw_cs.toString();
+            break;
+        case "dial-sc-bw":
+            form_data[i].value = bw_sc.toString();
+            break;
+        }
+    }
+    return form_data;
+}
+
 function endProgress() {
     clearInterval(commandProg);
     commandProg = false;
@@ -634,8 +973,8 @@ function command(continuous) {
         value : activeApp
     });
     if (activeApp == "bwtester" || activeApp == "echo"
-            || activeApp == "traceroute") {
-        // add extra bwtester options required
+            || activeApp == "traceroute" || activeApp == "speedtest") {
+        // add extra continuous options required
         form_data.push({
             name : "continuous",
             value : continuous
@@ -668,6 +1007,11 @@ function command(continuous) {
         $("#results").empty();
         handleStartCmdDisplay(activeApp);
     }
+    if (activeApp == "speedtest") {
+        // set special parameters for speedtest
+        form_data = setSpeedtestParam(form_data, stCSBandwidth, stSCBandwidth);
+    }
+
     console.info('req:', JSON.stringify(form_data));
     $.post('/command', form_data, function(resp, status, jqXHR) {
         console.info('resp:', resp);
@@ -677,19 +1021,21 @@ function command(continuous) {
             console.info(activeApp, 'duration:', duration, 'ms');
             handleEndCmdDisplay(resp);
         }
-        if (activeApp == "camerapp") {
+        switch (activeApp) {
+        case "camerapp":
             // check for new images once, on command complete
             handleImageResponse(resp);
-        } else if (activeApp == "bwtester") {
+            break;
+        case "bwtester":
+        case "echo":
+        case "traceroute":
+        case "speedtest":
             // check for usable data for graphing
             handleContResponse(resp, continuous, startTime);
-        } else if (activeApp == "echo") {
-            // check for usable data for graphing
-            handleContResponse(resp, continuous, startTime);
-        } else if (activeApp == "traceroute") {
-            handleContResponse(resp, continuous, startTime);
-        } else {
+            break;
+        default:
             handleGeneralResponse();
+            break;
         }
     }).fail(function(error) {
         showError(error.responseJSON);
@@ -736,6 +1082,7 @@ function lockTab(href) {
     enableTab("sensorapp", "sensorapp" == href);
     enableTab("echo", "echo" == href);
     enableTab("traceroute", "traceroute" == href);
+    enableTab("speedtest", "speedtest" == href);
 }
 
 function releaseTabs() {
@@ -744,6 +1091,7 @@ function releaseTabs() {
     enableTab("sensorapp", true);
     enableTab("echo", true);
     enableTab("traceroute", true);
+    enableTab("speedtest", true);
 }
 
 function enableTab(href, enable) {
@@ -908,6 +1256,8 @@ function setDefaults() {
     $('#bwtest_text').text(bwText);
     $('#bwgraphs_text').text(bwgraphsText);
     $('#echo_text').text(echoText);
+    $('#traceroute_text').text(tracerouteText);
+    $('#speedtest_text').text(speedtestText);
 
     onchange_radio('cs', 'size');
     onchange_radio('sc', 'size');
@@ -971,7 +1321,7 @@ function initDials(dir) {
         'format' : function(v) {
             // native formatting occasionally uses full precision
             // so we format it manually ourselves
-            return Number(Math.round(v + 'e' + 2) + 'e-' + 2);
+            return Number(Math.floor(v + 'e' + 2) + 'e-' + 2);
         },
     };
     $('#dial-' + dir + '-sec').knob(extend(prop_sec, dial_prop_arc));

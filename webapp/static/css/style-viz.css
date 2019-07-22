@@ -229,6 +229,10 @@ ul.tree li.open>ul {
 ul.tree li a {
  color: black;
  text-decoration: none;
+}
+
+.path-text {
+ color: white;
  padding-left: 5px; /* background shape */
  padding-right: 5px; /* background shape */
  border-radius: 10px; /* background shape */

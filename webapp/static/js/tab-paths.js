@@ -376,11 +376,13 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         if_ = ent.Path.Interfaces;
         var hops = if_.length / 2;
 
-        var style = "style='background-color: "
-                + getPathColor(formatPathJson(paths, parseInt(p))) + "; '";
-        html += "<li seg-type='PATH' seg-num=" + p + "><a " + style
-                + " href='#'>PATH " + (parseInt(p) + 1)
-                + "</a> <span class='badge'>" + hops + "</span>";
+        var pathStr = formatPathJson(paths, parseInt(p));
+        var style = "style='background-color: " + getPathColor(pathStr) + "; '";
+        html += "<li seg-type='PATH' seg-num=" + p + " path='" + pathStr
+                + "'><a class='path-text' " + style
+                + " href='#'><span style='color: white;'>PATH "
+                + (parseInt(p) + 1) + "</span></a> <span class='badge'>" + hops
+                + "</span>";
         exp.setUTCSeconds(ent.Path.ExpTime);
         html += "<ul>";
         html += "<li><a href='#'>Mtu: " + ent.Path.Mtu + "</a>";
@@ -393,7 +395,7 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
                     + ipv6Raw2Read(ent.HostInfo.Addrs.Ipv6) + "</a>";
         }
         html += "<li><a href='#'>Port: " + ent.HostInfo.Port + "</a>";
-        html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
+        html += "<li><a href='#'>Expires: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
             html += "<li><a href='#'>" + iaRaw2Read(if_[i].RawIsdas) + " ("
@@ -435,7 +437,7 @@ function get_segment_info(segs, type) {
                 + " href='#'>" + type + " SEGMENT " + (parseInt(s) + 1)
                 + "</a> <span class='badge'>" + hops + "</span>";
         html += "<ul>";
-        html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
+        html += "<li><a href='#'>Expires: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
             html += "<li><a href='#'>" + if_[i].ISD + "-" + if_[i].AS + " ("
