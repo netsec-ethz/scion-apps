@@ -1,4 +1,4 @@
-// bwtestserver application
+// bwtestclient application
 // For more documentation on the application see:
 // https://github.com/netsec-ethz/scion-apps/blob/master/README.md
 // https://github.com/netsec-ethz/scion-apps/blob/master/bwtester/README.md
@@ -32,6 +32,7 @@ const (
 	DefaultBW                             = 3000
 	WildcardChar                          = "?"
 	GracePeriodSync         time.Duration = time.Millisecond * 10
+	MinBandwidth                          = 5000 // 5 kbps is the minimum bandwidth we can test
 )
 
 var (
@@ -277,6 +278,8 @@ func main() {
 		tzero time.Time // initialized to "zero" time
 
 		receiveDone sync.Mutex // used to signal when the HandleDCConnReceive goroutine has completed
+
+		maxBandwidth bool
 	)
 
 	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
@@ -291,6 +294,7 @@ func main() {
 	flag.BoolVar(&interactive, "i", false, "Interactive mode")
 	flag.StringVar(&pathAlgo, "pathAlgo", "", "Path selection algorithm / metric (\"shortest\", \"mtu\")")
 	flag.BoolVar(&useIPv6, "6", false, "Use IPv6")
+	flag.BoolVar(&maxBandwidth, "findMax", false, "Find the maximum bandwidth achievable")
 
 	flag.Parse()
 	flagset := make(map[string]bool)
@@ -356,6 +360,10 @@ func main() {
 		serverCCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
 	} else {
 		scionutil.InitSCION(clientCCAddr)
+	}
+
+	if maxBandwidth {
+		findMaxBandwidth(interactive, pathAlgo, clientCCAddr, serverCCAddr)
 	}
 
 	CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
@@ -572,4 +580,457 @@ func main() {
 	}
 
 	fmt.Println("Error, could not fetch server results, MaxTries attempted without success.")
+}
+
+func findMaxBandwidth(interactive bool, pathAlgo string, clientCCAddr, serverCCAddr *snet.Addr) {
+
+	var (
+		tzero       time.Time
+		receiveDone sync.Mutex
+
+		clientOldBw, serverOldBw, clientThreshold, serverThreshold int64
+		serverMax, clientMax                                       bool
+		finished                                                   bool
+		// run is used to hold the number of the current run. Also to use for the DC Connection port number
+		// it is added to the CC connection port number on each run.
+		run uint16
+	)
+
+	clientBw := int64(512000)
+	serverBw := clientBw
+
+	// Make sure the port number for the client's CC address is zero so a free port is
+	// picked when the connection fails
+	clientCCAddr.Host.L4 = addr.NewL4UDPInfo(0)
+
+	// Setup the paths
+	var pathEntry *sciond.PathReplyEntry
+	if !serverCCAddr.IA.Eq(clientCCAddr.IA) {
+		if interactive {
+			pathEntry = scionutil.ChoosePathInteractive(clientCCAddr, serverCCAddr)
+		} else {
+			var metric int
+			if pathAlgo == "mtu" {
+				metric = scionutil.MTU
+			} else if pathAlgo == "shortest" {
+				metric = scionutil.Shortest
+			}
+			pathEntry = scionutil.ChoosePathByMetric(metric, clientCCAddr, serverCCAddr)
+		}
+		if pathEntry == nil {
+			LogFatal("No paths available to remote destination")
+		}
+		serverCCAddr.Path = spath.New(pathEntry.Path.FwdPath)
+		serverCCAddr.Path.InitOffsets()
+		serverCCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
+	} else {
+		scionutil.InitSCION(clientCCAddr)
+	}
+
+	CCConn, err := snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
+	Check(err)
+	defer CCConn.Close()
+
+	// get the port used by clientCC after it bound to the dispatcher (because it might be 0)
+	clientPort := uint((CCConn.LocalAddr()).(*snet.Addr).Host.L4.Port())
+	serverPort := serverCCAddr.Host.L4.Port()
+
+	//Address of client data channel (DC)
+	clientDCAddr := &snet.Addr{IA: clientCCAddr.IA, Host: &addr.AppAddr{
+		L3: clientCCAddr.Host.L3, L4: addr.NewL4UDPInfo(uint16(clientPort) + 1)}}
+	// Address of server data channel (DC)
+	serverDCAddr := &snet.Addr{IA: serverCCAddr.IA, Host: &addr.AppAddr{
+		L3: serverCCAddr.Host.L3, L4: addr.NewL4UDPInfo(uint16(serverPort) + 1)}}
+
+	// Set path on data connection
+	if !serverDCAddr.IA.Eq(clientDCAddr.IA) {
+		serverDCAddr.Path = spath.New(pathEntry.Path.FwdPath)
+		serverDCAddr.Path.InitOffsets()
+		serverDCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
+		fmt.Printf("Client DC \tNext Hop %v\tServer Host %v\n",
+			serverDCAddr.NextHop, serverDCAddr.Host)
+	}
+
+	// find the max bandwidth for the client to server connection first
+	for !finished {
+		run++
+		fmt.Println(strings.Repeat("#", 15))
+		fmt.Println("Run: ", run)
+
+		//Data channel connection
+		DCConn, err := snet.DialSCION(overlayType, clientDCAddr, serverDCAddr)
+		Check(err)
+
+		// update default packet size to max MTU on the selected path
+		if pathEntry != nil {
+			InferedPktSize = int64(pathEntry.Path.Mtu)
+		} else {
+			// use default packet size when within same AS and pathEntry is not set
+			InferedPktSize = DefaultPktSize
+		}
+
+		// Do the test for 10 seconds (max period), since it makes the results more reliable
+		clientBwpStr := fmt.Sprintf("3,?,?,%dbps", clientBw)
+		clientBwp := parseBwtestParameters(clientBwpStr)
+		clientBwp.Port = clientDCAddr.Host.L4.Port()
+		serverBwpStr := fmt.Sprintf("3,?,?,%dbps", serverBw)
+		serverBwp := parseBwtestParameters(serverBwpStr)
+		serverBwp.Port = serverDCAddr.Host.L4.Port()
+
+		fmt.Println("\nTest parameters:")
+		fmt.Printf("client->server: %.3f Mbps\n", float64(clientBw)/1000000)
+		fmt.Printf("server->client: %.3f Mbps\n", float64(serverBw)/1000000)
+
+		t := time.Now()
+		expFinishTimeSend := t.Add(serverBwp.BwtestDuration + MaxRTT + GracePeriodSend)
+		expFinishTimeReceive := t.Add(clientBwp.BwtestDuration + MaxRTT + StragglerWaitPeriod)
+		res := BwtestResult{NumPacketsReceived: -1,
+			CorrectlyReceived:  -1,
+			IPAvar:             -1,
+			IPAmin:             -1,
+			IPAavg:             -1,
+			IPAmax:             -1,
+			PrgKey:             clientBwp.PrgKey,
+			ExpectedFinishTime: expFinishTimeReceive,
+		}
+
+		var resLock sync.Mutex
+		if expFinishTimeReceive.Before(expFinishTimeSend) {
+			// The receiver will close the DC connection, so it will wait long enough until the
+			// sender is also done
+			res.ExpectedFinishTime = expFinishTimeSend
+		}
+
+		receiveDone.Lock()
+		go HandleDCConnReceive(&serverBwp, DCConn, &res, &resLock, &receiveDone)
+
+		pktbuf := make([]byte, 2000)
+		pktbuf[0] = 'N' // Request for new bwtest
+		n := EncodeBwtestParameters(&clientBwp, pktbuf[1:])
+		l := n + 1
+		n = EncodeBwtestParameters(&serverBwp, pktbuf[l:])
+		l = l + n
+
+		var numtries int64 = 0
+		for numtries < MaxTries {
+			_, err = CCConn.Write(pktbuf[:l])
+			Check(err)
+
+			err = CCConn.SetReadDeadline(time.Now().Add(MaxRTT))
+			Check(err)
+			n, err = CCConn.Read(pktbuf)
+			if err != nil {
+				// A timeout likely happened, see if we should adjust the expected finishing time
+				expFinishTimeReceive = time.Now().Add(clientBwp.BwtestDuration + MaxRTT + StragglerWaitPeriod)
+				resLock.Lock()
+				if res.ExpectedFinishTime.Before(expFinishTimeReceive) {
+					res.ExpectedFinishTime = expFinishTimeReceive
+				}
+				resLock.Unlock()
+
+				numtries++
+				continue
+			}
+			// Remove read deadline
+			err = CCConn.SetReadDeadline(tzero)
+			Check(err)
+
+			if n != 2 {
+				fmt.Println("Incorrect server response, trying again")
+				time.Sleep(Timeout)
+				numtries++
+				continue
+			}
+			if pktbuf[0] != 'N' {
+				fmt.Println("Incorrect server response, trying again")
+				time.Sleep(Timeout)
+				numtries++
+				continue
+			}
+			if pktbuf[1] != 0 {
+				// The server asks us to wait for some amount of time
+				time.Sleep(time.Second * time.Duration(int(pktbuf[1])))
+				// Don't increase numtries in this case
+				continue
+			}
+			// Everything was successful, exit the loop
+			break
+		}
+
+		// Something went wrong, reduce both client and server bandwidth and try again
+		if numtries == MaxTries {
+			fmt.Println("[Error] Server -> Client test failed: could not receive a server response," +
+				" MaxTries attempted without success.")
+			// if we reached the minimum bandwidth then stop the test because definitely something is wrong.
+			if serverBw == MinBandwidth {
+				// We reached the minimum bandwidth for either the client or the server, stop the testing
+				fmt.Println("[Error] Reached minimum bandwidth (5Kbps) and no response received " +
+					"from the server.")
+				break
+			}
+			// Decrease both bandwidth since the test failed without testing the client to server bandwidth, so
+			// reduce both.
+			if !clientMax { // If we haven't found the client max
+				// decrease the client bandwidth
+				clientBw, clientThreshold, clientMax = decreaseBandwidth(clientBw, clientThreshold,
+					0, clientOldBw)
+				clientOldBw = 0
+				fmt.Printf("Client's bandwidth might have been too high, decreasing bandwidth"+
+					" to %.3f Mbps\n", float64(clientBw)/1000000)
+			}
+			if !serverMax { // if we haven't found the server max
+				// Decrease the server's bandwidth
+				serverBw, serverThreshold, serverMax = decreaseBandwidth(serverBw, serverThreshold,
+					0, serverOldBw)
+				serverOldBw = 0
+				fmt.Printf("Server's bandwidth might have been too high, decreasing bandwidth "+
+					"to %.3f Mbps\n", float64(serverBw)/1000000)
+			}
+
+			CCConn.Close()
+			CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
+			Check(err)
+
+			// Update the client's ports
+			clientPort = uint((CCConn.LocalAddr()).(*snet.Addr).Host.L4.Port())
+			clientDCAddr.Host.L4 = addr.NewL4UDPInfo(uint16(clientPort) + 1)
+
+			DCConn.Close()
+
+			finished = clientMax && serverMax
+
+			// Wait for a second for the connection to come back up if the interface was revoked
+			if !finished {
+				time.Sleep(time.Second)
+			}
+			continue
+		}
+
+		// TODO handle the case when SCMP revocation are received
+		// Start the Client -> Server test
+		go HandleDCConnSend(&clientBwp, DCConn)
+
+		receiveDone.Lock()
+
+		fmt.Println("\nS->C results")
+		att := 8 * serverBwp.PacketSize * serverBwp.NumPackets / int64(serverBwp.BwtestDuration/time.Second)
+		ach := 8 * serverBwp.PacketSize * res.CorrectlyReceived / int64(serverBwp.BwtestDuration/time.Second)
+		fmt.Printf("Attempted bandwidth: %d bps / %.3f Mbps\n", att, float64(att)/1000000)
+		fmt.Printf("Achieved bandwidth: %d bps / %.3f Mbps\n", ach, float64(ach)/1000000)
+		// check loss S->C loss and modify servers parameters according to that
+		loss := float32(serverBwp.NumPackets-res.CorrectlyReceived) * 100 / float32(serverBwp.NumPackets)
+		fmt.Println("Loss rate:", loss, "%")
+
+		if !serverMax { // Check if we have found the server max bandwidth
+			// Increase or decrease the bandwidth to attempt next based on the achieved bandwidth (ach) and the
+			// previously achieved bandwidth (serverOldBandwidth). We do not use loss since the link might be lossy
+			// but still we can achieve a higher bandwidth.
+			if serverOldBw <= ach {
+				fmt.Println("Increasing server's bandwidth...")
+				serverBw = increaseBandwidth(serverBw, serverThreshold)
+			} else {
+				fmt.Println("Decreasing server's bandwidth...")
+				serverBw, serverThreshold, serverMax = decreaseBandwidth(serverBw, serverThreshold, ach,
+					serverOldBw)
+			}
+			serverOldBw = ach
+		}
+
+		// Fetch results from server
+		numtries = 0
+		for numtries < MaxTries {
+			pktbuf[0] = 'R'
+			copy(pktbuf[1:], clientBwp.PrgKey)
+			_, err = CCConn.Write(pktbuf[:1+len(clientBwp.PrgKey)])
+			Check(err)
+
+			err = CCConn.SetReadDeadline(time.Now().Add(MaxRTT))
+			Check(err)
+			n, err = CCConn.Read(pktbuf)
+			if err != nil {
+				numtries++
+				continue
+			}
+			// Remove read deadline
+			err = CCConn.SetReadDeadline(tzero)
+			Check(err)
+
+			if n < 2 {
+				numtries++
+				continue
+			}
+			if pktbuf[0] != 'R' {
+				numtries++
+				continue
+			}
+			if pktbuf[1] != byte(0) {
+				// Error case
+				if pktbuf[1] == byte(127) {
+					// print the results before exiting
+					fmt.Println("[Error] Results could not be found or PRG key was incorrect, aborting " +
+						"current test")
+					// set numtries to the max so the current test does not continue and attempted bandwidth
+					// is reduced
+					numtries = MaxTries
+					break
+				}
+				// pktbuf[1] contains number of seconds to wait for results
+				fmt.Println("We need to sleep for", pktbuf[1], "seconds before we can get the results")
+				time.Sleep(time.Duration(pktbuf[1]) * time.Second)
+				// We don't increment numtries as this was not a lost packet or other communication error
+				continue
+			}
+
+			sres, n1, err := DecodeBwtestResult(pktbuf[2:])
+			if err != nil {
+				fmt.Println("Decoding error, try again")
+				numtries++
+				continue
+			}
+			if n1+2 < n {
+				fmt.Println("Insufficient number of bytes received, try again")
+				time.Sleep(Timeout)
+				numtries++
+				continue
+			}
+			if !bytes.Equal(clientBwp.PrgKey, sres.PrgKey) {
+				fmt.Println("PRG Key returned from server incorrect, this should never happen")
+				numtries++
+				continue
+			}
+
+			fmt.Println("\nC->S results")
+			att = 8 * clientBwp.PacketSize * clientBwp.NumPackets / int64(clientBwp.BwtestDuration/time.Second)
+			ach = 8 * clientBwp.PacketSize * sres.CorrectlyReceived / int64(clientBwp.BwtestDuration/time.Second)
+			fmt.Printf("Attempted bandwidth: %d bps / %.3f Mbps\n", att, float64(att)/1000000)
+			fmt.Printf("Achieved bandwidth: %d bps / %.3f Mbps\n", ach, float64(ach)/1000000)
+			loss := float32(clientBwp.NumPackets-sres.CorrectlyReceived) * 100 / float32(clientBwp.NumPackets)
+			fmt.Println("Loss rate:", loss, "%")
+
+			// check the results and modify the client's parameters same way as we do the server's
+			if !clientMax {
+				if clientOldBw <= ach {
+					fmt.Println("Increasing client's bandwidth..")
+					clientBw = increaseBandwidth(clientBw, clientThreshold)
+				} else {
+					fmt.Println("Decreasing client's bandwidth..")
+					clientBw, clientThreshold, clientMax = decreaseBandwidth(clientBw, clientThreshold,
+						ach, clientOldBw)
+				}
+				clientOldBw = ach
+			}
+			break
+		}
+
+		if numtries == MaxTries {
+			fmt.Println("[Error] Client -> Server test failed: could not fetch server results, " +
+				"MaxTries attempted without success.")
+			if clientBw == MinBandwidth {
+				fmt.Println("[Error] Reached minimum bandwidth (5Kbps) and no results received " +
+					"from the server.")
+				break
+			}
+			// Don't change the server's bandwidth since its test succeeded, just decrease the client's bandwidth
+			if !clientMax {
+				clientBw, clientThreshold, clientMax = decreaseBandwidth(clientBw, clientThreshold,
+					0, clientOldBw)
+				clientOldBw = 0
+				fmt.Printf("Client's bandwidth might have been too high, decreasing bandwidth to %.3f Mbps\n",
+					float64(clientBw)/1000000)
+			}
+
+			CCConn.Close()
+			CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
+			Check(err)
+
+			// Update the client's ports
+			clientPort = uint((CCConn.LocalAddr()).(*snet.Addr).Host.L4.Port())
+			clientDCAddr.Host.L4 = addr.NewL4UDPInfo(uint16(clientPort) + 1)
+
+			DCConn.Close()
+
+			finished = clientMax && serverMax
+			// If we haven't found the max bandwidth for both the client and the server
+			if !finished {
+				receiveDone.Unlock()
+				// time out for two seconds for the connection to come back up
+				time.Sleep(time.Second)
+			}
+			continue
+		}
+
+		DCConn.Close()
+		// Update the client's DC port by adding the run number to it
+		clientDCAddr.Host.L4 = addr.NewL4UDPInfo(uint16(clientPort) + run)
+
+		// Check if we found the maximum bandwidth for the client and the server
+		finished = clientMax && serverMax
+		receiveDone.Unlock()
+		time.Sleep(time.Second)
+	}
+
+	fmt.Println("Max client to server available bandwidth: ", float64(clientBw)/1000000, " Mbps")
+	fmt.Println("Max server to client available bandwidth: ", float64(serverBw)/1000000, " Mbps")
+	os.Exit(0)
+}
+
+// increaseBandwidth returns a new bandwidth based on threshold and bandwidth values parameters. When the bandwidth is
+// lower than threshold, it will be increased by 100% (doubled), otherwise, if the bandwidth is higher than the
+// than the threshold then it will only be increased by 10%.
+func increaseBandwidth(currentBandwidth, threshold int64) int64 {
+	var newBandwidth int64
+
+	if currentBandwidth >= threshold && threshold != 0 {
+		newBandwidth = int64(float64(currentBandwidth) * 1.1)
+	} else {
+		newBandwidth = currentBandwidth * 2
+		// Check if threshold is set and that bandwidth does not exceed it if that is the case
+		// the bandwidth should be set to the threshold
+		if newBandwidth > threshold && threshold != 0 {
+			newBandwidth = threshold
+		}
+	}
+
+	return newBandwidth
+}
+
+// decreaseBandwidth returns a new decreased bandwidth and a threshold based on the passed threshold and bandwidth
+// parameters, and returns true if the returned bandwidth is the maximum achievable bandwidth.
+func decreaseBandwidth(currentBandwidth, threshold, achievedBandwidth, oldBandwidth int64) (int64, int64, bool) {
+	var newBandwidth, newThreshold int64
+	isMaxBandwidth := false
+
+	// Choose the larger value between them so we don't do unnecessary slow start since we know both bandwidths are
+	// achievable on that link.
+	if achievedBandwidth < oldBandwidth {
+		newBandwidth = oldBandwidth
+	} else {
+		// Both achieved bandwidth and oldBw are not set which means an error occurred when using those values
+		if achievedBandwidth == 0 {
+			newBandwidth = currentBandwidth / 2
+		} else {
+			newBandwidth = achievedBandwidth
+		}
+	}
+	// Check if the bandwidth did not change for some error then reduce it by half of the current bandwidth
+	if newBandwidth == currentBandwidth {
+		newBandwidth = currentBandwidth / 2
+	}
+	// if the threshold is not set then set the threshold and bandwidth
+	if currentBandwidth <= threshold || threshold == 0 {
+		newThreshold = newBandwidth
+	} else if currentBandwidth > threshold { // threshold was set
+		// threshold is set and we had to decrease the Bandwidth which means we hit the max bandwidth
+		isMaxBandwidth = true
+	}
+
+	// Check if we are lower than the lowest bandwidth possible if so that is the maximum achievable bandwidth on
+	// that link
+	if newBandwidth < MinBandwidth {
+		newThreshold = MinBandwidth
+		newBandwidth = MinBandwidth
+		isMaxBandwidth = true
+	}
+
+	return newBandwidth, newThreshold, isMaxBandwidth
 }
