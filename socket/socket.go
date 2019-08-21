@@ -1,18 +1,14 @@
 package socket
 
 import (
-	"github.com/elwin/transmit2/scion"
 	"time"
+
+	"github.com/elwin/transmit2/scion"
 )
 
 // DataSocket describes a data socket is used to send non-control data between the client and
 // server.
 type DataSocket interface {
-
-	// For server: local hostname and port
-	Host() string
-	Port() int
-
 	// the standard io.Reader interface
 	Read(p []byte) (n int, err error)
 
@@ -33,15 +29,6 @@ var _ DataSocket = &ScionSocket{}
 
 type ScionSocket struct {
 	*scion.Connection
-}
-
-func (socket *ScionSocket) Host() string {
-	return socket.Connection.LocalAddr().String()
-}
-
-func (socket *ScionSocket) Port() int {
-	port, _ := scion.GetPort(socket.LocalAddr())
-	return port
 }
 
 func NewScionSocket(conn *scion.Connection) *ScionSocket {

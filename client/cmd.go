@@ -146,10 +146,6 @@ func (c *ServerConn) getDataConnPort() (int, error) {
 	return c.pasv()
 }
 
-func (c *ServerConn) getDataConnPorts() ([]*snet.Addr, error) {
-	return c.spas()
-}
-
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
@@ -195,12 +191,23 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			return nil, err
 		}
 
-		addr, err := scion.ReplacePort(c.remote, port)
+		remote := scion.AddrToString(c.remote) + ":" + strconv.Itoa(port)
+		remoteAddr, err := snet.AddrFromString(remote)
 		if err != nil {
 			return nil, err
 		}
 
-		conn, err := scion.Dial(c.local, addr)
+		localPort := rand.Intn(10000) + 50000
+		local := scion.AddrToString(c.local) + ":" + strconv.Itoa(localPort)
+		localAddr, err := snet.AddrFromString(local)
+		if err != nil {
+			return nil, err
+		}
+
+		conn, err := scion.Dial(localAddr, remoteAddr)
+		if err != nil {
+			return nil, err
+		}
 
 		return socket.NewScionSocket(conn), nil
 	}
@@ -274,6 +281,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
+
 	var cmd string
 	var parser parseFunc
 

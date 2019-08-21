@@ -81,7 +81,7 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		return nil, err
 	}
 
-	remoteAddr, err := snet.AddrFromString(local)
+	remoteAddr, err := snet.AddrFromString(remote)
 	if err != nil {
 		return nil, err
 	}

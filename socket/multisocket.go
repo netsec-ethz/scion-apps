@@ -23,14 +23,6 @@ func (m *MultiSocket) SetDeadline(t time.Time) error {
 
 var _ DataSocket = &MultiSocket{}
 
-func (MultiSocket) Host() string {
-	return "hostaddress"
-}
-
-func (MultiSocket) Port() int {
-	return 9999
-}
-
 // Only the client should close the socket
 // Sends the closing message
 func (m *MultiSocket) Close() error {

@@ -18,7 +18,11 @@ func AddrToString(addr *snet.Addr) string {
 
 func GetPort(addr net.Addr) (int, error) {
 	parts := strings.Split(addr.String(), ":")
-	port, err := strconv.Atoi(parts[len(parts)-1])
+	portPart := parts[len(parts)-1]
+
+	// Take Port, which might include the Protocol: 2121 (UDP)
+	portProto := strings.Split(portPart, " ")
+	port, err := strconv.Atoi(portProto[0])
 	if err != nil {
 		return -1, err
 	}

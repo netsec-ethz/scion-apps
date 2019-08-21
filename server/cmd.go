@@ -362,6 +362,9 @@ func (cmd commandList) RequireAuth() bool {
 }
 
 func (cmd commandList) Execute(conn *Conn, param string) {
+
+	fmt.Println("List!")
+
 	path := conn.buildPath(parseListParam(param))
 	info, err := conn.driver.Stat(path)
 	if err != nil {

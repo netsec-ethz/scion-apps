@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/elwin/transmit2/mode"
-
 	ftp "github.com/elwin/transmit2/client"
 )
 
@@ -34,15 +32,13 @@ func run() error {
 		return err
 	}
 
-	err = conn.Mode(mode.ExtendedBlockMode)
-	if err != nil {
-		return err
-	}
+	/*
+		err = conn.Mode(mode.ExtendedBlockMode)
+		if err != nil {
+			return err
+		}
 
-	err = ReadAndWrite(conn)
-	if err != nil {
-		return err
-	}
+	*/
 
 	entries, err := conn.List("/")
 	if err != nil {
@@ -51,6 +47,11 @@ func run() error {
 
 	for _, entry := range entries {
 		fmt.Printf("- %s (%d)\n", entry.Name, entry.Size)
+	}
+
+	err = ReadAndWrite(conn)
+	if err != nil {
+		return err
 	}
 
 	return conn.Quit()
