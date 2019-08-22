@@ -1252,9 +1252,6 @@ func (commandEret) Execute(conn *Conn, param string) {
 
 		conn.sendOutofbandData(buffer)
 
-		conn.Close()
-		conn = nil
-
 		if err != nil {
 			conn.writeMessage(551, "Error reading file")
 		}

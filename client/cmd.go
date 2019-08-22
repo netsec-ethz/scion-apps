@@ -559,24 +559,9 @@ func (c *ServerConn) spas() ([]*snet.Addr, error) {
 // manipulated (typically reduced in size) before being transmitted.
 func (c *ServerConn) Eret(path string, offset, length int) (*Response, error) {
 
-	conn, err := c.openDataConn()
+	conn, err := c.cmdDataConnFrom(0, "ERET PFT=\"%d,%d\" %s", offset, length, path)
 
 	if err != nil {
-		conn.Close()
-
-		return nil, err
-	}
-
-	_, line, err := c.cmd(
-		StatusAboutToSend,
-		"ERET PFT=\"%d,%d\" %s",
-		offset, length, path)
-
-	fmt.Println(line)
-
-	if err != nil {
-		conn.Close()
-
 		return nil, err
 	}
 
