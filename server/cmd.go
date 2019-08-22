@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/elwin/transmit/mode"
+	"github.com/jlaffaye/ftp"
+
 	"github.com/elwin/transmit2/scion"
 
 	socket2 "github.com/elwin/transmit2/socket"
@@ -71,6 +74,7 @@ var (
 		"XPWD": commandPwd{},
 		"XRMD": commandRmd{},
 		"SPAS": commandSpas{},
+		"ERET": commandEret{},
 	}
 )
 
@@ -1187,5 +1191,76 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 	}
 
 	conn.dataConn = socket2.NewMultiSocket(sockets, conn.maxChunkSize)
+
+}
+
+type commandEret struct{}
+
+func (commandEret) IsExtend() bool {
+	return true
+}
+
+func (commandEret) RequireParam() bool {
+	return true
+}
+
+func (commandEret) RequireAuth() bool {
+	return true
+}
+
+// TODO: Handle conn.lastFilePos yet
+func (commandEret) Execute(conn *Conn, param string) {
+
+	params := strings.Split(param, " ")
+	module := strings.Split(params[0], "=")
+	moduleName := module[0]
+	moduleParams := strings.Split(strings.Trim(module[1], "\""), ",")
+	offset, err := strconv.Atoi(moduleParams[0])
+	if err != nil {
+		conn.writeMessage(501, "Failed to parse parameters")
+		return
+	}
+	length, err := strconv.Atoi(moduleParams[1])
+	if err != nil {
+		conn.writeMessage(501, "Failed to parse parameters")
+		return
+	}
+	path := conn.buildPath(params[1])
+
+	if moduleName == mode.PartialFileTransport {
+
+		bytes, data, err := conn.driver.GetFile(path, int64(offset))
+		if err != nil {
+			conn.writeMessage(551, "File not available")
+			return
+		}
+
+		if length > int(bytes) {
+			length = int(bytes)
+		}
+
+		buffer := make([]byte, length)
+		n, err := data.Read(buffer)
+		if n != length || err != nil {
+			conn.writeMessage(551, "Error reading file")
+			return
+		}
+
+		defer data.Close()
+
+		conn.writeMessage(150, fmt.Sprintf("Data transfer starting %v bytes", bytes))
+
+		conn.sendOutofbandData(buffer)
+
+		conn.Close()
+		conn = nil
+
+		if err != nil {
+			conn.writeMessage(551, "Error reading file")
+		}
+
+	} else {
+		conn.writeMessage(ftp.StatusNotImplemented, "Only PFT supported")
+	}
 
 }

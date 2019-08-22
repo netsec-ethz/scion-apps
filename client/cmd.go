@@ -552,3 +552,33 @@ func (c *ServerConn) spas() ([]*snet.Addr, error) {
 
 	return addrs, nil
 }
+
+// Extended Retrieve
+//
+// This is analogous to the RETR command, but it allows the data to be
+// manipulated (typically reduced in size) before being transmitted.
+func (c *ServerConn) Eret(path string, offset, length int) (*Response, error) {
+
+	conn, err := c.openDataConn()
+
+	if err != nil {
+		conn.Close()
+
+		return nil, err
+	}
+
+	_, line, err := c.cmd(
+		StatusAboutToSend,
+		"ERET PFT=\"%d,%d\" %s",
+		offset, length, path)
+
+	fmt.Println(line)
+
+	if err != nil {
+		conn.Close()
+
+		return nil, err
+	}
+
+	return &Response{conn: conn, c: c}, nil
+}

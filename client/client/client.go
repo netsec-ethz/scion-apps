@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/elwin/transmit/mode"
 	ftp "github.com/elwin/transmit2/client"
 )
 
@@ -32,13 +33,10 @@ func run() error {
 		return err
 	}
 
-	/*
-		err = conn.Mode(mode.ExtendedBlockMode)
-		if err != nil {
-			return err
-		}
-
-	*/
+	err = conn.Mode(mode.ExtendedBlockMode)
+	if err != nil {
+		return err
+	}
 
 	err = ReadAndWrite(conn)
 	if err != nil {
@@ -63,7 +61,7 @@ func ReadAndWrite(conn *ftp.ServerConn) error {
 		return err
 	}
 
-	res, err := conn.Retr("retr.txt")
+	res, err := conn.Eret("retr.txt", 0, 10)
 
 	f, err := os.Create("/home/elwin/ftp/result.txt")
 	if err != nil {
