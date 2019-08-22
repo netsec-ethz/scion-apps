@@ -40,6 +40,11 @@ func run() error {
 
 	*/
 
+	err = ReadAndWrite(conn)
+	if err != nil {
+		return err
+	}
+
 	entries, err := conn.List("/")
 	if err != nil {
 		return err
@@ -47,11 +52,6 @@ func run() error {
 
 	for _, entry := range entries {
 		fmt.Printf("- %s (%d)\n", entry.Name, entry.Size)
-	}
-
-	err = ReadAndWrite(conn)
-	if err != nil {
-		return err
 	}
 
 	return conn.Quit()
