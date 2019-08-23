@@ -1,9 +1,11 @@
 package scion
 
 import (
+	"fmt"
+	"net"
+
 	"github.com/lucas-clemente/quic-go"
 	"github.com/scionproto/scion/go/lib/snet"
-	"net"
 )
 
 var _ net.Conn = &Connection{}
@@ -23,4 +25,9 @@ func (conn *Connection) LocalAddr() net.Addr {
 
 func (conn *Connection) RemoteAddr() net.Addr {
 	return conn.remote
+}
+
+func (conn *Connection) Close() error {
+	fmt.Println("Closing")
+	return conn.Stream.Close()
 }
