@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/elwin/transmit/mode"
 	ftp "github.com/elwin/transmit2/client"
 )
 
@@ -32,12 +33,15 @@ func run() error {
 		return err
 	}
 
-	/*
-		err = conn.Mode(mode.ExtendedBlockMode)
-		if err != nil {
-			return err
-		}
-	*/
+	err = ReadAndWrite(conn)
+	if err != nil {
+		return err
+	}
+
+	err = conn.Mode(mode.ExtendedBlockMode)
+	if err != nil {
+		return err
+	}
 
 	err = ReadAndWrite(conn)
 	if err != nil {
