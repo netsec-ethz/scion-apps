@@ -2,31 +2,17 @@ package scion
 
 import (
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-func AddrToString(addr *snet.Addr) string {
+func AddrToString(addr snet.Addr) string {
 	if addr.Host == nil {
 		return fmt.Sprintf("%s,<nil>", addr.IA)
 	}
 	return fmt.Sprintf("%s,[%v]", addr.IA, addr.Host.L3)
-}
-
-func GetPort(addr net.Addr) (int, error) {
-	parts := strings.Split(addr.String(), ":")
-	portPart := parts[len(parts)-1]
-
-	// Take Port, which might include the Protocol: 2121 (UDP)
-	portProto := strings.Split(portPart, " ")
-	port, err := strconv.Atoi(portProto[0])
-	if err != nil {
-		return -1, err
-	}
-	return port, nil
 }
 
 func ParseAddress(addr string) (host string, port int, err error) {
@@ -45,4 +31,48 @@ func ParseAddress(addr string) (host string, port int, err error) {
 
 	host = strings.Join(splitted[0:len(splitted)-1], ":")
 	return
+}
+
+// Should be treated immutable
+type Address struct {
+	host string
+	port int
+	addr snet.Addr
+}
+
+func ConvertAddress(addr string) (Address, error) {
+	parsed, err := snet.AddrFromString(addr)
+	if err != nil {
+		return Address{}, fmt.Errorf("%s is not a valid address: %s", addr, err)
+	}
+
+	splitted := strings.Split(addr, ":")
+	if len(splitted) < 2 {
+		return Address{}, fmt.Errorf("%s is not a valid address with port", addr)
+	}
+
+	port, err := strconv.Atoi(splitted[len(splitted)-1])
+	if err != nil {
+		return Address{}, fmt.Errorf("%s should be a number (port)", splitted[len(splitted)-1])
+	}
+
+	host := strings.Join(splitted[0:len(splitted)-1], ":")
+
+	return Address{host, port, *parsed}, nil
+}
+
+func (addr Address) Port() int {
+	return addr.port
+}
+
+func (addr Address) Host() string {
+	return addr.host
+}
+
+func (addr Address) Addr() snet.Addr {
+	return addr.addr
+}
+
+func (addr Address) String() string {
+	return addr.host + ":" + strconv.Itoa(addr.port)
 }

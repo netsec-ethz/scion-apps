@@ -3,12 +3,13 @@ package scion
 import (
 	"context"
 	"fmt"
+
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-func setupPath(local, remote *snet.Addr) error {
+func setupPath(local, remote snet.Addr) error {
 	if !remote.IA.Eq(local.IA) {
 		pathEntry := choosePath(local, remote)
 		if pathEntry == nil {
@@ -22,7 +23,7 @@ func setupPath(local, remote *snet.Addr) error {
 	return nil
 }
 
-func choosePath(local, remote *snet.Addr) *sciond.PathReplyEntry {
+func choosePath(local, remote snet.Addr) *sciond.PathReplyEntry {
 	var paths []*sciond.PathReplyEntry
 	var pathIndex uint64
 

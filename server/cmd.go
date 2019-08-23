@@ -330,7 +330,6 @@ func (cmd commandEpsv) RequireAuth() bool {
 func (cmd commandEpsv) Execute(conn *Conn, param string) {
 
 	listener, err := conn.NewListener()
-	defer listener.Close()
 
 	if err != nil {
 		log.Println(err)
@@ -1169,7 +1168,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 		// Addr().String() return
 		// 1-ff00:0:110,[127.0.0.1]:5848 (UDP)
 		// Remove Protocol first
-		addr := strings.Split(listener[i].Addr().String(), " ")[0]
+		addr := listener[i].String()
 
 		line += " " + addr + "\r\n"
 	}

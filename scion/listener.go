@@ -3,22 +3,20 @@ package scion
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
 	"io"
-	"net"
 	"strings"
+
+	"github.com/lucas-clemente/quic-go"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 type Listener struct {
 	quicListener quic.Listener
-	local        *snet.Addr
+	Address
 }
 
 func Listen(address string) (*Listener, error) {
-
-	addr, err := snet.AddrFromString(address)
+	addr, err := ConvertAddress(address)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +26,8 @@ func Listen(address string) (*Listener, error) {
 		return nil, err
 	}
 
-	listener, err := squic.ListenSCION(nil, addr, nil)
+	tmpAddr := addr.Addr()
+	listener, err := squic.ListenSCION(nil, &tmpAddr, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen: %s", err)
 	}
@@ -37,16 +36,6 @@ func Listen(address string) (*Listener, error) {
 		listener,
 		addr,
 	}, nil
-}
-
-func (listener *Listener) Port() int {
-	port, _ := GetPort(listener.Addr())
-	return port
-}
-
-
-func (listener *Listener) Addr() net.Addr {
-	return listener.local
 }
 
 func (listener *Listener) Close() error {
@@ -63,7 +52,7 @@ func (listener *Listener) Accept() (*Connection, error) {
 	remote := session.RemoteAddr().String()
 	remote = strings.Split(remote, " ")[0]
 
-	remoteAddr, err := snet.AddrFromString(remote)
+	remoteAddr, err := ConvertAddress(remote)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +64,7 @@ func (listener *Listener) Accept() (*Connection, error) {
 		return nil, err
 	}
 
-	return NewSQuicConnection(stream, listener.local, remoteAddr), nil
+	return NewSQuicConnection(stream, listener.Address, remoteAddr), nil
 }
 
 func receiveHandshake(rw io.ReadWriter) error {

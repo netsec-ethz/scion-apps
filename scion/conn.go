@@ -5,26 +5,27 @@ import (
 	"net"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var _ net.Conn = &Connection{}
 
 type Connection struct {
 	quic.Stream
-	local, remote *snet.Addr
+	local, remote Address
 }
 
-func NewSQuicConnection(stream quic.Stream, local, remote *snet.Addr) *Connection {
+func NewSQuicConnection(stream quic.Stream, local, remote Address) *Connection {
 	return &Connection{stream, local, remote}
 }
 
 func (conn *Connection) LocalAddr() net.Addr {
-	return conn.local
+	tmp := conn.local.Addr()
+	return &tmp
 }
 
 func (conn *Connection) RemoteAddr() net.Addr {
-	return conn.remote
+	tmp := conn.remote.Addr()
+	return &tmp
 }
 
 func (conn *Connection) Close() error {

@@ -2,12 +2,13 @@ package scion
 
 import (
 	"fmt"
+
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
-func initNetwork(local *snet.Addr) error {
+func initNetwork(local Address) error {
 
 	if snet.DefNetwork == nil {
 
@@ -25,18 +26,20 @@ func initNetwork(local *snet.Addr) error {
 	return nil
 }
 
-func initSciond(local *snet.Addr) error {
+func initSciond(local Address) error {
+	lcl := local.Addr()
+
 	sock := sciond.GetDefaultSCIONDPath(nil)
 	dispatcher := ""
 
 	// Try with default socket
-	err := snet.Init(local.IA, sock, dispatcher)
+	err := snet.Init(lcl.IA, sock, dispatcher)
 	if err == nil {
 		return nil
 	}
 
 	// Try with socket for IA
-	// Required when used in local topology with multiple sockets
-	sock = sciond.GetDefaultSCIONDPath(&local.IA)
-	return snet.Init(local.IA, sock, dispatcher)
+	// Required when used in lcl topology with multiple sockets
+	sock = sciond.GetDefaultSCIONDPath(&lcl.IA)
+	return snet.Init(lcl.IA, sock, dispatcher)
 }

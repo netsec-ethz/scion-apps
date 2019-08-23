@@ -5,25 +5,26 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
-func Dial(local, remote *snet.Addr) (*Connection, error) {
+func Dial(local, remote Address) (*Connection, error) {
 
 	err := initNetwork(local)
 	if err != nil {
 		return nil, err
 	}
 
-	err = setupPath(local, remote)
+	err = setupPath(local.Addr(), remote.Addr())
 	if err != nil {
 		return nil, err
 	}
 
-	session, err := squic.DialSCION(nil, local, remote, nil)
+	l := local.Addr()
+	r := remote.Addr()
+	session, err := squic.DialSCION(nil, &l, &r, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to dial %s: %s", AddrToString(remote), err)
+		return nil, fmt.Errorf("unable to dial %s: %s", remote, err)
 	}
 
 	stream, err := session.OpenStream()
@@ -41,12 +42,12 @@ func Dial(local, remote *snet.Addr) (*Connection, error) {
 
 func DialAddr(localAddr, remoteAddr string) (*Connection, error) {
 
-	local, err := snet.AddrFromString(localAddr)
+	local, err := ConvertAddress(localAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	remote, err := snet.AddrFromString(remoteAddr)
+	remote, err := ConvertAddress(remoteAddr)
 	if err != nil {
 		return nil, err
 	}
