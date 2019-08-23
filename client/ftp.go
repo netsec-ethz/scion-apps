@@ -10,8 +10,6 @@ import (
 	"net/textproto"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/snet"
-
 	"github.com/elwin/transmit2/scion"
 
 	"github.com/elwin/transmit2/logger"
@@ -33,9 +31,8 @@ const (
 type ServerConn struct {
 	options       *dialOptions
 	conn          *textproto.Conn
-	local, remote *snet.Addr
-	// Server capabilities discovered at runtime
-	features      map[string]string
+	local, remote string            // local and remote address (without port!)
+	features      map[string]string // Server capabilities discovered at runtime
 	mlstSupported bool
 	extended      bool
 	maxChunkSize  int
@@ -65,7 +62,7 @@ type Entry struct {
 	Time time.Time
 }
 
-// Dial connects to the specified address with optinal options
+// Dial connects to the specified address with optional options
 func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	do := &dialOptions{}
 	for _, option := range options {
@@ -74,16 +71,6 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 
 	if do.location == nil {
 		do.location = time.UTC
-	}
-
-	localAddr, err := snet.AddrFromString(local)
-	if err != nil {
-		return nil, err
-	}
-
-	remoteAddr, err := snet.AddrFromString(remote)
-	if err != nil {
-		return nil, err
 	}
 
 	ctx := do.context
@@ -98,7 +85,6 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	}
 
 	conn, err := scion.DialAddr(local, remote)
-
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +94,22 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		sourceConn = newDebugWrapper(conn, do.debugOutput)
 	}
 
+	localHost, _, err := scion.ParseAddress(local)
+	if err != nil {
+		return nil, err
+	}
+
+	remoteHost, _, err := scion.ParseAddress(remote)
+	if err != nil {
+		return nil, err
+	}
+
 	c := &ServerConn{
 		options:      do,
 		features:     make(map[string]string),
 		conn:         textproto.NewConn(sourceConn),
-		local:        localAddr,
-		remote:       remoteAddr,
+		local:        localHost,
+		remote:       remoteHost,
 		logger:       &logger.StdLogger{},
 		maxChunkSize: maxChunkSize,
 	}

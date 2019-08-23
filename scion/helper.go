@@ -29,13 +29,20 @@ func GetPort(addr net.Addr) (int, error) {
 	return port, nil
 }
 
-func RemovePort(addr *snet.Addr) string {
-	parts := strings.Split(addr.String(), ":")
-	return strings.Join(parts[0:len(parts)-1], ":")
-}
+func ParseAddress(addr string) (host string, port int, err error) {
 
-func ReplacePort(addr *snet.Addr, port int) (*snet.Addr, error) {
-	parts := strings.Split(addr.String(), ":")
-	parts[len(parts)-1] = strconv.Itoa(port)
-	return snet.AddrFromString(strings.Join(parts, ":"))
+	splitted := strings.Split(addr, ":")
+	if len(splitted) < 2 {
+		err = fmt.Errorf("%s is not a valid address with port", addr)
+		return
+	}
+
+	port, err = strconv.Atoi(splitted[len(splitted)-1])
+	if err != nil {
+		err = fmt.Errorf("%s should be a number (port)", splitted[len(splitted)-1])
+		return
+	}
+
+	host = strings.Join(splitted[0:len(splitted)-1], ":")
+	return
 }
