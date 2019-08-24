@@ -174,7 +174,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			sockets[i] = socket.NewScionSocket(conn)
 		}
 
-		return socket.NewMultiSocket(sockets, c.maxChunkSize), nil
+		return socket.NewMultiSocket(sockets, c.blockSize), nil
 
 	} else {
 		port, err := c.getDataConnPort()
@@ -552,4 +552,39 @@ func (c *ServerConn) Eret(path string, offset, length int) (*Response, error) {
 	}
 
 	return &Response{conn: conn, c: c}, nil
+}
+
+// Options to RETR
+//
+// The options described in this section provide a means to convey
+// striping and transfer parallelism information to the server-DTP.
+// For the RETR command, the Client-FTP may specify a parallelism and
+// striping mode it wishes the server-DTP to use. These options are
+// only used by the server-DTP if the retrieve operation is done in
+// extended block mode. These options are implemented as RFC 2389
+// extensions.
+func (c *ServerConn) SetRetrOpts(parallelism, blockSize int) error {
+	if parallelism < 1 {
+		return fmt.Errorf("parallelism needs to be at least 1")
+	}
+
+	if blockSize < 1 {
+		return fmt.Errorf("block size needs to be at least 1")
+	}
+
+	parallelOpts := "Parallelism=" + strconv.Itoa(parallelism) + ";"
+	layoutOpts := "StripeLayout=Blocked;BlockSize=" + strconv.Itoa(blockSize) + ";"
+
+	code, message, err := c.cmd(-1, "OPTS RETR "+parallelOpts+layoutOpts)
+	if err != nil {
+		return err
+	}
+
+	if code != StatusCommandOK {
+		return fmt.Errorf("failed to set options: %s", message)
+	}
+
+	c.blockSize = blockSize
+
+	return nil
 }

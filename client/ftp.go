@@ -35,7 +35,7 @@ type ServerConn struct {
 	features      map[string]string // Server capabilities discovered at runtime
 	mlstSupported bool
 	extended      bool
-	maxChunkSize  int
+	blockSize     int
 	logger        logger.Logger
 }
 
@@ -105,13 +105,13 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	}
 
 	c := &ServerConn{
-		options:      do,
-		features:     make(map[string]string),
-		conn:         textproto.NewConn(sourceConn),
-		local:        localHost,
-		remote:       remoteHost,
-		logger:       &logger.StdLogger{},
-		maxChunkSize: maxChunkSize,
+		options:   do,
+		features:  make(map[string]string),
+		conn:      textproto.NewConn(sourceConn),
+		local:     localHost,
+		remote:    remoteHost,
+		logger:    &logger.StdLogger{},
+		blockSize: maxChunkSize,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)

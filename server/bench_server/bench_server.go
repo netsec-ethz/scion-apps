@@ -14,37 +14,33 @@ import (
 	"github.com/elwin/transmit2/server"
 )
 
+const (
+	username = "admin"
+	password = "123456"
+)
+
 func main() {
 	var (
-		root = flag.String("root", "", "Root directory to serve")
-		user = flag.String("user", "admin", "Username for login")
-		pass = flag.String("pass", "123456", "Password for login")
 		port = flag.Int("port", 2121, "Port")
 		host = flag.String("host", "", "Host")
 	)
 	flag.Parse()
-	if *root == "" {
-		log.Fatalf("Please set a root to serve with -root")
-	}
 
 	if *host == "" {
 		log.Fatalf("Please set the hostaddress with -host")
 	}
 
-	factory := &filedriver.FileDriverFactory{
-		RootPath: *root,
-		Perm:     server.NewSimplePerm("user", "group"),
-	}
+	factory := &filedriver.MockDriverFactory{}
 
 	opts := &server.Opts{
 		Factory:  factory,
 		Port:     *port,
 		Hostname: *host,
-		Auth:     &server.SimpleAuth{Name: *user, Password: *pass},
+		Auth:     &server.SimpleAuth{Name: username, Password: password},
 	}
 
 	log.Printf("Starting ftp server on %v:%v", opts.Hostname, opts.Port)
-	log.Printf("Username %v, Password %v", *user, *pass)
+	log.Printf("Username %v, Password %v", username, password)
 	server := server.NewServer(opts)
 	err := server.ListenAndServe()
 	if err != nil {

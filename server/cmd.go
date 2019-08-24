@@ -142,23 +142,66 @@ func (cmd commandOpts) RequireParam() bool {
 func (cmd commandOpts) RequireAuth() bool {
 	return false
 }
-
 func (cmd commandOpts) Execute(conn *Conn, param string) {
 	parts := strings.Fields(param)
 	if len(parts) != 2 {
-		conn.writeMessage(550, "Unknow params")
-		return
-	}
-	if strings.ToUpper(parts[0]) != "UTF8" {
-		conn.writeMessage(550, "Unknow params")
+		conn.writeMessage(550, "Unknown params")
 		return
 	}
 
-	if strings.ToUpper(parts[1]) == "ON" {
-		conn.writeMessage(200, "UTF8 mode enabled")
-	} else {
-		conn.writeMessage(550, "Unsupported non-utf8 mode")
+	switch strings.ToUpper(parts[0]) {
+	case "UTF8":
+		if strings.ToUpper(parts[1]) == "ON" {
+			conn.writeMessage(200, "UTF8 mode enabled")
+		} else {
+			conn.writeMessage(550, "Unsupported non-utf8 mode")
+		}
+	case "RETR":
+		parallelism, blockSize, err := ParseOptions(parts[1])
+		if err != nil {
+			conn.writeMessage(550, fmt.Sprintf("failed to parse options: %s", err))
+		} else {
+			conn.parallelism = parallelism
+			conn.blockSize = blockSize
+			conn.writeMessage(200, fmt.Sprintf("Parallelism set to %d", parallelism))
+		}
+	default:
+		conn.writeMessage(550, "Unknown params")
 	}
+
+}
+
+func ParseOptions(param string) (parallelism, blockSize int, err error) {
+	parts := strings.Split(strings.TrimRight(param, ";"), ";")
+	for _, part := range parts {
+		splitted := strings.Split(part, "=")
+		if len(splitted) != 2 {
+			err = fmt.Errorf("unknown params")
+			return
+		}
+
+		switch strings.ToUpper(splitted[0]) {
+		case "PARALLELISM":
+			parallelism, err = strconv.Atoi(splitted[1])
+			if err != nil || parallelism < 1 {
+				err = fmt.Errorf("unknown params")
+				return
+			}
+		case "STRIPELAYOUT":
+			if strings.ToUpper(splitted[1]) != "BLOCKED" {
+				err = fmt.Errorf("only blocked mode supported")
+				return
+			}
+		case "BLOCKSIZE":
+			blockSize, err = strconv.Atoi(splitted[1])
+			if err != nil || blockSize < 1 {
+				err = fmt.Errorf("unknown params")
+				return
+			}
+		}
+	}
+
+	return
 }
 
 type commandFeat struct{}
@@ -537,7 +580,7 @@ func (cmd commandMode) Execute(conn *Conn, param string) {
 		// Extended Block Mode
 		conn.extended = true
 		conn.parallelism = 4
-		conn.maxChunkSize = 500
+		conn.blockSize = 500
 		conn.writeMessage(200, "OK")
 
 	} else {
@@ -1189,7 +1232,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 		sockets[i] = socket2.NewScionSocket(connection)
 	}
 
-	conn.dataConn = socket2.NewMultiSocket(sockets, conn.maxChunkSize)
+	conn.dataConn = socket2.NewMultiSocket(sockets, conn.blockSize)
 
 }
 

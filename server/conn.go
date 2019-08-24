@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/elwin/transmit2/scion"
 	"io"
 	"math/rand"
 	"net"
@@ -18,13 +17,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/elwin/transmit2/scion"
+
 	"github.com/elwin/transmit2/logger"
 	"github.com/elwin/transmit2/socket"
 )
 
 const (
 	defaultWelcomeMessage = "Welcome to the Go FTP Server"
-	listenerRetries = 10
+	listenerRetries       = 10
 )
 
 type Conn struct {
@@ -46,7 +47,7 @@ type Conn struct {
 	closed        bool
 	extended      bool
 	parallelism   int
-	maxChunkSize  int
+	blockSize     int
 }
 
 func (conn *Conn) LoginUser() string {
