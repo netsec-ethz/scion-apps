@@ -6,7 +6,7 @@ SSH client and server running over SCION network.
 
 ## Prerequisite
 
-SCION infrastructure has to be installed and running. Instructions can be found [here](https://github.com/scionproto/scion)
+SCION infrastructure has to be installed and running. Instructions can be found [here](https://netsec-ethz.github.io/scion-tutorials/)
 
 Additional development library for PAM is needed:
 ```
