@@ -58,6 +58,6 @@ func choosePath(local, remote snet.Addr) *sciond.PathReplyEntry {
 		}
 	*/
 
-	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
+	// fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
 	return paths[pathIndex]
 }

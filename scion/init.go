@@ -9,7 +9,6 @@ import (
 )
 
 func initNetwork(local Address) error {
-
 	if snet.DefNetwork == nil {
 
 		err := initSciond(local)

@@ -1,7 +1,6 @@
 package scion
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/lucas-clemente/quic-go"
@@ -29,6 +28,5 @@ func (conn *Connection) RemoteAddr() net.Addr {
 }
 
 func (conn *Connection) Close() error {
-	fmt.Println("Closing")
 	return conn.Stream.Close()
 }

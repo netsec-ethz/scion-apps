@@ -13,23 +13,22 @@ import (
 // automatically
 type ReadWorker struct {
 	socket DataSocket
-	queue  *striping.SegmentQueue
 	// ctx    context.Context // Currently unused
 }
 
-func NewReadWorker(queue *striping.SegmentQueue, socket DataSocket) *ReadWorker {
-	return &ReadWorker{socket: socket, queue: queue}
+func NewReadWorker(socket DataSocket) *ReadWorker {
+	return &ReadWorker{socket: socket}
 }
 
 // Keeps running until it receives an EOD flag
-func (s *ReadWorker) Run() {
+func (s *ReadWorker) Run(push chan<- *striping.Segment) {
 	for {
 		seg, err := receiveNextSegment(s.socket)
 		if err != nil {
 			fmt.Printf("Failed to receive segment: %s\n", err)
 		}
 
-		s.queue.Push(seg)
+		push <- seg
 
 		if seg.ContainsFlag(striping.BlockFlagEndOfData) {
 			return
