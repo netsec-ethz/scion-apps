@@ -28,19 +28,20 @@ func main() {
 }
 
 type test struct {
-	mode        byte
-	parallelism int
-	payload     int // in MB
-	blockSize   int
-	selector    scion.PathSelector
-	duration    time.Duration
+	mode          byte
+	parallelism   int
+	payload       int // in MB
+	blockSize     int
+	selector      scion.PathSelector
+	duration      time.Duration
+	numberOfPaths int
 }
 
 func (test *test) String() string {
 	if test.mode == mode.Stream {
-		return fmt.Sprintf("Stream with %d MB: %s", test.payload, test.duration)
+		return fmt.Sprintf("Stream (paths: %d) with %d MB: %s", test.numberOfPaths, test.payload, test.duration)
 	} else {
-		return fmt.Sprintf("Extended (streams: %d, bs: %d) with %d MB: %s", test.parallelism, test.blockSize, test.payload, test.duration)
+		return fmt.Sprintf("Extended (paths: %d, streams: %d, bs: %d) with %d MB: %s", test.numberOfPaths, test.parallelism, test.blockSize, test.payload, test.duration)
 	}
 }
 
@@ -50,20 +51,24 @@ func run() error {
 	// parallelisms := []int{8, 16, 32}
 	payloads := []int{1}
 	// blocksizes := []int{16384}
-	blocksizes := []int{512, 1024, 2048, 4096, 8192}
-	selectors := []scion.PathSelector{scion.DefaultPathSelector}
+	blocksizes := []int{4096, 8192}
+	// blocksizes := []int{512, 1024, 2048, 4096, 8192}
+
+	rotator := scion.NewRotator()
+	selectors := []scion.PathSelector{scion.DefaultPathSelector, rotator.RotatingSelector}
 
 	var tests []*test
 	for _, payload := range payloads {
-		t := &test{
-			mode:    mode.Stream,
-			payload: payload,
-		}
-		tests = append(tests, t)
+		for _, selector := range selectors {
+			t := &test{
+				mode:     mode.Stream,
+				selector: selector,
+				payload:  payload,
+			}
+			tests = append(tests, t)
 
-		for _, blocksize := range blocksizes {
-			for _, parallelism := range parallelisms {
-				for _, selector := range selectors {
+			for _, blocksize := range blocksizes {
+				for _, parallelism := range parallelisms {
 					t := &test{
 						mode:        mode.ExtendedBlockMode,
 						parallelism: parallelism,
@@ -87,9 +92,8 @@ func run() error {
 	}
 
 	for _, test := range tests {
-		if test.selector != nil {
-			conn.SetPathSelector(test.selector)
-		}
+		conn.SetPathSelector(test.selector)
+		rotator.Reset()
 
 		err = conn.Mode(test.mode)
 		if err != nil {
@@ -119,6 +123,7 @@ func run() error {
 		response.Close()
 
 		test.duration += time.Since(start)
+		test.numberOfPaths = rotator.GetNumberOfUsedPaths()
 
 		fmt.Print(".")
 	}

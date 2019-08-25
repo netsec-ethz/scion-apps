@@ -110,7 +110,6 @@ func DefaultPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry 
 }
 
 func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
-	fmt.Println("INTERACTIVE!")
 	var index uint64
 
 	fmt.Printf("Available paths to\n")
@@ -130,5 +129,33 @@ func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEn
 			len(paths))
 	}
 
+	return paths[index]
+}
+
+type Rotator struct {
+	index int
+	paths int
+}
+
+func NewRotator() *Rotator {
+	return &Rotator{}
+}
+
+func (r *Rotator) Reset() {
+	r.index = 0
+}
+
+func (r *Rotator) GetNumberOfUsedPaths() int {
+	if r.index < r.paths {
+		return r.index
+	}
+
+	return r.paths
+}
+
+func (r *Rotator) RotatingSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+	r.paths = len(paths)
+	index := r.index % r.paths
+	fmt.Println(index)
 	return paths[index]
 }
