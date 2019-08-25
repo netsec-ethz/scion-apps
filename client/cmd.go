@@ -17,6 +17,11 @@ import (
 	"github.com/elwin/transmit2/socket"
 )
 
+// Only used for testing to make our life easier, shouldn't really be here
+func (c *ServerConn) SetPathSelector(selector scion.PathSelector) {
+	c.selector = selector
+}
+
 // Login authenticates the client with specified user and password.
 //
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers
@@ -162,7 +167,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 				return nil, err
 			}
 
-			conn, err := scion.DialAddr(local, addrs[i])
+			conn, err := scion.DialAddr(local, addrs[i], c.selector)
 			if err != nil {
 				// Close already opened sockets
 				for j := 0; j < i; j++ {
@@ -187,7 +192,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 		local := c.local + ":" + strconv.Itoa(localPort)
 		remote := c.remote + ":" + strconv.Itoa(port)
 
-		conn, err := scion.DialAddr(local, remote)
+		conn, err := scion.DialAddr(local, remote, c.selector)
 		if err != nil {
 			return nil, err
 		}

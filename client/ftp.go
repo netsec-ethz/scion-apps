@@ -37,6 +37,7 @@ type ServerConn struct {
 	extended      bool
 	blockSize     int
 	logger        logger.Logger
+	selector      scion.PathSelector
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -46,12 +47,13 @@ type DialOption struct {
 
 // dialOptions contains all the options set by DialOption.setup
 type dialOptions struct {
-	context      context.Context
-	dialer       net.Dialer
-	disableEPSV  bool
-	location     *time.Location
-	debugOutput  io.Writer
-	maxChunkSize int
+	context     context.Context
+	dialer      net.Dialer
+	disableEPSV bool
+	location    *time.Location
+	debugOutput io.Writer
+	blockSize   int
+	selector    scion.PathSelector
 }
 
 // Entry describes a file and is returned by List().
@@ -79,12 +81,17 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		ctx = context.Background()
 	}
 
-	maxChunkSize := do.maxChunkSize
+	maxChunkSize := do.blockSize
 	if maxChunkSize == 0 {
 		maxChunkSize = 500
 	}
 
-	conn, err := scion.DialAddr(local, remote)
+	selector := do.selector
+	if selector == nil {
+		selector = scion.DefaultPathSelector
+	}
+
+	conn, err := scion.DialAddr(local, remote, selector)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +119,7 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		remote:    remoteHost,
 		logger:    &logger.StdLogger{},
 		blockSize: maxChunkSize,
+		selector:  selector,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)
@@ -179,9 +187,19 @@ func DialWithDebugOutput(w io.Writer) DialOption {
 	}}
 }
 
-func DialWithMaxChunkSize(maxChunkSize int) DialOption {
+// DialWithBlockSize sets the maximum blocksize to be used at the start but only clientside,
+// alternatively we can set it with the command OPTS RETR (SetRetrOpts)
+func DialWithBlockSize(blockSize int) DialOption {
 	return DialOption{func(do *dialOptions) {
-		do.maxChunkSize = maxChunkSize
+		do.blockSize = blockSize
+	}}
+}
+
+// DialWithPathSelector sets the selector to be used. The default (DefaultPathSelector) just picks
+// the first path
+func DialWithPathSelector(selector scion.PathSelector) DialOption {
+	return DialOption{func(do *dialOptions) {
+		do.selector = selector
 	}}
 }
 

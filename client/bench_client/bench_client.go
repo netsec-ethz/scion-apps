@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/elwin/transmit2/scion"
+
 	"github.com/elwin/transmit/mode"
 	ftp "github.com/elwin/transmit2/client"
 )
@@ -30,6 +32,7 @@ type test struct {
 	parallelism int
 	payload     int // in MB
 	blockSize   int
+	selector    scion.PathSelector
 	duration    time.Duration
 }
 
@@ -48,6 +51,7 @@ func run() error {
 	payloads := []int{1}
 	// blocksizes := []int{16384}
 	blocksizes := []int{512, 1024, 2048, 4096, 8192}
+	selectors := []scion.PathSelector{scion.DefaultPathSelector}
 
 	var tests []*test
 	for _, payload := range payloads {
@@ -59,13 +63,16 @@ func run() error {
 
 		for _, blocksize := range blocksizes {
 			for _, parallelism := range parallelisms {
-				t := &test{
-					mode:        mode.ExtendedBlockMode,
-					parallelism: parallelism,
-					payload:     payload,
-					blockSize:   blocksize,
+				for _, selector := range selectors {
+					t := &test{
+						mode:        mode.ExtendedBlockMode,
+						parallelism: parallelism,
+						payload:     payload,
+						selector:    selector,
+						blockSize:   blocksize,
+					}
+					tests = append(tests, t)
 				}
-				tests = append(tests, t)
 			}
 		}
 	}
@@ -79,8 +86,10 @@ func run() error {
 		return err
 	}
 
-	for i := range tests {
-		test := tests[i]
+	for _, test := range tests {
+		if test.selector != nil {
+			conn.SetPathSelector(test.selector)
+		}
 
 		err = conn.Mode(test.mode)
 		if err != nil {
