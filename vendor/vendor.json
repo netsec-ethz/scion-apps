@@ -51,82 +51,88 @@
 			"revisionTime": "2019-06-12T12:39:39Z"
 		},
 		{
+			"checksumSHA1": "x7KcSf89YGkd/DCG2nGolTGqahM=",
+			"path": "github.com/elwin/transmit/mode",
+			"revision": "2b5dfe2f67983415382ab6bc98eda3763b8e05cb",
+			"revisionTime": "2019-07-18T15:12:11Z"
+		},
+		{
 			"checksumSHA1": "86hXRyZZG7TEyq9K2X4MQfliMuM=",
 			"path": "github.com/elwin/transmit2/client",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "AVZNNKTWX8lKZ2CD3ib00KaGeBM=",
 			"path": "github.com/elwin/transmit2/client/bench_client",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "bMvfP9k1trFrW5N7gHR3irqEHeA=",
 			"path": "github.com/elwin/transmit2/client/client",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "vM2aieZT9XgkLcdUJ5GmLmBUaFs=",
 			"path": "github.com/elwin/transmit2/file-driver",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "Vt4d5AnHIimgZ3qm8Ef1h2AdMdo=",
 			"path": "github.com/elwin/transmit2/logger",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "VsLpu3llMJstNQOlJFtaq6uquTg=",
 			"path": "github.com/elwin/transmit2/mode",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "Hm0tcV/QBK5y7/5zy55ai5sVMEg=",
 			"path": "github.com/elwin/transmit2/queue",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "XqDN5RS4Un/Ix/KS612+1Yuo3EY=",
 			"path": "github.com/elwin/transmit2/scion",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "HtKE0XLDArAUvZDr7kCo/1tdrWg=",
 			"path": "github.com/elwin/transmit2/server",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "+QDkafttSFwfIdbViYL3GIiQREo=",
 			"path": "github.com/elwin/transmit2/server/bench_server",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "6624oJyoMCssH5zjTNti3+lHtqQ=",
 			"path": "github.com/elwin/transmit2/server/scionftp",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "imweVPLGUmXFdogQjwcFEpj0/Hk=",
 			"path": "github.com/elwin/transmit2/socket",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "BSv8Dk2aiXxxTdY1SBj8NzFT3Ck=",
 			"path": "github.com/elwin/transmit2/striping",
-			"revision": "6245a83cca9cb3365d0154a263f47b34a8a877e6",
-			"revisionTime": "2019-08-24T17:06:35Z"
+			"revision": "8d772dc4ac4ecca4b9c8bf6bff67beed42e91c07",
+			"revisionTime": "2019-08-25T07:48:33Z"
 		},
 		{
 			"checksumSHA1": "2sj/DbXoXdnPAfjAEyhS0Jj5QL0=",
