@@ -60,7 +60,7 @@ func run() error {
 	// blocksizes := []int{512, 1024, 2048, 4096, 8192}
 
 	rotator := scion.NewRotator()
-	selectors := []scion.PathSelector{scion.DefaultPathSelector, rotator.RotatingSelector}
+	selectors := []scion.PathSelector{scion.DefaultPathSelector, rotator.RotatingPathSelector}
 
 	var tests []*test
 	for _, payload := range payloads {
@@ -91,6 +91,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	defer conn.Quit()
 
 	if err = conn.Login("admin", "123456"); err != nil {
 		return err
@@ -133,7 +134,6 @@ func run() error {
 		fmt.Print(".")
 	}
 	fmt.Println()
-	conn.Quit()
 
 	for _, test := range tests {
 		fmt.Println(test)
