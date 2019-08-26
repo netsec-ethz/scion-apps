@@ -15,13 +15,16 @@ import (
 )
 
 var (
-	local  = flag.String("local", "1-ff00:0:112,[127.0.0.1]:5000", "Host")
-	remote = flag.String("remote", "1-ff00:0:110,[127.0.0.1]:2121", "Host")
+	local  = flag.String("local", "1-ff00:0:112,[127.0.0.1]:5000", "Local host")
+	remote = flag.String("remote", "1-ff00:0:110,[127.0.0.1]:2121", "Remote host")
 )
 
 func main() {
 
 	flag.Parse()
+
+	fmt.Println(local)
+	fmt.Println(remote)
 
 	if err := run(); err != nil {
 		fmt.Println(err)
