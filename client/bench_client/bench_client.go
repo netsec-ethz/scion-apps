@@ -23,8 +23,8 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Println(local)
-	fmt.Println(remote)
+	fmt.Println(*local)
+	fmt.Println(*remote)
 
 	if err := run(); err != nil {
 		fmt.Println(err)
