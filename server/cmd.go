@@ -10,8 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/elwin/transmit/mode"
-	"github.com/jlaffaye/ftp"
+	"github.com/elwin/transmit2/mode"
 
 	"github.com/elwin/transmit2/scion"
 
@@ -1299,7 +1298,7 @@ func (commandEret) Execute(conn *Conn, param string) {
 		}
 
 	} else {
-		conn.writeMessage(ftp.StatusNotImplemented, "Only PFT supported")
+		conn.writeMessage(502, "Only PFT supported")
 	}
 
 }

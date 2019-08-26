@@ -10,8 +10,8 @@ import (
 
 	"github.com/elwin/transmit2/scion"
 
-	"github.com/elwin/transmit/mode"
 	ftp "github.com/elwin/transmit2/client"
+	"github.com/elwin/transmit2/mode"
 )
 
 var (
