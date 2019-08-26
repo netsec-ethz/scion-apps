@@ -21,6 +21,8 @@ var (
 
 func main() {
 
+	flag.Parse()
+
 	if err := run(); err != nil {
 		fmt.Println(err)
 	}
