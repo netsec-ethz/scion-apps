@@ -198,7 +198,7 @@ func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
 	}
 }
 
-func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
+func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *BwtestResult, resLock *sync.Mutex, done chan struct{}) {
 	resLock.Lock()
 	finish := res.ExpectedFinishTime
 	resLock.Unlock()
@@ -275,7 +275,7 @@ func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *Bw
 	resLock.Unlock()
 	if done != nil {
 		// Signal that we're done
-		done.Unlock()
+		done <- struct{}{}
 	}
 	if time.Now().Before(eft) {
 		time.Sleep(eft.Sub(time.Now()))
