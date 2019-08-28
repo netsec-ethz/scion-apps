@@ -26,6 +26,15 @@ func ParseAddress(addr string) (host string, port int, err error) {
 	return
 }
 
+// Parses addresses that contain transport layer information, e.g. (UDP)
+func ParseCompleteAddress(addr string) (host string, port int, err error) {
+	result := strings.Split(addr, " ")
+	if len(result) < 1 {
+		return "", -1, fmt.Errorf("failed to parse address: %s", addr)
+	}
+	return ParseAddress(result[0])
+}
+
 // Should be treated immutable
 type Address struct {
 	host string
@@ -68,4 +77,8 @@ func (addr Address) Addr() snet.Addr {
 
 func (addr Address) String() string {
 	return addr.host + ":" + strconv.Itoa(addr.port)
+}
+
+func (addr Address) Network() string {
+	return "???"
 }

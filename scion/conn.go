@@ -18,15 +18,24 @@ func NewSQuicConnection(stream quic.Stream, local, remote Address) *Connection {
 }
 
 func (conn *Connection) LocalAddr() net.Addr {
-	tmp := conn.local.Addr()
-	return &tmp
+	return conn.local
 }
 
 func (conn *Connection) RemoteAddr() net.Addr {
-	tmp := conn.remote.Addr()
-	return &tmp
+	return conn.remote
 }
 
 func (conn *Connection) Close() error {
 	return conn.Stream.Close()
+}
+
+// Contains address with readable port etc
+// There should be another way to handle this,
+// together with net.Addr
+func (conn *Connection) LocalAddress() Address {
+	return conn.local
+}
+
+func (conn *Connection) RemoteAddress() Address {
+	return conn.remote
 }

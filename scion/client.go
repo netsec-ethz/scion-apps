@@ -39,6 +39,14 @@ func Dial(local, remote Address, selector PathSelector) (*Connection, error) {
 		return nil, fmt.Errorf("unable to open stream: %s", err)
 	}
 
+	fmt.Println(session.LocalAddr())
+	_, port, err := ParseCompleteAddress(session.LocalAddr().String())
+	if err != nil {
+		return nil, err
+	}
+
+	local.port = port
+
 	err = sendHandshake(stream)
 	if err != nil {
 		return nil, err
@@ -109,6 +117,8 @@ func DefaultPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry 
 	return paths[0]
 }
 
+// Copied from Pingpong sample application:
+// https://github.com/scionproto/scion/blob/8291539e5b23a217cb367bce6da05b71d0fe1d82/go/examples/pingpong/pingpong.go#L419
 func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
 	if len(paths) == 1 {
 		return paths[0]

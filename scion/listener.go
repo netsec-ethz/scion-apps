@@ -32,6 +32,13 @@ func Listen(address string) (*Listener, error) {
 		return nil, fmt.Errorf("unable to listen: %s", err)
 	}
 
+	_, port, err := ParseCompleteAddress(listener.Addr().String())
+	if err != nil {
+		return nil, err
+	}
+
+	addr.port = port
+
 	return &Listener{
 		listener,
 		addr,
