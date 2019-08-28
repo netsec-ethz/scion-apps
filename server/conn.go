@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -65,9 +64,7 @@ func (conn *Conn) NewListener() (*scion.Listener, error) {
 
 	for i := 0; i < listenerRetries; i++ {
 
-		port := rand.Intn(1000) + 5000
-		addr := conn.server.Hostname + ":" + strconv.Itoa(port)
-		listener, err = scion.Listen(addr)
+		listener, err = scion.Listen(conn.server.Hostname + ":0")
 		if err == nil {
 			break
 		}

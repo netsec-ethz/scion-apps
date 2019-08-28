@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"log"
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	mode2 "github.com/elwin/transmit2/mode"
@@ -149,6 +150,7 @@ func (c *ServerConn) getDataConnPort() (int, error) {
 	return c.pasv()
 }
 
+// TODO: Close connections if there is an error with the others
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
@@ -158,26 +160,25 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			return nil, err
 		}
 
+		wg := &sync.WaitGroup{}
+
 		sockets := make([]socket.DataSocket, len(addrs))
+		wg.Add(len(sockets))
 		for i := range sockets {
 
-			port := rand.Intn(10000) + 50000
-			local := c.local + ":" + strconv.Itoa(port)
-			if err != nil {
-				return nil, err
-			}
+			go func(i int) {
+				defer wg.Done()
 
-			conn, err := scion.DialAddr(local, addrs[i], c.selector)
-			if err != nil {
-				// Close already opened sockets
-				for j := 0; j < i; j++ {
-					sockets[j].Close()
+				conn, err := scion.DialAddr(c.local+":0", addrs[i], c.selector)
+				if err != nil {
+					log.Fatalf("failed to connect: %s", err)
 				}
-				return nil, err
-			}
 
-			sockets[i] = socket.NewScionSocket(conn)
+				sockets[i] = socket.NewScionSocket(conn)
+			}(i)
 		}
+
+		wg.Wait()
 
 		return socket.NewMultiSocket(sockets, c.blockSize), nil
 
@@ -187,9 +188,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			return nil, err
 		}
 
-		localPort := rand.Intn(10000) + 50000
-
-		local := c.local + ":" + strconv.Itoa(localPort)
+		local := c.local + ":0"
 		remote := c.remote + ":" + strconv.Itoa(port)
 
 		conn, err := scion.DialAddr(local, remote, c.selector)
