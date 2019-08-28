@@ -1,30 +1,38 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/elwin/transmit2/scion"
 
-	ftp "github.com/elwin/transmit2/client"
 	"github.com/elwin/transmit2/mode"
+
+	ftp "github.com/elwin/transmit2/client"
 )
 
 var (
-	local  = flag.String("local", "1-ff00:0:112,[127.0.0.1]:5000", "Local host")
-	remote = flag.String("remote", "1-ff00:0:110,[127.0.0.1]:2121", "Remote host")
+	client = flag.String("client", "", "Local host (including port)")
+	remote = flag.String("remote", "", "Remote host (including port)")
+)
+
+const (
+	size_unit = 1024 // KB
 )
 
 func main() {
 
 	flag.Parse()
-
-	fmt.Println(*local)
-	fmt.Println(*remote)
+	if *remote == "" {
+		log.Fatal("Please provide a remote address with -remote")
+	}
 
 	if err := run(); err != nil {
 		fmt.Println(err)
@@ -33,73 +41,103 @@ func main() {
 }
 
 type test struct {
-	mode          byte
-	parallelism   int
-	payload       int // in MB
-	blockSize     int
-	selector      scion.PathSelector
-	duration      time.Duration
-	numberOfPaths int
+	mode        byte
+	parallelism int
+	payload     int // in MB
+	blockSize   int
+	duration    time.Duration
+	selector    scion.PathSelector
 }
 
 func (test *test) String() string {
 	if test.mode == mode.Stream {
-		return fmt.Sprintf("Stream (paths: %d) with %d MB: %s", test.numberOfPaths, test.payload, test.duration)
+		return fmt.Sprintf("Stream with %d MB: %s", test.payload, test.duration)
 	} else {
-		return fmt.Sprintf("Extended (paths: %d, streams: %d, bs: %d) with %d MB: %s", test.numberOfPaths, test.parallelism, test.blockSize, test.payload, test.duration)
+		return fmt.Sprintf("Extended (streams: %d, bs: %d) with %d KB: %s", test.parallelism, test.blockSize, test.payload, test.duration)
 	}
+}
+
+func writeToCsv(results []*test) {
+	w := csv.NewWriter(os.Stderr)
+	header := []string{"mode", "parallelism", "payload (KB)", "block_size", "duration"}
+	if err := w.Write(header); err != nil {
+		log.Fatal(err)
+	}
+	for _, result := range results {
+		record := []string{
+			string(result.mode),
+			strconv.Itoa(result.parallelism),
+			strconv.Itoa(result.payload),
+			strconv.Itoa(result.blockSize),
+			strconv.FormatFloat(result.duration.Seconds(), 'f', -1, 64),
+		}
+		if err := w.Write(record); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	w.Flush()
 }
 
 func run() error {
 
-	parallelisms := []int{1, 2, 4}
-	// parallelisms := []int{8, 16, 32}
-	payloads := []int{1}
-	// blocksizes := []int{16384}
-	blocksizes := []int{4096, 8192}
-	// blocksizes := []int{512, 1024, 2048, 4096, 8192}
-
-	rotator := scion.NewRotator()
-	selectors := []scion.PathSelector{scion.DefaultPathSelector, rotator.RotatingPathSelector}
+	extended := []rune{mode.ExtendedBlockMode, mode.Stream}
+	parallelisms := []int{4}
+	payloads := []int{8}
+	blocksizes := []int{4096}
+	selection := []scion.PathSelector{scion.InteractivePathSelector}
 
 	var tests []*test
-	for _, payload := range payloads {
-		for _, selector := range selectors {
-			t := &test{
-				mode:     mode.Stream,
-				selector: selector,
-				payload:  payload,
-			}
-			tests = append(tests, t)
-
-			for _, blocksize := range blocksizes {
-				for _, parallelism := range parallelisms {
-					t := &test{
-						mode:        mode.ExtendedBlockMode,
-						parallelism: parallelism,
-						payload:     payload,
-						selector:    selector,
-						blockSize:   blocksize,
+	for _, m := range extended {
+		for _, payload := range payloads {
+			for _, selector := range selection {
+				if m == mode.Stream {
+					test := &test{
+						mode:     mode.Stream,
+						payload:  payload,
+						selector: scion.DefaultPathSelector,
 					}
-					tests = append(tests, t)
+					tests = append(tests, test)
+				} else {
+					for _, blocksize := range blocksizes {
+						for _, parallelism := range parallelisms {
+							test := &test{
+								mode:        mode.ExtendedBlockMode,
+								parallelism: parallelism,
+								payload:     payload,
+								blockSize:   blocksize,
+								selector:    selector,
+							}
+							tests = append(tests, test)
+						}
+					}
 				}
 			}
 		}
 	}
 
-	conn, err := ftp.Dial(*local, *remote)
-	if err != nil {
-		return err
-	}
+	conn, err := ftp.Dial(*client, *remote)
 	defer conn.Quit()
-
 	if err = conn.Login("admin", "123456"); err != nil {
 		return err
 	}
 
+	// Warm-up
+	response, err := conn.Retr(strconv.Itoa(tests[0].payload * size_unit))
+	if err != nil {
+		log.Fatal("failed to retrieve file", err)
+	} else {
+		_, err = io.Copy(ioutil.Discard, response)
+		if err != nil {
+			log.Fatal("failed to copy data", err)
+		}
+		response.Close()
+	}
+
 	for _, test := range tests {
-		conn.SetPathSelector(test.selector)
-		rotator.Reset()
+		if err != nil {
+			return err
+		}
 
 		err = conn.Mode(test.mode)
 		if err != nil {
@@ -114,7 +152,7 @@ func run() error {
 		}
 
 		start := time.Now()
-		response, err := conn.Retr(strconv.Itoa(test.payload * 1024 * 1024))
+		response, err := conn.Retr(strconv.Itoa(test.payload * size_unit))
 		if err != nil {
 			return err
 		}
@@ -123,13 +161,12 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		if int(n) != test.payload*1024*1024 {
+		if int(n) != test.payload*size_unit {
 			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*1024*1024, n)
 		}
 		response.Close()
 
 		test.duration += time.Since(start)
-		test.numberOfPaths = rotator.GetNumberOfUsedPaths()
 
 		fmt.Print(".")
 	}
@@ -138,6 +175,10 @@ func run() error {
 	for _, test := range tests {
 		fmt.Println(test)
 	}
+
+	fmt.Println("--------------")
+
+	writeToCsv(tests)
 
 	return nil
 }
