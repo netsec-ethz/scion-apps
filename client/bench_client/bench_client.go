@@ -89,7 +89,7 @@ func run() error {
 	parallelisms := []int{1, 2, 4, 8, 16, 32}
 	payloads := []int{8}
 	blocksizes := []int{4096}
-	rotator := scion.Rotator{}
+	rotator := scion.NewRotator()
 	selection := []scion.PathSelector{rotator.RotatingPathSelector, scion.DefaultPathSelector}
 
 	var tests []*test

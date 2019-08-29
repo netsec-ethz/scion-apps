@@ -173,7 +173,7 @@ func (r *Rotator) GetNumberOfUsedPaths() int {
 
 func (r *Rotator) RotatingPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
 	r.paths = len(paths)
-	index := r.index % r.paths
-	fmt.Println(index)
-	return paths[index]
+	newIndex := r.index % r.paths
+	r.index++
+	return paths[newIndex]
 }
