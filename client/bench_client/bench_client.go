@@ -137,9 +137,7 @@ func run() error {
 	}
 
 	for _, test := range tests {
-		if err != nil {
-			return err
-		}
+		conn.SetPathSelector(test.selector)
 
 		err = conn.Mode(test.mode)
 		if err != nil {
