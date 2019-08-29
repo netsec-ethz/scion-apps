@@ -9,15 +9,13 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/lucas-clemente/quic-go"
-
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-func Dial(local, remote Address, selector PathSelector, config *quic.Config) (*Connection, error) {
+func Dial(local, remote Address, selector PathSelector) (*Connection, error) {
 
 	err := initNetwork(local)
 	if err != nil {
@@ -32,7 +30,7 @@ func Dial(local, remote Address, selector PathSelector, config *quic.Config) (*C
 	l := local.Addr()
 	r := remote.Addr()
 
-	session, err := squic.DialSCION(nil, &l, &r, config)
+	session, err := squic.DialSCION(nil, &l, &r, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to dial %s: %s", remote, err)
 	}
@@ -58,7 +56,7 @@ func Dial(local, remote Address, selector PathSelector, config *quic.Config) (*C
 	return NewSQuicConnection(stream, local, remote), nil
 }
 
-func DialAddr(localAddr, remoteAddr string, selector PathSelector, config *quic.Config) (*Connection, error) {
+func DialAddr(localAddr, remoteAddr string, selector PathSelector) (*Connection, error) {
 
 	local, err := ConvertAddress(localAddr)
 	if err != nil {
@@ -70,7 +68,7 @@ func DialAddr(localAddr, remoteAddr string, selector PathSelector, config *quic.
 		return nil, err
 	}
 
-	return Dial(local, remote, selector, config)
+	return Dial(local, remote, selector)
 }
 
 func sendHandshake(rw io.ReadWriter) error {
