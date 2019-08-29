@@ -24,7 +24,7 @@ var (
 )
 
 const (
-	sizeUnit = 1024 // KB
+	sizeUnit = 1024 * 1024 // MB
 )
 
 func main() {
@@ -47,19 +47,20 @@ type test struct {
 	blockSize   int
 	duration    time.Duration
 	selector    scion.PathSelector
+	bandwidth   float64
 }
 
 func (test *test) String() string {
 	if test.mode == mode.Stream {
 		return fmt.Sprintf("Stream with %d KB: %s", test.payload, test.duration)
 	} else {
-		return fmt.Sprintf("Extended (streams: %d, bs: %d) with %d KB: %s", test.parallelism, test.blockSize, test.payload, test.duration)
+		return fmt.Sprintf("Extended (streams: %d, bs: %d) with %d MB: %s", test.parallelism, test.blockSize, test.payload, test.duration)
 	}
 }
 
 func writeToCsv(results []*test) {
 	w := csv.NewWriter(os.Stderr)
-	header := []string{"mode", "parallelism", "payload (KB)", "block_size", "duration"}
+	header := []string{"mode", "parallelism", "payload (MB)", "block_size", "duration, bandwidth"}
 	if err := w.Write(header); err != nil {
 		log.Fatal(err)
 	}
@@ -70,6 +71,7 @@ func writeToCsv(results []*test) {
 			strconv.Itoa(result.payload),
 			strconv.Itoa(result.blockSize),
 			strconv.FormatFloat(result.duration.Seconds(), 'f', -1, 64),
+			strconv.FormatFloat(float64(result.payload)/result.duration.Seconds(), 'f', -1, 64),
 		}
 		if err := w.Write(record); err != nil {
 			log.Fatal(err)
