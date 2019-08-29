@@ -51,12 +51,6 @@
 			"revisionTime": "2019-06-12T12:39:39Z"
 		},
 		{
-			"checksumSHA1": "x7KcSf89YGkd/DCG2nGolTGqahM=",
-			"path": "github.com/elwin/transmit/mode",
-			"revision": "2b5dfe2f67983415382ab6bc98eda3763b8e05cb",
-			"revisionTime": "2019-07-18T15:12:11Z"
-		},
-		{
 			"checksumSHA1": "2sj/DbXoXdnPAfjAEyhS0Jj5QL0=",
 			"origin": "github.com/scionproto/scion/go/vendor/github.com/go-stack/stack",
 			"path": "github.com/go-stack/stack",
