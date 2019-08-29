@@ -58,7 +58,7 @@ func Dial(local, remote Address, selector PathSelector, config *quic.Config) (*C
 	return NewSQuicConnection(stream, local, remote), nil
 }
 
-func DialAddr(localAddr, remoteAddr string, selector PathSelector) (*Connection, error) {
+func DialAddr(localAddr, remoteAddr string, selector PathSelector, config *quic.Config) (*Connection, error) {
 
 	local, err := ConvertAddress(localAddr)
 	if err != nil {
@@ -70,7 +70,7 @@ func DialAddr(localAddr, remoteAddr string, selector PathSelector) (*Connection,
 		return nil, err
 	}
 
-	return Dial(local, remote, selector)
+	return Dial(local, remote, selector, config)
 }
 
 func sendHandshake(rw io.ReadWriter) error {
