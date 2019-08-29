@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/elwin/transmit/mode"
 	ftp "github.com/elwin/transmit2/client"
+	"github.com/elwin/transmit2/mode"
 )
 
 func main() {

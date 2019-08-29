@@ -6,7 +6,7 @@ import (
 	"github.com/elwin/transmit2/scion"
 )
 
-// DataSocket describes a data socket is used to send non-control data between the speedtest_client and
+// DataSocket describes a data socket is used to send non-control data between the client and
 // server.
 type DataSocket interface {
 	// the standard io.Reader interface
@@ -21,7 +21,7 @@ type DataSocket interface {
 	// the standard io.Closer interface
 	Close() error
 
-	// Set deadline associated with connection (speedtest_client)
+	// Set deadline associated with connection (client)
 	SetDeadline(t time.Time) error
 }
 

@@ -79,7 +79,7 @@ var (
 
 // commandAllo responds to the ALLO FTP command.
 //
-// This is essentially a ping from the speedtest_client so we just respond with an
+// This is essentially a ping from the client so we just respond with an
 // basic OK message.
 type commandAllo struct{}
 
@@ -236,7 +236,7 @@ func (cmd commandFeat) Execute(conn *Conn, param string) {
 
 // cmdCdup responds to the CDUP FTP command.
 //
-// Allows the speedtest_client change their current directory to the parent.
+// Allows the client change their current directory to the parent.
 type commandCdup struct{}
 
 func (cmd commandCdup) IsExtend() bool {
@@ -256,7 +256,7 @@ func (cmd commandCdup) Execute(conn *Conn, param string) {
 	otherCmd.Execute(conn, "..")
 }
 
-// commandCwd responds to the CWD FTP command. It allows the speedtest_client to change the
+// commandCwd responds to the CWD FTP command. It allows the client to change the
 // current working directory.
 type commandCwd struct{}
 
@@ -283,7 +283,7 @@ func (cmd commandCwd) Execute(conn *Conn, param string) {
 	}
 }
 
-// commandDele responds to the DELE FTP command. It allows the speedtest_client to delete
+// commandDele responds to the DELE FTP command. It allows the client to delete
 // a file
 type commandDele struct{}
 
@@ -309,7 +309,7 @@ func (cmd commandDele) Execute(conn *Conn, param string) {
 	}
 }
 
-// commandEprt responds to the EPRT FTP command. It allows the speedtest_client to
+// commandEprt responds to the EPRT FTP command. It allows the client to
 // request an active data socket with more options than the original PORT
 // command. It mainly adds ipv6 support.
 type commandEprt struct{}
@@ -330,7 +330,7 @@ func (cmd commandEprt) Execute(conn *Conn, param string) {
 	conn.writeMessage(502, "Active mode not supported, use passive mode instead")
 }
 
-// commandLprt responds to the LPRT FTP command. It allows the speedtest_client to
+// commandLprt responds to the LPRT FTP command. It allows the client to
 // request an active data socket with more options than the original PORT
 // command.  FTP Operation Over Big Address Records.
 type commandLprt struct{}

@@ -85,7 +85,7 @@ func newSessionID() string {
 	return mdStr[0:20]
 }
 
-// Serve starts an endless loop that reads FTP commands from the speedtest_client and
+// Serve starts an endless loop that reads FTP commands from the client and
 // responds appropriately. terminated is a channel that will receive a true
 // message when the connection closes. This loop will be running inside a
 // goroutine, so use this channel to be notified when the connection can be
@@ -115,7 +115,7 @@ func (conn *Conn) Serve() {
 	conn.logger.Print(conn.sessionID, "Connection Terminated")
 }
 
-// Close will manually close this connection, even if the speedtest_client isn't ready.
+// Close will manually close this connection, even if the client isn't ready.
 func (conn *Conn) Close() {
 	conn.conn.Close()
 	conn.closed = true
@@ -152,7 +152,7 @@ func (conn *Conn) parseLine(line string) (string, string) {
 	return params[0], strings.TrimSpace(params[1])
 }
 
-// writeMessage will send a standard FTP response back to the speedtest_client.
+// writeMessage will send a standard FTP response back to the client.
 func (conn *Conn) writeMessage(code int, message string) (wrote int, err error) {
 	conn.logger.PrintResponse(conn.sessionID, code, message)
 	line := fmt.Sprintf("%d %s\r\n", code, message)
@@ -161,7 +161,7 @@ func (conn *Conn) writeMessage(code int, message string) (wrote int, err error) 
 	return
 }
 
-// writeMessage will send a standard FTP response back to the speedtest_client.
+// writeMessage will send a standard FTP response back to the client.
 func (conn *Conn) writeMessageMultiline(code int, message string) (wrote int, err error) {
 	conn.logger.PrintResponse(conn.sessionID, code, message)
 	line := fmt.Sprintf("%d-%s\r\n%d END\r\n", code, message, code)
@@ -170,7 +170,7 @@ func (conn *Conn) writeMessageMultiline(code int, message string) (wrote int, er
 	return
 }
 
-// buildPath takes a speedtest_client supplied path or filename and generates a safe
+// buildPath takes a client supplied path or filename and generates a safe
 // absolute path within their account sandbox.
 //
 //    buildpath("/")
@@ -200,7 +200,7 @@ func (conn *Conn) buildPath(filename string) (fullPath string) {
 	return
 }
 
-// sendOutofbandData will send a string to the speedtest_client via the currently open
+// sendOutofbandData will send a string to the client via the currently open
 // data socket. Assumes the socket is open and ready to be used.
 func (conn *Conn) sendOutofbandData(data []byte) {
 	bytes := len(data)

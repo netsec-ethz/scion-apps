@@ -284,7 +284,7 @@ func (mock *ftpMock) Close() {
 	mock.listener.Close()
 }
 
-// Helper to return a speedtest_client connected to a mock server
+// Helper to return a client connected to a mock server
 func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *ServerConn) {
 	mock, err := newFtpMock(t, addr)
 	if err != nil {
@@ -306,7 +306,7 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 
 }
 
-// Helper to close a speedtest_client connected to a mock server
+// Helper to close a client connected to a mock server
 func closeConn(t *testing.T, mock *ftpMock, c *ServerConn, commands []string) {
 	expected := []string{"FEAT", "USER", "PASS", "TYPE"}
 	expected = append(expected, commands...)

@@ -25,7 +25,7 @@ func Version() string {
 // ServerOpts contains parameters for server.NewServer()
 type Opts struct {
 	// The factory that will be used to create a new FTPDriver instance for
-	// each speedtest_client connection. This is a mandatory option.
+	// each client connection. This is a mandatory option.
 	Factory DriverFactory
 
 	Auth Auth
@@ -48,7 +48,7 @@ type Opts struct {
 }
 
 // Server is the root of your FTP application. You should instantiate one
-// of these and call ListenAndServe() to start accepting speedtest_client connections.
+// of these and call ListenAndServe() to start accepting cilent connections.
 //
 // Always use the NewServer() method to create a new Server.
 type Server struct {
@@ -153,7 +153,7 @@ func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 	return c
 }
 
-// ListenAndServe asks a new Server to begin accepting speedtest_client connections. It
+// ListenAndServe asks a new Server to begin accepting client connections. It
 // accepts no arguments - all configuration is provided via the NewServer
 // function.
 //
@@ -202,7 +202,7 @@ func (server *Server) Serve(l *scion.Listener) error {
 		}
 		driver, err := server.Factory.NewDriver()
 		if err != nil {
-			server.logger.Printf(sessionID, "Error creating driver, aborting speedtest_client connection: %v", err)
+			server.logger.Printf(sessionID, "Error creating driver, aborting client connection: %v", err)
 			conn.Close()
 		} else {
 			ftpConn := server.newConn(conn, driver)

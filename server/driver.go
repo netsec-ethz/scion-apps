@@ -6,7 +6,7 @@ package server
 
 import "io"
 
-// DriverFactory is a driver factory to create driver. For each speedtest_client that connects to the server, a new FTPDriver is required.
+// DriverFactory is a driver factory to create driver. For each client that connects to the server, a new FTPDriver is required.
 // Create an implementation if this interface and provide it to FTPServer.
 type DriverFactory interface {
 	NewDriver() (Driver, error)
@@ -14,7 +14,7 @@ type DriverFactory interface {
 
 // Driver is an interface that you will create an implementation that speaks to your
 // chosen persistence layer. graval will create a new instance of your
-// driver for each speedtest_client that connects and delegate to it as required.
+// driver for each client that connects and delegate to it as required.
 type Driver interface {
 	// Init init
 	Init(*Conn)
@@ -52,7 +52,7 @@ type Driver interface {
 	MakeDir(string) error
 
 	// params  - path
-	// returns - a string containing the file data to send to the speedtest_client
+	// returns - a string containing the file data to send to the client
 	GetFile(string, int64) (int64, io.ReadCloser, error)
 
 	// params  - destination path, an io.Reader containing the file data

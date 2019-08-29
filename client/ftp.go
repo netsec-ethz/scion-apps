@@ -1,4 +1,4 @@
-// Package ftp implements a FTP speedtest_client as described in RFC 959.
+// Package ftp implements a FTP client as described in RFC 959.
 //
 // A textproto.Error is returned for errors at the protocol level.
 package ftp
