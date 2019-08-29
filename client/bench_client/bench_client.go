@@ -47,6 +47,7 @@ type test struct {
 	blockSize   int
 	duration    time.Duration
 	selector    scion.PathSelector
+	pathNumber  int
 	bandwidth   float64
 }
 
@@ -60,7 +61,7 @@ func (test *test) String() string {
 
 func writeToCsv(results []*test) {
 	w := csv.NewWriter(os.Stderr)
-	header := []string{"mode", "parallelism", "payload (MB)", "block_size", "duration", "bandwidth"}
+	header := []string{"mode", "parallelism", "payload (MB)", "block_size", "path_number", "duration", "bandwidth"}
 	if err := w.Write(header); err != nil {
 		log.Fatal(err)
 	}
@@ -70,6 +71,7 @@ func writeToCsv(results []*test) {
 			strconv.Itoa(result.parallelism),
 			strconv.Itoa(result.payload),
 			strconv.Itoa(result.blockSize),
+			strconv.Itoa(result.pathNumber),
 			strconv.FormatFloat(result.duration.Seconds(), 'f', -1, 64),
 			strconv.FormatFloat(float64(result.payload)/result.duration.Seconds(), 'f', -1, 64),
 		}
@@ -87,7 +89,8 @@ func run() error {
 	parallelisms := []int{1, 2, 4, 8, 16, 32}
 	payloads := []int{8}
 	blocksizes := []int{4096}
-	selection := []scion.PathSelector{scion.InteractivePathSelector}
+	rotator := scion.Rotator{}
+	selection := []scion.PathSelector{rotator.RotatingPathSelector, scion.DefaultPathSelector}
 
 	var tests []*test
 	for _, m := range extended {
@@ -137,6 +140,7 @@ func run() error {
 	}
 
 	for _, test := range tests {
+		rotator.Reset()
 		conn.SetPathSelector(test.selector)
 
 		err = conn.Mode(test.mode)
@@ -167,6 +171,7 @@ func run() error {
 		response.Close()
 
 		test.duration += time.Since(start)
+		test.pathNumber = rotator.GetNumberOfUsedPaths()
 
 		fmt.Print(".")
 	}
