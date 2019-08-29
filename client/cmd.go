@@ -23,7 +23,7 @@ func (c *ServerConn) SetPathSelector(selector scion.PathSelector) {
 	c.selector = selector
 }
 
-// Login authenticates the client with specified user and password.
+// Login authenticates the speedtest_client with specified user and password.
 //
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers
 // that allows anonymous read-only accounts.

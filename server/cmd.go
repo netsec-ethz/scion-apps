@@ -79,7 +79,7 @@ var (
 
 // commandAllo responds to the ALLO FTP command.
 //
-// This is essentially a ping from the client so we just respond with an
+// This is essentially a ping from the speedtest_client so we just respond with an
 // basic OK message.
 type commandAllo struct{}
 
@@ -236,7 +236,7 @@ func (cmd commandFeat) Execute(conn *Conn, param string) {
 
 // cmdCdup responds to the CDUP FTP command.
 //
-// Allows the client change their current directory to the parent.
+// Allows the speedtest_client change their current directory to the parent.
 type commandCdup struct{}
 
 func (cmd commandCdup) IsExtend() bool {
@@ -256,7 +256,7 @@ func (cmd commandCdup) Execute(conn *Conn, param string) {
 	otherCmd.Execute(conn, "..")
 }
 
-// commandCwd responds to the CWD FTP command. It allows the client to change the
+// commandCwd responds to the CWD FTP command. It allows the speedtest_client to change the
 // current working directory.
 type commandCwd struct{}
 
@@ -283,7 +283,7 @@ func (cmd commandCwd) Execute(conn *Conn, param string) {
 	}
 }
 
-// commandDele responds to the DELE FTP command. It allows the client to delete
+// commandDele responds to the DELE FTP command. It allows the speedtest_client to delete
 // a file
 type commandDele struct{}
 
@@ -309,7 +309,7 @@ func (cmd commandDele) Execute(conn *Conn, param string) {
 	}
 }
 
-// commandEprt responds to the EPRT FTP command. It allows the client to
+// commandEprt responds to the EPRT FTP command. It allows the speedtest_client to
 // request an active data socket with more options than the original PORT
 // command. It mainly adds ipv6 support.
 type commandEprt struct{}
@@ -330,7 +330,7 @@ func (cmd commandEprt) Execute(conn *Conn, param string) {
 	conn.writeMessage(502, "Active mode not supported, use passive mode instead")
 }
 
-// commandLprt responds to the LPRT FTP command. It allows the client to
+// commandLprt responds to the LPRT FTP command. It allows the speedtest_client to
 // request an active data socket with more options than the original PORT
 // command.  FTP Operation Over Big Address Records.
 type commandLprt struct{}
@@ -352,7 +352,7 @@ func (cmd commandLprt) Execute(conn *Conn, param string) {
 
 }
 
-// commandEpsv responds to the EPSV FTP command. It allows the client to
+// commandEpsv responds to the EPSV FTP command. It allows the speedtest_client to
 // request a passive data socket with more options than the original PASV
 // command. It mainly adds ipv6 support, although we don't support that yet.
 type commandEpsv struct{}
@@ -390,7 +390,7 @@ func (cmd commandEpsv) Execute(conn *Conn, param string) {
 
 }
 
-// commandList responds to the LIST FTP command. It allows the client to retreive
+// commandList responds to the LIST FTP command. It allows the speedtest_client to retreive
 // a detailed listing of the contents of a directory.
 type commandList struct{}
 
@@ -456,7 +456,7 @@ func parseListParam(param string) (path string) {
 	return path
 }
 
-// commandNlst responds to the NLST FTP command. It allows the client to
+// commandNlst responds to the NLST FTP command. It allows the speedtest_client to
 // retreive a list of filenames in the current directory.
 type commandNlst struct{}
 
@@ -497,7 +497,7 @@ func (cmd commandNlst) Execute(conn *Conn, param string) {
 	conn.sendOutofbandData(listFormatter(files).Short())
 }
 
-// commandMdtm responds to the MDTM FTP command. It allows the client to
+// commandMdtm responds to the MDTM FTP command. It allows the speedtest_client to
 // retreive the last modified time of a file.
 type commandMdtm struct{}
 
@@ -523,7 +523,7 @@ func (cmd commandMdtm) Execute(conn *Conn, param string) {
 	}
 }
 
-// commandMkd responds to the MKD FTP command. It allows the client to create
+// commandMkd responds to the MKD FTP command. It allows the speedtest_client to create
 // a new directory
 type commandMkd struct{}
 
@@ -589,7 +589,7 @@ func (cmd commandMode) Execute(conn *Conn, param string) {
 
 // cmdNoop responds to the NOOP FTP command.
 //
-// This is essentially a ping from the client so we just respond with an
+// This is essentially a ping from the speedtest_client so we just respond with an
 // basic 200 message.
 type commandNoop struct{}
 
@@ -643,7 +643,7 @@ func (cmd commandPass) Execute(conn *Conn, param string) {
 
 // commandPasv responds to the PASV FTP command.
 //
-// The client is requesting us to open a new TCP listing socket and wait for them
+// The speedtest_client is requesting us to open a new TCP listing socket and wait for them
 // to connect to it.
 type commandPasv struct{}
 
@@ -665,7 +665,7 @@ func (cmd commandPasv) Execute(conn *Conn, param string) {
 
 // commandPort responds to the PORT FTP command.
 //
-// The client has opened a listening socket for sending out of band data and
+// The speedtest_client has opened a listening socket for sending out of band data and
 // is requesting that we connect to it
 type commandPort struct{}
 
@@ -687,7 +687,7 @@ func (cmd commandPort) Execute(conn *Conn, param string) {
 
 // commandPwd responds to the PWD FTP command.
 //
-// Tells the client what the current working directory is.
+// Tells the speedtest_client what the current working directory is.
 type commandPwd struct{}
 
 func (cmd commandPwd) IsExtend() bool {
@@ -706,7 +706,7 @@ func (cmd commandPwd) Execute(conn *Conn, param string) {
 	conn.writeMessage(257, "\""+conn.namePrefix+"\" is the current directory")
 }
 
-// CommandQuit responds to the QUIT FTP command. The client has requested the
+// CommandQuit responds to the QUIT FTP command. The speedtest_client has requested the
 // connection be closed.
 type commandQuit struct{}
 
@@ -727,7 +727,7 @@ func (cmd commandQuit) Execute(conn *Conn, param string) {
 	conn.Close()
 }
 
-// commandRetr responds to the RETR FTP command. It allows the client to
+// commandRetr responds to the RETR FTP command. It allows the speedtest_client to
 // download a file.
 type commandRetr struct{}
 
@@ -790,7 +790,7 @@ func (cmd commandRest) Execute(conn *Conn, param string) {
 }
 
 // commandRnfr responds to the RNFR FTP command. It's the first of two commands
-// required for a client to rename a file.
+// required for a speedtest_client to rename a file.
 type commandRnfr struct{}
 
 func (cmd commandRnfr) IsExtend() bool {
@@ -811,7 +811,7 @@ func (cmd commandRnfr) Execute(conn *Conn, param string) {
 }
 
 // cmdRnto responds to the RNTO FTP command. It's the second of two commands
-// required for a client to rename a file.
+// required for a speedtest_client to rename a file.
 type commandRnto struct{}
 
 func (cmd commandRnto) IsExtend() bool {
@@ -840,7 +840,7 @@ func (cmd commandRnto) Execute(conn *Conn, param string) {
 	}
 }
 
-// cmdRmd responds to the RMD FTP command. It allows the client to delete a
+// cmdRmd responds to the RMD FTP command. It allows the speedtest_client to delete a
 // directory.
 type commandRmd struct{}
 
@@ -1117,7 +1117,7 @@ func (cmd commandSyst) Execute(conn *Conn, param string) {
 //  would sometimes be expected to translate things like EOL markers on the fly.
 //
 //  Valid options were A(SCII), I(mage), E(BCDIC) or LN (for local type). Since
-//  we plan to just accept bytes from the client unchanged, I think Image mode is
+//  we plan to just accept bytes from the speedtest_client unchanged, I think Image mode is
 //  adequate. The RFC requires we accept ASCII mode however, so accept it, but
 //  ignore it.
 type commandType struct{}

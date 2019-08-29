@@ -15,7 +15,7 @@ type Listener struct {
 	Address
 }
 
-func Listen(address string) (*Listener, error) {
+func Listen(address string, config *quic.Config) (*Listener, error) {
 	addr, err := ConvertAddress(address)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func Listen(address string) (*Listener, error) {
 	}
 
 	tmpAddr := addr.Addr()
-	listener, err := squic.ListenSCION(nil, &tmpAddr, nil)
+	listener, err := squic.ListenSCION(nil, &tmpAddr, config)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen: %s", err)
 	}

@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	client = flag.String("client", "", "Local host (including port)")
+	client = flag.String("local", "", "Local host (including port)")
 	remote = flag.String("remote", "", "Remote host (including port)")
 )
 
