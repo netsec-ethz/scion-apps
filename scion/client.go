@@ -105,6 +105,7 @@ func choosePath(local, remote snet.Addr, selector PathSelector) *sciond.PathRepl
 	if len(pathSet) == 0 {
 		return nil
 	}
+
 	for _, p := range pathSet {
 		paths = append(paths, p.Entry)
 	}
@@ -121,9 +122,11 @@ func DefaultPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry 
 // Copied from Pingpong sample application:
 // https://github.com/scionproto/scion/blob/8291539e5b23a217cb367bce6da05b71d0fe1d82/go/examples/pingpong/pingpong.go#L419
 func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
-	if len(paths) == 1 {
-		return paths[0]
-	}
+	/*
+		if len(paths) == 1 {
+			return paths[0]
+		}
+	*/
 
 	var index uint64
 
