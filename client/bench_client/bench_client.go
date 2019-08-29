@@ -24,7 +24,7 @@ var (
 )
 
 const (
-	size_unit = 1024 // KB
+	sizeUnit = 1024 // KB
 )
 
 func main() {
@@ -123,7 +123,7 @@ func run() error {
 	}
 
 	// Warm-up
-	response, err := conn.Retr(strconv.Itoa(tests[0].payload * size_unit))
+	response, err := conn.Retr(strconv.Itoa(tests[0].payload * sizeUnit))
 	if err != nil {
 		log.Fatal("failed to retrieve file", err)
 	} else {
@@ -152,7 +152,7 @@ func run() error {
 		}
 
 		start := time.Now()
-		response, err := conn.Retr(strconv.Itoa(test.payload * size_unit))
+		response, err := conn.Retr(strconv.Itoa(test.payload * sizeUnit))
 		if err != nil {
 			return err
 		}
@@ -161,8 +161,8 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		if int(n) != test.payload*size_unit {
-			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*size_unit, n)
+		if int(n) != test.payload*sizeUnit {
+			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*sizeUnit, n)
 		}
 		response.Close()
 
