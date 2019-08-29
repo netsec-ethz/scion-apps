@@ -51,7 +51,7 @@ type test struct {
 
 func (test *test) String() string {
 	if test.mode == mode.Stream {
-		return fmt.Sprintf("Stream with %d MB: %s", test.payload, test.duration)
+		return fmt.Sprintf("Stream with %d KB: %s", test.payload, test.duration)
 	} else {
 		return fmt.Sprintf("Extended (streams: %d, bs: %d) with %d KB: %s", test.parallelism, test.blockSize, test.payload, test.duration)
 	}
@@ -82,7 +82,7 @@ func writeToCsv(results []*test) {
 func run() error {
 
 	extended := []rune{mode.ExtendedBlockMode, mode.Stream}
-	parallelisms := []int{4}
+	parallelisms := []int{1, 2, 4, 8, 16, 32}
 	payloads := []int{8}
 	blocksizes := []int{4096}
 	selection := []scion.PathSelector{scion.InteractivePathSelector}
@@ -162,7 +162,7 @@ func run() error {
 			return err
 		}
 		if int(n) != test.payload*size_unit {
-			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*1024*1024, n)
+			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*size_unit, n)
 		}
 		response.Close()
 
