@@ -56,3 +56,6 @@ roughtime/timeserver/timeserver
 
 # vscode workspace
 *.code-workspace
+
+# IntelliJ IDEA workspace
+.idea/
