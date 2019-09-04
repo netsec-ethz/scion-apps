@@ -505,238 +505,231 @@
 			"checksumSHA1": "MiuLhowo180GX3XObzvWbTw56bQ=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/addr",
 			"path": "github.com/scionproto/scion/go/lib/addr",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "sWlwbRcBj5NFJS1b4VGwUOIJsOw=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/assert",
 			"path": "github.com/scionproto/scion/go/lib/assert",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "+xWMhljH3NSBN1cDPWf0HtohjHA=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/common",
 			"path": "github.com/scionproto/scion/go/lib/common",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "bWYSUnQE82Pqg9UVofnviYfLedM=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/ctrl/cert_mgmt",
 			"path": "github.com/scionproto/scion/go/lib/ctrl/cert_mgmt",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "tkclm9eL31UBpLsIFToacRPncSY=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/ctrl/path_mgmt",
 			"path": "github.com/scionproto/scion/go/lib/ctrl/path_mgmt",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "OkF2Js5j1au+Uh14qBa/5FuB1OU=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/ctrl/seg",
 			"path": "github.com/scionproto/scion/go/lib/ctrl/seg",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "KvfbyibRlgjv7Tb5YO9NsU7rWo8=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/hpkt",
 			"path": "github.com/scionproto/scion/go/lib/hpkt",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "QWmJNK3kp32syB+TNxWE7JaTGU0=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/infra",
 			"path": "github.com/scionproto/scion/go/lib/infra",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "g2a7OnZzXeguuIqiqR/j6AXPOWU=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/infra/disp",
 			"path": "github.com/scionproto/scion/go/lib/infra/disp",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
-			"revisionTime": "2019-02-07T16:31:26Z"
-		},
-		{
-			"checksumSHA1": "94M77QKZRMUwah6D9K0i4xC/fag=",
-			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/infra/transport",
-			"path": "github.com/scionproto/scion/go/lib/infra/transport",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "00FRFGuwPvb0vToxlcxFhp2ub9E=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/l4",
 			"path": "github.com/scionproto/scion/go/lib/l4",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "4x0bRXUbK66/GUgZ67+Gyq+hDxE=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/log",
 			"path": "github.com/scionproto/scion/go/lib/log",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "x6Eb5fh7LZpf+r4j918nWttv2kE=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/overlay",
 			"path": "github.com/scionproto/scion/go/lib/overlay",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "2qNNz4X1/1gA1loCG+pr9za2r5w=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/pathmgr",
 			"path": "github.com/scionproto/scion/go/lib/pathmgr",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "3+aJ6V5rZK8w6kbbXwAu+fGYW64=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/pathpol",
 			"path": "github.com/scionproto/scion/go/lib/pathpol",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "Qoa6BngDTMRIseqqxc4Id1DpeDU=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/pktcls",
 			"path": "github.com/scionproto/scion/go/lib/pktcls",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "Dd82C7+1v4DFMbB3200c9HSL1lA=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/sciond",
 			"path": "github.com/scionproto/scion/go/lib/sciond",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "SB5ihrgG3qy6R0pFWnTPjIPjvC4=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/scmp",
 			"path": "github.com/scionproto/scion/go/lib/scmp",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "gSqU61Ix115Ju4AO/WrIeqcbwoo=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/scrypto",
 			"path": "github.com/scionproto/scion/go/lib/scrypto",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "gEQYqUfVLoS5l5PWi4ZXUdVgRK4=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/scrypto/cert",
 			"path": "github.com/scionproto/scion/go/lib/scrypto/cert",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "AsWG3fF16696yZYVm51yl+2xx1M=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/scrypto/trc",
 			"path": "github.com/scionproto/scion/go/lib/scrypto/trc",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "qaBv7D03XgtELzN0I2hFXb0zxyc=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/snet",
 			"path": "github.com/scionproto/scion/go/lib/snet",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "y044NwDG4h5jfrkc5HIbumzeagY=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/snet/internal/ctxmonitor",
 			"path": "github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "AQ7+OpJCHOy4PjpYf6J0rF//V0U=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/snet/internal/pathsource",
 			"path": "github.com/scionproto/scion/go/lib/snet/internal/pathsource",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "3YZHYTQJoAviVkCUn3QNfVTkP/U=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/snet/squic",
 			"path": "github.com/scionproto/scion/go/lib/snet/squic",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "R7yAXQxMLF5iurT1nK4lUpJa6RA=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/sock/reliable",
 			"path": "github.com/scionproto/scion/go/lib/sock/reliable",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "XMtxt9mbPHjNaRdJ+cIym4+Gjvo=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/spath",
 			"path": "github.com/scionproto/scion/go/lib/spath",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "caFIoTntCSgao/jGIEmnKSqDpuM=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/spath/spathmeta",
 			"path": "github.com/scionproto/scion/go/lib/spath/spathmeta",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "aytPDzlhyW+nVyrYXsqb6U+lQVA=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/spkt",
 			"path": "github.com/scionproto/scion/go/lib/spkt",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "aDxJv/Y5bJdKGG7MuTphidD6NIE=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/topology",
 			"path": "github.com/scionproto/scion/go/lib/topology",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "8bq3u3fPY00+57iYNaaIShFxN+U=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/util",
 			"path": "github.com/scionproto/scion/go/lib/util",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "vUwMOAcr/Fkr/1gXn8RbMl7vmY0=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/xtest/graph",
 			"path": "github.com/scionproto/scion/go/lib/xtest/graph",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "tFYdnSAWVqm5T8peVMEF+jQFmCs=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/proto",
 			"path": "github.com/scionproto/scion/go/proto",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z"
 		},
 		{
 			"checksumSHA1": "q7iajZtOPEUPmKg3EDf2hZYSVWU=",
 			"origin": "github.com/netsec-ethz/netsec-scion/proto",
 			"path": "github.com/scionproto/scion/proto",
-			"revision": "1971e13bc7c3b8b22f2b4ab137c72be8870ddf9c",
+			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
 			"revisionTime": "2019-02-07T16:31:26Z",
 			"tree": true
 		},
