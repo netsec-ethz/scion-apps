@@ -23,7 +23,9 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -63,12 +65,14 @@ func getNetworkByIA(iaCli string) (*snet.SCIONNetwork, error) {
 	dispatcherPath := "/run/shm/dispatcher/default.sock"
 	sciondPath := scionutil.GetSCIONDPath(&ia)
 	if snet.DefNetwork == nil {
-		err := snet.Init(ia, sciondPath, dispatcherPath)
+		err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcherPath))
 		if CheckError(err) {
 			return nil, err
 		}
 	}
-	network, err := snet.NewNetwork(ia, sciondPath, dispatcherPath)
+	network, err := snet.NewNetwork(ia, sciondPath,
+		reliable.NewDispatcherService(dispatcherPath))
+
 	if CheckError(err) {
 		return nil, err
 	}
@@ -217,7 +221,7 @@ func removeAllDir(dirName string) {
 
 func getPathsJSON(local snet.Addr, remote snet.Addr, network snet.SCIONNetwork) ([]byte, error) {
 	pathMgr := network.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sciond.PathReqFlags{})
 	if len(pathSet) == 0 {
 		return nil, fmt.Errorf("No paths from %s to %s", local.IA, remote.IA)
 	}
