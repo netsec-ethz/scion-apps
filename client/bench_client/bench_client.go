@@ -24,7 +24,7 @@ var (
 )
 
 const (
-	sizeUnit = 1024 * 1024 // MB
+	sizeUnit = 1000 * 1000 // MB
 )
 
 func main() {
