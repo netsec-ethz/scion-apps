@@ -87,8 +87,8 @@ func run() error {
 
 	extended := []rune{mode.ExtendedBlockMode, mode.Stream}
 	parallelisms := []int{1, 2, 4, 8, 16, 32}
-	payloads := []int{8}
-	blocksizes := []int{4096}
+	payloads := []int{1, 2, 4}
+	blocksizes := []int{4096, 8192, 16384}
 	rotator := scion.NewRotator()
 	selection := []scion.PathSelector{rotator.RotatingPathSelector, scion.DefaultPathSelector}
 

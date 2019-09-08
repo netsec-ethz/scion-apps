@@ -1,6 +1,7 @@
 package socket
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/elwin/transmit2/striping"
@@ -9,7 +10,7 @@ import (
 type ReaderSocket struct {
 	sockets []DataSocket
 	queue   *striping.SegmentQueue
-	pop     <-chan *striping.Segment
+	pop     <-chan []byte
 }
 
 var _ io.Reader = &ReaderSocket{}
@@ -41,8 +42,17 @@ func (s *ReaderSocket) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	// If copy copies less then the ByteCount we have a problem
-	return copy(p, next.Data), nil
+	// If copy copies less then the length of next we have a problem.
+	// Since this actually happens with large block sizes (> 8192)
+	// we mitigate this problem by having the queue make sure to pass in
+	// smaller slices. If we still copy less than the length of next
+	// we have an actual problem.
+	copied := copy(p, next)
+	if copied < len(next) {
+		return copied, fmt.Errorf("copied less to p (%d bytes) than expected (%d)", copied, len(next))
+	}
+
+	return copied, nil
 
 }
 
