@@ -4,14 +4,6 @@ import (
 	"github.com/elwin/transmit2/queue"
 )
 
-// The parameter `p` in the Read method in ReaderSocket will have a maximum size
-// of the below defined constant. The queue makes sure to only push byte slices with
-// size smaller than MaxReaderLength into the pop queue.
-// Note: This is merely a bad workaround and will stop working as soon as the passed in
-// size of p is smaller. Instead a fix should be applied in the Read method of ReaderSocket
-// to handle this case.
-const MaxReaderLength = 8192
-
 type SegmentQueue struct {
 	internal    queue.Queue
 	offset      uint64
@@ -52,10 +44,10 @@ func NewSegmentQueue(workers int) *SegmentQueue {
 	}
 }
 
-func (q *SegmentQueue) PushChannel() (chan<- *Segment, <-chan []byte) {
+func (q *SegmentQueue) PushChannel() (chan<- *Segment, <-chan *Segment) {
 	// Make buffered channels 4 times as large as the number of streams
 	push := make(chan *Segment, q.openStreams*4)
-	pop := make(chan []byte, q.openStreams*4)
+	pop := make(chan *Segment, q.openStreams*4)
 	go func() {
 		for {
 			// Has received everything
@@ -65,24 +57,18 @@ func (q *SegmentQueue) PushChannel() (chan<- *Segment, <-chan []byte) {
 				return
 			}
 
-			// Received empty packet
+			// Empty packet
 			if q.Len() > 0 && q.Peek().ByteCount == 0 {
 				q.Pop()
 			} else if q.Len() > 0 && q.offset == q.Peek().OffsetCount {
-
-				ready := q.Pop()
-				copied := 0
-				for copied < len(ready.Data) {
-					length := len(ready.Data) - copied
-					if length > MaxReaderLength {
-						length = MaxReaderLength
-					}
-					pop <- ready.Data[copied : copied+length]
-					copied += length
+				select {
+				// Do not want to op if case not selected
+				case pop <- q.Peek():
+					sent := q.Pop()
+					q.offset += sent.ByteCount
+				case next := <-push:
+					q.handleSegment(next)
 				}
-
-				q.offset += uint64(copied)
-
 			} else if q.openStreams > 0 {
 				q.handleSegment(<-push)
 			}

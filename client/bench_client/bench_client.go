@@ -87,23 +87,23 @@ func run() error {
 
 	extended := []rune{mode.ExtendedBlockMode, mode.Stream}
 	parallelisms := []int{1, 2, 4, 8, 16, 32}
-	payloads := []int{1, 2, 4}
-	blocksizes := []int{2048, 4096, 8192}
+	payloads := []int{8}
+	blocksizes := []int{4096}
 	rotator := scion.NewRotator()
 	selection := []scion.PathSelector{rotator.RotatingPathSelector, scion.DefaultPathSelector}
 
 	var tests []*test
 	for _, m := range extended {
 		for _, payload := range payloads {
-			for _, selector := range selection {
-				if m == mode.Stream {
-					test := &test{
-						mode:     mode.Stream,
-						payload:  payload,
-						selector: scion.DefaultPathSelector,
-					}
-					tests = append(tests, test)
-				} else {
+			if m == mode.Stream {
+				test := &test{
+					mode:     mode.Stream,
+					payload:  payload,
+					selector: scion.DefaultPathSelector,
+				}
+				tests = append(tests, test)
+			} else {
+				for _, selector := range selection {
 					for _, blocksize := range blocksizes {
 						for _, parallelism := range parallelisms {
 							test := &test{
