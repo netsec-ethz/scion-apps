@@ -61,7 +61,7 @@ func (test *test) String() string {
 
 func writeToCsv(results []*test) {
 	w := csv.NewWriter(os.Stderr)
-	header := []string{"mode", "parallelism", "payload (MB)", "block_size", "path_number", "duration", "bandwidth"}
+	header := []string{"mode", "parallelism", "payload (MB)", "block_size (KB)", "path_number", "duration (s)", "bandwidth (MB/s)"}
 	if err := w.Write(header); err != nil {
 		log.Fatal(err)
 	}
