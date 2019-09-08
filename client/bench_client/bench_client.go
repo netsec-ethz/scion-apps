@@ -95,15 +95,15 @@ func run() error {
 	var tests []*test
 	for _, m := range extended {
 		for _, payload := range payloads {
-			if m == mode.Stream {
-				test := &test{
-					mode:     mode.Stream,
-					payload:  payload,
-					selector: scion.DefaultPathSelector,
-				}
-				tests = append(tests, test)
-			} else {
-				for _, selector := range selection {
+			for _, selector := range selection {
+				if m == mode.Stream {
+					test := &test{
+						mode:     mode.Stream,
+						payload:  payload,
+						selector: scion.DefaultPathSelector,
+					}
+					tests = append(tests, test)
+				} else {
 					for _, blocksize := range blocksizes {
 						for _, parallelism := range parallelisms {
 							test := &test{
