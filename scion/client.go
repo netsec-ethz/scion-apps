@@ -165,11 +165,17 @@ func (r *Rotator) Reset(max int) {
 }
 
 func (r *Rotator) GetNumberOfUsedPaths() int {
-	if r.index < r.paths {
-		return r.index
+	if r.max > 0 && r.max < r.paths {
+		if r.max < r.index {
+			return r.max
+		}
+	} else {
+		if r.paths < r.index {
+			return r.paths
+		}
 	}
 
-	return r.paths
+	return r.index
 }
 
 func (r *Rotator) RotatingPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
