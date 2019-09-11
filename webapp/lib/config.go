@@ -17,15 +17,6 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// SCIONROOT is the root location of the scion infrastructure.
-var SCIONROOT = "src/github.com/scionproto/scion"
-
-// LABROOT is the root location of scionlab apps.
-var LABROOT = "src/github.com/netsec-ethz/scion-apps"
-
-// GOPATH is the root of the GOPATH environment.
-var GOPATH = os.Getenv("GOPATH")
-
 // default params for localhost testing
 var serIaDef = "1-ff00:0:112"
 var cliPortDef = "30001"
@@ -68,11 +59,11 @@ func ReadUserSetting(srcpath string) UserSetting {
 }
 
 // ScanLocalIAs will load list of locally available IAs
-func ScanLocalIAs() []string {
+func ScanLocalIAs(scionRoot string) []string {
 	var localIAs []string
 	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
 	re := regexp.MustCompile(reIaFilePathCap)
-	var searchPath = path.Join(GOPATH, SCIONROOT, "gen")
+	var searchPath = path.Join(scionRoot, "gen")
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.IsDir() {
 			capture := re.FindStringSubmatch(path)
