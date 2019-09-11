@@ -7,7 +7,7 @@ echo "IA found: $iaFile"
 
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 as=$(echo ${iaFile} | cut -d"-" -f2)
-topologyFile=$SC/gen/ISD$isd/AS$as/endhost/topology.json
+topologyFile=$SCION_GEN/ISD$isd/AS$as/endhost/topology.json
 
 # get remote addresses from interfaces
 ip_dsts=$(cat $topologyFile | python -c "import sys, json

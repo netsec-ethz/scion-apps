@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -44,7 +45,7 @@ type ResHealthCheck struct {
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string, ia string) {
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request, scionRoot string, srcpath string, ia string) {
 	hcResFp := path.Join(srcpath, resFileHealthCheck)
 	// read specified tests from json definition
 	fp := path.Join(srcpath, defFileHealthCheck)
@@ -54,6 +55,27 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string, 
 		return
 	}
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
+
+	err = os.Setenv("SCION_ROOT", scionRoot+"/")
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
+	err = os.Setenv("SCION_BIN", scionRoot+"/bin/")
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
+	err = os.Setenv("SCION_GEN", scionRoot+"/gen/")
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
+	err = os.Setenv("SCION_LOGS", scionRoot+"/logs/")
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
 
 	var tests DefTests
 	err = json.Unmarshal([]byte(raw), &tests)

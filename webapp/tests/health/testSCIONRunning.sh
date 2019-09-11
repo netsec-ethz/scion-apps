@@ -9,15 +9,8 @@ error_exit()
 
 
 # check if "./scion.sh status" returns anything, fail if it does
-if [[ -d $SC ]]
-then
-    echo "Variable \$SC is set correctly."
-else
-    error_exit "Variable \$SC is not properly set."
-fi
-
-cd $SC
-status="$(bash $SC/scion.sh status 2>&1)"
+cd $SCION_ROOT
+status="$(bash $SCION_ROOT/scion.sh status 2>&1)"
 if [[ $status ]]
 then
     echo "SCION status has reported a problem: $status."
@@ -61,7 +54,6 @@ isd=$(echo ${iaFile} | cut -d"-" -f1)
 
 if [ $isd -ge 16 ]; then
     # not used for localhost testing
-    check_presence $SC/gen ia
     check_presence /run/shm/sciond default.sock
 fi
 check_presence /run/shm/dispatcher default.sock
