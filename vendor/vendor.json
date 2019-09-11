@@ -1058,86 +1058,86 @@
 		{
 			"checksumSHA1": "oAzVVzZ8G62Tc8Z6QKKuFmI79bk=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/algorithmTypes",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "74bjp4b7F8YZIKKsMTfTF1cPafU=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/cbor",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
-			"checksumSHA1": "JF0HSoKCifEckCKfi9eX54lxUb0=",
+			"checksumSHA1": "6JTXNqw5zSb/Jm4IAWP3Cu+ucEY=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/connection",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "1WY5z5R39nDBaunrcEnUs1l0itI=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/datastructures/bitarray",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "vq0RzZ/9ctflFEOJ4nn/arquwwA=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/keys",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "7n3dj+WS6lVlWGXNLfVYzPOT8tU=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/message",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "oFBX4nDOZHDQHs+zabzK9rXqR6I=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/object",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "aaQD2Wm6Q9yETQaqk0bByLgYyNE=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/query",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "I3t/4fX/VIEUBhaEZlja2G0EcBE=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/section",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "lCbtqf/yBKG45tYEZs9SvjODing=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/signature",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "0mE6gU++UPNzNQmeRkQmTah/C/U=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/token",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "ECWRk96/oj6hh3M/ckuzQIPzizQ=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/util",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "vBgrsP8uQOgKVidXICkKVrpuKak=",
 			"path": "github.com/netsec-ethz/rains/internal/pkg/zonefile",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "jup0QWu5f6W4YKZkZ1YZnWlfKJ4=",
 			"path": "github.com/netsec-ethz/rains/pkg/rains",
-			"revision": "64644121e0a43b4771396825c5137d582d16a56a",
-			"revisionTime": "2019-04-30T09:11:16Z"
+			"revision": "53dca991dcbbda9f401ddc34742a0de602acf31e",
+			"revisionTime": "2019-09-11T11:48:01Z"
 		},
 		{
 			"checksumSHA1": "PWqiwYCCOrP4mXH+gPiHsSQ4dqY=",
