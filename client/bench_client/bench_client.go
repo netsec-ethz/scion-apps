@@ -156,6 +156,8 @@ func run() error {
 	}
 
 	for _, test := range tests {
+		time.Sleep(sleep)
+
 		rotator.Reset()
 		conn.SetPathSelector(test.selector)
 
@@ -190,7 +192,6 @@ func run() error {
 		test.pathNumber = rotator.GetNumberOfUsedPaths()
 
 		fmt.Print(".")
-		time.Sleep(sleep)
 	}
 
 	fmt.Println()
