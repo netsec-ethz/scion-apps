@@ -30,16 +30,24 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
+// GOPATH is the root of the GOPATH environment.
+var GOPATH = os.Getenv("GOPATH")
+
 // browseRoot is browse-only, consider security (def: cwd)
 var browseRoot = flag.String("r", ".",
 	"Root path to browse from, CAUTION: read-access granted from -a and -p.")
 
-// staticRoot for serving/writing static data (def: cwd)
-var staticRoot = flag.String("s", ".",
+// staticRoot for serving/writing static data
+var staticRoot = flag.String("s", path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp"),
 	"Static path of web server files (local repo scion-apps/webapp).")
 
-// cwdPath - this is where images are going, this is runtime (record, no settings)
-var cwdPath = "."
+// scionRoot is the root location of the scion infrastructure.
+var scionRoot = flag.String("i", path.Join(GOPATH, "src/github.com/scionproto/scion"),
+	"the root location of the scion infrastructure.")
+
+// appsRoot is the root location of scionlab apps.
+var appsRoot = flag.String("l", path.Join(GOPATH, "bin"),
+	"the root location of scionlab apps.")
 
 var addr = flag.String("a", "127.0.0.1", "Address of server host.")
 var port = flag.Int("p", 8000, "Port of server host.")
@@ -154,7 +162,7 @@ func main() {
 
 // load list of locally available IAs and determine user choices
 func initLocalIaOptions() {
-	localIAs = lib.ScanLocalIAs()
+	localIAs = lib.ScanLocalIAs(*scionRoot)
 	settings = lib.ReadUserSetting(*staticRoot)
 
 	// if read myia not in list, pick default
@@ -188,7 +196,7 @@ func initServeHandlers() {
 
 	http.HandleFunc("/command", commandHandler)
 	http.HandleFunc("/imglast", findImageHandler)
-	http.HandleFunc("/txtlast", lib.FindImageInfoHandler)
+	http.HandleFunc("/txtlast", findImageInfoHandler)
 	http.HandleFunc("/getnodes", getNodesHandler)
 	http.HandleFunc("/getbwbytime", getBwByTimeHandler)
 	http.HandleFunc("/healthcheck", healthCheckHandler)
@@ -203,10 +211,10 @@ func initServeHandlers() {
 	http.HandleFunc("/labels", lib.LabelsHandler)
 	http.HandleFunc("/locations", lib.LocationsHandler)
 	http.HandleFunc("/geolocate", lib.GeolocateHandler)
-	http.HandleFunc("/getpathtopo", lib.PathTopoHandler)
+	http.HandleFunc("/getpathtopo", getPathInfoHandler)
 	http.HandleFunc("/getastopo", lib.AsTopoHandler)
-	http.HandleFunc("/getcrt", lib.CrtHandler)
-	http.HandleFunc("/gettrc", lib.TrcHandler)
+	http.HandleFunc("/getcrt", getCrtInfoHandler)
+	http.HandleFunc("/gettrc", getTrcInfoHandler)
 }
 
 func logRequestHandler(handler http.Handler) http.Handler {
@@ -536,13 +544,13 @@ func getClientCwd(app string) string {
 	var cwd string
 	switch app {
 	case "sensorapp":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, ".")
+		cwd = path.Join(*staticRoot, ".")
 	case "camerapp":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, "webapp/data/images")
+		cwd = path.Join(*staticRoot, "data/images")
 	case "bwtester":
-		cwd = path.Join(lib.GOPATH, lib.LABROOT, ".")
+		cwd = path.Join(*staticRoot, ".")
 	case "echo", "traceroute":
-		cwd = path.Join(lib.GOPATH, lib.SCIONROOT, "bin")
+		cwd = path.Join(*scionRoot, "bin")
 	}
 	return cwd
 }
@@ -552,13 +560,13 @@ func getClientLocationBin(app string) string {
 	var binname string
 	switch app {
 	case "sensorapp":
-		binname = path.Join(lib.GOPATH, "bin/sensorfetcher")
+		binname = path.Join(*appsRoot, "sensorfetcher")
 	case "camerapp":
-		binname = path.Join(lib.GOPATH, "bin/imagefetcher")
+		binname = path.Join(*appsRoot, "imagefetcher")
 	case "bwtester":
-		binname = path.Join(lib.GOPATH, "bin/bwtestclient")
+		binname = path.Join(*appsRoot, "bwtestclient")
 	case "echo", "traceroute":
-		binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/scmp")
+		binname = path.Join(*scionRoot, "bin/scmp")
 	}
 	return binname
 }
@@ -703,7 +711,23 @@ func getTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handles locating most recent image formatting it for graphic display in response.
 func findImageHandler(w http.ResponseWriter, r *http.Request) {
-	lib.FindImageHandler(w, r, browserAddr, *port)
+	lib.FindImageHandler(w, r, *staticRoot, browserAddr, *port)
+}
+
+func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {
+	lib.FindImageInfoHandler(w, r, *staticRoot)
+}
+
+func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
+	lib.TrcHandler(w, r, *scionRoot)
+}
+
+func getCrtInfoHandler(w http.ResponseWriter, r *http.Request) {
+	lib.CrtHandler(w, r, *scionRoot)
+}
+
+func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
+	lib.PathTopoHandler(w, r, *scionRoot)
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
