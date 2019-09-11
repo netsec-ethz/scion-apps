@@ -24,9 +24,8 @@ var (
 )
 
 const (
-	sizeUnit    = 1000 * 1000 // MB
-	repetitions = 10
-	sleep       = 1 * time.Second
+	sizeUnit = 1000 * 1000 // MB
+	sleep    = 5 * time.Second
 )
 
 func main() {
@@ -133,7 +132,7 @@ func run() error {
 		}
 	}
 
-	fmt.Printf("%d Testcases with %d repetitions\n", len(tests), repetitions)
+	fmt.Printf("%d Testcases\n", len(tests))
 
 	conn, err := ftp.Dial(*client, *remote)
 	defer conn.Quit()
@@ -153,51 +152,45 @@ func run() error {
 		response.Close()
 	}
 
-	for i := 0; i < repetitions; i++ {
-		for _, test := range tests {
-			rotator.Reset()
-			conn.SetPathSelector(test.selector)
+	for _, test := range tests {
+		rotator.Reset()
+		conn.SetPathSelector(test.selector)
 
-			err = conn.Mode(test.mode)
-			if err != nil {
-				return err
-			}
-
-			if test.mode == mode.ExtendedBlockMode {
-				err = conn.SetRetrOpts(test.parallelism, test.blockSize)
-				if err != nil {
-					return err
-				}
-			}
-
-			start := time.Now()
-			response, err := conn.Retr(strconv.Itoa(test.payload * sizeUnit))
-			if err != nil {
-				return err
-			}
-
-			n, err := io.Copy(ioutil.Discard, response)
-			if err != nil {
-				return err
-			}
-			if int(n) != test.payload*sizeUnit {
-				return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*sizeUnit, n)
-			}
-			response.Close()
-
-			test.duration += time.Since(start)
-			test.pathNumber = rotator.GetNumberOfUsedPaths()
-
-			fmt.Print(".")
-			time.Sleep(sleep)
+		err = conn.Mode(test.mode)
+		if err != nil {
+			return err
 		}
+
+		if test.mode == mode.ExtendedBlockMode {
+			err = conn.SetRetrOpts(test.parallelism, test.blockSize)
+			if err != nil {
+				return err
+			}
+		}
+
+		start := time.Now()
+		response, err := conn.Retr(strconv.Itoa(test.payload * sizeUnit))
+		if err != nil {
+			return err
+		}
+
+		n, err := io.Copy(ioutil.Discard, response)
+		if err != nil {
+			return err
+		}
+		if int(n) != test.payload*sizeUnit {
+			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*sizeUnit, n)
+		}
+		response.Close()
+
+		test.duration += time.Since(start)
+		test.pathNumber = rotator.GetNumberOfUsedPaths()
+
+		fmt.Print(".")
+		time.Sleep(sleep)
 	}
 
 	fmt.Println()
-
-	for _, test := range tests {
-		test.duration /= repetitions
-	}
 
 	fmt.Println("--------------")
 
