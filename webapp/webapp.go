@@ -30,7 +30,7 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// GOPATH is the root of the GOPATH environment.
+// GOPATH is the root of the GOPATH environment (in development).
 var GOPATH = os.Getenv("GOPATH")
 
 // browseRoot is browse-only, consider security (def: cwd)
@@ -694,7 +694,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, *staticRoot, settings.MyIA)
+	lib.HealthCheckHandler(w, r, *scionRoot, *staticRoot, settings.MyIA)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
