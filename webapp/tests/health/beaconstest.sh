@@ -12,7 +12,7 @@ iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
 
 # format log file and beacons grep string
-logfile=~/go/src/github.com/scionproto/scion/logs/bs${iaFile}-1.DEBUG
+logfile=$SC/logs/bs${iaFile}-1.DEBUG
 echo "Log: $logfile"
 
 # seek last log entry for verified PCBs
