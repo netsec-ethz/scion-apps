@@ -24,7 +24,9 @@ var (
 )
 
 const (
-	sizeUnit = 1000 * 1000 // MB
+	sizeUnit    = 1000 * 1000 // MB
+	repetitions = 10
+	sleep       = 1 * time.Second
 )
 
 func main() {
@@ -48,7 +50,6 @@ type test struct {
 	duration    time.Duration
 	selector    scion.PathSelector
 	pathNumber  int
-	bandwidth   float64
 }
 
 func (test *test) String() string {
@@ -87,8 +88,8 @@ func run() error {
 
 	extended := []rune{mode.ExtendedBlockMode, mode.Stream}
 	parallelisms := []int{1, 2, 4, 8, 16, 32}
-	payloads := []int{8}
-	blocksizes := []int{2048, 4096, 8192}
+	payloads := []int{1}
+	blocksizes := []int{4096}
 	rotator := scion.NewRotator()
 	selection := []scion.PathSelector{rotator.RotatingPathSelector, scion.DefaultPathSelector}
 
@@ -103,23 +104,36 @@ func run() error {
 				}
 				tests = append(tests, test)
 			} else {
-				for _, selector := range selection {
-					for _, blocksize := range blocksizes {
-						for _, parallelism := range parallelisms {
+				for _, blocksize := range blocksizes {
+					for _, parallelism := range parallelisms {
+						if parallelism == 1 {
 							test := &test{
 								mode:        mode.ExtendedBlockMode,
 								parallelism: parallelism,
 								payload:     payload,
 								blockSize:   blocksize,
-								selector:    selector,
+								selector:    scion.DefaultPathSelector,
 							}
 							tests = append(tests, test)
+						} else {
+							for _, selector := range selection {
+								test := &test{
+									mode:        mode.ExtendedBlockMode,
+									parallelism: parallelism,
+									payload:     payload,
+									blockSize:   blocksize,
+									selector:    selector,
+								}
+								tests = append(tests, test)
+							}
 						}
 					}
 				}
 			}
 		}
 	}
+
+	fmt.Printf("%d Testcases with %d repetitions\n", len(tests), repetitions)
 
 	conn, err := ftp.Dial(*client, *remote)
 	defer conn.Quit()
@@ -139,46 +153,50 @@ func run() error {
 		response.Close()
 	}
 
-	for _, test := range tests {
-		rotator.Reset()
-		conn.SetPathSelector(test.selector)
+	for i := 0; i < repetitions; i++ {
+		for _, test := range tests {
+			rotator.Reset()
+			conn.SetPathSelector(test.selector)
 
-		err = conn.Mode(test.mode)
-		if err != nil {
-			return err
-		}
-
-		if test.mode == mode.ExtendedBlockMode {
-			err = conn.SetRetrOpts(test.parallelism, test.blockSize)
+			err = conn.Mode(test.mode)
 			if err != nil {
 				return err
 			}
-		}
 
-		start := time.Now()
-		response, err := conn.Retr(strconv.Itoa(test.payload * sizeUnit))
-		if err != nil {
-			return err
-		}
+			if test.mode == mode.ExtendedBlockMode {
+				err = conn.SetRetrOpts(test.parallelism, test.blockSize)
+				if err != nil {
+					return err
+				}
+			}
 
-		n, err := io.Copy(ioutil.Discard, response)
-		if err != nil {
-			return err
-		}
-		if int(n) != test.payload*sizeUnit {
-			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*sizeUnit, n)
-		}
-		response.Close()
+			start := time.Now()
+			response, err := conn.Retr(strconv.Itoa(test.payload * sizeUnit))
+			if err != nil {
+				return err
+			}
 
-		test.duration += time.Since(start)
-		test.pathNumber = rotator.GetNumberOfUsedPaths()
+			n, err := io.Copy(ioutil.Discard, response)
+			if err != nil {
+				return err
+			}
+			if int(n) != test.payload*sizeUnit {
+				return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*sizeUnit, n)
+			}
+			response.Close()
 
-		fmt.Print(".")
+			test.duration += time.Since(start)
+			test.pathNumber = rotator.GetNumberOfUsedPaths()
+
+			fmt.Print(".")
+			time.Sleep(sleep)
+		}
 	}
+
 	fmt.Println()
 
 	for _, test := range tests {
-		fmt.Println(test)
+		test.duration /= repetitions
 	}
 
 	fmt.Println("--------------")
