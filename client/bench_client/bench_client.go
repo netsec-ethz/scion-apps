@@ -142,6 +142,9 @@ func run() error {
 
 	// Warm-up
 	response, err := conn.Retr(strconv.Itoa(tests[0].payload * sizeUnit))
+	conn.SetPathSelector(rotator.RotatingPathSelector)
+	conn.Mode(mode.ExtendedBlockMode)
+	conn.SetRetrOpts(8, 4096)
 	if err != nil {
 		log.Fatal("failed to retrieve file", err)
 	} else {
