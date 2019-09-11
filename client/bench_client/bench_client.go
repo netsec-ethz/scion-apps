@@ -26,6 +26,7 @@ var (
 const (
 	sizeUnit = 1000 * 1000 // MB
 	sleep    = 5 * time.Second
+	maxPaths = 2
 )
 
 func main() {
@@ -89,7 +90,7 @@ func run() error {
 	parallelisms := []int{1, 2, 4, 8, 16, 32}
 	payloads := []int{1}
 	blocksizes := []int{4096}
-	rotator := scion.NewRotator()
+	rotator := scion.NewRotator(maxPaths)
 	selection := []scion.PathSelector{rotator.RotatingPathSelector, scion.DefaultPathSelector}
 
 	var tests []*test
@@ -158,7 +159,7 @@ func run() error {
 	for _, test := range tests {
 		time.Sleep(sleep)
 
-		rotator.Reset()
+		rotator.Reset(maxPaths)
 		conn.SetPathSelector(test.selector)
 
 		err = conn.Mode(test.mode)
