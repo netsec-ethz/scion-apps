@@ -121,7 +121,7 @@ func init() {
 	}
 
 	// redirect SCION log to a log file
-	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0)
+	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0)
 }
 
 func parsePrintOption(s string) {

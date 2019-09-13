@@ -336,7 +336,7 @@ func main() {
 	}
 
 	var pathEntry *sciond.PathReplyEntry
-	if !serverCCAddr.IA.Eq(clientCCAddr.IA) {
+	if !serverCCAddr.IA.Equal(clientCCAddr.IA) {
 		if interactive {
 			pathEntry = scionutil.ChoosePathInteractive(clientCCAddr, serverCCAddr)
 		} else {
@@ -373,7 +373,7 @@ func main() {
 		L3: serverCCAddr.Host.L3, L4: addr.NewL4UDPInfo(uint16(serverPort) + 1)}}
 
 	// Set path on data connection
-	if !serverDCAddr.IA.Eq(clientDCAddr.IA) {
+	if !serverDCAddr.IA.Equal(clientDCAddr.IA) {
 		serverDCAddr.Path = spath.New(pathEntry.Path.FwdPath)
 		serverDCAddr.Path.InitOffsets()
 		serverDCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()

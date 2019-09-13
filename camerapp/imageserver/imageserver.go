@@ -19,6 +19,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -167,7 +168,7 @@ func main() {
 	} else if sciondPath == "" {
 		sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
-	snet.Init(server.IA, sciondPath, dispatcherPath)
+	snet.Init(server.IA, sciondPath, reliable.NewDispatcherService(dispatcherPath))
 	udpConnection, err = snet.ListenSCION("udp4", server)
 	check(err)
 
