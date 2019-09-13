@@ -1,5 +1,5 @@
 #!/bin/bash
 set -x
 
-printf "\n### Getting vendor libraries\n"
+command -v govendor >/dev/null || go get github.com/kardianos/govendor
 govendor sync -v
