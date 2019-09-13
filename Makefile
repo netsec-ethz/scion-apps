@@ -9,8 +9,13 @@ all: $(TARGETS)
 deps:
 	./deps.sh
 
+vendor: deps
+
 clean:
 	@$(foreach d,$(SRCDIRS),cd $(ROOT_DIR)/$(d) && go clean;)
+
+mrproper: clean
+	rm -rf vendor/*/
 
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)
