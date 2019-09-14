@@ -191,8 +191,8 @@ func (r *Rotator) Reset(max int) {
 }
 
 func (r *Rotator) GetNumberOfUsedPaths() int {
-	if r.current > r.max {
-		return r.max
+	if r.current > len(r.paths) {
+		return len(r.paths)
 	} else {
 		return r.current
 	}

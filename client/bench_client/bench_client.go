@@ -26,7 +26,7 @@ var (
 const (
 	sizeUnit = 1000 * 1000 // MB
 	sleep    = 5 * time.Second
-	maxPaths = 2
+	maxPaths = 100
 )
 
 func main() {
