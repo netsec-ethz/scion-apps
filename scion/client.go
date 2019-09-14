@@ -175,8 +175,9 @@ func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEn
 }
 
 type Rotator struct {
-	index, max int
-	paths      int
+	max, current int
+	paths        []*sciond.PathReplyEntry
+	sync.Mutex
 }
 
 func NewRotator(max int) *Rotator {
@@ -185,30 +186,31 @@ func NewRotator(max int) *Rotator {
 
 func (r *Rotator) Reset(max int) {
 	r.max = max
-	r.index = 0
+	r.current = 0
+	r.paths = nil
 }
 
 func (r *Rotator) GetNumberOfUsedPaths() int {
-	if r.max > 0 && r.max < r.paths {
-		if r.max < r.index {
-			return r.max
-		}
+	if r.current > r.max {
+		return r.max
 	} else {
-		if r.paths < r.index {
-			return r.paths
-		}
+		return r.current
 	}
-
-	return r.index
 }
 
 func (r *Rotator) PathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
-	r.paths = len(paths)
-	newIndex := r.index % r.paths
-	if r.max > 0 && r.max < r.paths {
-		newIndex = r.index % r.max
+	r.Lock()
+	defer r.Unlock()
+
+	if r.paths == nil {
+		max := r.max
+		if max > len(paths) {
+			max = len(paths)
+		}
+		r.paths = paths[0:max]
 	}
 
-	r.index++
-	return paths[newIndex]
+	idx := r.current % len(r.paths)
+	r.current++
+	return r.paths[idx]
 }
