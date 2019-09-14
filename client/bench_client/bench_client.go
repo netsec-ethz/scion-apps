@@ -91,7 +91,8 @@ func run() error {
 	payloads := []int{1}
 	blocksizes := []int{4096}
 	rotator := scion.NewRotator(maxPaths)
-	selection := []scion.PathSelector{rotator.RotatingPathSelector, scion.DefaultPathSelector}
+	static := scion.NewStaticSelector()
+	selection := []scion.PathSelector{static.StaticPathSelector, rotator.RotatingPathSelector}
 
 	var tests []*test
 	for _, m := range extended {
@@ -100,7 +101,7 @@ func run() error {
 				test := &test{
 					mode:     mode.Stream,
 					payload:  payload,
-					selector: scion.DefaultPathSelector,
+					selector: static.StaticPathSelector,
 				}
 				tests = append(tests, test)
 			} else {
@@ -112,7 +113,7 @@ func run() error {
 								parallelism: parallelism,
 								payload:     payload,
 								blockSize:   blocksize,
-								selector:    scion.DefaultPathSelector,
+								selector:    static.StaticPathSelector,
 							}
 							tests = append(tests, test)
 						} else {
@@ -160,6 +161,7 @@ func run() error {
 		time.Sleep(sleep)
 
 		rotator.Reset(maxPaths)
+		static.Reset()
 		conn.SetPathSelector(test.selector)
 
 		err = conn.Mode(test.mode)

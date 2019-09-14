@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -117,6 +118,29 @@ type PathSelector func([]*sciond.PathReplyEntry) *sciond.PathReplyEntry
 
 func DefaultPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
 	return paths[0]
+}
+
+func NewStaticSelector() *StaticSelector {
+	return &StaticSelector{}
+}
+
+type StaticSelector struct {
+	sync.Mutex
+	path *sciond.PathReplyEntry
+}
+
+func (selector *StaticSelector) StaticPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+	selector.Lock()
+	defer selector.Unlock()
+	if selector.path == nil {
+		selector.path = paths[0]
+	}
+
+	return selector.path
+}
+
+func (selector *StaticSelector) Reset() {
+	selector.path = nil
 }
 
 // Copied from Pingpong sample application:

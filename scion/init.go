@@ -2,27 +2,37 @@ package scion
 
 import (
 	"fmt"
+	"sync"
+
+	"github.com/scionproto/scion/go/lib/snet/squic"
 
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
+var initialize sync.Once
+
 func initNetwork(local Address) error {
-	if snet.DefNetwork == nil {
+	var err error
+	initialize.Do(func() {
+		if snet.DefNetwork == nil {
 
-		err := initSciond(local)
-		if err != nil {
-			return fmt.Errorf("failed to initialize SCION: %s", err)
+			err := initSciond(local)
+			if err != nil {
+				err = fmt.Errorf("failed to initialize SCION: %s", err)
+				return
+			}
 		}
-	}
 
-	err := squic.Init("", "")
-	if err != nil {
-		return fmt.Errorf("failed to initilaze SQUIC: %s", err)
-	}
+		err := squic.Init("", "")
+		if err != nil {
+			err = fmt.Errorf("failed to initilaze SQUIC: %s", err)
+			return
+		}
 
-	return nil
+	})
+
+	return err
 }
 
 func initSciond(local Address) error {
