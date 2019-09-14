@@ -111,7 +111,9 @@ func choosePath(local, remote snet.Addr, selector PathSelector) *sciond.PathRepl
 		paths = append(paths, p.Entry)
 	}
 
-	return selector(paths)
+	selected := selector(paths)
+	fmt.Println(selected)
+	return selected
 }
 
 type PathSelector func([]*sciond.PathReplyEntry) *sciond.PathReplyEntry
@@ -129,7 +131,7 @@ type StaticSelector struct {
 	path *sciond.PathReplyEntry
 }
 
-func (selector *StaticSelector) StaticPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+func (selector *StaticSelector) PathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
 	selector.Lock()
 	defer selector.Unlock()
 	if selector.path == nil {
@@ -146,11 +148,9 @@ func (selector *StaticSelector) Reset() {
 // Copied from Pingpong sample application:
 // https://github.com/scionproto/scion/blob/8291539e5b23a217cb367bce6da05b71d0fe1d82/go/examples/pingpong/pingpong.go#L419
 func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
-	/*
-		if len(paths) == 1 {
-			return paths[0]
-		}
-	*/
+	if len(paths) == 1 {
+		return paths[0]
+	}
 
 	var index uint64
 
@@ -202,7 +202,7 @@ func (r *Rotator) GetNumberOfUsedPaths() int {
 	return r.index
 }
 
-func (r *Rotator) RotatingPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+func (r *Rotator) PathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
 	r.paths = len(paths)
 	newIndex := r.index % r.paths
 	if r.max > 0 && r.max < r.paths {

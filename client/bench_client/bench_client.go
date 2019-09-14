@@ -92,7 +92,7 @@ func run() error {
 	blocksizes := []int{4096}
 	rotator := scion.NewRotator(maxPaths)
 	static := scion.NewStaticSelector()
-	selection := []scion.PathSelector{static.StaticPathSelector, rotator.RotatingPathSelector}
+	selection := []scion.PathSelector{static.PathSelector, rotator.PathSelector}
 
 	var tests []*test
 	for _, m := range extended {
@@ -101,7 +101,7 @@ func run() error {
 				test := &test{
 					mode:     mode.Stream,
 					payload:  payload,
-					selector: static.StaticPathSelector,
+					selector: static.PathSelector,
 				}
 				tests = append(tests, test)
 			} else {
@@ -113,7 +113,7 @@ func run() error {
 								parallelism: parallelism,
 								payload:     payload,
 								blockSize:   blocksize,
-								selector:    static.StaticPathSelector,
+								selector:    static.PathSelector,
 							}
 							tests = append(tests, test)
 						} else {
@@ -143,7 +143,7 @@ func run() error {
 	}
 
 	// Warm-up
-	conn.SetPathSelector(rotator.RotatingPathSelector)
+	conn.SetPathSelector(rotator.PathSelector)
 	conn.Mode(mode.ExtendedBlockMode)
 	conn.SetRetrOpts(8, 4096)
 	response, err := conn.Retr(strconv.Itoa(tests[0].payload * sizeUnit))
@@ -192,6 +192,10 @@ func run() error {
 		response.Close()
 
 		test.duration += time.Since(start)
+
+		// Can't compare functions in Go, thus we don't know which selector has been used
+		// However, rotator will return 0 only if it has not been used, thus
+		// a value of 0 will correspond to the other selector
 		test.pathNumber = rotator.GetNumberOfUsedPaths()
 
 		fmt.Print(".")
