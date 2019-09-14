@@ -197,8 +197,6 @@ func run() error {
 		// However, rotator will return 0 only if it has not been used, thus
 		// a value of 0 will correspond to the other selector
 		test.pathNumber = rotator.GetNumberOfUsedPaths()
-
-		fmt.Print(".")
 	}
 
 	fmt.Println()
