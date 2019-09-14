@@ -157,7 +157,8 @@ func run() error {
 		response.Close()
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
+		fmt.Println("Preparing for testcase", i)
 		time.Sleep(sleep)
 
 		rotator.Reset(maxPaths)
