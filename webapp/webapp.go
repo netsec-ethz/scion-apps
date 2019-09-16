@@ -111,6 +111,11 @@ func ensurePath(srcpath, staticDir string) string {
 	}
 	return dir
 }
+func checkPath(dir string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		CheckError(err)
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -131,6 +136,15 @@ func main() {
 			log.Must.FileHandler(path.Join(logDirPath, fmt.Sprintf("%s.log", id)),
 				fmt15.Fmt15Format(nil)))))
 	log.Info("======================> Webapp started")
+
+	checkPath(options.StaticRoot)
+	checkPath(options.BrowseRoot)
+	checkPath(options.AppsRoot)
+	checkPath(options.ScionRoot)
+	checkPath(options.ScionBin)
+	checkPath(options.ScionGen)
+	checkPath(options.ScionGenCache)
+	checkPath(options.ScionLogs)
 
 	// prepare templates
 	templates = prepareTemplates(options.StaticRoot)
