@@ -45,10 +45,10 @@ type ResHealthCheck struct {
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request, scionRoot string, srcpath string, ia string) {
-	hcResFp := path.Join(srcpath, resFileHealthCheck)
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, ia string) {
+	hcResFp := path.Join(options.StaticRoot, resFileHealthCheck)
 	// read specified tests from json definition
-	fp := path.Join(srcpath, defFileHealthCheck)
+	fp := path.Join(options.StaticRoot, defFileHealthCheck)
 	raw, err := ioutil.ReadFile(fp)
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
@@ -56,22 +56,22 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, scionRoot string
 	}
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
 
-	err = os.Setenv("SCION_ROOT", scionRoot+"/")
+	err = os.Setenv("SCION_ROOT", options.ScionRoot+"/")
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
-	err = os.Setenv("SCION_BIN", scionRoot+"/bin/")
+	err = os.Setenv("SCION_BIN", options.ScionBin+"/")
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
-	err = os.Setenv("SCION_GEN", scionRoot+"/gen/")
+	err = os.Setenv("SCION_GEN", options.ScionGen+"/")
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
-	err = os.Setenv("SCION_LOGS", scionRoot+"/logs/")
+	err = os.Setenv("SCION_LOGS", options.ScionLogs+"/")
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return

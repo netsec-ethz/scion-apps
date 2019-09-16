@@ -35,19 +35,27 @@ var GOPATH = os.Getenv("GOPATH")
 
 // browseRoot is browse-only, consider security (def: cwd)
 var browseRoot = flag.String("r", ".",
-	"Root path to browse from, CAUTION: read-access granted from -a and -p.")
+	"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
 
 // staticRoot for serving/writing static data
-var staticRoot = flag.String("s", path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp"),
-	"Static path of web server files (local repo scion-apps/webapp).")
-
-// scionRoot is the root location of the scion infrastructure.
-var scionRoot = flag.String("i", path.Join(GOPATH, "src/github.com/scionproto/scion"),
-	"the root location of the scion infrastructure.")
+var staticRoot = flag.String("srvroot", path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp"),
+	"Path to read/write web server files (local repo scion-apps/webapp).")
 
 // appsRoot is the root location of scionlab apps.
-var appsRoot = flag.String("l", path.Join(GOPATH, "bin"),
-	"the root location of scionlab apps.")
+var appsRoot = flag.String("sabin", path.Join(GOPATH, "bin"),
+	"Path to execute the installed scionlab apps binaries")
+
+// scionRoot is the root location of the scion infrastructure.
+var scionRoot = flag.String("sroot", path.Join(GOPATH, "src/github.com/scionproto/scion"),
+	"Path to read SCION root directory of infrastructure")
+var scionBin = flag.String("sbin", path.Join(*scionRoot, "bin"),
+	"Path to execute SCION bin directory of infrastructure tools")
+var scionGen = flag.String("sgen", path.Join(*scionRoot, "gen"),
+	"Path to read SCION gen directory of infrastructure config")
+var scionGenCache = flag.String("sgenc", path.Join(*scionRoot, "gen-cache"),
+	"Path to read SCION gen-cache directory of infrastructure run-time config")
+var scionLogs = flag.String("slogs", path.Join(*scionRoot, "logs"),
+	"Path to read SCION logs directory of infrastructure logging")
 
 var addr = flag.String("a", "127.0.0.1", "Address of server host.")
 var port = flag.Int("p", 8000, "Port of server host.")
@@ -94,6 +102,8 @@ type Page struct {
 	MyIA  string
 }
 
+var options lib.CmdOptions
+
 func ensurePath(srcpath, staticDir string) string {
 	dir := path.Join(srcpath, staticDir)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -104,15 +114,16 @@ func ensurePath(srcpath, staticDir string) string {
 
 func main() {
 	flag.Parse()
+	options = lib.CmdOptions{*staticRoot, *browseRoot, *appsRoot, *scionRoot, *scionBin, *scionGen, *scionGenCache, *scionLogs}
 	// correct static files are required for the app to serve them, else fail
-	if _, err := os.Stat(path.Join(*staticRoot, "static")); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join(options.StaticRoot, "static")); os.IsNotExist(err) {
 		log.Error("-s flag must be set with local repo: scion-apps/webapp")
 		CheckFatal(err)
 		return
 	}
 
 	// logging
-	logDirPath := ensurePath(*staticRoot, "logs")
+	logDirPath := ensurePath(options.StaticRoot, "logs")
 	log.Root().SetHandler(log.MultiHandler(
 		log.LvlFilterHandler(log.LvlDebug,
 			log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
@@ -122,9 +133,9 @@ func main() {
 	log.Info("======================> Webapp started")
 
 	// prepare templates
-	templates = prepareTemplates(*staticRoot)
+	templates = prepareTemplates(options.StaticRoot)
 	// open and manage database
-	dbpath := path.Join(*staticRoot, "webapp.db")
+	dbpath := path.Join(options.StaticRoot, "webapp.db")
 	err := model.InitDB(dbpath)
 	if CheckFatal(err) {
 		return
@@ -135,15 +146,15 @@ func main() {
 		return
 	}
 	go model.MaintainDatabase()
-	ensurePath(*staticRoot, "data")
-	ensurePath(*staticRoot, "data/images")
+	ensurePath(options.StaticRoot, "data")
+	ensurePath(options.StaticRoot, "data/images")
 
 	initLocalIaOptions()
 	log.Info("IA loaded:", "myIa", settings.MyIA)
 
 	// generate client/server default
-	lib.GenClientNodeDefaults(*staticRoot, settings.MyIA)
-	lib.GenServerNodeDefaults(*staticRoot, localIAs)
+	lib.GenClientNodeDefaults(&options, settings.MyIA)
+	lib.GenServerNodeDefaults(&options, localIAs)
 
 	refreshRootDirectory()
 	appsBuildCheck("bwtester")
@@ -154,7 +165,7 @@ func main() {
 
 	initServeHandlers()
 	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
-	log.Info("File browser root:", "root", *browseRoot)
+	log.Info("File browser root:", "root", options.BrowseRoot)
 	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
 	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
 	CheckFatal(err)
@@ -162,8 +173,8 @@ func main() {
 
 // load list of locally available IAs and determine user choices
 func initLocalIaOptions() {
-	localIAs = lib.ScanLocalIAs(*scionRoot)
-	settings = lib.ReadUserSetting(*staticRoot)
+	localIAs = lib.ScanLocalIAs(&options)
+	settings = lib.ReadUserSetting(&options)
 
 	// if read myia not in list, pick default
 	iaExists := lib.StringInSlice(localIAs, settings.MyIA)
@@ -176,7 +187,7 @@ func initLocalIaOptions() {
 			settings.MyIA = ""
 		}
 	}
-	lib.WriteUserSetting(*staticRoot, settings)
+	lib.WriteUserSetting(&options, settings)
 }
 
 func initServeHandlers() {
@@ -187,11 +198,11 @@ func initServeHandlers() {
 	http.HandleFunc("/astopo", astopoHandler)
 	http.HandleFunc("/crt", crtHandler)
 	http.HandleFunc("/trc", trcHandler)
-	fsStatic := http.FileServer(http.Dir(path.Join(*staticRoot, "static")))
+	fsStatic := http.FileServer(http.Dir(path.Join(options.StaticRoot, "static")))
 	http.Handle("/static/", http.StripPrefix("/static/", fsStatic))
-	fsData := http.FileServer(http.Dir(path.Join(*staticRoot, "data")))
+	fsData := http.FileServer(http.Dir(path.Join(options.StaticRoot, "data")))
 	http.Handle("/data/", http.StripPrefix("/data/", fsData))
-	fsFileBrowser := http.FileServer(http.Dir(*browseRoot))
+	fsFileBrowser := http.FileServer(http.Dir(options.BrowseRoot))
 	http.Handle("/files/", http.StripPrefix("/files/", fsFileBrowser))
 
 	http.HandleFunc("/command", commandHandler)
@@ -544,13 +555,13 @@ func getClientCwd(app string) string {
 	var cwd string
 	switch app {
 	case "sensorapp":
-		cwd = path.Join(*staticRoot, ".")
+		cwd = path.Join(options.StaticRoot, ".")
 	case "camerapp":
-		cwd = path.Join(*staticRoot, "data/images")
+		cwd = path.Join(options.StaticRoot, "data/images")
 	case "bwtester":
-		cwd = path.Join(*staticRoot, ".")
+		cwd = path.Join(options.StaticRoot, ".")
 	case "echo", "traceroute":
-		cwd = path.Join(*scionRoot, "bin")
+		cwd = path.Join(options.ScionRoot, "bin")
 	}
 	return cwd
 }
@@ -560,13 +571,13 @@ func getClientLocationBin(app string) string {
 	var binname string
 	switch app {
 	case "sensorapp":
-		binname = path.Join(*appsRoot, "sensorfetcher")
+		binname = path.Join(options.AppsRoot, "sensorfetcher")
 	case "camerapp":
-		binname = path.Join(*appsRoot, "imagefetcher")
+		binname = path.Join(options.AppsRoot, "imagefetcher")
 	case "bwtester":
-		binname = path.Join(*appsRoot, "bwtestclient")
+		binname = path.Join(options.AppsRoot, "bwtestclient")
 	case "echo", "traceroute":
-		binname = path.Join(*scionRoot, "bin/scmp")
+		binname = path.Join(options.ScionBin, "scmp")
 	}
 	return binname
 }
@@ -651,7 +662,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-		lib.WriteCmdCsv(d, *staticRoot, appSel)
+		lib.WriteCmdCsv(d, &options, appSel)
 	}
 
 	if appSel == "echo" {
@@ -670,7 +681,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-		lib.WriteCmdCsv(d, *staticRoot, appSel)
+		lib.WriteCmdCsv(d, &options, appSel)
 	}
 
 	if appSel == "traceroute" {
@@ -689,49 +700,49 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-		lib.WriteCmdCsv(d, *staticRoot, appSel)
+		lib.WriteCmdCsv(d, &options, appSel)
 	}
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, *scionRoot, *staticRoot, settings.MyIA)
+	lib.HealthCheckHandler(w, r, &options, settings.MyIA)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
-	lib.GetBwByTimeHandler(w, r, contCmdActive, *staticRoot)
+	lib.GetBwByTimeHandler(w, r, contCmdActive)
 }
 
 func getEchoByTimeHandler(w http.ResponseWriter, r *http.Request) {
-	lib.GetEchoByTimeHandler(w, r, contCmdActive, *staticRoot)
+	lib.GetEchoByTimeHandler(w, r, contCmdActive)
 }
 
 func getTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request) {
-	lib.GetTracerouteByTimeHandler(w, r, contCmdActive, *staticRoot)
+	lib.GetTracerouteByTimeHandler(w, r, contCmdActive)
 }
 
 // Handles locating most recent image formatting it for graphic display in response.
 func findImageHandler(w http.ResponseWriter, r *http.Request) {
-	lib.FindImageHandler(w, r, *staticRoot, browserAddr, *port)
+	lib.FindImageHandler(w, r, &options, browserAddr, *port)
 }
 
 func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.FindImageInfoHandler(w, r, *staticRoot)
+	lib.FindImageInfoHandler(w, r, &options)
 }
 
 func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.TrcHandler(w, r, *scionRoot)
+	lib.TrcHandler(w, r, &options)
 }
 
 func getCrtInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.CrtHandler(w, r, *scionRoot)
+	lib.CrtHandler(w, r, &options)
 }
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.PathTopoHandler(w, r, *scionRoot)
+	lib.PathTopoHandler(w, r, &options)
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
-	lib.GetNodesHandler(w, r, *staticRoot)
+	lib.GetNodesHandler(w, r, &options)
 }
 
 func getIAsHandler(w http.ResponseWriter, r *http.Request) {
@@ -743,19 +754,19 @@ func getIAsHandler(w http.ResponseWriter, r *http.Request) {
 func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
 	// in:myIA , out:nil, set locally
 	myIa := r.PostFormValue("myIA")
-	settings = lib.ReadUserSetting(*staticRoot)
+	settings = lib.ReadUserSetting(&options)
 	settings.MyIA = myIa
 
 	// save myIA to file
-	lib.WriteUserSetting(*staticRoot, settings)
-	lib.GenClientNodeDefaults(*staticRoot, settings.MyIA)
+	lib.WriteUserSetting(&options, settings)
+	lib.GenClientNodeDefaults(&options, settings.MyIA)
 	log.Info("IA set:", "myIa", settings.MyIA)
 }
 
 // Used to workaround cache-control issues by ensuring root specified by user
 // has updated last modified date by writing a .webapp file
 func refreshRootDirectory() {
-	cliFp := path.Join(*staticRoot, *browseRoot, rootmarker)
+	cliFp := path.Join(options.StaticRoot, options.BrowseRoot, rootmarker)
 	err := ioutil.WriteFile(cliFp, []byte(``), 0644)
 	CheckError(err)
 }

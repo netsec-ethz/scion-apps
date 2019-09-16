@@ -120,7 +120,7 @@ func handleHopData(line string, runTimeKey int64) {
 }
 
 // GetTracerouteByTimeHandler request the traceroute results stored since provided time.
-func GetTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
+func GetTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	r.ParseForm()
 	since := r.PostFormValue("since")
 	log.Info("Requesting traceroute data since", "timestamp", since)
