@@ -72,8 +72,8 @@ func findNewestFileExt(dir, extRegEx string) (imgFilename string, imgTimestamp i
 }
 
 // FindImageInfoHandler locating most recent image and writing text info data about it.
-func FindImageInfoHandler(w http.ResponseWriter, r *http.Request, staticRoot string) {
-	filesDir := path.Join(staticRoot, "data/images")
+func FindImageInfoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
+	filesDir := path.Join(options.StaticRoot, "data/images")
 	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
 	if imgFilename == "" {
 		return
@@ -83,8 +83,8 @@ func FindImageInfoHandler(w http.ResponseWriter, r *http.Request, staticRoot str
 }
 
 // FindImageHandler locating most recent image formatting it for graphic display in response.
-func FindImageHandler(w http.ResponseWriter, r *http.Request, staticRoot string, browserAddr string, port int) {
-	filesDir := path.Join(staticRoot, "data/images")
+func FindImageHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, browserAddr string, port int) {
+	filesDir := path.Join(options.StaticRoot, "data/images")
 	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
 	if imgFilename == "" {
 		fmt.Fprint(w, "Error: Unable to find image file locally.")
