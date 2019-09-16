@@ -107,7 +107,7 @@ func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 }
 
 // GetEchoByTimeHandler request the echo results stored since provided time.
-func GetEchoByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
+func GetEchoByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	r.ParseForm()
 	since := r.PostFormValue("since")
 	log.Info("Requesting echo data since", "timestamp", since)

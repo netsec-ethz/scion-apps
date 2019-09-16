@@ -151,7 +151,7 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 }
 
 // GetBwByTimeHandler request the bwtest results stored since provided time.
-func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
+func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	r.ParseForm()
 	since := r.PostFormValue("since")
 	log.Info("Requesting bwtest data since", "timestamp", since)
@@ -187,10 +187,10 @@ func removeOuterQuotes(s string) string {
 }
 
 // WriteCmdCsv appends the cmd data (bwtest or echo) in csv-format to srcpath.
-func WriteCmdCsv(d model.CmdItem, srcpath string, appSel string) {
+func WriteCmdCsv(d model.CmdItem, options *CmdOptions, appSel string) {
 	// newfile name for every day
 	dataFileCmd := "data/" + appSel + "-" + time.Now().Format("2006-01-02") + ".csv"
-	cmdDataPath := path.Join(srcpath, dataFileCmd)
+	cmdDataPath := path.Join(options.StaticRoot, dataFileCmd)
 	// write headers if file is new
 	writeHeader := false
 	if _, err := os.Stat(dataFileCmd); os.IsNotExist(err) {
