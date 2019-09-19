@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/elwin/transmit2/striping"
+	"github.com/elwin/scionFTP/striping"
 )
 
 // A ReadWorker should be dispatched and runs until it

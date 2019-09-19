@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elwin/transmit2/server"
+	"github.com/elwin/scionFTP/server"
 )
 
 var _ server.Driver = &FileDriver{}

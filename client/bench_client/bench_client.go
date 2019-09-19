@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/elwin/transmit2/scion"
+	"github.com/elwin/scionFTP/scion"
 
-	"github.com/elwin/transmit2/mode"
+	"github.com/elwin/scionFTP/mode"
 
-	ftp "github.com/elwin/transmit2/client"
+	ftp "github.com/elwin/scionFTP/client"
 )
 
 var (

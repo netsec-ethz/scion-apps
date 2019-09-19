@@ -3,7 +3,7 @@ package socket
 import (
 	"io"
 
-	"github.com/elwin/transmit2/striping"
+	"github.com/elwin/scionFTP/striping"
 )
 
 type ReaderSocket struct {

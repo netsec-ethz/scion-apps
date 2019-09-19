@@ -10,8 +10,8 @@ import (
 	"flag"
 	"log"
 
-	filedriver "github.com/elwin/transmit2/file-driver"
-	"github.com/elwin/transmit2/server"
+	filedriver "github.com/elwin/scionFTP/file-driver"
+	"github.com/elwin/scionFTP/server"
 )
 
 const (

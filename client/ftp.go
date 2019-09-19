@@ -1,4 +1,4 @@
-// Package ftp implements a FTP client as described in RFC 959.
+// Package ftp implements a FTP scionftp as described in RFC 959.
 //
 // A textproto.Error is returned for errors at the protocol level.
 package ftp
@@ -10,9 +10,9 @@ import (
 	"net/textproto"
 	"time"
 
-	"github.com/elwin/transmit2/scion"
+	"github.com/elwin/scionFTP/scion"
 
-	"github.com/elwin/transmit2/logger"
+	"github.com/elwin/scionFTP/logger"
 )
 
 // EntryType describes the different types of an Entry.

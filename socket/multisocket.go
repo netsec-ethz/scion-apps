@@ -23,7 +23,7 @@ func (m *MultiSocket) SetDeadline(t time.Time) error {
 
 var _ DataSocket = &MultiSocket{}
 
-// Only the client should close the socket
+// Only the scionftp should close the socket
 // Sends the closing message
 func (m *MultiSocket) Close() error {
 	return m.WriterSocket.Close()

@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	mode2 "github.com/elwin/transmit2/mode"
-	"github.com/elwin/transmit2/scion"
+	mode2 "github.com/elwin/scionFTP/mode"
+	"github.com/elwin/scionFTP/scion"
 
-	"github.com/elwin/transmit2/socket"
+	"github.com/elwin/scionFTP/socket"
 )
 
 // Only used for testing to make our life easier, shouldn't really be here
@@ -23,7 +23,7 @@ func (c *ServerConn) SetPathSelector(selector scion.PathSelector) {
 	c.selector = selector
 }
 
-// Login authenticates the client with specified user and password.
+// Login authenticates the scionftp with specified user and password.
 //
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers
 // that allows anonymous read-only accounts.

@@ -1,7 +1,7 @@
 package striping
 
 import (
-	"github.com/elwin/transmit2/queue"
+	"github.com/elwin/scionFTP/queue"
 )
 
 type SegmentQueue struct {

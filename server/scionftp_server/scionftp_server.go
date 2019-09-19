@@ -2,16 +2,16 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-// This is a very simple ftpd server using this library as an example
-// and as something to run tests against.
+// Modifications 2019 Elwin Stephan to make it compatible to SCION and
+// introduce parts of the GridFTP extension
 package main
 
 import (
 	"flag"
 	"log"
 
-	filedriver "github.com/elwin/transmit2/file-driver"
-	"github.com/elwin/transmit2/server"
+	filedriver "github.com/elwin/scionFTP/file-driver"
+	"github.com/elwin/scionFTP/server"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 		user = flag.String("user", "admin", "Username for login")
 		pass = flag.String("pass", "123456", "Password for login")
 		port = flag.Int("port", 2121, "Port")
-		host = flag.String("host", "", "Host")
+		host = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
 	)
 	flag.Parse()
 	if *root == "" {

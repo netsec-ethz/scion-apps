@@ -3,10 +3,10 @@ package socket
 import (
 	"time"
 
-	"github.com/elwin/transmit2/scion"
+	"github.com/elwin/scionFTP/scion"
 )
 
-// DataSocket describes a data socket is used to send non-control data between the client and
+// DataSocket describes a data socket is used to send non-control data between the scionftp and
 // server.
 type DataSocket interface {
 	// the standard io.Reader interface
@@ -21,7 +21,7 @@ type DataSocket interface {
 	// the standard io.Closer interface
 	Close() error
 
-	// Set deadline associated with connection (client)
+	// Set deadline associated with connection (scionftp)
 	SetDeadline(t time.Time) error
 }
 

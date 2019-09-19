@@ -1,6 +1,6 @@
 package striping
 
-import "github.com/elwin/transmit2/queue"
+import "github.com/elwin/scionFTP/queue"
 
 type Segment struct {
 	*Header
