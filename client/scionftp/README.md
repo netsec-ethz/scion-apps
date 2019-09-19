@@ -1,7 +1,7 @@
 # scionftp
 
 This is an interactive client that makes use of the scionftp library.
-Run `go install` in this directory to install this application in `go/bin`.
+Run `go install` in this directory to install this application in `go/bin`. The files will be stored to and read from the directory where you've started this application.
 
 ```
 $ scionftp -h
