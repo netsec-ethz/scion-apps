@@ -1,32 +1,21 @@
-# goftp #
+# scionftp
 
-[![Build Status](https://travis-ci.org/jlaffaye/ftp.svg?branch=master)](https://travis-ci.org/jlaffaye/ftp)
-[![Coverage Status](https://coveralls.io/repos/jlaffaye/ftp/badge.svg?branch=master&service=github)](https://coveralls.io/github/jlaffaye/ftp?branch=master)
-[![Go ReportCard](http://goreportcard.com/badge/jlaffaye/ftp)](http://goreportcard.com/report/jlaffaye/ftp)
-[![godoc.org](https://godoc.org/github.com/jlaffaye/ftp?status.svg)](http://godoc.org/github.com/jlaffaye/ftp)
-
-A FTP client package for Go
-
-## Install ##
-
-```
-go get -u github.com/jlaffaye/ftp
-```
+Client package for FTP + GridFTP extension, adapted to the SCION network
 
 ## Example ##
 
 ```go
-c, err := ftp.Dial("ftp.example.org:21", ftp.DialWithTimeout(5*time.Second))
+c, err := ftp.Dial("1-ff00:0:110,[127.0.0.1]:4000, 1-ff00:0:110,[127.0.0.1]:2121", ftp.DialWithTimeout(5*time.Second))
 if err != nil {
     log.Fatal(err)
 }
 
-err = c.Login("anonymous", "anonymous")
+err = c.Login("admin", "123456")
 if err != nil {
     log.Fatal(err)
 }
 
-// Do something with the FTP conn
+// Do something with the FTP connection
 
 if err := c.Quit(); err != nil {
     log.Fatal(err)
