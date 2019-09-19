@@ -1,6 +1,7 @@
-# scionftp
+# scionftp client
 
-Client package for FTP + GridFTP extension, adapted to the SCION network
+Client package for FTP + GridFTP extension, adapted to the SCION network.
+Forked from [jlaffaye/ftp](https://github.com/jlaffaye/ftp).
 
 ## Example ##
 

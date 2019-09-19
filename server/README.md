@@ -1,37 +1,25 @@
-# server
+# scionftp server
 
-[![Build Status](https://drone.gitea.com/api/badges/goftp/server/status.svg)](https://drone.gitea.com/goftp/server) [![](http://gocover.io/_badge/gitea.com/goftp/server)](http://gocover.io/gitea.com/goftp/server)
-[![](https://goreportcard.com/badge/gitea.com/goftp/server)](https://goreportcard.com/report/gitea.com/goftp/server)
-
-A FTP server framework forked from [github.com/yob/graval](http://github.com/yob/graval) and changed a lot.
-
-Full documentation for the package is available on [godoc](http://godoc.org/goftp.io/server)
-
-## Version
-
-    v0.2.3
-
-## Installation
-
-    go get goftp.io/server
+Server package for FTP + GridFTP extension, adapted to the SCION network.
+Forked from [goftp/server](https://gitea.com/goftp/server).
 
 ## Usage
 
 To boot a FTP server you will need to provide a driver that speaks to
 your persistence layer - the required driver contract is in [the
-documentation](http://godoc.org/goftp.io/server).
+documentation](https://godoc.org/github.com/elwin/ScionFTP/server#Driver).
 
-Look at the [file driver](https://gitea.com/goftp/file-driver) to see
+Look at the [file driver](../file-driver) to see
 an example of how to build a backend.
 
-There is a [sample ftp server](/exampleftpd) as a demo. You can build it with this
+There is a [sample ftp server](scionftp_server) as a demo. You can build it with this
 command:
 
-    go install goftp.io/server/exampleftpd
+    go install github.com/elwin/scionFTP/server/scionftp_server
 
 Then run it if you have add $GOPATH to your $PATH:
 
-    exampleftpd -root /tmp
+    scionftp_server -root /tmp
 
 And finally, connect to the server with any FTP client and the following
 details:
@@ -43,19 +31,6 @@ details:
 
 This uses the file driver mentioned above to serve files.
 
-## Contributors
-
-see [https://gitea.com/goftp/server/graphs/contributors](https://gitea.com/goftp/server/graphs/contributors)
-
-## Warning
-
-FTP is an incredibly insecure protocol. Be careful about forcing users to authenticate
-with an username or password that are important.
-
-## License
-
-This library is distributed under the terms of the MIT License. See the included file for
-more detail.
 
 ## Contributing
 
