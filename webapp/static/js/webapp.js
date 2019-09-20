@@ -463,11 +463,17 @@ function requestEchoByTime(form_data) {
                         data.runTime = d.graph[i].ActualDuration;
                     }
                     console.info(JSON.stringify(data));
-                    console.info('continous echo', 'duration:',
+                    console.info('continuous echo', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updatePingGraph(chartSE, data, time)
+
+                    // update latency stats, when valid
+                    if (d.graph[i].ResponseTime > 0) {
+                        setEchoLatency(d.graph[i].Path.match("\\[.*]"),
+                                d.graph[i].ResponseTime);
+                    }
                 }
             }
         }
@@ -480,10 +486,10 @@ function requestTraceRouteByTime(form_data) {
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
             if (d.active != null) {
-                $('#switch_cont').prop("checked", d.active);
                 if (d.active) {
                     enableTestControls(false);
                     lockTab("traceroute");
+                    failContinuousOff();
                 } else {
                     enableTestControls(true);
                     releaseTabs();
@@ -498,11 +504,29 @@ function requestTraceRouteByTime(form_data) {
                         // result returned, display it and reset progress
                         handleEndCmdDisplay(d.graph[i].CmdOutput);
                     }
-
-                    console.info('continous traceroute', 'duration:',
+                    // var data = {
+                    // 'responseTime' : d.graph[i].ResponseTime,
+                    // 'runTime' : d.graph[i].RunTime,
+                    // 'loss' : d.graph[i].PktLoss,
+                    // 'path' : d.graph[i].Path,
+                    // 'error' : d.graph[i].Error,
+                    // };
+                    // if (data.runTime == 0) {
+                    // // for other errors, use execution time
+                    // data.runTime = d.graph[i].ActualDuration;
+                    // }
+                    // console.info(JSON.stringify(data));
+                    console.info('continuous traceroute', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+                    // use the time the test began
+                    var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
+                    // updatePingGraph(chartSE, data, time)
 
                     // TODO (mwfarb): implement traceroute graph
+
+                    // update latency stats
+                    setTracerouteLatency(d.graph[i].Path.match("\\[.*]"),
+                            d.graph[i].TrHops);
                 }
             }
         }

@@ -3,7 +3,7 @@ var iaLabels;
 var iaLocations = [];
 var iaGeoLoc;
 var g = {};
-var jPathColors = [];
+var jPathsAvailable = {};
 
 function setupDebug(src, dst) {
     var src = $('#ia_cli').val();
@@ -26,12 +26,97 @@ function path_colors(n) {
 }
 
 function getPathColor(hops) {
-    var idx = jPathColors.indexOf(hops + '');
-    if (idx < 0) {
+    if (!jPathsAvailable[hops]) {
         return cMissingPath;
     } else {
-        return path_colors(idx);
+        return jPathsAvailable[hops].color;
     }
+}
+
+/**
+ * Updates statistics.
+ */
+function updateStats(fStat, oldStat) {
+    var newStat = {}
+    newStat.Last = fStat;
+    newStat.Num = oldStat ? (oldStat.Num + 1) : 1;
+    newStat.Avg = oldStat ? (((oldStat.Avg * oldStat.Num) + fStat) / newStat.Num)
+            : fStat;
+    newStat.Min = oldStat ? Math.min(fStat, oldStat.Min) : fStat;
+    newStat.Max = oldStat ? Math.max(fStat, oldStat.Max) : fStat;
+    return newStat;
+}
+
+function getPathLatencyLast(hops) {
+    return getPathLatency(hops, false);
+}
+
+function getPathLatencyAvg(hops) {
+    return getPathLatency(hops, true);
+}
+
+/**
+ * Returns array of interface and full path latency stats.
+ */
+function getPathLatency(hops, avg) {
+    var path = {};
+    if (jPathsAvailable[hops]) {
+        path = jPathsAvailable[hops];
+    }
+    var latencies = [];
+    for (var i = 0; i < path.interfaces.length; i++) {
+        if (path.interfaces[i].latency) {
+            latencies.push(avg ? path.interfaces[i].latency.Last
+                    : path.interfaces[i].latency.Avg);
+        } else {
+            latencies.push(undefined);
+        }
+    }
+    if (path.latency) {
+        latencies.push(avg ? path.latency.Last : path.latency.Avg);
+    } else {
+        latencies.push(undefined);
+    }
+    return latencies;
+}
+
+function setEchoLatency(hops, latency) {
+    var path = {};
+    if (jPathsAvailable[hops]) {
+        path = jPathsAvailable[hops];
+    }
+    path.latency = updateStats(latency, path.latency);
+    var latStr = parseFloat(path.latency.Last).toFixed(1);
+    $('#path-lat-' + path.listIdx).html(latStr);
+    jPathsAvailable[hops] = path;
+}
+
+function setTracerouteLatency(hops, interfaces) {
+    var path = {};
+    if (jPathsAvailable[hops]) {
+        path = jPathsAvailable[hops];
+    }
+    for (var i = 0; i < interfaces.length; i++) {
+        var if_ = interfaces[i];
+        if (i < interfaces.length - 1) {
+            path.interfaces[i].addr = if_.HopAddr;
+            path.interfaces[i].latency = updateStats(if_.RespTime1,
+                    path.interfaces[i].latency);
+            path.interfaces[i].latency = updateStats(if_.RespTime2,
+                    path.interfaces[i].latency);
+            path.interfaces[i].latency = updateStats(if_.RespTime3,
+                    path.interfaces[i].latency);
+            var latStr = parseFloat(path.interfaces[i].latency.Last).toFixed(1);
+            $('#path-lat-' + path.listIdx + '-' + i).html(latStr);
+        } else {
+            path.latency = updateStats(if_.RespTime1, path.latency);
+            path.latency = updateStats(if_.RespTime2, path.latency);
+            path.latency = updateStats(if_.RespTime3, path.latency);
+            var latStr = parseFloat(path.latency.Last).toFixed(1);
+            $('#path-lat-' + path.listIdx).html(latStr);
+        }
+    }
+    jPathsAvailable[hops] = path;
 }
 
 function isConfigComplete(data, textStatus, jqXHR) {
@@ -376,11 +461,18 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         if_ = ent.Path.Interfaces;
         var hops = if_.length / 2;
 
-        var style = "style='background-color: "
-                + getPathColor(formatPathJson(paths, parseInt(p))) + "; '";
-        html += "<li seg-type='PATH' seg-num=" + p + "><a " + style
-                + " href='#'>PATH " + (parseInt(p) + 1)
-                + "</a> <span class='badge'>" + hops + "</span>";
+        var pathStr = formatPathJson(paths, parseInt(p));
+        var latencies = getPathLatencyAvg(pathStr);
+        var latencyPath = latencies[latencies.length - 1];
+        var latPathStr = latencyPath ? parseFloat(latencyPath).toFixed(1) : '';
+        var aStyle = "style='background-color:" + getPathColor(pathStr) + ";'";
+        var latStyle = "style='color:purple; position:absolute; right:0;'";
+        html += "<li seg-type='PATH' seg-num=" + p + " path='" + pathStr
+                + "'><a class='path-text' " + aStyle
+                + " href='#'><span style='color: white;'>PATH "
+                + (parseInt(p) + 1) + "</span></a> <span class='badge'>" + hops
+                + "</span> <span id='path-lat-" + p + "' " + latStyle + ">"
+                + latPathStr + "</span>";
         exp.setUTCSeconds(ent.Path.ExpTime);
         html += "<ul>";
         html += "<li><a href='#'>Mtu: " + ent.Path.Mtu + "</a>";
@@ -396,8 +488,11 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
+            var latIfStr = latencies[i] ? parseFloat(latencies[i]).toFixed(1)
+                    : '';
             html += "<li><a href='#'>" + iaRaw2Read(if_[i].RawIsdas) + " ("
-                    + if_[i].IfID + ")</a>";
+                    + if_[i].IfID + ")</a> <span id='path-lat-" + p + "-" + i
+                    + "' " + latStyle + ">" + latIfStr + "</span>";
         }
         html += "</ul>";
     }
@@ -662,6 +757,34 @@ function get_nonseg_links(paths, lType) {
     return hops;
 }
 
+function addAvailablePaths(paths) {
+    Object.keys(jPathsAvailable).forEach(function(key) {
+        jPathsAvailable[key].listIdx = undefined; // reset
+    });
+    for (var idx = 0; idx < paths.length; idx++) {
+        var hops = formatPathJson(paths, idx, 'PATH');
+        if (!jPathsAvailable[hops]) {
+            jPathsAvailable[hops] = {};
+        }
+        // update path preserving old values
+        var path = jPathsAvailable[hops];
+        var pathLen = Object.keys(jPathsAvailable).length;
+        path.interfaces = [];
+        var ifs = paths[idx].Entry.Path.Interfaces;
+        for (var i = 0; i < ifs.length; i++) {
+            var if_ = {};
+            if_.ifid = ifs[i].IfID;
+            if_.isdas = iaRaw2Read(ifs[i].RawIsdas);
+            path.interfaces.push(if_);
+        }
+        path.expTime = paths[idx].Entry.Path.ExpTime;
+        path.mtu = paths[idx].Entry.Path.Mtu;
+        path.color = path_colors(pathLen - 1);
+        path.listIdx = idx;
+        jPathsAvailable[hops] = path;
+    }
+}
+
 function requestPaths() {
     // make sure to get path topo after IAs are loaded
     var form_data = $('#command-form').serializeArray();
@@ -685,12 +808,7 @@ function requestPaths() {
             resDown = resSegs.down_segments;
 
             // store incoming paths
-            for (var idx = 0; idx < resPath.if_lists.length; idx++) {
-                var hops = formatPathString(resPath, idx, 'PATH');
-                if (!jPathColors.includes(hops)) {
-                    jPathColors.push(hops);
-                }
-            }
+            addAvailablePaths(data.paths);
 
             jTopo = get_json_path_links(resPath, resCore, resUp, resDown);
             $('#path-info').html(

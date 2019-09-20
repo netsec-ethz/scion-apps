@@ -68,7 +68,8 @@ function setPaths(type, idx, open) {
         } else if (type == 'UP') {
             addSegments(resUp, idx, num, colorSegUp, type);
         } else if (type == 'PATH') {
-            addPaths(resPath, idx, num, colorPaths, type);
+            var latencies = getPathLatencyAvg(formatPathString(resPath, idx, type));
+            addPaths(resPath, idx, num, colorPaths, type, latencies);
         }
         self.segType = type;
         self.segNum = idx;
@@ -111,9 +112,9 @@ function formatPathString(res, idx, type) {
 /*
  * Adds D3 forwarding path links with arrows and a title to paths graph.
  */
-function addPaths(res, idx, num, color, type) {
+function addPaths(res, idx, num, color, type, latencies) {
     if (graphPath) {
-        drawPath(res, idx, color);
+        drawPath(res, idx, color, latencies);
         if (res.if_lists[idx].expTime) {
             drawTitle(type + ' ' + num, color, res.if_lists[idx].expTime);
         } else {
