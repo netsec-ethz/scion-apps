@@ -15,6 +15,7 @@ import (
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -165,6 +166,7 @@ func main() {
 		sciondPath     string
 		sciondFromIA   bool
 		dispatcherPath string
+		outputFilePath string
 
 		err    error
 		local  *snet.Addr
@@ -179,6 +181,7 @@ func main() {
 	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
+	flag.StringVar(&outputFilePath, "output", "", "Path to the output file")
 	flag.Parse()
 
 	// Create SCION UDP socket
@@ -205,7 +208,7 @@ func main() {
 	} else if sciondPath == "" {
 		sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
-	snet.Init(local.IA, sciondPath, dispatcherPath)
+	snet.Init(local.IA, sciondPath, reliable.NewDispatcherService(dispatcherPath))
 	udpConnection, err = snet.DialSCION("udp4", local, remote)
 	check(err)
 
@@ -280,7 +283,10 @@ func main() {
 	}
 
 	// Write file to disk
-	err = ioutil.WriteFile(fileName, fileBuffer, 0600)
+	if outputFilePath == "" {
+		outputFilePath = fileName
+	}
+	err = ioutil.WriteFile(outputFilePath, fileBuffer, 0600)
 	check(err)
 	fmt.Println("\nDone, exiting. Total duration", time.Now().Sub(startTime))
 }

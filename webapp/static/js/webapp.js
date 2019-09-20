@@ -827,8 +827,6 @@ function initNodes() {
     });
     $('#sel_ser').change(function() {
         updateNode('ser');
-        // server node change complete, update paths
-        requestPaths();
     });
 }
 
@@ -856,9 +854,6 @@ function loadNodes(node, list) {
             if (node == 'cli') {
                 // after client selection, update server options
                 loadServerNodes();
-            } else {
-                // server node change complete, update paths
-                requestPaths();
             }
         } else {
             console.error("Error: " + jqXHR.status + ": " + jqXHR.statusText);
@@ -867,8 +862,9 @@ function loadNodes(node, list) {
 }
 
 function updateNodeOptions(node) {
-    var activeApp = (node == 'cli') ? 'all' : $('.nav-tabs .active > a').attr(
-            'name');
+    var allNode = nodes[node]['all'];
+    var activeApp = (allNode != null) ? 'all' : $('.nav-tabs .active > a')
+            .attr('name');
     console.debug(activeApp);
     var app_nodes = nodes[node][activeApp];
     $('#sel_' + node).empty();
@@ -884,13 +880,20 @@ function updateNodeOptions(node) {
 function updateNode(node) {
     // populate fields
     if (nodes[node]) {
-        var activeApp = (node == 'cli') ? 'all' : $('.nav-tabs .active > a')
+        var allNode = nodes[node]['all'];
+        var activeApp = (allNode != null) ? 'all' : $('.nav-tabs .active > a')
                 .attr('name');
         var app_nodes = nodes[node][activeApp];
         var sel = $('#sel_' + node).find("option:selected").attr('value');
-        $('#ia_' + node).val(app_nodes[sel].isdas.replace(/_/g, ":"));
-        $('#addr_' + node).val(app_nodes[sel].addr);
-        $('#port_' + node).val(app_nodes[sel].port);
+        if (sel != null) {
+            $('#ia_' + node).val(app_nodes[sel].isdas.replace(/_/g, ":"));
+            $('#addr_' + node).val(app_nodes[sel].addr);
+            $('#port_' + node).val(app_nodes[sel].port);
+            if (node == 'ser') {
+                // server node change complete, update paths
+                requestPaths();
+            }
+        }
     }
 }
 

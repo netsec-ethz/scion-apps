@@ -59,30 +59,33 @@ func main() {
 	// initialize SCION
 	err = snet.Init(clientCCAddr.IA, sciondPath, dispatcherPath)
 	Check(err)
-	// query paths from here to there:
-	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), clientCCAddr.IA, serverCCAddr.IA)
-	if len(pathSet) == 0 {
-		Check(fmt.Errorf("No paths"))
-	}
-	// print all paths. Also pick one path. Here we chose the path with least hops:
-	i := 0
-	minLength, argMinPath := 999, (*sciond.PathReplyEntry)(nil)
-	fmt.Println("Available paths:")
-	for _, path := range pathSet {
-		fmt.Printf("[%2d] %d %s\n", i, len(path.Entry.Path.Interfaces)/2, path.Entry.Path.String())
-		if len(path.Entry.Path.Interfaces) < minLength {
-			minLength = len(path.Entry.Path.Interfaces)
-			argMinPath = path.Entry
+
+	if !serverCCAddr.IA.Equal(clientCCAddr.IA) {
+		// query paths from here to there:
+		pathMgr := snet.DefNetwork.PathResolver()
+		pathSet := pathMgr.Query(context.Background(), clientCCAddr.IA, serverCCAddr.IA, sciond.PathReqFlags{})
+		if len(pathSet) == 0 {
+			Check(fmt.Errorf("No paths"))
 		}
-		i++
+		// print all paths. Also pick one path. Here we chose the path with least hops:
+		i := 0
+		minLength, argMinPath := 999, (*sciond.PathReplyEntry)(nil)
+		fmt.Println("Available paths:")
+		for _, path := range pathSet {
+			fmt.Printf("[%2d] %d %s\n", i, len(path.Entry.Path.Interfaces)/2, path.Entry.Path.String())
+			if len(path.Entry.Path.Interfaces) < minLength {
+				minLength = len(path.Entry.Path.Interfaces)
+				argMinPath = path.Entry
+			}
+			i++
+		}
+		fmt.Println("Chosen path:", argMinPath.Path.String())
+		// we need to copy the path to the destination (destination is the whole selected path)
+		serverCCAddr.Path = spath.New(argMinPath.Path.FwdPath)
+		serverCCAddr.Path.InitOffsets()
+		serverCCAddr.NextHop, _ = argMinPath.HostInfo.Overlay()
+		// get a connection object using that path:
 	}
-	fmt.Println("Chosen path:", argMinPath.Path.String())
-	// we need to copy the path to the destination (destination is the whole selected path)
-	serverCCAddr.Path = spath.New(argMinPath.Path.FwdPath)
-	serverCCAddr.Path.InitOffsets()
-	serverCCAddr.NextHop, _ = argMinPath.HostInfo.Overlay()
-	// get a connection object using that path:
 	conn, err := snet.DialSCION("udp4", clientCCAddr, serverCCAddr)
 	Check(err)
 	defer conn.Close()

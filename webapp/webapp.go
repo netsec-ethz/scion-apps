@@ -1,9 +1,12 @@
 // go run webapp.go -a 0.0.0.0 -p 8080 -r .
 
+// NOTE: Webapp relies on SCION's configuration for some of its functionality.
+// If the topology changes, webapp should be restarted as well.
 package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -43,26 +46,29 @@ var port = flag.Int("p", 8000, "Port of server host.")
 var cmdBufLen = 1024
 var browserAddr = "127.0.0.1"
 var rootmarker = ".webapp"
-var myIa string
+var settings lib.UserSetting
 var id = "webapp"
 
 const reAvailPath = `(?i:available paths to)`
 const reRemoveAnsi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
 
+var localIAs []string
+
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
 
-// Continuous cmd case
+// Enum for Continuous cmd case: bwtest and echo
 type contCmd int
 
 const (
-	//iota: 0, BwTest: 0
+	//iota: 0, BwTest: 0, Echo: 1, Traceroute: 2
 	bwTest contCmd = iota
 	echo
+	traceroute
 )
 
 func (t contCmd) String() string {
-	return [...]string{"bwtest", "echo"}[t]
+	return [...]string{"bwtest", "echo", "traceroute"}[t]
 }
 
 var contCmdRequest *http.Request
@@ -123,22 +129,49 @@ func main() {
 	go model.MaintainDatabase()
 	ensurePath(*staticRoot, "data")
 	ensurePath(*staticRoot, "data/images")
-	// generate client/server default
-	lib.GenClientNodeDefaults(*staticRoot)
-	lib.GenServerNodeDefaults(*staticRoot)
 
-	myIa = lib.GetLocalIa()
-	if len(myIa) == 0 {
-		myIa = lib.GetCliIaDef()
-	}
-	log.Info("IA loaded:", "myIa", myIa)
+	initLocalIaOptions()
+	log.Info("IA loaded:", "myIa", settings.MyIA)
+
+	// generate client/server default
+	lib.GenClientNodeDefaults(*staticRoot, settings.MyIA)
+	lib.GenServerNodeDefaults(*staticRoot, localIAs)
 
 	refreshRootDirectory()
 	appsBuildCheck("bwtester")
 	appsBuildCheck("camerapp")
 	appsBuildCheck("sensorapp")
 	appsBuildCheck("echo")
+	appsBuildCheck("traceroute")
 
+	initServeHandlers()
+	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
+	log.Info("File browser root:", "root", *browseRoot)
+	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
+	CheckFatal(err)
+}
+
+// load list of locally available IAs and determine user choices
+func initLocalIaOptions() {
+	localIAs = lib.ScanLocalIAs()
+	settings = lib.ReadUserSetting(*staticRoot)
+
+	// if read myia not in list, pick default
+	iaExists := lib.StringInSlice(localIAs, settings.MyIA)
+
+	// check for saved MyIA or use first available
+	if !iaExists {
+		if len(localIAs) > 0 {
+			settings.MyIA = localIAs[0]
+		} else {
+			settings.MyIA = ""
+		}
+	}
+	lib.WriteUserSetting(*staticRoot, settings)
+}
+
+func initServeHandlers() {
 	serveExact("/favicon.ico", "./favicon.ico")
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/about", aboutHandler)
@@ -161,6 +194,9 @@ func main() {
 	http.HandleFunc("/healthcheck", healthCheckHandler)
 	http.HandleFunc("/dirview", dirViewHandler)
 	http.HandleFunc("/getechobytime", getEchoByTimeHandler)
+	http.HandleFunc("/gettraceroutebytime", getTracerouteByTimeHandler)
+	http.HandleFunc("/getias", getIAsHandler)
+	http.HandleFunc("/setuseropt", setUserOptionsHandler)
 
 	//ported from scion-viz
 	http.HandleFunc("/config", lib.ConfigHandler)
@@ -171,12 +207,6 @@ func main() {
 	http.HandleFunc("/getastopo", lib.AsTopoHandler)
 	http.HandleFunc("/getcrt", lib.CrtHandler)
 	http.HandleFunc("/gettrc", lib.TrcHandler)
-
-	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
-	log.Info("File browser root:", "root", *browseRoot)
-	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
-	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
-	CheckFatal(err)
 }
 
 func logRequestHandler(handler http.Handler) http.Handler {
@@ -216,43 +246,43 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: myIa})
+	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: settings.MyIA})
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.WriteHeader(status)
-	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: myIa})
+	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: settings.MyIA})
 }
 
 func dirViewHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: myIa})
+	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: settings.MyIA})
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "about", &Page{Title: "SCIONLab About", MyIA: myIa})
+	display(w, "about", &Page{Title: "SCIONLab About", MyIA: settings.MyIA})
 }
 
 func appsHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: myIa})
+	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: settings.MyIA})
 }
 
 func astopoHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: myIa})
+	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: settings.MyIA})
 }
 
 func crtHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "crt", &Page{Title: "SCIONLab Cert", MyIA: myIa})
+	display(w, "crt", &Page{Title: "SCIONLab Cert", MyIA: settings.MyIA})
 }
 
 func trcHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: myIa})
+	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: settings.MyIA})
 }
 
-// There're two CmdItem, BwTestItem and EchoItem
+// There're three CmdItem, BwTestItem, EchoItem and TracerouteItem
 func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string) {
 	addlOpt := r.PostFormValue("addl_opt")
 
-	if appSel == "echo" { // ###need to be confirmed###
+	if appSel == "echo" {
 		d := model.EchoItem{}
 		d.SIa = r.PostFormValue("ia_ser")
 		d.CIa = r.PostFormValue("ia_cli")
@@ -265,39 +295,48 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 		d.Count = 1
 		d.Interval = 1
 		d.Timeout = 2
+		return d, addlOpt
+	} else if appSel == "traceroute" { // ###need to be confirmed###
+		d := model.TracerouteItem{}
+		d.SIa = r.PostFormValue("ia_ser")
+		d.CIa = r.PostFormValue("ia_cli")
+		d.SAddr = r.PostFormValue("addr_ser")
+		d.CAddr = r.PostFormValue("addr_cli")
 
+		// TODO: parse timeout flag for traceroute
+		d.Timeout = 2
+		return d, addlOpt
+	} else {
+		d := model.BwTestItem{}
+		d.SIa = r.PostFormValue("ia_ser")
+		d.CIa = r.PostFormValue("ia_cli")
+		d.SAddr = r.PostFormValue("addr_ser")
+		d.CAddr = r.PostFormValue("addr_cli")
+		d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
+		d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
+
+		if appSel == "bwtester" {
+			d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
+			d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
+			d.CSPackets, _ = strconv.Atoi(r.PostFormValue("dial-cs-pkt"))
+			d.CSBandwidth = d.CSPackets * d.CSPktSize / d.CSDuration * 8
+			d.CSDuration = d.CSDuration * 1000 // final storage in ms
+			d.SCDuration, _ = strconv.Atoi(r.PostFormValue("dial-sc-sec"))
+			d.SCPktSize, _ = strconv.Atoi(r.PostFormValue("dial-sc-size"))
+			d.SCPackets, _ = strconv.Atoi(r.PostFormValue("dial-sc-pkt"))
+			d.SCBandwidth = d.SCPackets * d.SCPktSize / d.SCDuration * 8
+			d.SCDuration = d.SCDuration * 1000 // final storage in ms
+		}
 		return d, addlOpt
 	}
-
-	d := model.BwTestItem{}
-	d.SIa = r.PostFormValue("ia_ser")
-	d.CIa = r.PostFormValue("ia_cli")
-	d.SAddr = r.PostFormValue("addr_ser")
-	d.CAddr = r.PostFormValue("addr_cli")
-	d.SPort, _ = strconv.Atoi(r.PostFormValue("port_ser"))
-	d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
-
-	if appSel == "bwtester" {
-		d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
-		d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
-		d.CSPackets, _ = strconv.Atoi(r.PostFormValue("dial-cs-pkt"))
-		d.CSBandwidth = d.CSPackets * d.CSPktSize / d.CSDuration * 8
-		d.CSDuration = d.CSDuration * 1000 // final storage in ms
-		d.SCDuration, _ = strconv.Atoi(r.PostFormValue("dial-sc-sec"))
-		d.SCPktSize, _ = strconv.Atoi(r.PostFormValue("dial-sc-size"))
-		d.SCPackets, _ = strconv.Atoi(r.PostFormValue("dial-sc-pkt"))
-		d.SCBandwidth = d.SCPackets * d.SCPktSize / d.SCDuration * 8
-		d.SCDuration = d.SCDuration * 1000 // final storage in ms
-	}
-	return d, addlOpt
 }
 
-// d could be either model.BwTestItem or model.EchoItem
+// d could be either model.BwTestItem, model.EchoItem or model.TracerouteItem
 func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
 	var isdCli int
 	installpath := getClientLocationBin(appSel)
-
+	log.Info(fmt.Sprintf("App tag is %s...", appSel))
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
 		d, ok := dOrinial.(model.BwTestItem)
@@ -331,9 +370,26 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optCount := fmt.Sprintf("-c=%d", d.Count)
-		optTimeout := fmt.Sprintf("-timeout=%ds", d.Timeout)
-		optInterval := fmt.Sprintf("-interval=%ds", d.Interval)
+		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
+		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
 		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
+		if len(pathStr) > 0 {
+			// if path choice provided, use interactive mode
+			command = append(command, "-i")
+		}
+		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
+
+	case "traceroute":
+		d, ok := dOrinial.(model.TracerouteItem)
+		if !ok {
+			log.Error("Parsing error, CmdItem category doesn't match its name")
+			return nil
+		}
+		optApp := "tr"
+		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
+		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
+		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
+		command = append(command, installpath, optApp, optRemote, optLocal, optTimeout)
 		if len(pathStr) > 0 {
 			// if path choice provided, use interactive mode
 			command = append(command, "-i")
@@ -360,7 +416,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if continuous || contCmdActive {
-		// continuous run bwtest
+		// continuous run command, either bwtest, echo or traceroute
 		contCmdTimeKeepAlive = time.Now()
 		contCmdRequest = r
 		contCmdInterval = interval
@@ -369,6 +425,8 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 			t = bwTest
 		} else if appSel == "echo" {
 			t = echo
+		} else if appSel == "traceroute" {
+			t = traceroute
 		} else {
 			log.Error("Cmd type is not valid for continuous case")
 			return
@@ -394,7 +452,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Could either be bwtest or echo
+// Could either be bwtest, echo or traceroute
 func continuousCmd(t contCmd) {
 	log.Info(fmt.Sprintf("Starting continuous %s...", t))
 	defer func() {
@@ -453,7 +511,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	reader := io.MultiReader(stdout, stderr)
 
 	err = cmd.Start()
-	if err != nil {
+	if CheckError(err) {
 		fmt.Fprintf(os.Stderr, "Failed to start err=%v", err)
 		if w != nil {
 			w.Write([]byte(err.Error() + "\n"))
@@ -483,7 +541,7 @@ func getClientCwd(app string) string {
 		cwd = path.Join(lib.GOPATH, lib.LABROOT, "webapp/data/images")
 	case "bwtester":
 		cwd = path.Join(lib.GOPATH, lib.LABROOT, ".")
-	case "echo":
+	case "echo", "traceroute":
 		cwd = path.Join(lib.GOPATH, lib.SCIONROOT, "bin")
 	}
 	return cwd
@@ -499,7 +557,7 @@ func getClientLocationBin(app string) string {
 		binname = path.Join(lib.GOPATH, "bin/imagefetcher")
 	case "bwtester":
 		binname = path.Join(lib.GOPATH, "bin/bwtestclient")
-	case "echo":
+	case "echo", "traceroute":
 		binname = path.Join(lib.GOPATH, lib.SCIONROOT, "bin/scmp")
 	}
 	return binname
@@ -528,7 +586,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 	for scanner.Scan() {
 		// read each line from stdout
 		line := re.ReplaceAllString(scanner.Text(), "")
-		log.Info(line)
+		// log.Info(line)
 
 		jsonBuf = append(jsonBuf, []byte(line+"\n")...)
 		// http write response
@@ -585,7 +643,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-		lib.WriteContCmdCsv(d, *staticRoot, appSel)
+		lib.WriteCmdCsv(d, *staticRoot, appSel)
 	}
 
 	if appSel == "echo" {
@@ -604,12 +662,31 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 		if CheckError(err) {
 			d.Error = err.Error()
 		}
-		lib.WriteContCmdCsv(d, *staticRoot, appSel)
+		lib.WriteCmdCsv(d, *staticRoot, appSel)
+	}
+
+	if appSel == "traceroute" {
+		// parse traceroute data/error
+		d, ok := d.(model.TracerouteItem)
+		if !ok {
+			log.Error("Parsing error, CmdItem category doesn't match its name")
+			return
+		}
+		lib.ExtractTracerouteRespData(string(jsonBuf), &d, start)
+		if len(errMsg) > 0 {
+			d.Error = errMsg
+		}
+		// store in database
+		err := model.StoreTracerouteItem(&d)
+		if CheckError(err) {
+			d.Error = err.Error()
+		}
+		lib.WriteCmdCsv(d, *staticRoot, appSel)
 	}
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, *staticRoot)
+	lib.HealthCheckHandler(w, r, *staticRoot, settings.MyIA)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
@@ -620,6 +697,10 @@ func getEchoByTimeHandler(w http.ResponseWriter, r *http.Request) {
 	lib.GetEchoByTimeHandler(w, r, contCmdActive, *staticRoot)
 }
 
+func getTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request) {
+	lib.GetTracerouteByTimeHandler(w, r, contCmdActive, *staticRoot)
+}
+
 // Handles locating most recent image formatting it for graphic display in response.
 func findImageHandler(w http.ResponseWriter, r *http.Request) {
 	lib.FindImageHandler(w, r, browserAddr, *port)
@@ -627,6 +708,24 @@ func findImageHandler(w http.ResponseWriter, r *http.Request) {
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
 	lib.GetNodesHandler(w, r, *staticRoot)
+}
+
+func getIAsHandler(w http.ResponseWriter, r *http.Request) {
+	// in:nil, out:list[ias]
+	iasJSON, _ := json.Marshal(localIAs)
+	fmt.Fprintf(w, string(iasJSON))
+}
+
+func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
+	// in:myIA , out:nil, set locally
+	myIa := r.PostFormValue("myIA")
+	settings = lib.ReadUserSetting(*staticRoot)
+	settings.MyIA = myIa
+
+	// save myIA to file
+	lib.WriteUserSetting(*staticRoot, settings)
+	lib.GenClientNodeDefaults(*staticRoot, settings.MyIA)
+	log.Info("IA set:", "myIa", settings.MyIA)
 }
 
 // Used to workaround cache-control issues by ensuring root specified by user

@@ -20,8 +20,8 @@ type EchoItem struct {
 	SIa            string
 	SAddr          string
 	Count          int     // Default 1
-	Timeout        int     // s Default 2
-	Interval       int     // s Default 1
+	Timeout        float32 // s Default 2
+	Interval       float32 // s Default 1
 	ResponseTime   float32 // ms
 	RunTime        float32
 	PktLoss        int    // percent Indicating pkt loss rate
@@ -54,8 +54,8 @@ func createEchoTable() error {
         SIa TEXT,
         SAddr TEXT,
         Count INT,
-        Timeout INT,
-        Interval INT,
+        Timeout REAL,
+        Interval REAL,
         ResponseTime REAL,
         RunTime REAL,
         PktLoss INT,

@@ -13,16 +13,19 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -38,20 +41,42 @@ func returnError(w http.ResponseWriter, err error) {
 	fmt.Fprintf(w, `{"err":`+strconv.Quote(err.Error())+`}`)
 }
 
-func returnPathHandler(w http.ResponseWriter, pathJson []byte, segJson []byte, err error) {
+func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, err error) {
 	var buffer bytes.Buffer
 	buffer.WriteString(`{"src":"sciond"`)
-	if pathJson != nil {
-		buffer.WriteString(fmt.Sprintf(`,"paths":%s`, pathJson))
+	if pathJSON != nil {
+		buffer.WriteString(fmt.Sprintf(`,"paths":%s`, pathJSON))
 	}
-	if segJson != nil {
-		buffer.WriteString(fmt.Sprintf(`,"segments":%s`, segJson))
+	if segJSON != nil {
+		buffer.WriteString(fmt.Sprintf(`,"segments":%s`, segJSON))
 	}
 	if err != nil {
 		buffer.WriteString(fmt.Sprintf(`,"err":%s`, strconv.Quote(err.Error())))
 	}
 	buffer.WriteString(`}`)
 	fmt.Fprintf(w, buffer.String())
+}
+
+func getNetworkByIA(iaCli string) (*snet.SCIONNetwork, error) {
+	ia, err := addr.IAFromString(iaCli)
+	if CheckError(err) {
+		return nil, err
+	}
+	dispatcherPath := "/run/shm/dispatcher/default.sock"
+	sciondPath := scionutil.GetSCIONDPath(&ia)
+	if snet.DefNetwork == nil {
+		err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcherPath))
+		if CheckError(err) {
+			return nil, err
+		}
+	}
+	network, err := snet.NewNetwork(ia, sciondPath,
+		reliable.NewDispatcherService(dispatcherPath))
+
+	if CheckError(err) {
+		return nil, err
+	}
+	return network, nil
 }
 
 // sciond data sources and calls
@@ -76,25 +101,13 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 	clientCCAddr, _ := snet.AddrFromString(optClient)
 	serverCCAddr, _ := snet.AddrFromString(optServer)
 
-	if snet.DefNetwork == nil {
-		dispatcherPath := "/run/shm/dispatcher/default.sock"
-
-		var sciondPath string
-		isdCli, _ := strconv.Atoi(strings.Split(CIa, "-")[0])
-		if isdCli < 16 {
-			sciondPath = sciond.GetDefaultSCIONDPath(&clientCCAddr.IA)
-		} else {
-			sciondPath = sciond.GetDefaultSCIONDPath(nil)
-		}
-
-		err := snet.Init(clientCCAddr.IA, sciondPath, dispatcherPath)
-		if CheckError(err) {
-			returnError(w, err)
-			return
-		}
+	network, err := getNetworkByIA(CIa)
+	if CheckError(err) {
+		returnError(w, err)
+		return
 	}
 
-	paths, err := getPathsJSON(*clientCCAddr, *serverCCAddr)
+	paths, err := getPathsJSON(*clientCCAddr, *serverCCAddr, *network)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -138,6 +151,16 @@ func getSegmentsJSON(local snet.Addr) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(segments, func(i, j int) bool {
+		// sort by segment type, then shortest # hops
+		if segments[i].SegType < segments[j].SegType {
+			return true
+		}
+		if segments[i].SegType > segments[j].SegType {
+			return false
+		}
+		return len(segments[i].Interfaces) < len(segments[j].Interfaces)
+	})
 	jsonSegsInfo, err := json.Marshal(segments)
 	if err != nil {
 		return nil, err
@@ -196,9 +219,9 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPathsJSON(local snet.Addr, remote snet.Addr) ([]byte, error) {
-	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
+func getPathsJSON(local snet.Addr, remote snet.Addr, network snet.SCIONNetwork) ([]byte, error) {
+	pathMgr := network.PathResolver()
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sciond.PathReqFlags{})
 	if len(pathSet) == 0 {
 		return nil, fmt.Errorf("No paths from %s to %s", local.IA, remote.IA)
 	}
@@ -206,6 +229,16 @@ func getPathsJSON(local snet.Addr, remote snet.Addr) ([]byte, error) {
 	for _, path := range pathSet {
 		appPaths = append(appPaths, path)
 	}
+	sort.Slice(appPaths, func(i, j int) bool {
+		// sort by shortest # hops, then by IA/interface
+		if len(appPaths[i].Entry.Path.Interfaces) < len(appPaths[j].Entry.Path.Interfaces) {
+			return true
+		}
+		if len(appPaths[i].Entry.Path.Interfaces) > len(appPaths[j].Entry.Path.Interfaces) {
+			return false
+		}
+		return appPaths[i].Entry.String() < appPaths[j].Entry.String()
+	})
 	jsonPathInfo, err := json.Marshal(appPaths)
 	if err != nil {
 		return nil, err
@@ -217,30 +250,13 @@ func getPathsJSON(local snet.Addr, remote snet.Addr) ([]byte, error) {
 func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
-	ia, err := addr.IAFromString(CIa)
+
+	network, err := getNetworkByIA(CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	if snet.DefNetwork == nil {
-		dispatcherPath := "/run/shm/dispatcher/default.sock"
-
-		var sciondPath string
-		isdCli, _ := strconv.Atoi(strings.Split(CIa, "-")[0])
-		if isdCli < 16 {
-			sciondPath = sciond.GetDefaultSCIONDPath(&ia)
-		} else {
-			sciondPath = sciond.GetDefaultSCIONDPath(nil)
-		}
-
-		err := snet.Init(ia, sciondPath, dispatcherPath)
-		if CheckError(err) {
-			returnError(w, err)
-			return
-		}
-	}
-
-	c := snet.DefNetwork.Sciond()
+	c := network.Sciond()
 
 	asir, err := c.ASInfo(context.Background(), addr.IA{})
 	if CheckError(err) {

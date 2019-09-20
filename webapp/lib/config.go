@@ -1,15 +1,19 @@
 package lib
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
+	log "github.com/inconshreveable/log15"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
@@ -23,7 +27,6 @@ var LABROOT = "src/github.com/netsec-ethz/scion-apps"
 var GOPATH = os.Getenv("GOPATH")
 
 // default params for localhost testing
-var cliIaDef = "1-ff00:0:111"
 var serIaDef = "1-ff00:0:112"
 var cliPortDef = "30001"
 var serPortDefBwt = "30100"
@@ -36,18 +39,66 @@ var cfgFileSerUser = "config/servers_user.json"
 var cfgFileCliDef = "config/clients_default.json"
 var cfgFileSerDef = "config/servers_default.json"
 
-// GetLocalIa reads locally generated file for this IA's name, if written
-func GetLocalIa() string {
-	filepath := path.Join(GOPATH, SCIONROOT, "gen/ia")
-	b, err := ioutil.ReadFile(filepath)
-	if CheckError(err) {
-		return ""
-	}
-	return strings.Replace(strings.TrimSpace(string(b)), "_", ":", -1)
+// UserSetting holds the serialized structure for persistent user settings
+type UserSetting struct {
+	MyIA string `json:"myIa"`
 }
 
-func GetCliIaDef() string {
-	return cliIaDef
+// WriteUserSetting writes the settings to disk.
+func WriteUserSetting(srcpath string, settings UserSetting) {
+	cliUserFp := path.Join(srcpath, cfgFileCliUser)
+	settingsJSON, _ := json.Marshal(settings)
+
+	err := ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
+	CheckError(err)
+}
+
+// ReadUserSetting reads the settings from disk.
+func ReadUserSetting(srcpath string) UserSetting {
+	var settings UserSetting
+	cliUserFp := path.Join(srcpath, cfgFileCliUser)
+
+	// no problem when user settings not set yet
+	raw, err := ioutil.ReadFile(cliUserFp)
+	log.Debug("ReadClientsUser", "settings", string(raw))
+	if !CheckError(err) {
+		json.Unmarshal([]byte(raw), &settings)
+	}
+	return settings
+}
+
+// ScanLocalIAs will load list of locally available IAs
+func ScanLocalIAs() []string {
+	var localIAs []string
+	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
+	re := regexp.MustCompile(reIaFilePathCap)
+	var searchPath = path.Join(GOPATH, SCIONROOT, "gen")
+	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
+		if f != nil && f.IsDir() {
+			capture := re.FindStringSubmatch(path)
+			if len(capture) > 0 {
+				ia := capture[1] + "-" + capture[2]
+				ia = strings.Replace(ia, "_", ":", -1) // convert once
+				if !StringInSlice(localIAs, ia) {
+					log.Debug("Local IA Found:", "ia", ia)
+					localIAs = append(localIAs, ia)
+				}
+			}
+		}
+		return nil
+	})
+	sort.Strings(localIAs)
+	return localIAs
+}
+
+// StringInSlice can check a slice for a unique string
+func StringInSlice(arr []string, i string) bool {
+	for _, v := range arr {
+		if v == i {
+			return true
+		}
+	}
+	return false
 }
 
 // Makes interfaces sortable, by preferred name
@@ -87,39 +138,31 @@ func (c byPrefInterface) Less(i, j int) bool {
 }
 
 // GenServerNodeDefaults creates server defaults for localhost testing
-func GenServerNodeDefaults(srcpath string) {
-	serFp := path.Join(srcpath, cfgFileSerUser)
-	jsonBuf := []byte(`{ `)
-	json := []byte(`"bwtester": [{"name":"lo ` + serIaDef + `","isdas":"` +
-		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefBwt +
-		`},{"name":"lo 2-ff00:0:222","isdas":"2-ff00:0:222", "addr":"127.0.0.22","port":30101}], `)
-	jsonBuf = append(jsonBuf, json...)
-	json = []byte(`"camerapp": [{"name":"localhost","isdas":"` +
-		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefImg + `}], `)
-	jsonBuf = append(jsonBuf, json...)
-	json = []byte(`"sensorapp": [{"name":"localhost","isdas":"` +
-		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefSen + `}], `)
-	jsonBuf = append(jsonBuf, json...)
-	json = []byte(`"echo": [{"name":"localhost","isdas":"` +
-		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefSen + `}], `)
-	jsonBuf = append(jsonBuf, json...)
-	json = []byte(`"traceroute": [{"name":"localhost","isdas":"` +
-		serIaDef + `", "addr":"` + serDefAddr + `","port":` + serPortDefSen + `}]`)
-	jsonBuf = append(jsonBuf, json...)
+func GenServerNodeDefaults(srcpath string, localIAs []string) {
+	// reverse sort so that the default server will oppose the default client
+	sort.Sort(sort.Reverse(sort.StringSlice(localIAs)))
 
-	jsonBuf = append(jsonBuf, []byte(` }`)...)
+	serFp := path.Join(srcpath, cfgFileSerUser)
+	jsonBuf := []byte(`{ "all": [`)
+	for i := 0; i < len(localIAs); i++ {
+		// use all localhost endpoints as possible servers for bwtester as least
+		ia := strings.Replace(localIAs[i], "_", ":", -1)
+		json := []byte(`{"name":"lo ` + ia + `","isdas":"` + ia +
+			`", "addr":"` + serDefAddr + `","port":` + serPortDefBwt + `}`)
+		jsonBuf = append(jsonBuf, json...)
+		if i < (len(localIAs) - 1) {
+			jsonBuf = append(jsonBuf, []byte(`,`)...)
+		}
+	}
+	jsonBuf = append(jsonBuf, []byte(`] }`)...)
 	err := ioutil.WriteFile(serFp, jsonBuf, 0644)
 	CheckError(err)
 }
 
 // GenClientNodeDefaults queries network interfaces and writes local client
 // SCION addresses as json
-func GenClientNodeDefaults(srcpath string) {
+func GenClientNodeDefaults(srcpath, cisdas string) {
 	cliFp := path.Join(srcpath, cfgFileCliDef)
-	cisdas := GetLocalIa()
-	if len(cisdas) == 0 {
-		cisdas = cliIaDef
-	}
 	cport := cliPortDef
 
 	// find interface addresses

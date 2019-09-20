@@ -186,8 +186,8 @@ func removeOuterQuotes(s string) string {
 	return s
 }
 
-// WriteContCmdCsv appends the continuous cmd data (bwtest or echo) in csv-format to srcpath.
-func WriteContCmdCsv(d model.CmdItem, srcpath string, appSel string) {
+// WriteCmdCsv appends the cmd data (bwtest or echo) in csv-format to srcpath.
+func WriteCmdCsv(d model.CmdItem, srcpath string, appSel string) {
 	// newfile name for every day
 	dataFileCmd := "data/" + appSel + "-" + time.Now().Format("2006-01-02") + ".csv"
 	cmdDataPath := path.Join(srcpath, dataFileCmd)
