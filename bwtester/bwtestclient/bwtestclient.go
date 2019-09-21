@@ -380,7 +380,7 @@ func main() {
 func findMaxBandwidth(CCConn, DCConn snet.Conn, serverCCAddr, serverDCAddr, clientCCAddr, clientDCAddr *snet.Addr,
 	serverBwp, clientBwp BwtestParameters) {
 	var (
-		clientOldBw, serverOldBw         int64
+		clientOldAch, serverOldAch       int64
 		clientThreshold, serverThreshold int64
 		serverMax, clientMax             bool
 		finished                         bool
@@ -409,9 +409,9 @@ func findMaxBandwidth(CCConn, DCConn snet.Conn, serverCCAddr, serverDCAddr, clie
 
 		res, sres, failed := singleRun(CCConn, DCConn, serverBwp, clientBwp, func() {
 			handleSCError(&serverMax, &clientMax, &serverBw, &clientBw,
-				&serverOldBw, &clientOldBw, &serverThreshold, &clientThreshold)
+				&serverOldAch, &clientOldAch, &serverThreshold, &clientThreshold)
 		}, func() {
-			handleCSError(&clientMax, &clientBw, &clientOldBw, &clientThreshold)
+			handleCSError(&clientMax, &clientBw, &clientOldAch, &clientThreshold)
 		})
 
 		if failed {
@@ -419,10 +419,10 @@ func findMaxBandwidth(CCConn, DCConn snet.Conn, serverCCAddr, serverDCAddr, clie
 			CCConn = resetConn(CCConn, clientCCAddr, serverCCAddr)
 		} else {
 			ach := 8 * serverBwp.PacketSize * res.CorrectlyReceived / int64(serverBwp.BwtestDuration/time.Second)
-			handleBandwidth(&serverMax, &serverBw, &serverOldBw, &serverThreshold, ach, "server -> client")
+			handleBandwidth(&serverMax, &serverBw, &serverOldAch, &serverThreshold, ach, "server -> client")
 
 			ach = 8 * clientBwp.PacketSize * sres.CorrectlyReceived / int64(clientBwp.BwtestDuration/time.Second)
-			handleBandwidth(&clientMax, &clientBw, &clientOldBw, &clientThreshold, ach, "client -> server")
+			handleBandwidth(&clientMax, &clientBw, &clientOldAch, &clientThreshold, ach, "client -> server")
 		}
 
 		// Check if we found the maximum bandwidth for the client and the server
@@ -438,7 +438,7 @@ func findMaxBandwidth(CCConn, DCConn snet.Conn, serverCCAddr, serverDCAddr, clie
 // handleSCError is used in findMaxBandwidth to handle the server -> client error in a single run.
 // It decreases both the server and client bandwidth, since the test failed without testing the
 // client to server bandwidth.Then checks if one of them reached the minimum bandwidth.
-func handleSCError(serverMax, clientMax *bool, serverBw, clientBw, serverOldBw, clientOldBw,
+func handleSCError(serverMax, clientMax *bool, serverBw, clientBw, serverOldAch, clientOldAch,
 	serverThreshold, clientThreshold *int64) {
 	fmt.Println("[Error] Server -> Client test failed: could not receive a server response," +
 		" MaxTries attempted without success.")
@@ -449,13 +449,13 @@ func handleSCError(serverMax, clientMax *bool, serverBw, clientBw, serverOldBw, 
 			"from the server"))
 	}
 
-	handleBandwidth(serverMax, serverBw, serverOldBw, serverThreshold, 0, "server -> client")
-	handleBandwidth(clientMax, clientBw, clientOldBw, clientThreshold, 0, "client -> server")
+	handleBandwidth(serverMax, serverBw, serverOldAch, serverThreshold, 0, "server -> client")
+	handleBandwidth(clientMax, clientBw, clientOldAch, clientThreshold, 0, "client -> server")
 }
 
 // handleCSError is also used in findMaxBandwidth to handle single run error.
 // Only modifies the client's bandwidth, since this mean the server to client test succeeded.
-func handleCSError(clientMax *bool, clientBw, clientOldBw, clientThreshold *int64) {
+func handleCSError(clientMax *bool, clientBw, clientOldAch, clientThreshold *int64) {
 	fmt.Println("[Error] Client -> Server test failed: could not fetch server results, " +
 		"MaxTries attempted without success.")
 	if *clientBw == MinBandwidth {
@@ -463,7 +463,7 @@ func handleCSError(clientMax *bool, clientBw, clientOldBw, clientThreshold *int6
 			"from the server"))
 	}
 	// Don't change the server's bandwidth since its test succeeded
-	handleBandwidth(clientMax, clientBw, clientOldBw, clientThreshold, 0, "client -> server")
+	handleBandwidth(clientMax, clientBw, clientOldAch, clientThreshold, 0, "client -> server")
 
 }
 
@@ -471,18 +471,18 @@ func handleCSError(clientMax *bool, clientBw, clientOldBw, clientThreshold *int6
 // achieved bandwidth (ach) and the previously achieved bandwidth (oldBw).
 // We do not use loss since the link might be lossy, then the loss would not be a good metric.
 // "name" is just the name of the bandwidth to reduce to print out to the user.
-func handleBandwidth(isMax *bool, currentBw, oldBw, threshold *int64, ach int64, name string) {
+func handleBandwidth(isMax *bool, currentBw, oldAch, threshold *int64, ach int64, name string) {
 	if *isMax {
 		return
 	}
-	if *oldBw < ach {
+	if *oldAch < ach {
 		fmt.Printf("Increasing %s bandwidth...\n", name)
 		*currentBw = increaseBandwidth(*currentBw, *threshold)
 	} else {
 		fmt.Printf("Decreasing %s bandwidth...\n", name)
-		*currentBw, *threshold, *isMax = decreaseBandwidth(*currentBw, *threshold, ach, *oldBw)
+		*currentBw, *threshold, *isMax = decreaseBandwidth(*currentBw, *threshold, ach, *oldAch)
 	}
-	*oldBw = ach
+	*oldAch = ach
 }
 
 // increaseBandwidth returns a new bandwidth based on threshold and bandwidth values parameters. When the bandwidth is
@@ -507,13 +507,13 @@ func increaseBandwidth(currentBandwidth, threshold int64) int64 {
 
 // decreaseBandwidth returns a new decreased bandwidth and a threshold based on the passed threshold and bandwidth
 // parameters, and returns true if the returned bandwidth is the maximum achievable bandwidth.
-func decreaseBandwidth(currentBandwidth, threshold, achievedBandwidth, oldBandwidth int64) (newBandwidth,
+func decreaseBandwidth(currentBandwidth, threshold, achievedBandwidth, oldAchieved int64) (newBandwidth,
 	newThreshold int64, isMaxBandwidth bool) {
 
 	// Choose the larger value between them so we don't do unnecessary slow start since we know both bandwidths are
 	// achievable on that link.
-	if achievedBandwidth < oldBandwidth {
-		newBandwidth = oldBandwidth
+	if achievedBandwidth < oldAchieved {
+		newBandwidth = oldAchieved
 	} else {
 		// Both achieved bandwidth and oldBw are not set which means an error occurred when using those values
 		if achievedBandwidth == 0 {
