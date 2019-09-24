@@ -17,13 +17,13 @@
 *~
 
 # User-defined webapp node addresses
-clients_default.json
-clients_user.json
-servers_user.json
+webapp/web/config/clients_default.json
+webapp/web/config/clients_user.json
+webapp/web/config/servers_user.json
 
 # Generated webapp data and logging
-webapp.db
-webapp/data
+webapp/web/webapp.db
+webapp/web/data
 .webapp
 
 # IDE project files
