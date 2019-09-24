@@ -38,8 +38,8 @@ var browseRoot = flag.String("r", ".",
 	"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
 
 // staticRoot for serving/writing static data
-var staticRoot = flag.String("srvroot", path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp"),
-	"Path to read/write web server files (local repo scion-apps/webapp).")
+var staticRoot = flag.String("srvroot", path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp/web"),
+	"Path to read/write web server files.")
 
 // appsRoot is the root location of scionlab apps.
 var appsRoot = flag.String("sabin", path.Join(GOPATH, "bin"),
