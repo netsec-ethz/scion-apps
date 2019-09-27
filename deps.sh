@@ -11,5 +11,6 @@ if ! verleq 1.11.0 "$V"; then
     echo "Go version 1.11 or newer required"
     exit 1
 fi
+sudo apt-get install -y libpam0g-dev
 command -v govendor >/dev/null || go get github.com/kardianos/govendor
 govendor sync -v
