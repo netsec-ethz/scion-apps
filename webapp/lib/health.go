@@ -70,22 +70,22 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	}
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
 
-	err = os.Setenv("SCION_ROOT", options.ScionRoot+"/")
+	err = os.Setenv("SCION_ROOT", path.Clean(options.ScionRoot))
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
-	err = os.Setenv("SCION_BIN", options.ScionBin+"/")
+	err = os.Setenv("SCION_BIN", path.Clean(options.ScionBin))
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
-	err = os.Setenv("SCION_GEN", options.ScionGen+"/")
+	err = os.Setenv("SCION_GEN", path.Clean(options.ScionGen))
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
-	err = os.Setenv("SCION_LOGS", options.ScionLogs+"/")
+	err = os.Setenv("SCION_LOGS", path.Clean(options.ScionLogs))
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
