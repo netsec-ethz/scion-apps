@@ -10,7 +10,7 @@ Webapp is a Go application that will serve up a static web portal to make it eas
 ## Packaged Setup/Run
 For running `webapp` in a package environment, like the default [SCIONLab](https://www.scionlab.org) environment, it will require command-line options for `webapp` to find the tools its requires. In most cases, the default `scionlab` and `scion-apps` packages will need to be specified on the command-line.
 
-To run the Go Web UI at a specific address (-a) and port (-p) like 0.0.0.0:8000 for a SCIONLab VM use:
+To run the Go Web UI at a specific address `-a` and port `-p` like 0.0.0.0:8000 for a SCIONLab VM use:
 ```shell
 webapp \
 -a 0.0.0.0 \
@@ -28,7 +28,7 @@ Now, open a web browser at [http://127.0.0.1:8000](http://127.0.0.1:8000), to be
 
 
 ## Development Setup/Run
-For running `webapp` in a development environment for the SCION Infrastucture, follow the SCIONLab development install and run process at [https://github.com/netsec-ethz/netsec-scion](https://github.com/netsec-ethz/netsec-scion).
+For running `webapp` in a development environment for the SCION Infrastructure, follow the SCIONLab development install and run process at [https://github.com/netsec-ethz/netsec-scion](https://github.com/netsec-ethz/netsec-scion).
 
 Then, follow these steps to install SCIONLab Apps to run `webapp` in development.
 
@@ -62,13 +62,15 @@ webapp \
 -sgenc $GOPATH/src/github.com/scionproto/scion/gen-cache \
 -slogs $GOPATH/src/github.com/scionproto/scion/logs
 ```
-or can run `webapp` with like this, which will use the defaults above:
+or can you run `webapp` like this, which will use the defaults above:
 ```shell
 webapp
 ```
 
+## Dependancies
+A list of dependencies for `webapp` can be found at [dependencies.md](./dependencies.md). 
 
-## Command-Line Help
+## Help
 ```shell
 Usage of webapp:
   -a string
