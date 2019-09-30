@@ -7,10 +7,21 @@ error_exit()
     exit 1
 }
 
+# allow IA via args, ignoring gen/ia
+iaFile=$(echo $1 | sed "s/:/_/g")
+echo "IA found: $iaFile"
+
+isd=$(echo ${iaFile} | cut -d"-" -f1)
 
 # check if "./scion.sh status" returns anything, fail if it does
-cd $SCION_ROOT
-status="$(bash $SCION_ROOT/scion.sh status 2>&1)"
+if [ $isd -ge 16 ]; then
+    status="$(systemctl -t service --failed | grep scion-*.service 2>&1)"
+else
+    # localhost testing
+    cd $SCION_ROOT
+    status="$($SCION_ROOT/scion.sh status 2>&1)"
+fi
+
 if [[ $status ]]
 then
     echo "SCION status has reported a problem: $status."
@@ -46,11 +57,6 @@ else
 fi
 }
 
-# allow IA via args, ignoring gen/ia
-iaFile=$(echo $1 | sed "s/:/_/g")
-echo "IA found: $iaFile"
-
-isd=$(echo ${iaFile} | cut -d"-" -f1)
 
 if [ $isd -ge 16 ]; then
     # not used for localhost testing
