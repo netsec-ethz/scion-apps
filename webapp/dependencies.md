@@ -5,8 +5,8 @@
 webapp \
 -a 0.0.0.0 \
 -p 8000 \
--r /var/www/webapp/web/data \
--srvroot /var/www/webapp/web \
+-r /var/lib/scion/webapp/web/data \
+-srvroot /var/lib/scion/webapp/web \
 -sabin /usr/bin \
 -sroot /etc/scion \
 -sbin /usr/bin \

@@ -68,11 +68,10 @@ func ReadUserSetting(options *CmdOptions) UserSetting {
 	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
 
 	// no problem when user settings not set yet
-	raw, err := ioutil.ReadFile(cliUserFp)
-	log.Debug("ReadClientsUser", "settings", string(raw))
-	if !CheckError(err) {
-		json.Unmarshal([]byte(raw), &settings)
-	}
+	raw, _ := ioutil.ReadFile(cliUserFp)
+	log.Debug("ReadUserSetting from saved", "settings", string(raw))
+	json.Unmarshal([]byte(raw), &settings)
+
 	return settings
 }
 
@@ -81,7 +80,7 @@ func ScanLocalIAs(options *CmdOptions) []string {
 	var localIAs []string
 	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
 	re := regexp.MustCompile(reIaFilePathCap)
-	var searchPath = path.Join(options.ScionRoot, "gen")
+	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.IsDir() {
 			capture := re.FindStringSubmatch(path)

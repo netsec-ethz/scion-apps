@@ -15,8 +15,8 @@ To run the Go Web UI at a specific address `-a` and port `-p` like 0.0.0.0:8000 
 webapp \
 -a 0.0.0.0 \
 -p 8000 \
--r /var/www/webapp/web/data \
--srvroot /var/www/webapp/web \
+-r /var/lib/scion/webapp/web/data \
+-srvroot /var/lib/scion/webapp/web \
 -sabin /usr/bin \
 -sroot /etc/scion \
 -sbin /usr/bin \
@@ -68,31 +68,31 @@ webapp
 ```
 
 ## Dependancies
-A list of dependencies for `webapp` can be found at [dependencies.md](./dependencies.md). 
+A list of dependencies for `webapp` can be found at [dependencies.md](./dependencies.md).
 
 ## Help
 ```shell
 Usage of webapp:
   -a string
-    	Address of server host. (default "127.0.0.1")
+        Address of server host. (default "127.0.0.1")
   -p int
-    	Port of server host. (default 8000)
+        Port of server host. (default 8000)
   -r string
-    	Root path to read/browse from, CAUTION: read-access granted from -a and -p. (default ".")
+        Root path to read/browse from, CAUTION: read-access granted from -a and -p. (default ".")
   -sabin string
-    	Path to execute the installed scionlab apps binaries (default "/home/ubuntu/go/bin")
+        Path to execute the installed scionlab apps binaries (default "/home/ubuntu/go/bin")
   -sbin string
-    	Path to execute SCION bin directory of infrastructure tools (default "/home/ubuntu/go/src/github.com/scionproto/scion/bin")
+        Path to execute SCION bin directory of infrastructure tools (default "/home/ubuntu/go/src/github.com/scionproto/scion/bin")
   -sgen string
-    	Path to read SCION gen directory of infrastructure config (default "/home/ubuntu/go/src/github.com/scionproto/scion/gen")
+        Path to read SCION gen directory of infrastructure config (default "/home/ubuntu/go/src/github.com/scionproto/scion/gen")
   -sgenc string
-    	Path to read SCION gen-cache directory of infrastructure run-time config (default "/home/ubuntu/go/src/github.com/scionproto/scion/gen-cache")
+        Path to read SCION gen-cache directory of infrastructure run-time config (default "/home/ubuntu/go/src/github.com/scionproto/scion/gen-cache")
   -slogs string
-    	Path to read SCION logs directory of infrastructure logging (default "/home/ubuntu/go/src/github.com/scionproto/scion/logs")
+        Path to read SCION logs directory of infrastructure logging (default "/home/ubuntu/go/src/github.com/scionproto/scion/logs")
   -sroot string
-    	Path to read SCION root directory of infrastructure (default "/home/ubuntu/go/src/github.com/scionproto/scion")
+        Path to read SCION root directory of infrastructure (default "/home/ubuntu/go/src/github.com/scionproto/scion")
   -srvroot string
-    	Path to read/write web server files. (default "/home/ubuntu/go/src/github.com/netsec-ethz/scion-apps/webapp/web")
+        Path to read/write web server files. (default "/home/ubuntu/go/src/github.com/netsec-ethz/scion-apps/webapp/web")
 ```
 
 ## Related Links
