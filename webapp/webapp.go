@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -73,7 +72,6 @@ var addr = flag.String("a", "127.0.0.1", "Address of server host.")
 var port = flag.Int("p", 8000, "Port of server host.")
 var cmdBufLen = 1024
 var browserAddr = "127.0.0.1"
-var rootmarker = ".webapp"
 var settings lib.UserSetting
 var id = "webapp"
 
@@ -134,13 +132,15 @@ func main() {
 	options = lib.CmdOptions{*staticRoot, *browseRoot, *appsRoot, *scionRoot, *scionBin, *scionGen, *scionGenCache, *scionLogs}
 	// correct static files are required for the app to serve them, else fail
 	if _, err := os.Stat(path.Join(options.StaticRoot, "static")); os.IsNotExist(err) {
-		log.Error("-s flag must be set with local repo: scion-apps/webapp")
+		log.Error("-s flag must be set with local repo: scion-apps/webapp/web")
 		CheckFatal(err)
 		return
 	}
+	checkPath(options.StaticRoot)
 
 	// logging
 	logDirPath := ensurePath(options.StaticRoot, "logs")
+	checkPath(options.ScionLogs)
 	log.Root().SetHandler(log.MultiHandler(
 		log.LvlFilterHandler(log.LvlDebug,
 			log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
@@ -148,15 +148,6 @@ func main() {
 			log.Must.FileHandler(path.Join(logDirPath, fmt.Sprintf("%s.log", id)),
 				fmt15.Fmt15Format(nil)))))
 	log.Info("======================> Webapp started")
-
-	checkPath(options.StaticRoot)
-	checkPath(options.BrowseRoot)
-	checkPath(options.AppsRoot)
-	checkPath(options.ScionRoot)
-	checkPath(options.ScionBin)
-	checkPath(options.ScionGen)
-	checkPath(options.ScionGenCache)
-	checkPath(options.ScionLogs)
 
 	// prepare templates
 	templates = prepareTemplates(options.StaticRoot)
@@ -175,6 +166,9 @@ func main() {
 	ensurePath(options.StaticRoot, "data")
 	ensurePath(options.StaticRoot, "data/images")
 
+	checkPath(options.ScionRoot)
+	checkPath(options.ScionGen)
+	checkPath(options.ScionGenCache)
 	initLocalIaOptions()
 	log.Info("IA loaded:", "myIa", settings.MyIA)
 
@@ -182,7 +176,8 @@ func main() {
 	lib.GenClientNodeDefaults(&options, settings.MyIA)
 	lib.GenServerNodeDefaults(&options, localIAs)
 
-	refreshRootDirectory()
+	checkPath(options.AppsRoot)
+	checkPath(options.ScionBin)
 	appsBuildCheck("bwtester")
 	appsBuildCheck("camerapp")
 	appsBuildCheck("sensorapp")
@@ -191,6 +186,7 @@ func main() {
 
 	initServeHandlers()
 	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
+	checkPath(options.BrowseRoot)
 	log.Info("File browser root:", "root", options.BrowseRoot)
 	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
 	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
@@ -581,13 +577,13 @@ func getClientCwd(app string) string {
 	var cwd string
 	switch app {
 	case "sensorapp":
-		cwd = path.Join(options.StaticRoot, ".")
+		cwd = path.Join(options.StaticRoot, "data")
 	case "camerapp":
 		cwd = path.Join(options.StaticRoot, "data/images")
 	case "bwtester":
-		cwd = path.Join(options.StaticRoot, ".")
+		cwd = path.Join(options.StaticRoot, "data")
 	case "echo", "traceroute":
-		cwd = path.Join(options.ScionRoot, "bin")
+		cwd = path.Join(options.ScionBin, ".")
 	}
 	return cwd
 }
@@ -787,34 +783,4 @@ func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
 	lib.WriteUserSetting(&options, settings)
 	lib.GenClientNodeDefaults(&options, settings.MyIA)
 	log.Info("IA set:", "myIa", settings.MyIA)
-}
-
-// Used to workaround cache-control issues by ensuring root specified by user
-// has updated last modified date by writing a .webapp file
-func refreshRootDirectory() {
-	cliFp := path.Join(options.StaticRoot, options.BrowseRoot, rootmarker)
-	err := ioutil.WriteFile(cliFp, []byte(``), 0644)
-	CheckError(err)
-}
-
-// FileBrowseResponseWriter holds modified response headers
-type FileBrowseResponseWriter struct {
-	http.ResponseWriter
-}
-
-// WriteHeader prevents caching directory listings based on directory last modified date.
-// This is especially a problem in Chrome, and can serve the browser stale listings.
-func (w FileBrowseResponseWriter) WriteHeader(code int) {
-	if code == 200 {
-		w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate, proxy-revalidate")
-	}
-	w.ResponseWriter.WriteHeader(code)
-}
-
-// Handles custom filtering of file browsing content
-func fileBrowseHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rw := FileBrowseResponseWriter{w}
-		h.ServeHTTP(rw, r)
-	})
 }
