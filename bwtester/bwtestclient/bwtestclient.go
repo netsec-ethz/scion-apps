@@ -551,9 +551,7 @@ func decreaseBandwidth(currentBandwidth, threshold, achievedBandwidth, oldAchiev
 func initConns(serverCCAddr, serverDCAddr, clientCCAddr, clientDCAddr *snet.Addr, pathAlgo string, interactive bool) (CCConn,
 	DCConn snet.Conn, err error) {
 	var pathEntry *sciond.PathReplyEntry
-
-	// Setup the paths and
-	if !serverCCAddr.IA.Eq(clientCCAddr.IA) {
+	if !serverCCAddr.IA.Equal(clientCCAddr.IA) {
 		if interactive {
 			pathEntry = scionutil.ChoosePathInteractive(clientCCAddr, serverCCAddr)
 		} else {
@@ -592,7 +590,7 @@ func initConns(serverCCAddr, serverDCAddr, clientCCAddr, clientDCAddr *snet.Addr
 		L3: serverCCAddr.Host.L3, L4: addr.NewL4UDPInfo(serverPort + 1)}}
 
 	// Set path on data connection
-	if !serverDCAddr.IA.Eq(clientDCAddr.IA) {
+	if !serverDCAddr.IA.Equal(clientDCAddr.IA) {
 		serverDCAddr.Path = spath.New(pathEntry.Path.FwdPath)
 		_ = serverDCAddr.Path.InitOffsets()
 		serverDCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()

@@ -15,6 +15,7 @@ import (
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -207,7 +208,7 @@ func main() {
 	} else if sciondPath == "" {
 		sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
-	snet.Init(local.IA, sciondPath, dispatcherPath)
+	snet.Init(local.IA, sciondPath, reliable.NewDispatcherService(dispatcherPath))
 	udpConnection, err = snet.DialSCION("udp4", local, remote)
 	check(err)
 

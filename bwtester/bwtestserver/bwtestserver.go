@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 func printUsage() {
@@ -149,7 +150,7 @@ func runServer() {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
 	log.Info("Starting server")
-	snet.Init(serverCCAddr.IA, *sciondPath, *dispatcherPath)
+	snet.Init(serverCCAddr.IA, *sciondPath, reliable.NewDispatcherService(*dispatcherPath))
 
 	serverISDASIP := fmt.Sprintf("%s,[%s]", serverCCAddr.IA, serverCCAddr.Host.L3)
 

@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const localhost = "localhost"
@@ -60,8 +61,8 @@ func GetSCIONDPath(ia *addr.IA) string {
 }
 
 // GetDefaultDispatcher returns the path to the default SCION dispatcher
-func GetDefaultDispatcher() string {
-	return "/run/shm/dispatcher/default.sock"
+func GetDefaultDispatcher() reliable.DispatcherService {
+	return reliable.NewDispatcherService("")
 }
 
 // GetLocalhost returns a local SCION address an application can bind to
