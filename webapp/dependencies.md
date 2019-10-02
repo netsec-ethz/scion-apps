@@ -46,6 +46,7 @@ webapp \
 - sleep
 - cat
 - systemctl
+- python2
 
 ## SCION Binaries Used/Checked
 - $sbin/scmp

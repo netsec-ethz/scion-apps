@@ -28,7 +28,7 @@ fi
 ipAddress=$(echo "$targetLines" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -n1)
 topologyFile=$SCION_GEN/ISD*/AS*/endhost/topology.json
 # ip address specified in the topology file. If "bind" parameter present, use that one; "public" if not
-ipTopology=$(cat $topologyFile | python -c "import sys, json
+ipTopology=$(cat $topologyFile | python2 -c "import sys, json
 brs = json.load(sys.stdin)['BorderRouters']
 interfaces=next(iter(brs.values()))['Interfaces']
 inter=next(iter(interfaces.values()))

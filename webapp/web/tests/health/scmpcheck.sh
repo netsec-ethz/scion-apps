@@ -15,7 +15,7 @@ as=$(echo ${iaFile} | cut -d"-" -f2)
 topologyFile=$SCION_GEN/ISD$isd/AS$as/endhost/topology.json
 
 # get remote addresses from interfaces, return paired list
-dsts=($(cat $topologyFile | python -c "import sys, json
+dsts=($(cat $topologyFile | python2 -c "import sys, json
 brs = json.load(sys.stdin)['BorderRouters']
 for b in brs:
     for i in brs[b]['Interfaces']:
