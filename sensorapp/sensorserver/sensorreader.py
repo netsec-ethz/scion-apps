@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 HOST = "localhost"
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     ambientlight = AmbientLight( AMBIENTLIGHT_UID, ipcon)
     uvlight = BrickletUVLight( UVLIGHT_UID, ipcon)
     motiondetect = BrickletMotionDetector( MOTIONDETECTOR_UID, ipcon)
-    
+
     ipcon.connect(HOST, PORT) # Connect to brickd
 
     while (True):

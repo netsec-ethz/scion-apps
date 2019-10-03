@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import socket
 import sys
@@ -38,7 +38,7 @@ class TimeDaemon:
 
     def _gps_time_received(self, gps_time):
         now=datetime.utcnow().replace(tzinfo=tz.tzutc())
-        
+
         if self._is_similar(gps_time, now):
             # GPS and local time are similar. Update RTC clock
             # and local time from GPS
@@ -66,7 +66,7 @@ class TimeDaemon:
                 else:
                     print("PANIC! Unable to reliably determine time! Not setting any time....")
                     # TODO: Sound the buzzer
-                    
+
 
 def signal_handler(signal, frame):
         print("Exiting...")
