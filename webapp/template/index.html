@@ -5,6 +5,7 @@
 <script type="text/javascript" src="static/js/d3.v3.min.js"></script>
 <script type="text/javascript" src="static/js/topojson.min.js"></script>
 <script type="text/javascript" src="static/js/highcharts.js"></script>
+<script type="text/javascript" src="static/js/highcharts-more.js"></script>
 <script type="text/javascript" src="static/js/topology.js"></script>
 <script type="text/javascript" src="static/js/tab-topocola.js"></script>
 <script type="text/javascript" src="static/js/location.js"></script>
@@ -64,8 +65,9 @@
 
      <!-- APPS TABS DEFINITIONS -->
      <ul class="nav nav-tabs">
-      <li class="active"><a data-toggle="tab" name="bwtester"
-       href="#bwtester">bwtester</a></li>
+      <li class="active"><a data-toggle="tab" name="speedtest"
+       href="#speedtest">speedtest</a></li>
+      <li><a data-toggle="tab" name="bwtester" href="#bwtester">bwtester</a></li>
       <li><a data-toggle="tab" name="camerapp" href="#camerapp">camerapp</a></li>
       <li><a data-toggle="tab" name="sensorapp" href="#sensorapp">sensorapp</a></li>
       <li><a data-toggle="tab" name="echo" href="#echo">echo</a></li>
@@ -73,8 +75,37 @@
      </ul>
      <div id="tab-content-apps" class="tab-content">
 
+      <!-- SPEEDTEST CONTENT -->
+      <div id="speedtest" class="tab-pane fade in active">
+
+       <div>
+        <div id="speedup-graph"
+         style="display: inline-block; min-width: 200px; max-width: 300px; height: 250px; width: 245px; margin: 0 auto"></div>
+        <div id="speeddown-graph"
+         style="display: inline-block; min-width: 200px; max-width: 300px; height: 250px; width: 245px; margin: 0 auto"></div>
+       </div>
+
+       <div id="speed-info"
+        style="display: inline-block; height: 50px; width: 500px; margin: 0 auto">
+
+        <div>
+         <div id="speedup"
+          style="display: inline-block; font-size: 16px; text-align: center; height: 25px; width: 245px; margin: 0 auto">Upload</div>
+         <div id="speeddown"
+          style="display: inline-block; font-size: 16px; text-align: center; height: 25px; width: 245px; margin: 0 auto">Download</div>
+        </div>
+
+        <div id="speedtest_text"
+         style="display: inline-block; text-align: center; height: 25px; width: 500px; margin: 0 auto">
+        </div>
+
+       </div>
+
+      </div>
+
+
       <!-- BANDWIDTH TEST APP CONTENT -->
-      <div id="bwtester" class="tab-pane fade in active">
+      <div id="bwtester" class="tab-pane fade">
 
        <span id="bwtest_text"></span><br> Interval: <input
         name="bwtest_sec" id="bwtest_sec" type="number"
@@ -289,7 +320,6 @@
 
 
      </div>
-
     </div>
     <div id="col-right" class="column-ia">
 

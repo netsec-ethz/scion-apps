@@ -73,7 +73,7 @@ func (t contCmd) String() string {
 
 var contCmdRequest *http.Request
 var contCmdActive bool
-var contCmdInterval int
+var contCmdIntervalMs int
 var contCmdTimeKeepAlive time.Time
 var contCmdChanDone = make(chan bool)
 var pathChoiceTimeout = time.Duration(1000) * time.Millisecond
@@ -316,16 +316,16 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 		d.CPort, _ = strconv.Atoi(r.PostFormValue("port_cli"))
 
 		if appSel == "bwtester" {
-			d.CSDuration, _ = strconv.Atoi(r.PostFormValue("dial-cs-sec"))
+			csDur, _ := strconv.ParseFloat(r.PostFormValue("dial-cs-sec"), 32)
+			d.CSDuration = (int)(csDur * 1000) // final storage in ms
 			d.CSPktSize, _ = strconv.Atoi(r.PostFormValue("dial-cs-size"))
 			d.CSPackets, _ = strconv.Atoi(r.PostFormValue("dial-cs-pkt"))
-			d.CSBandwidth = d.CSPackets * d.CSPktSize / d.CSDuration * 8
-			d.CSDuration = d.CSDuration * 1000 // final storage in ms
-			d.SCDuration, _ = strconv.Atoi(r.PostFormValue("dial-sc-sec"))
+			d.CSBandwidth = d.CSPackets * d.CSPktSize / d.CSDuration * 1000 * 8
+			scDur, _ := strconv.ParseFloat(r.PostFormValue("dial-sc-sec"), 32)
+			d.SCDuration = (int)(scDur * 1000) // final storage in ms
 			d.SCPktSize, _ = strconv.Atoi(r.PostFormValue("dial-sc-size"))
 			d.SCPackets, _ = strconv.Atoi(r.PostFormValue("dial-sc-pkt"))
-			d.SCBandwidth = d.SCPackets * d.SCPktSize / d.SCDuration * 8
-			d.SCDuration = d.SCDuration * 1000 // final storage in ms
+			d.SCBandwidth = d.SCPackets * d.SCPktSize / d.SCDuration * 1000 * 8
 		}
 		return d, addlOpt
 	}
@@ -410,7 +410,8 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	appSel := r.PostFormValue("apps")
 	continuous, _ := strconv.ParseBool(r.PostFormValue("continuous"))
-	interval, _ := strconv.Atoi(r.PostFormValue("interval"))
+	intervalSec, _ := strconv.ParseFloat(r.PostFormValue("interval"), 32)
+	intervalMs := intervalSec * 1000
 	if appSel == "" {
 		fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
 		return
@@ -419,7 +420,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		// continuous run command, either bwtest, echo or traceroute
 		contCmdTimeKeepAlive = time.Now()
 		contCmdRequest = r
-		contCmdInterval = interval
+		contCmdIntervalMs = (int)(intervalMs)
 		var t contCmd
 		if appSel == "bwtester" {
 			t = bwTest
@@ -473,7 +474,7 @@ func continuousCmd(t contCmd) {
 		<-contCmdChanDone
 		end := time.Now()
 		elapsed := end.Sub(start)
-		interval := time.Duration(contCmdInterval) * time.Second
+		interval := time.Duration(contCmdIntervalMs) * time.Millisecond
 		// determine sleep interval based on actual test duration
 		remaining := time.Duration(0)
 		if interval > elapsed {

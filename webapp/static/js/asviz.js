@@ -57,6 +57,21 @@ function setupPathSelection() {
     });
 }
 
+function openPath(path, open) {
+    var liPath = $("li[path='" + path + "']");
+    if (!liPath.hasClass("open")) {
+        liPath.addClass("open");
+        var type = liPath.attr("seg-type");
+        var idx = liPath.attr("seg-num");
+        setPaths(type, idx, open);
+    }
+}
+
+function getPathNum(path) {
+    var liPath = $("li[path='" + path + "']");
+    return liPath.attr("seg-num");
+}
+
 function setPaths(type, idx, open) {
     if (open) {
         console.log(type + idx + ' opened');
