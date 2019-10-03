@@ -39,14 +39,13 @@ webapp \
 - curl
 - set
 - grep
-- python
+- python3
 - df
 - tr
 - free
 - sleep
 - cat
 - systemctl
-- python2
 
 ## SCION Binaries Used/Checked
 - $sbin/scmp
