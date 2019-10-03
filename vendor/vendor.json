@@ -2455,26 +2455,8 @@
 			"revisionTime": "2019-09-04T17:23:14Z"
 		},
 		{
-			"checksumSHA1": "6lzLm5eIswP0fziPs74p+lb0QUo=",
-			"path": "golang.org/x/tools/go/gcexportdata",
-			"revision": "dd2b5c81c5787692d57849f9ab43d07977f3e76c",
-			"revisionTime": "2019-09-04T17:23:14Z"
-		},
-		{
 			"checksumSHA1": "VQ0sTJYKkzzAvWA6zvaKD5lar0o=",
 			"path": "golang.org/x/tools/go/internal/cgo",
-			"revision": "dd2b5c81c5787692d57849f9ab43d07977f3e76c",
-			"revisionTime": "2019-09-04T17:23:14Z"
-		},
-		{
-			"checksumSHA1": "ZqrtupmBx5hoPhckvqP2yEkckhw=",
-			"path": "golang.org/x/tools/go/internal/gcimporter",
-			"revision": "dd2b5c81c5787692d57849f9ab43d07977f3e76c",
-			"revisionTime": "2019-09-04T17:23:14Z"
-		},
-		{
-			"checksumSHA1": "qIa2Ow6uCdXhD+aELo9ZxgOz7tU=",
-			"path": "golang.org/x/tools/go/internal/packagesdriver",
 			"revision": "dd2b5c81c5787692d57849f9ab43d07977f3e76c",
 			"revisionTime": "2019-09-04T17:23:14Z"
 		},
@@ -3159,30 +3141,6 @@
 			"path": "gopkg.in/yaml.v2",
 			"revision": "51d6538a90f86fe93ac480b35f37b2be17fef232",
 			"revisionTime": "2018-11-15T11:05:04Z"
-		},
-		{
-			"checksumSHA1": "d+FszpdwcrSQzdoG3w0E2FxQnFQ=",
-			"comment": "using this fork in github until we know how to govendor fetch from the real path",
-			"origin": "github.com/juagargi/roughtime/go/client/monotime",
-			"path": "roughtime.googlesource.com/go/client/monotime",
-			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
-			"revisionTime": "2018-10-29T22:37:29Z"
-		},
-		{
-			"checksumSHA1": "dtUYa81+BOxmiK4NjluVowO8g0U=",
-			"comment": "using this fork in github until we know how to govendor fetch from the real path",
-			"origin": "github.com/juagargi/roughtime/go/config",
-			"path": "roughtime.googlesource.com/go/config",
-			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
-			"revisionTime": "2018-10-29T22:37:29Z"
-		},
-		{
-			"checksumSHA1": "7TVC3xVndRMynYSO7L/fQG6QIkk=",
-			"comment": "using this fork in github until we know how to govendor fetch from the real path",
-			"origin": "github.com/juagargi/roughtime/go/protocol",
-			"path": "roughtime.googlesource.com/go/protocol",
-			"revision": "26225bef2678cedbd88baa8a22b85f267a6e88b5",
-			"revisionTime": "2018-10-29T22:37:29Z"
 		},
 		{
 			"checksumSHA1": "ubCUZ5N48+OEiaUAmS1rOAbnGYc=",
