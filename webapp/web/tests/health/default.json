@@ -26,11 +26,6 @@
    "desc": "VPN configuration tests"
   },
   {
-   "label": "checkrepo",
-   "script": "testVersion.sh",
-   "desc": "Version tests for scion and scion-apps"
-  },
-  {
    "label": "checkrunnngstatus",
    "script": "testSCIONRunning.sh",
    "desc": "SCION running test"

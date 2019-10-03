@@ -7,14 +7,14 @@ echo "IA found: $iaFile"
 
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 as=$(echo ${iaFile} | cut -d"-" -f2)
-topologyFile=$SC/gen/ISD$isd/AS$as/endhost/topology.json
+topologyFile=$SCION_GEN/ISD$isd/AS$as/endhost/topology.json
 
 # get remote addresses from interfaces
-ip_dsts=$(cat $topologyFile | python -c "import sys, json
+ip_dsts=$(cat $topologyFile | python3 -c "import sys, json
 brs = json.load(sys.stdin)['BorderRouters']
 for b in brs:
     for i in brs[b]['Interfaces']:
-        print brs[b]['Interfaces'][i]['RemoteOverlay']['Addr']")
+        print(brs[b]['Interfaces'][i]['RemoteOverlay']['Addr'])")
 
 # test icmp ping on each interface
 for ip_dst in $ip_dsts

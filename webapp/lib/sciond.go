@@ -1,3 +1,17 @@
+// Copyright 2019 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package lib
 
 import (
@@ -82,7 +96,7 @@ func getNetworkByIA(iaCli string) (*snet.SCIONNetwork, error) {
 // sciond data sources and calls
 
 // PathTopoHandler handles requests for paths, returning results from sciond.
-func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
+func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	SIa := r.PostFormValue("ia_ser")
 	CIa := r.PostFormValue("ia_cli")
@@ -116,7 +130,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Since segments data is supplimentary to paths data, if segments data
 	// fails, provide the error, but we must still allow paths data to return.
-	segments, err := getSegmentsJSON(*clientCCAddr)
+	segments, err := getSegmentsJSON(*clientCCAddr, options)
 	if CheckError(err) {
 		returnPathHandler(w, paths, nil, err)
 		return
@@ -126,9 +140,9 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request) {
 	returnPathHandler(w, paths, segments, err)
 }
 
-func getSegmentsJSON(local snet.Addr) ([]byte, error) {
+func getSegmentsJSON(local snet.Addr, options *CmdOptions) ([]byte, error) {
 	// load segments from paths database
-	var dbSrcFile = findDBFilename(local.IA)
+	var dbSrcFile = findDBFilename(local.IA, options)
 	dbTmpFile, err := copyDBToTemp(dbSrcFile)
 	if err != nil {
 		return nil, err
@@ -168,15 +182,14 @@ func getSegmentsJSON(local snet.Addr) ([]byte, error) {
 	return jsonSegsInfo, nil
 }
 
-func findDBFilename(ia addr.IA) string {
-	filenames, err := filepath.Glob(filepath.Join(
-		GOPATH, SCIONROOT, "gen-cache", "ps*path.db"))
+func findDBFilename(ia addr.IA, options *CmdOptions) string {
+	filenames, err := filepath.Glob(filepath.Join(options.ScionGenCache, "ps*path.db"))
 	CheckError(err)
 	if len(filenames) == 1 {
 		return filenames[0]
 	}
 	pathDBFileName := fmt.Sprintf("ps%s-1.path.db", ia.FileFmt(false))
-	return filepath.Join(GOPATH, SCIONROOT, "gen-cache", pathDBFileName)
+	return filepath.Join(options.ScionGenCache, pathDBFileName)
 }
 
 // returns the name of the created file
@@ -289,10 +302,10 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // TrcHandler handles requests for all local trust root data.
-func TrcHandler(w http.ResponseWriter, r *http.Request) {
+func TrcHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
-	raw, err := loadJSONCerts(CIa, "*.trc")
+	raw, err := loadJSONCerts(CIa, "*.trc", options)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -302,10 +315,10 @@ func TrcHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // CrtHandler handles requests for all local certificate data.
-func CrtHandler(w http.ResponseWriter, r *http.Request) {
+func CrtHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
-	raw, err := loadJSONCerts(CIa, "*.crt")
+	raw, err := loadJSONCerts(CIa, "*.crt", options)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -314,14 +327,13 @@ func CrtHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(raw))
 }
 
-func loadJSONCerts(src, pattern string) ([]byte, error) {
+func loadJSONCerts(src, pattern string, options *CmdOptions) ([]byte, error) {
 	ia, err := addr.IAFromString(src)
 	if err != nil {
 		return nil, err
 	}
-	certDir := path.Join(GOPATH, SCIONROOT,
-		fmt.Sprintf("gen/ISD%d/AS%s/endhost/certs", ia.I, ia.A.FileFmt()))
-	cacheDir := path.Join(GOPATH, SCIONROOT, "gen-cache")
+	certDir := path.Join(options.ScionGen, fmt.Sprintf("ISD%d/AS%s/endhost/certs", ia.I, ia.A.FileFmt()))
+	cacheDir := options.ScionGenCache
 	files, err := filepath.Glob(fmt.Sprintf("%s/%s", certDir, pattern))
 	if err != nil {
 		return nil, err
