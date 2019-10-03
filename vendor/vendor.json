@@ -1086,8 +1086,8 @@
 			"checksumSHA1": "w3DjTc4UFLRLTye2gPzofruvWvs=",
 			"origin": "github.com/netsec-ethz/netsec-scion/go/lib/ctrl/path_mgmt",
 			"path": "github.com/scionproto/scion/go/lib/ctrl/path_mgmt",
-			"revision": "8f2d6d2b9ebf5a807990e833ea21c07ee6f91679",
-			"revisionTime": "2019-02-07T16:31:26Z"
+			"revision": "a37267b8658955d883d4d66fef62d45ecb9e18b9",
+			"revisionTime": "2019-08-27T08:37:21Z"
 		},
 		{
 			"checksumSHA1": "exzm2iO8g9gZ03EuhYyzS9ngOIE=",
