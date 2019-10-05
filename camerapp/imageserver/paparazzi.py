@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from picamera import PiCamera, Color
 from time import sleep

@@ -1,3 +1,17 @@
+// Copyright 2019 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package lib
 
 import (
@@ -107,7 +121,7 @@ func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 }
 
 // GetEchoByTimeHandler request the echo results stored since provided time.
-func GetEchoByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
+func GetEchoByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	r.ParseForm()
 	since := r.PostFormValue("since")
 	log.Info("Requesting echo data since", "timestamp", since)

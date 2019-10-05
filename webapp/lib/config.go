@@ -1,3 +1,17 @@
+// Copyright 2019 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package lib
 
 import (
@@ -17,15 +31,6 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// SCIONROOT is the root location of the scion infrastructure.
-var SCIONROOT = "src/github.com/scionproto/scion"
-
-// LABROOT is the root location of scionlab apps.
-var LABROOT = "src/github.com/netsec-ethz/scion-apps"
-
-// GOPATH is the root of the GOPATH environment.
-var GOPATH = os.Getenv("GOPATH")
-
 // default params for localhost testing
 var serIaDef = "1-ff00:0:112"
 var cliPortDef = "30001"
@@ -44,9 +49,13 @@ type UserSetting struct {
 	MyIA string `json:"myIa"`
 }
 
+type CmdOptions struct {
+	StaticRoot, BrowseRoot, AppsRoot, ScionRoot, ScionBin, ScionGen, ScionGenCache, ScionLogs string
+}
+
 // WriteUserSetting writes the settings to disk.
-func WriteUserSetting(srcpath string, settings UserSetting) {
-	cliUserFp := path.Join(srcpath, cfgFileCliUser)
+func WriteUserSetting(options *CmdOptions, settings UserSetting) {
+	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
 	settingsJSON, _ := json.Marshal(settings)
 
 	err := ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
@@ -54,25 +63,24 @@ func WriteUserSetting(srcpath string, settings UserSetting) {
 }
 
 // ReadUserSetting reads the settings from disk.
-func ReadUserSetting(srcpath string) UserSetting {
+func ReadUserSetting(options *CmdOptions) UserSetting {
 	var settings UserSetting
-	cliUserFp := path.Join(srcpath, cfgFileCliUser)
+	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
 
 	// no problem when user settings not set yet
-	raw, err := ioutil.ReadFile(cliUserFp)
-	log.Debug("ReadClientsUser", "settings", string(raw))
-	if !CheckError(err) {
-		json.Unmarshal([]byte(raw), &settings)
-	}
+	raw, _ := ioutil.ReadFile(cliUserFp)
+	log.Debug("ReadUserSetting from saved", "settings", string(raw))
+	json.Unmarshal([]byte(raw), &settings)
+
 	return settings
 }
 
 // ScanLocalIAs will load list of locally available IAs
-func ScanLocalIAs() []string {
+func ScanLocalIAs(options *CmdOptions) []string {
 	var localIAs []string
 	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
 	re := regexp.MustCompile(reIaFilePathCap)
-	var searchPath = path.Join(GOPATH, SCIONROOT, "gen")
+	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.IsDir() {
 			capture := re.FindStringSubmatch(path)
@@ -138,11 +146,11 @@ func (c byPrefInterface) Less(i, j int) bool {
 }
 
 // GenServerNodeDefaults creates server defaults for localhost testing
-func GenServerNodeDefaults(srcpath string, localIAs []string) {
+func GenServerNodeDefaults(options *CmdOptions, localIAs []string) {
 	// reverse sort so that the default server will oppose the default client
 	sort.Sort(sort.Reverse(sort.StringSlice(localIAs)))
 
-	serFp := path.Join(srcpath, cfgFileSerUser)
+	serFp := path.Join(options.StaticRoot, cfgFileSerUser)
 	jsonBuf := []byte(`{ "all": [`)
 	for i := 0; i < len(localIAs); i++ {
 		// use all localhost endpoints as possible servers for bwtester as least
@@ -161,8 +169,8 @@ func GenServerNodeDefaults(srcpath string, localIAs []string) {
 
 // GenClientNodeDefaults queries network interfaces and writes local client
 // SCION addresses as json
-func GenClientNodeDefaults(srcpath, cisdas string) {
-	cliFp := path.Join(srcpath, cfgFileCliDef)
+func GenClientNodeDefaults(options *CmdOptions, cisdas string) {
+	cliFp := path.Join(options.StaticRoot, cfgFileCliDef)
 	cport := cliPortDef
 
 	// find interface addresses
@@ -200,19 +208,19 @@ func GenClientNodeDefaults(srcpath, cisdas string) {
 }
 
 // GetNodesHandler queries the local environment for user/default nodes.
-func GetNodesHandler(w http.ResponseWriter, r *http.Request, srcpath string) {
+func GetNodesHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	nodes := r.PostFormValue("node_type")
 	var fp string
 	switch nodes {
 	case "clients_default":
-		fp = path.Join(srcpath, cfgFileCliDef)
+		fp = path.Join(options.StaticRoot, cfgFileCliDef)
 	case "servers_default":
-		fp = path.Join(srcpath, cfgFileSerDef)
+		fp = path.Join(options.StaticRoot, cfgFileSerDef)
 	case "clients_user":
-		fp = path.Join(srcpath, cfgFileCliUser)
+		fp = path.Join(options.StaticRoot, cfgFileCliUser)
 	case "servers_user":
-		fp = path.Join(srcpath, cfgFileSerUser)
+		fp = path.Join(options.StaticRoot, cfgFileSerUser)
 	default:
 		panic("Unhandled nodes type!")
 	}

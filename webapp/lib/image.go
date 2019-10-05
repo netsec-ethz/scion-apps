@@ -1,3 +1,17 @@
+// Copyright 2019 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package lib
 
 import (
@@ -72,8 +86,8 @@ func findNewestFileExt(dir, extRegEx string) (imgFilename string, imgTimestamp i
 }
 
 // FindImageInfoHandler locating most recent image and writing text info data about it.
-func FindImageInfoHandler(w http.ResponseWriter, r *http.Request) {
-	filesDir := path.Join(GOPATH, LABROOT, "webapp/data/images")
+func FindImageInfoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
+	filesDir := path.Join(options.StaticRoot, "data/images")
 	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
 	if imgFilename == "" {
 		return
@@ -83,8 +97,8 @@ func FindImageInfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // FindImageHandler locating most recent image formatting it for graphic display in response.
-func FindImageHandler(w http.ResponseWriter, r *http.Request, browserAddr string, port int) {
-	filesDir := path.Join(GOPATH, LABROOT, "webapp/data/images")
+func FindImageHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, browserAddr string, port int) {
+	filesDir := path.Join(options.StaticRoot, "data/images")
 	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
 	if imgFilename == "" {
 		fmt.Fprint(w, "Error: Unable to find image file locally.")

@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 ROOT_DIR=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-SRCDIRS= helloworld sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient webapp bat bat/example_server tools/pathdb_dump roughtime/timeserver roughtime/timeclient ssh/client ssh/server netcat
+SRCDIRS= helloworld sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient webapp bat bat/example_server tools/pathdb_dump ssh/client ssh/server netcat
 TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
 all: $(TARGETS)

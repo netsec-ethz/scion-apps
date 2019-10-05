@@ -12,15 +12,15 @@ echo "IP found: $ip"
 
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 as=$(echo ${iaFile} | cut -d"-" -f2)
-topologyFile=$SC/gen/ISD$isd/AS$as/endhost/topology.json
+topologyFile=$SCION_GEN/ISD$isd/AS$as/endhost/topology.json
 
 # get remote addresses from interfaces, return paired list
-dsts=($(cat $topologyFile | python -c "import sys, json
+dsts=($(cat $topologyFile | python3 -c "import sys, json
 brs = json.load(sys.stdin)['BorderRouters']
 for b in brs:
     for i in brs[b]['Interfaces']:
-        print brs[b]['Interfaces'][i]['ISD_AS']
-        print brs[b]['Interfaces'][i]['RemoteOverlay']['Addr']"))
+        print(brs[b]['Interfaces'][i]['ISD_AS'])
+        print(brs[b]['Interfaces'][i]['RemoteOverlay']['Addr'])"))
 
 # test scmp echo on each interface
 for ((i=0; i<${#dsts[@]}; i+=2))
@@ -28,7 +28,7 @@ do
     # if no response under default scmp ping timeout consider connection failed
     ia_dst="${dsts[i]}"
     ip_dst="${dsts[i+1]}"
-    cmd="$SC/bin/scmp echo -c 1 -timeout 5s -local $ia,[$ip] -remote $ia_dst,[$ip_dst]"
+    cmd="$SCION_BIN/scmp echo -c 1 -timeout 5s -local $ia,[$ip] -remote $ia_dst,[$ip_dst]"
     if [ $isd -lt 16 ]; then
         # local tests
         cmd="$cmd -sciondFromIA"
