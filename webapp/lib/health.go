@@ -1,3 +1,17 @@
+// Copyright 2019 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package lib
 
 import (
@@ -6,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -44,16 +59,37 @@ type ResHealthCheck struct {
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request, srcpath string, ia string) {
-	hcResFp := path.Join(srcpath, resFileHealthCheck)
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, ia string) {
+	hcResFp := path.Join(options.StaticRoot, resFileHealthCheck)
 	// read specified tests from json definition
-	fp := path.Join(srcpath, defFileHealthCheck)
+	fp := path.Join(options.StaticRoot, defFileHealthCheck)
 	raw, err := ioutil.ReadFile(fp)
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
+
+	err = os.Setenv("SCION_ROOT", path.Clean(options.ScionRoot))
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
+	err = os.Setenv("SCION_BIN", path.Clean(options.ScionBin))
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
+	err = os.Setenv("SCION_GEN", path.Clean(options.ScionGen))
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
+	err = os.Setenv("SCION_LOGS", path.Clean(options.ScionLogs))
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
 
 	var tests DefTests
 	err = json.Unmarshal([]byte(raw), &tests)

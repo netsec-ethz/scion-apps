@@ -11,12 +11,12 @@ pcb_ms=10000
 iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
 
-# format log file and beacons grep string
-logfile=~/go/src/github.com/scionproto/scion/logs/bs${iaFile}-1.DEBUG
+# format log file and beacons grep string (was .DEBUG)
+logfile=$SCION_LOGS/bs${iaFile}-1.log
 echo "Log: $logfile"
 
-# seek last log entry for verified PCBs
-regex_pcb="Successfully verified PCB"
+# seek last log entry for verified PCBs (was "Successfully verified PCB")
+regex_pcb="Registered beacons"
 echo "Seeking regex: $regex_pcb"
 
 epoch_s=$(date +"%s%6N")

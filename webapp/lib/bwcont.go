@@ -1,3 +1,17 @@
+// Copyright 2019 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.package main
+
 package lib
 
 import (
@@ -151,7 +165,7 @@ func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 }
 
 // GetBwByTimeHandler request the bwtest results stored since provided time.
-func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool, srcpath string) {
+func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	r.ParseForm()
 	since := r.PostFormValue("since")
 	log.Info("Requesting bwtest data since", "timestamp", since)
@@ -187,10 +201,10 @@ func removeOuterQuotes(s string) string {
 }
 
 // WriteCmdCsv appends the cmd data (bwtest or echo) in csv-format to srcpath.
-func WriteCmdCsv(d model.CmdItem, srcpath string, appSel string) {
+func WriteCmdCsv(d model.CmdItem, options *CmdOptions, appSel string) {
 	// newfile name for every day
 	dataFileCmd := "data/" + appSel + "-" + time.Now().Format("2006-01-02") + ".csv"
-	cmdDataPath := path.Join(srcpath, dataFileCmd)
+	cmdDataPath := path.Join(options.StaticRoot, dataFileCmd)
 	// write headers if file is new
 	writeHeader := false
 	if _, err := os.Stat(dataFileCmd); os.IsNotExist(err) {
