@@ -68,7 +68,8 @@ function setPaths(type, idx, open) {
         } else if (type == 'UP') {
             addSegments(resUp, idx, num, colorSegUp, type);
         } else if (type == 'PATH') {
-            var latencies = getPathLatencyAvg(formatPathString(resPath, idx, type));
+            var latencies = getPathLatencyAvg(formatPathString(resPath, idx,
+                    type));
             addPaths(resPath, idx, num, colorPaths, type, latencies);
         }
         self.segType = type;
@@ -107,6 +108,20 @@ function formatPathString(res, idx, type) {
     }
     path += "]";
     return path;
+}
+
+function formatPathStringAll(res, type) {
+    var paths = "";
+    for (var i = 0; i < res.if_lists.length; i++) {
+        var path = formatPathString(res, i, type);
+        if (path != "") {
+            if (i > 0) {
+                paths += ",";
+            }
+            paths += formatPathString(res, i, type);
+        }
+    }
+    return paths;
 }
 
 /*

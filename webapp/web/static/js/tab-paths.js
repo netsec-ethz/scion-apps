@@ -100,9 +100,8 @@ function setEchoLatency(hops, latency) {
         path = jPathsAvailable[hops];
     }
     path.latency = updateStats(latency, path.latency);
-    var latStr = parseFloat(path.latency.Last).toFixed(1);
-    $('#path-lat-' + path.listIdx).html(latStr);
     jPathsAvailable[hops] = path;
+    return path;
 }
 
 function setTracerouteLatency(hops, interfaces) {
@@ -120,17 +119,14 @@ function setTracerouteLatency(hops, interfaces) {
                     path.interfaces[i].latency);
             path.interfaces[i].latency = updateStats(if_.RespTime3,
                     path.interfaces[i].latency);
-            var latStr = parseFloat(path.interfaces[i].latency.Last).toFixed(1);
-            $('#path-lat-' + path.listIdx + '-' + i).html(latStr);
         } else {
             path.latency = updateStats(if_.RespTime1, path.latency);
             path.latency = updateStats(if_.RespTime2, path.latency);
             path.latency = updateStats(if_.RespTime3, path.latency);
-            var latStr = parseFloat(path.latency.Last).toFixed(1);
-            $('#path-lat-' + path.listIdx).html(latStr);
         }
     }
     jPathsAvailable[hops] = path;
+    return path;
 }
 
 function isConfigComplete(data, textStatus, jqXHR) {
@@ -775,6 +771,9 @@ function addAvailablePaths(paths) {
     Object.keys(jPathsAvailable).forEach(function(key) {
         jPathsAvailable[key].listIdx = undefined; // reset
     });
+    if (!paths) {
+        return;
+    }
     for (var idx = 0; idx < paths.length; idx++) {
         var hops = formatPathJson(paths, idx, 'PATH');
         if (!jPathsAvailable[hops]) {
@@ -793,7 +792,9 @@ function addAvailablePaths(paths) {
         }
         path.expTime = paths[idx].Entry.Path.ExpTime;
         path.mtu = paths[idx].Entry.Path.Mtu;
-        path.color = path_colors(pathLen - 1);
+        if (!path.color) {
+            path.color = path_colors(pathLen - 1);
+        }
         path.listIdx = idx;
         jPathsAvailable[hops] = path;
     }

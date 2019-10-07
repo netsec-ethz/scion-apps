@@ -333,7 +333,9 @@ function update() {
             "middle").style("font-size", "12px").style("fill", "purple").attr(
             "class", function(d) {
                 return "latency " + d.type;
-            }).text(function(d) {
+            }).attr("id", function(d) {
+        return d.id;
+    }).text(function(d) {
         return d.latency ? parseFloat(d.latency).toFixed(1) : '';
     });
     markerText.exit().remove();
@@ -609,7 +611,7 @@ function addFixedLabel(label, x, y, lastLabel) {
 /*
  * Post-rendering method to draw path arcs for the given path and color.
  */
-function drawPath(res, path, color, latencies) {
+function drawPath(res, path, color, lats) {
     // get the index of the routes to render
     var routes = [];
     if (path < 0) {
@@ -642,23 +644,42 @@ function drawPath(res, path, color, latencies) {
     graphPath.links = graphPath.links.filter(function(link) {
         return !link.path;
     });
+    var fullLat = fullPathLatencies(lats);
     for (var i = 0; i < path_ids.length - 1; i++) {
         // prevent src == dst links from being formed
         if (path_ids[i] != path_ids[i + 1]) {
-            console.warn(latencies)
-            var latInterIntra = latencies ? (latencies[(i * 2) + 1] + latencies[(i * 2) + 2])
-                    : undefined;
+            var linkLat = undefined;
+            if (fullLat) {
+                // report latency from target AS
+                linkLat = lats ? (lats[i + 2]) : undefined;
+            }
             graphPath.links.push({
                 "color" : color,
                 "path" : true,
                 "source" : graphPath["ids"][path_ids[i]],
                 "target" : graphPath["ids"][path_ids[i + 1]],
                 "type" : "PARENT",
-                "latency" : latInterIntra,
+                "latency" : linkLat,
+                "id" : "path-lat-" + path + "-" + i, // TODO
             });
         }
     }
     update();
+}
+
+/**
+ * Interrogate latencies for missing values.
+ */
+function fullPathLatencies(lats) {
+    if (!lats) {
+        return false;
+    }
+    for (var i = 0; i < lats.length; i++) {
+        if (!lats[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /*

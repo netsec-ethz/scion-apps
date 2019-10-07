@@ -483,10 +483,15 @@ function requestEchoByTime(form_data) {
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updatePingGraph(chartSE, data, time)
 
-                    // update latency stats, when valid
+                    // update latency stats, when valid, use average
                     if (d.graph[i].ResponseTime > 0) {
-                        setEchoLatency(d.graph[i].Path.match("\\[.*]"),
-                                d.graph[i].ResponseTime);
+                        var path = setEchoLatency(d.graph[i].Path
+                                .match("\\[.*]"), d.graph[i].ResponseTime);
+                        if (path.latency) {
+                            var latStr = parseFloat(path.latency.Avg)
+                                    .toFixed(1);
+                            $('#path-lat-' + path.listIdx).html(latStr);
+                        }
                     }
                 }
             }
@@ -507,7 +512,11 @@ function requestTraceRouteByTime(form_data) {
                 } else {
                     enableTestControls(true);
                     releaseTabs();
-                    clearInterval(intervalGraphData);
+                    if (d.graph != null) {
+                        clearInterval(intervalGraphData);
+                    } else {
+                        lastTimeBwDb = form_data.since;
+                    }
                 }
             }
             if (d.graph != null) {
@@ -518,29 +527,35 @@ function requestTraceRouteByTime(form_data) {
                         // result returned, display it and reset progress
                         handleEndCmdDisplay(d.graph[i].CmdOutput);
                     }
-                    // var data = {
-                    // 'responseTime' : d.graph[i].ResponseTime,
-                    // 'runTime' : d.graph[i].RunTime,
-                    // 'loss' : d.graph[i].PktLoss,
-                    // 'path' : d.graph[i].Path,
-                    // 'error' : d.graph[i].Error,
-                    // };
-                    // if (data.runTime == 0) {
-                    // // for other errors, use execution time
-                    // data.runTime = d.graph[i].ActualDuration;
-                    // }
-                    // console.info(JSON.stringify(data));
+
                     console.info('continuous traceroute', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
-                    // updatePingGraph(chartSE, data, time)
 
                     // TODO (mwfarb): implement traceroute graph
 
-                    // update latency stats
-                    setTracerouteLatency(d.graph[i].Path.match("\\[.*]"),
-                            d.graph[i].TrHops);
+                    // update latency stats, when valid, use average
+                    var path = setTracerouteLatency(d.graph[i].Path
+                            .match("\\[.*]"), d.graph[i].TrHops);
+                    for (var i = 0; i < path.interfaces.length; i++) {
+                        var if_ = path.interfaces[i];
+                        if (i < path.interfaces.length - 1) {
+                            if (path.interfaces[i].latency) {
+                                var latStr = parseFloat(
+                                        path.interfaces[i].latency.Avg)
+                                        .toFixed(1);
+                                $('#path-lat-' + path.listIdx + '-' + i).html(
+                                        latStr);
+                            }
+                        } else {
+                            if (path.latency) {
+                                var latStr = parseFloat(path.latency.Avg)
+                                        .toFixed(1);
+                                $('#path-lat-' + path.listIdx).html(latStr);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -682,6 +697,11 @@ function command(continuous) {
             form_data.push({
                 name : "pathStr",
                 value : formatPathString(resPath, self.segNum, self.segType)
+            });
+        } else if (continuous) { // all paths in survey
+            form_data.push({
+                name : "pathStr",
+                value : formatPathStringAll(resPath, 'PATH')
             });
         }
     }
@@ -827,7 +847,7 @@ function handleContResponse(resp, continuous, startTime) {
         clearInterval(intervalGraphData);
     }
     if (!continuous) {
-        manageTestData();
+        manageTestData(startTime);
     }
 }
 
