@@ -2,15 +2,15 @@
 
 ## Package Default CL
 ```shell
-webapp \
+scion-webapp \
 -a 0.0.0.0 \
 -p 8000 \
 -r /var/lib/scion/webapp/web/data \
 -srvroot /var/lib/scion/webapp/web \
--sabin /usr/bin \
+-sabin /usr/bin/scion \
 -sroot /etc/scion \
 -sbin /usr/bin \
--sgen  /etc/scion/gen \
+-sgen /etc/scion/gen \
 -sgenc /var/lib/scion \
 -slogs /var/log/scion
 ```
