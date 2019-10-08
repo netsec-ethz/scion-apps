@@ -39,7 +39,7 @@ webapp \
 - curl
 - set
 - grep
-- python
+- python3
 - df
 - tr
 - free
