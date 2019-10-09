@@ -24,7 +24,7 @@ Start the `webapp` service:
 sudo systemctl start scion-webapp
 ```
 
-Esure the `webapp` service is running:
+Ensure the `webapp` service is running:
 ```shell
 sudo systemctl status scion-webapp
 ```
@@ -107,7 +107,7 @@ webapp \
 -slogs /var/log/scion
 ```
 
-## Dependancies
+## Dependencies
 A list of dependencies for `webapp` can be found at [dependencies.md](./dependencies.md).
 
 ## Help
