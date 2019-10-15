@@ -2,6 +2,8 @@ package scion
 
 import (
 	"fmt"
+	"github.com/scionproto/scion/go/lib/log"
+	"os/user"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -12,7 +14,14 @@ import (
 
 var initialize sync.Once
 
+const (
+	KEYPATH = "/go/src/github.com/scionproto/scion/gen-certs/tls.key"
+	PEMPATH = "/go/src/github.com/scionproto/scion/gen-certs/tls.pem"
+)
+
 func initNetwork(local Address) error {
+	log.SetupLogConsole("info")
+
 	var err error
 	initialize.Do(func() {
 		if snet.DefNetwork == nil {
@@ -24,7 +33,12 @@ func initNetwork(local Address) error {
 			}
 		}
 
-		err := squic.Init("", "")
+		user, err := user.Current()
+		if err != nil {
+			return
+		}
+
+		err = squic.Init(user.HomeDir + KEYPATH, user.HomeDir + PEMPATH)
 		if err != nil {
 			err = fmt.Errorf("failed to initilaze SQUIC: %s", err)
 			return

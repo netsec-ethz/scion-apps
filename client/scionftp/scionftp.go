@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/elwin/scionFTP/scion"
 	"io"
 	"log"
 	"os"
@@ -30,6 +31,7 @@ func main() {
 		"mode":    app.mode,
 		"get":     app.retr,
 		"put":     app.stor,
+		"mkdir":   app.mkdir,
 		"quit":    app.quit,
 	}
 
@@ -110,6 +112,8 @@ func (app *App) connect(args []string) {
 
 	app.conn = conn
 
+	app.conn.SetPathSelector(scion.NewRotator(10).PathSelector)
+
 	ctx, cancel := context.WithCancel(app.ctx)
 	app.cancel = cancel
 
@@ -170,6 +174,19 @@ func (app *App) cd(args []string) {
 	}
 
 	err := app.conn.ChangeDir(args[0])
+	if err != nil {
+		app.print(err)
+		return
+	}
+}
+
+func (app *App) mkdir(args []string) {
+	if len(args) != 1 {
+		app.print("Must supply one argument for directory name")
+		return
+	}
+
+	err := app.conn.MakeDir(args[0])
 	if err != nil {
 		app.print(err)
 		return

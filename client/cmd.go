@@ -381,14 +381,10 @@ func (c *ServerConn) Stor(path string, r io.Reader) error {
 // Hint: io.Pipe() can be used if an io.Writer is required.
 func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 
-	fmt.Println("Getting new data conn")
-
 	conn, err := c.cmdDataConnFrom(offset, "STOR %s", path)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Attempting to copy")
 
 	n, err := io.Copy(conn, r)
 
