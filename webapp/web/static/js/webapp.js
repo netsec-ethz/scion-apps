@@ -403,7 +403,11 @@ function requestBwTestByTime(form_data) {
                 } else {
                     enableTestControls(true);
                     releaseTabs();
-                    clearInterval(intervalGraphData);
+                    if (d.graph != null) {
+                        clearInterval(intervalGraphData);
+                    } else {
+                        lastTimeBwDb = form_data.since;
+                    }
                 }
             }
             if (d.graph != null) {
@@ -454,7 +458,11 @@ function requestEchoByTime(form_data) {
                 } else {
                     enableTestControls(true);
                     releaseTabs();
-                    clearInterval(intervalGraphData);
+                    if (d.graph != null) {
+                        clearInterval(intervalGraphData);
+                    } else {
+                        lastTimeBwDb = form_data.since;
+                    }
                 }
             }
             if (d.graph != null) {
