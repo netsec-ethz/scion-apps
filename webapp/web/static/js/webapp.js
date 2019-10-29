@@ -390,26 +390,30 @@ function manageTestData() {
     }, dataIntervalMs);
 }
 
+function manageTestEnd(d, appSel, since) {
+    if (d.active != null) {
+        if (d.active) {
+            enableTestControls(false);
+            lockTab(appSel);
+            failContinuousOff();
+        } else {
+            enableTestControls(true);
+            releaseTabs();
+            if (d.graph != null) {
+                clearInterval(intervalGraphData);
+            } else {
+                lastTimeBwDb = since;
+            }
+        }
+    }
+}
+
 function requestBwTestByTime(form_data) {
     $.post("/getbwbytime", form_data, function(json) {
         var d = JSON.parse(json);
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
-            if (d.active != null) {
-                if (d.active) {
-                    enableTestControls(false);
-                    lockTab("bwtester");
-                    failContinuousOff();
-                } else {
-                    enableTestControls(true);
-                    releaseTabs();
-                    if (d.graph != null) {
-                        clearInterval(intervalGraphData);
-                    } else {
-                        lastTimeBwDb = form_data.since;
-                    }
-                }
-            }
+            manageTestEnd(d, "bwtester", form_data.since);
             if (d.graph != null) {
                 // write data on graph
                 for (var i = 0; i < d.graph.length; i++) {
@@ -450,21 +454,7 @@ function requestEchoByTime(form_data) {
         var d = JSON.parse(json);
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
-            if (d.active != null) {
-                if (d.active) {
-                    enableTestControls(false);
-                    lockTab("echo");
-                    failContinuousOff();
-                } else {
-                    enableTestControls(true);
-                    releaseTabs();
-                    if (d.graph != null) {
-                        clearInterval(intervalGraphData);
-                    } else {
-                        lastTimeBwDb = form_data.since;
-                    }
-                }
-            }
+            manageTestEnd(d, "echo", form_data.since);
             if (d.graph != null) {
                 // write data on graph
                 for (var i = 0; i < d.graph.length; i++) {
@@ -512,21 +502,7 @@ function requestTraceRouteByTime(form_data) {
         var d = JSON.parse(json);
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
-            if (d.active != null) {
-                if (d.active) {
-                    enableTestControls(false);
-                    lockTab("traceroute");
-                    failContinuousOff();
-                } else {
-                    enableTestControls(true);
-                    releaseTabs();
-                    if (d.graph != null) {
-                        clearInterval(intervalGraphData);
-                    } else {
-                        lastTimeBwDb = form_data.since;
-                    }
-                }
-            }
+            manageTestEnd(d, "traceroute", form_data.since);
             if (d.graph != null) {
                 // write data on graph
                 for (var i = 0; i < d.graph.length; i++) {
@@ -562,6 +538,72 @@ function requestTraceRouteByTime(form_data) {
                                         .toFixed(1);
                                 $('#path-lat-' + path.listIdx).html(latStr);
                             }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+var backgroundEcho;
+function surveyEchoBackground() {
+    var lastTimeBwDb = (new Date()).getTime();
+    var form_data = $('#command-form').serializeArray();
+    var interval = 0.1;
+    var count = 3;
+    form_data.push({
+        name : "apps",
+        value : "echo"
+    }, {
+        name : "count",
+        value : count
+    }, {
+        name : "continuous",
+        value : true
+    }, {
+        name : "pathStr",
+        value : formatPathStringAll(resPath, 'PATH')
+    }, {
+        name : "interval",
+        value : interval
+    });
+    // start background echo
+    console.info('req:', JSON.stringify(form_data));
+    $.post('/command', form_data, function(resp, status, jqXHR) {
+        console.info('resp:', resp);
+    }).fail(function(error) {
+        showError(error.responseJSON);
+    });
+
+    clearInterval(backgroundEcho);
+    backgroundEcho = setInterval(function() {
+        reportEchoBackground({
+            since : lastTimeBwDb
+        });
+        lastTimeBwDb = (new Date()).getTime();
+    }, dataIntervalMs);
+}
+
+function reportEchoBackground(form_data) {
+    $.post("/getechobytime", form_data, function(json) {
+        var d = JSON.parse(json);
+        console.info('resp:', JSON.stringify(d));
+        if (d != null) {
+            if (!d.active) {
+                // end background echo
+                clearInterval(backgroundEcho);
+            }
+            if (d.graph != null) {
+                for (var i = 0; i < d.graph.length; i++) {
+                    // update latency stats, when valid, use average
+                    if (d.graph[i].ResponseTime > 0) {
+                        var path = setEchoLatency(d.graph[i].Path
+                                .match("\\[.*]"), d.graph[i].ResponseTime);
+                        if (path.latency) {
+                            var latStr = parseFloat(path.latency.Avg)
+                                    .toFixed(1);
+                            $('#path-lat-' + path.listIdx).html(latStr);
                         }
                     }
                 }
@@ -713,6 +755,7 @@ function command(continuous) {
             });
         }
     }
+
     if (activeApp == "bwtester") {
         form_data.push({
             name : "interval",

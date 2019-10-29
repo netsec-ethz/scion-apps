@@ -838,6 +838,8 @@ function requestPaths() {
             setupDebug();
             ajaxConfig();
 
+            surveyEchoBackground();
+
             // path info label switches
             $('#switch_as_names').change(function() {
                 handleAsLabelSwitch();

@@ -444,6 +444,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	appSel := r.PostFormValue("apps")
 	continuous, _ := strconv.ParseBool(r.PostFormValue("continuous"))
 	interval, _ := strconv.Atoi(r.PostFormValue("interval"))
+	count, _ := strconv.Atoi(r.PostFormValue("count"))
 	if appSel == "" {
 		fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
 		return
@@ -468,7 +469,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		if !contCmdActive {
 			// run continuous goroutine
 			contCmdActive = true
-			go continuousCmd(t)
+			go continuousCmd(t, count)
 		} else {
 			// continuous goroutine running?
 			if continuous {
@@ -487,9 +488,10 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Could either be bwtest, echo or traceroute
-func continuousCmd(t contCmd) {
+func continuousCmd(t contCmd, count int) {
 	log.Info(fmt.Sprintf("Starting continuous %s...", t))
 	pathIdx := 0
+	attempts := 0
 	defer func() {
 		log.Info(fmt.Sprintf("Ending continuous %s...", t))
 	}()
@@ -525,8 +527,13 @@ func continuousCmd(t contCmd) {
 			elapsed.Nanoseconds()/1e6, remaining.Nanoseconds()/1e6))
 		if pathIdx >= (len(paths) - 1) { // iterate all paths given
 			pathIdx = 0
+			attempts++
 		} else {
 			pathIdx++
+		}
+		if attempts >= count {
+			log.Info("Continuous count reached ", "count", count, "attempts", attempts)
+			contCmdActive = false
 		}
 		time.Sleep(remaining)
 	}
