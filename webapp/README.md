@@ -14,7 +14,7 @@ To install from our packages, install `webapp` including its `scion-apps` depend
 ```shell
 sudo apt install scion-apps-webapp
 ```
-Alternatively, the following will install all `scion-apps` repo binaries:
+Alternatively, the following will install all `scion-apps` binaries:
 ```shell
 sudo apt install scion-apps-*
 ```
@@ -36,19 +36,9 @@ Logs from `webapp` can be monitored:
 journalctl -u scion-webapp -e
 ```
 
-You won't need to add all the parameters yourself as the `scion-webapp.service` will do this for you, but as background information the service will run with the following command-line:
+You won't need to add all the parameters yourself as the `scion-webapp.service` will do this for you. You may view the service command line options used with `cat`:
 ```shell
-scion-webapp \
--a 0.0.0.0 \
--p 8000 \
--r /var/lib/scion/webapp/web/data \
--srvroot /var/lib/scion/webapp/web \
--sabin /usr/bin/scion \
--sroot /etc/scion \
--sbin /usr/bin \
--sgen /etc/scion/gen \
--sgenc /var/lib/scion \
--slogs /var/log/scion
+systemctl cat scion-webapp
 ```
 
 
@@ -72,7 +62,7 @@ cd scion-apps
 make install
 ```
 
-Development Run on Test SCION Topology:
+Development Run on Local Topology:
 You can alter the defaults on the command line, all of which are listed below:
 ```shell
 webapp \
