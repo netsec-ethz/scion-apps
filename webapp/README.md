@@ -8,23 +8,38 @@ Webapp is a Go application that will serve up a static web portal to make it eas
 
 
 ## Packaged Setup/Run
-For running `webapp` in a package environment, like the default [SCIONLab](https://www.scionlab.org) environment, it will require command-line options for `webapp` to find the tools its requires. In most cases, the default `scionlab` and `scion-apps` packages will need to be specified on the command-line.
+For running `webapp` in a packaged environment, like the default [SCIONLab](https://www.scionlab.org) environment, it now uses command-line options for `webapp` to find the tools it requires.
 
-To run the Go Web UI at a specific address `-a` and port `-p` like 0.0.0.0:8000 for a SCIONLab VM use:
+To install from our packages, install `webapp` including its `scion-apps` dependencies:
 ```shell
-webapp \
--a 0.0.0.0 \
--p 8000 \
--r /var/lib/scion/webapp/web/data \
--srvroot /var/lib/scion/webapp/web \
--sabin /usr/bin \
--sroot /etc/scion \
--sbin /usr/bin \
--sgen  /etc/scion/gen \
--sgenc /var/lib/scion \
--slogs /var/log/scion
+sudo apt install scion-apps-webapp
 ```
+Alternatively, the following will install all `scion-apps` binaries:
+```shell
+sudo apt install scion-apps-*
+```
+
+Start the `webapp` service:
+```shell
+sudo systemctl start scion-webapp
+```
+
+Ensure the `webapp` service is running:
+```shell
+sudo systemctl status scion-webapp
+```
+
 Now, open a web browser at [http://127.0.0.1:8000](http://127.0.0.1:8000), to begin.
+
+Logs from `webapp` can be monitored:
+```shell
+journalctl -u scion-webapp -e
+```
+
+You won't need to add all the parameters yourself as the `scion-webapp.service` will do this for you. You may view the service command line options used with `cat`:
+```shell
+systemctl cat scion-webapp
+```
 
 
 ## Development Setup/Run
@@ -32,14 +47,14 @@ For running `webapp` in a development environment for the SCION Infrastructure, 
 
 Then, follow these steps to install SCIONLab Apps to run `webapp` in development.
 
-### Development Install
+Development Install:
 ```shell
 mkdir ~/go/src/github.com/netsec-ethz
 cd ~/go/src/github.com/netsec-ethz
 git clone https://github.com/netsec-ethz/scion-apps.git
 ```
 
-### Development Build
+Development Build:
 Install all [SCIONLab apps](https://github.com/netsec-ethz/scion-apps) and dependencies, including `webapp`:
 ```shell
 cd scion-apps
@@ -47,12 +62,12 @@ cd scion-apps
 make install
 ```
 
-### Development Run
+Development Run on Local Topology:
 You can alter the defaults on the command line, all of which are listed below:
 ```shell
 webapp \
 -a 127.0.0.1 \
--p 8000 \
+-p 8081 \
 -r . \
 -srvroot $GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web \
 -sabin $GOPATH/bin \
@@ -67,7 +82,22 @@ or can you run `webapp` like this, which will use the defaults above:
 webapp
 ```
 
-## Dependancies
+Development Run on SCIONLab Topology:
+```shell
+webapp \
+-a 0.0.0.0 \
+-p 8080 \
+-r ~/go/src/github.com/netsec-ethz/scion-apps/webapp/web/data \
+-srvroot ~/go/src/github.com/netsec-ethz/scion-apps/webapp/web \
+-sabin $GOPATH/bin \
+-sroot /etc/scion \
+-sbin /usr/bin \
+-sgen /etc/scion/gen \
+-sgenc /var/lib/scion \
+-slogs /var/log/scion
+```
+
+## Dependencies
 A list of dependencies for `webapp` can be found at [dependencies.md](./dependencies.md).
 
 ## Help

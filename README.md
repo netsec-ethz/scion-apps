@@ -10,6 +10,10 @@ To build:
 1. run once the provided script `deps.sh` to set up the dependencies
 2. run `make install` to build all projects and install into `$GOPATH/bin`
 
+Or to install our Debian package:
+```shell
+sudo apt install scion-apps-*
+```
 
 ## bat
 
