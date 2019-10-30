@@ -836,9 +836,18 @@ function requestPaths() {
 
             // setup path config based on defaults loaded
             setupDebug();
-            ajaxConfig();
 
-            surveyEchoBackground();
+            // request config/paths if none exists
+            if (!iaLabels || !iaGeoLoc || !iaLocations) {
+                ajaxConfig(); // ajaxConfig => loadPathData
+            } else {
+                loadPathData(g.src, g.dst);
+            }
+
+            // auto survey latency if none exists
+            if (!$('#path-lat-0').text()) {
+                surveyEchoBackground();
+            }
 
             // path info label switches
             $('#switch_as_names').change(function() {

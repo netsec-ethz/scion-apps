@@ -743,7 +743,7 @@ function command(continuous) {
             name : "continuous",
             value : continuous
         });
-        if (self.segType == 'PATH') { // only full paths allowed
+        if (self.segType == 'PATH') { // single path open
             form_data.push({
                 name : "pathStr",
                 value : formatPathString(resPath, self.segNum, self.segType)
