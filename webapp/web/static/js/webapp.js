@@ -127,7 +127,7 @@ function initBwGraphs() {
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
     manageTickData();
-    manageTestData();
+    // avoid manageTestData on startup before tests
 }
 
 function showOnlyConsoleGraphs(activeApp) {
@@ -522,23 +522,23 @@ function requestTraceRouteByTime(form_data) {
                     // update latency stats, when valid, use average
                     var path = setTracerouteLatency(d.graph[i].Path
                             .match("\\[.*]"), d.graph[i].TrHops);
+                    console.debug(path)
                     for (var i = 0; i < path.interfaces.length; i++) {
                         var if_ = path.interfaces[i];
-                        if (i < path.interfaces.length - 1) {
-                            if (path.interfaces[i].latency) {
-                                var latStr = parseFloat(
-                                        path.interfaces[i].latency.Avg)
-                                        .toFixed(1);
-                                $('#path-lat-' + path.listIdx + '-' + i).html(
-                                        latStr);
-                            }
-                        } else {
-                            if (path.latency) {
-                                var latStr = parseFloat(path.latency.Avg)
-                                        .toFixed(1);
-                                $('#path-lat-' + path.listIdx).html(latStr);
-                            }
+                        if (path.interfaces[i].latency) {
+                            var latStr = parseFloat(
+                                    path.interfaces[i].latency.Avg).toFixed(1);
+                            console.debug("writing " + latStr + ' #path-lat-'
+                                    + path.listIdx + '-' + i)
+                            $('#path-lat-' + path.listIdx + '-' + i).html(
+                                    latStr);
                         }
+                    }
+                    if (path.latency) {
+                        var latStr = parseFloat(path.latency.Avg).toFixed(1);
+                        console.debug("writing " + latStr + ' #path-lat-'
+                                + path.listIdx)
+                        $('#path-lat-' + path.listIdx).html(latStr);
                     }
                 }
             }
