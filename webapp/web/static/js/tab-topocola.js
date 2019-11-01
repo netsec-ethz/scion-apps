@@ -644,24 +644,27 @@ function drawPath(res, path, color, lats) {
     graphPath.links = graphPath.links.filter(function(link) {
         return !link.path;
     });
+    console.debug(lats)
     var fullLat = fullPathLatencies(lats);
     for (var i = 0; i < path_ids.length - 1; i++) {
         // prevent src == dst links from being formed
         if (path_ids[i] != path_ids[i + 1]) {
             var linkLat = undefined;
             if (fullLat) {
-                // report latency from target AS
-                linkLat = lats ? (lats[i + 2]) : undefined;
+                // report latency difference between inter-AS links
+                linkLat = lats ? (lats[i + 1] - lats[i]) : undefined;
             }
-            graphPath.links.push({
+            var link = {
                 "color" : color,
                 "path" : true,
                 "source" : graphPath["ids"][path_ids[i]],
                 "target" : graphPath["ids"][path_ids[i + 1]],
                 "type" : "PARENT",
                 "latency" : linkLat,
-                "id" : "path-lat-" + path + "-" + i, // TODO
-            });
+                "id" : "path-lat-diff-" + path + "-" + i, // TODO
+            };
+            graphPath.links.push(link);
+            console.debug(link)
         }
     }
     update();

@@ -520,6 +520,13 @@ function requestTraceRouteByTime(form_data) {
                     // TODO (mwfarb): implement traceroute graph
 
                     // update latency stats, when valid, use average
+                    var trhops = ((d.graph[i].Path.split('>').length) * 2) - 1;
+                    if (!d.graph[i].TrHops
+                            || d.graph[i].TrHops.length != trhops) {
+                        showError("Did not receive expected " + trhops
+                                + " traceroute hops.");
+                        continue;
+                    }
                     var path = setTracerouteLatency(d.graph[i].Path
                             .match("\\[.*]"), d.graph[i].TrHops);
                     console.debug(path)
