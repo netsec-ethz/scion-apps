@@ -69,6 +69,15 @@ function getPathLatencyAvg(hops) {
     return getPathLatency(hops, true);
 }
 
+function formatLatency(lat) {
+    // ignore 1ms negative margin of error
+    if (lat > -1 && lat < 0) {
+        return 0;
+    } else {
+        return parseFloat(lat).toFixed(0);
+    }
+}
+
 /**
  * Returns array of interface and full path latency stats.
  */
@@ -474,7 +483,7 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         var pathStr = formatPathJson(paths, parseInt(p));
         var latencies = getPathLatencyAvg(pathStr);
         var latencyPath = latencies[latencies.length - 1];
-        var latPathStr = latencyPath ? parseFloat(latencyPath).toFixed(1) : '';
+        var latPathStr = latencyPath ? formatLatency(latencyPath) : '';
         var aStyle = "style='background-color:" + getPathColor(pathStr) + ";'";
         var latStyle = "style='color:purple; position:absolute; right:0;'";
         html += "<li seg-type='PATH' seg-num=" + p + " path='" + pathStr
@@ -498,8 +507,7 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
-            var latIfStr = latencies[i] ? parseFloat(latencies[i]).toFixed(1)
-                    : '';
+            var latIfStr = latencies[i] ? formatLatency(latencies[i]) : '';
             html += "<li><a href='#'>" + iaRaw2Read(if_[i].RawIsdas) + " ("
                     + if_[i].IfID + ")</a> <span id='path-lat-" + p + "-" + i
                     + "' " + latStyle + ">" + latIfStr + "</span>";

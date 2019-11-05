@@ -486,8 +486,7 @@ function requestEchoByTime(form_data) {
                         var path = setEchoLatency(d.graph[i].Path
                                 .match("\\[.*]"), d.graph[i].ResponseTime);
                         if (path.latency) {
-                            var latStr = parseFloat(path.latency.Avg)
-                                    .toFixed(1);
+                            var latStr = formatLatency(path.latency.Avg);
                             $('#path-lat-' + path.listIdx).html(latStr);
                         }
                     }
@@ -532,17 +531,24 @@ function requestTraceRouteByTime(form_data) {
                     console.debug(path)
                     for (var i = 0; i < path.interfaces.length; i++) {
                         var if_ = path.interfaces[i];
-                        if (path.interfaces[i].latency) {
-                            var latStr = parseFloat(
-                                    path.interfaces[i].latency.Avg).toFixed(1);
+                        var if_prev = path.interfaces[i - 1];
+                        if (if_.latency) {
+                            var latStr = formatLatency(if_.latency.Avg);
                             console.debug("writing " + latStr + ' #path-lat-'
                                     + path.listIdx + '-' + i)
                             $('#path-lat-' + path.listIdx + '-' + i).html(
                                     latStr);
                         }
+                        // update each inter-AS link with difference
+                        if (i % 2 == 1) {
+                            var diff = if_.latency.Avg - if_prev.latency.Avg;
+                            var latStr = formatLatency(diff);
+                            $('#path-lat-diff-' + path.listIdx + '-' + (i - 1))
+                                    .html(latStr);
+                        }
                     }
                     if (path.latency) {
-                        var latStr = parseFloat(path.latency.Avg).toFixed(1);
+                        var latStr = formatLatency(path.latency.Avg);
                         console.debug("writing " + latStr + ' #path-lat-'
                                 + path.listIdx)
                         $('#path-lat-' + path.listIdx).html(latStr);
@@ -608,8 +614,7 @@ function reportEchoBackground(form_data) {
                         var path = setEchoLatency(d.graph[i].Path
                                 .match("\\[.*]"), d.graph[i].ResponseTime);
                         if (path.latency) {
-                            var latStr = parseFloat(path.latency.Avg)
-                                    .toFixed(1);
+                            var latStr = formatLatency(path.latency.Avg);
                             $('#path-lat-' + path.listIdx).html(latStr);
                         }
                     }

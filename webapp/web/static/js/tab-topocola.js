@@ -336,7 +336,7 @@ function update() {
             }).attr("id", function(d) {
         return d.id;
     }).text(function(d) {
-        return d.latency ? parseFloat(d.latency).toFixed(1) : '';
+        return d.latency ? formatLatency(d.latency) : '';
     });
     markerText.exit().remove();
 
