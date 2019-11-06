@@ -254,6 +254,12 @@ ul.tree li a {
  border-radius: 10px; /* background shape */
 }
 
+.latency-text {
+ color: purple;
+ position: absolute;
+ right: 0;
+}
+
 ul.tree li a:before {
  height: 1em;
  padding: 0 .1em;

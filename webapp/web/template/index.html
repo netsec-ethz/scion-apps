@@ -412,19 +412,14 @@
 
     <div id="as-iflist">
      <input type="button" value="Update Paths" onclick="requestPaths();" />
-     <!--
-         <input type="button" value="Latency"
-      onclick="surveyLatency();" />
-    -->
      <p>
      <div>
       <span class='path-text'
        style='background-color: black; font-weight: bold;'>
        Available Paths</span> <span class='path-text'
        style='background-color: gray; font-weight: bold;'>Hops</span> <span
-       id='path-lat-title'
-       style='color: purple; position: absolute; right: 5px;'>Latency
-      </span>
+       id='path-lat-title' class='latency-text'
+       style='font-weight: bold;'>Latency </span>
      </div>
      <p>
      <p id="path-info"></p>

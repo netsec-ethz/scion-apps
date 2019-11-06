@@ -522,7 +522,7 @@ function requestTraceRouteByTime(form_data) {
                     var trhops = ((d.graph[i].Path.split('>').length) * 2) - 1;
                     if (!d.graph[i].TrHops
                             || d.graph[i].TrHops.length != trhops) {
-                        showError("Did not receive expected " + trhops
+                        console.error("Did not receive expected " + trhops
                                 + " traceroute hops.");
                         continue;
                     }
@@ -543,6 +543,9 @@ function requestTraceRouteByTime(form_data) {
                         if (i % 2 == 1) {
                             var diff = if_.latency.Avg - if_prev.latency.Avg;
                             var latStr = formatLatency(diff);
+                            console.debug("writing " + latStr
+                                    + ' #path-lat-diff-' + path.listIdx + '-'
+                                    + (i - 1))
                             $('#path-lat-diff-' + path.listIdx + '-' + (i - 1))
                                     .html(latStr);
                         }

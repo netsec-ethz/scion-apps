@@ -485,12 +485,12 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         var latencyPath = latencies[latencies.length - 1];
         var latPathStr = latencyPath ? formatLatency(latencyPath) : '';
         var aStyle = "style='background-color:" + getPathColor(pathStr) + ";'";
-        var latStyle = "style='color:purple; position:absolute; right:0;'";
         html += "<li seg-type='PATH' seg-num=" + p + " path='" + pathStr
                 + "'><a class='path-text' " + aStyle
                 + " href='#'><span style='color: white;'>PATH "
                 + (parseInt(p) + 1) + "</span></a> <span class='badge'>" + hops
-                + "</span> <span id='path-lat-" + p + "' " + latStyle + ">"
+                + "</span> <span id='path-lat-" + p
+                + "' class='latency-text' style='font-weight: bold;'>"
                 + latPathStr + "</span>";
         exp.setUTCSeconds(ent.Path.ExpTime);
         html += "<ul>";
@@ -510,7 +510,7 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
             var latIfStr = latencies[i] ? formatLatency(latencies[i]) : '';
             html += "<li><a href='#'>" + iaRaw2Read(if_[i].RawIsdas) + " ("
                     + if_[i].IfID + ")</a> <span id='path-lat-" + p + "-" + i
-                    + "' " + latStyle + ">" + latIfStr + "</span>";
+                    + "' class='latency-text' >" + latIfStr + "</span>";
         }
         html += "</ul>";
     }
