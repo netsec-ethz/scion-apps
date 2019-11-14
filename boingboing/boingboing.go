@@ -224,6 +224,7 @@ func (qs mpQuicStream) ReadMsg() (*message, error) {
 type client struct {
 	*mpQuicStream
 	qsess quic.Session
+	mpQuic *mpsquic.MPQuic
 }
 
 func newClient() *client {
@@ -243,11 +244,12 @@ func (c *client) run() {
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	var err error
-	c.qsess, err = mpsquic.DialMP(nil, &local, remotes, nil)
+	mpQuic, err := mpsquic.DialMP(nil, &local, remotes, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
+	c.mpQuic = mpQuic
+	c.qsess = c.mpQuic.Qsession
 
 	qstream, err := c.qsess.OpenStreamSync()
 	if err != nil {
@@ -310,9 +312,9 @@ func (c client) send() {
 		}
 
 		reqMsg := requestMsg()
-		if i > 1 {
+		if i > 0 {
 			// Send different payload size every time we switch connection to correlate in network capture
-			if _, err := mpsquic.SwitchMPSCIONConn(c.qsess); err != nil {
+			if _, err := mpsquic.SwitchMPSCIONConn(c.mpQuic); err != nil {
 				infoString := "We failed to switch the connection: "
 				fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString), len(infoString))))
 				log.Error("Unable to switch SCION packet connection", "err", err)

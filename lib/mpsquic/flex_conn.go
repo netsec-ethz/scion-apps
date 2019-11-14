@@ -29,20 +29,19 @@ var _ snet.Conn = (*SCIONFlexConn)(nil)
 
 type SCIONFlexConn struct {
 	sconn snet.Conn
-
 	raddr *snet.Addr
-
-	raddrs []*snet.Addr // Backup raddrs, w path, includes raddr
 }
 
-func newSCIONFlexConn(sconn  snet.Conn, raddrs []*snet.Addr) *SCIONFlexConn {
+func newSCIONFlexConn(sconn  snet.Conn, raddr *snet.Addr) *SCIONFlexConn {
 	c := &SCIONFlexConn{
 		sconn:         sconn,
-
-		raddr:        raddrs[0],
-		raddrs:       raddrs,
+		raddr:        raddr,
 	}
 	return c
+}
+
+func (c *SCIONFlexConn) SetRemoteAddr(raddr *snet.Addr) {
+	c.raddr = raddr
 }
 
 func (c *SCIONFlexConn) Read(b []byte) (int, error) {
@@ -65,10 +64,12 @@ func (c *SCIONFlexConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	if !ok {
 		return 0, common.NewBasicError("Unable to write to non-SCION address", nil, "addr", raddr)
 	}
-	return c.WriteToSCION(b, c.raddr)
+	// Ignore raddr, force use of c.raddr
+	return c.sconn.WriteToSCION(b, c.raddr)
 }
 
 func (c *SCIONFlexConn) WriteToSCION(b []byte, raddr *snet.Addr) (int, error) {
+	// Ignore raddr, force use of c.raddr
 	return c.sconn.WriteToSCION(b, c.raddr)
 }
 

@@ -26,13 +26,21 @@ import (
 func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
 	quicConfig *quic.Config) (quic.Session, error) {
 
-	return DialMPWithBindSVC(network, laddr, []*snet.Addr{raddr}, nil, addr.SvcNone, quicConfig)
+	mpQuic, err := DialMPWithBindSVC(network, laddr, []*snet.Addr{raddr}, nil, addr.SvcNone, quicConfig)
+	if err != nil {
+		return nil, err
+	}
+	return mpQuic.Qsession, nil
 }
 
 func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (quic.Session, error) {
 
-	return DialMPWithBindSVC(network, laddr, []*snet.Addr{raddr}, baddr, svc, quicConfig)
+	mpQuic, err := DialMPWithBindSVC(network, laddr, []*snet.Addr{raddr}, baddr, svc, quicConfig)
+	if err != nil {
+		return nil, err
+	}
+	return mpQuic.Qsession, nil
 }
 
 func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr,

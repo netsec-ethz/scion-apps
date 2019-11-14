@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
-	"net"
 )
 
 const (
@@ -29,21 +28,16 @@ const (
 	defPemPath = "gen-certs/tls.pem"
 )
 
-// A Listener of QUIC
-type server struct {
-	tlsConf *tls.Config
-	config  *quic.Config
-
-	conn net.PacketConn
+type MPQuic struct {
+	SCIONFlexConnection *SCIONFlexConn
+	raddrs              []*snet.Addr
+	Qsession            quic.Session
 }
 
 var (
-	qsessions []quic.Session
 	// Don't verify the server's cert, as we are not using the TLS PKI.
 	cliTlsCfg = &tls.Config{InsecureSkipVerify: true}
 	srvTlsCfg = &tls.Config{}
-
-	flexConn *SCIONFlexConn
 )
 
 func Init(keyPath, pemPath string) error {
@@ -62,13 +56,13 @@ func Init(keyPath, pemPath string) error {
 }
 
 func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*snet.Addr,
-	quicConfig *quic.Config) (quic.Session, error) {
+	quicConfig *quic.Config) (*MPQuic, error) {
 
 	return DialMPWithBindSVC(network, laddr, raddrs, nil, addr.SvcNone, quicConfig)
 }
 
 func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*snet.Addr, baddr *snet.Addr,
-	svc addr.HostSVC, quicConfig *quic.Config) (quic.Session, error) {
+	svc addr.HostSVC, quicConfig *quic.Config) (*MPQuic, error) {
 
 	if network == nil {
 		network = snet.DefNetwork
@@ -76,27 +70,26 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 
 	sconn, err := sListen(network, laddr, baddr, svc)
 
-	flexConn = newSCIONFlexConn(sconn, raddrs)
+	flexConn := newSCIONFlexConn(sconn, raddrs[0])
 
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
 	qsession, err := quic.Dial(flexConn, flexConn.raddr, "host:0", cliTlsCfg, quicConfig)
 	if err != nil {
 		return nil, err
 	}
-	qsessions = append(qsessions, qsession)
-	return qsessions[0], nil
+	return &MPQuic{SCIONFlexConnection: flexConn, raddrs: raddrs, Qsession: qsession}, nil
 }
 
 // This switches between different SCION paths as given by the SCION address with path structs in raddrs
-func SwitchMPSCIONConn(currentQuicSession quic.Session) (quic.Session, error) {
+func SwitchMPSCIONConn(mpConn *MPQuic) (*MPQuic, error) {
 	// Right now, the QUIC session is returned unmodified
 	// Still passing it in, since it might change later
-	for i := range flexConn.raddrs {
-		if flexConn.raddr != flexConn.raddrs[i] {
-			// fmt.Printf("Previous path: %v\n", flexConn.raddr.Path)
-			// fmt.Printf("New path: %v\n", flexConn.raddrs[i].Path)
-			flexConn.raddr = flexConn.raddrs[i]
-			return currentQuicSession, nil
+	for i := range mpConn.raddrs {
+		if mpConn.SCIONFlexConnection.raddr != mpConn.raddrs[i] {
+			// fmt.Printf("Previous path: %v\n", mpConn.SCIONFlexConnection.raddr.Path)
+			// fmt.Printf("New path: %v\n", mpConn.raddrs[i].Path)
+			mpConn.SCIONFlexConnection.SetRemoteAddr(mpConn.raddrs[i])
+			return mpConn, nil
 		}
 	}
 
