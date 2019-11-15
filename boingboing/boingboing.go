@@ -64,16 +64,16 @@ var (
 	remotes []*snet.Addr
 	file    = flag.String("file", "",
 		"File containing the data to send, optional to test larger data (only client)")
-	interactive = flag.Bool("i", false, "Interactive mode")
+	interactive = flag.Bool("ibb", false, "Interactive mode")
 	id          = flag.String("id", "boingboing", "Element ID")
 	mode        = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	sciond      = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher  = flag.String("dispatcher", "", "Path to dispatcher socket")
 	count       = flag.Int("count", 0,
 		fmt.Sprintf("Number of boings, between 0 and %d; a count of 0 means infinity", MaxPings))
-	timeout = flag.Duration("timeout", DefaultTimeout,
+	timeout = flag.Duration("timeoutbb", DefaultTimeout,
 		"Timeout for the boing response")
-	interval     = flag.Duration("interval", DefaultInterval, "time between boings")
+	interval     = flag.Duration("intervalbb", DefaultInterval, "time between boings")
 	verbose      = flag.Bool("v", false, "sets verbose output")
 	sciondFromIA = flag.Bool("sciondFromIA", false,
 		"SCIOND socket path from IA address:ISD-AS")
@@ -81,8 +81,8 @@ var (
 )
 
 func init() {
-	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var((*snet.Addr)(&local), "localbb", "(Mandatory) address to listen on")
+	flag.Var((*snet.Addr)(&remote), "remotebb", "(Mandatory for clients) address to connect to")
 }
 
 func main() {
@@ -277,6 +277,9 @@ func (c *client) Close() error {
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
 		err = c.qsess.Close(err)
 	}
+	if c.mpQuic != nil {
+		c.mpQuic.Close()
+	}
 	return err
 }
 
@@ -314,7 +317,7 @@ func (c client) send() {
 		reqMsg := requestMsg()
 		if i > 0 {
 			// Send different payload size every time we switch connection to correlate in network capture
-			if _, err := mpsquic.SwitchMPSCIONConn(c.mpQuic); err != nil {
+			if _, err := mpsquic.SwitchMPConn(c.mpQuic); err != nil {
 				infoString := "We failed to switch the connection: "
 				fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString), len(infoString))))
 				log.Error("Unable to switch SCION packet connection", "err", err)
