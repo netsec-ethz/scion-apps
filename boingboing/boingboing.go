@@ -317,7 +317,7 @@ func (c client) send() {
 		reqMsg := requestMsg()
 		if i > 0 {
 			// Send different payload size every time we switch connection to correlate in network capture
-			if _, err := mpsquic.SwitchMPConn(c.mpQuic); err != nil {
+			if _, err := mpsquic.SwitchMPConn(c.mpQuic, false); err != nil {
 				infoString := "We failed to switch the connection: "
 				fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString), len(infoString))))
 				log.Error("Unable to switch SCION packet connection", "err", err)

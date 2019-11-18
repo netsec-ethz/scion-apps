@@ -42,8 +42,10 @@ const (
 type MPQuic struct {
 	SCIONFlexConnection *SCIONFlexConn
 	raddrs              []*snet.Addr
+	active              int
 	Qsession            quic.Session
 	dispConn            *reliable.Conn
+	raddrRTTs           []time.Duration
 }
 
 var (
@@ -70,7 +72,10 @@ func Init(keyPath, pemPath string) error {
 
 func (mpq *MPQuic) Close() error {
 	if !noDisp && mpq.dispConn != nil {
-		err := mpq.dispConn.Close()
+		tmp := mpq.dispConn
+		mpq.dispConn = nil
+		time.Sleep(time.Second)
+		err := tmp.Close()
 		if err != nil {
 			return  err
 		}
@@ -78,90 +83,116 @@ func (mpq *MPQuic) Close() error {
 	return mpq.SCIONFlexConnection.Close()
 }
 
-func (mpq *MPQuic) Monitor() error {
-	if noDisp {
-		return nil
-	}
+func (mpq *MPQuic) sendSCMP() {
 	for {
-		id := cmn.Rand()
-		info := &scmp.InfoEcho{Id: id, Seq: 0}
-		pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
-		b := make(common.RawBytes, cmn.Mtu)
-		nhAddr := cmn.NextHopAddr()
-
-		nextPktTS := time.Now()
-
-
-		cmn.UpdatePktTS(pkt, nextPktTS)
-		// Serialize packet to internal buffer
-		pktLen, err := hpkt.WriteScnPkt(pkt, b)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to serialize SCION packet %v\n", err)
+		if mpq.dispConn == nil {
 			break
 		}
-		written, err := mpq.dispConn.WriteTo(b[:pktLen], nhAddr)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to write %v\n", err)
-			break
-		} else if written != pktLen {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrote incomplete message. written=%d, expected=%d\n",
-				len(b), written)
-			break
-		}
-		cmn.Stats.Sent += 1
-		// More packets?
-		if cmn.Count != 0 && cmn.Stats.Sent == cmn.Count {
-			break
-		}
-		// Update packet fields
-		info.Seq += 1
-		payload := pkt.Pld.(common.RawBytes)
-		_, _ = info.Write(payload[scmp.MetaLen:])
 
+		for i := range mpq.raddrs {
+			cmn.Remote = *mpq.raddrs[i]
+			id := uint64(i+1)
+			info := &scmp.InfoEcho{Id: id, Seq: 0}
+			pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
+			b := make(common.RawBytes, 1500) // TODO: Get proper MTU from PathEntry
+			nhAddr := cmn.NextHopAddr()
 
-		if true {
-			break
+			nextPktTS := time.Now()
+			cmn.UpdatePktTS(pkt, nextPktTS)
+			// Serialize packet to internal buffer
+			pktLen, err := hpkt.WriteScnPkt(pkt, b)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to serialize SCION packet %v\n", err)
+				break
+			}
+			written, err := mpq.dispConn.WriteTo(b[:pktLen], nhAddr)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to write %v\n", err)
+				break
+			} else if written != pktLen {
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrote incomplete message. written=%d, expected=%d\n",
+					len(b), written)
+				break
+			}
+			cmn.Stats.Sent += 1
+
+			payload := pkt.Pld.(common.RawBytes)
+			_, _ = info.Write(payload[scmp.MetaLen:])
+			//fmt.Println("Sent SCMP packet, len:", pktLen, "payload", payload, "ID", info.Id)
 		}
+		time.Sleep(200 * time.Millisecond)
 	}
+}
 
+func (mpq *MPQuic) rcvSCMP() {
 	for {
-
+		if mpq.dispConn == nil {
+			break
+		}
 
 		pkt := &spkt.ScnPkt{}
-		b := make(common.RawBytes, cmn.Mtu)
+		b := make(common.RawBytes, 1500)
 
 		pktLen, err := mpq.dispConn.Read(b)
 		if err != nil {
 			if common.IsTimeoutErr(err) {
 				continue
 			} else {
-				fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)
 				break
 			}
 		}
 		now := time.Now()
 		err = hpkt.ParseScnPkt(pkt, b[:pktLen])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse: %v\n", err)
 			continue
 		}
-		// Validate packet
+		// Validate scmp packet
 		var scmpHdr *scmp.Hdr
+		var scmpPld *scmp.Payload
 		var info *scmp.InfoEcho
 
-		// XXX: Check the InfoEcho.ID to disambiguate between the connections
+		scmpHdr, ok := pkt.L4.(*scmp.Hdr)
+		if !ok {
+			_, _ = fmt.Fprintf(os.Stderr, "Not an SCMP header", nil, "type", common.TypeOf(pkt.L4))
+			continue
+		}
+		scmpPld, ok = pkt.Pld.(*scmp.Payload)
+		if !ok {
+			_, _ = fmt.Fprintf(os.Stderr, "Not an SCMP payload", nil, "type", common.TypeOf(pkt.Pld))
+			continue
+		}
+		_ = scmpPld
+		info, ok = scmpPld.Info.(*scmp.InfoEcho)
+		if !ok {
+			_, _ = fmt.Fprintf(os.Stderr, "Not an Info Echo", nil, "type", common.TypeOf(scmpPld.Info))
+			continue
+		}
 
 		cmn.Stats.Recv += 1
 
-		// Calculate return time
+		// Calculate RTT
 		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-		fmt.Println(pkt, pktLen, info, rtt)
-
-
-		if true {
-			break
+		if info.Id - 1 < uint64(len(mpq.raddrRTTs)) {
+			//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
+			mpq.raddrRTTs[info.Id - 1] = rtt
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "Wrong InfoEcho Id", nil, "id", info.Id)
 		}
 	}
+}
+
+func (mpq *MPQuic) Monitor() error {
+	cmn.Remote = *mpq.SCIONFlexConnection.raddr
+	cmn.Local = *mpq.SCIONFlexConnection.laddr
+	if cmn.Stats == nil {
+		cmn.Stats = &cmn.ScmpStats{}
+	}
+
+	go mpq.sendSCMP()
+	go mpq.rcvSCMP()
+
 	return nil
 }
 
@@ -190,34 +221,63 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 			}
 		}
 	}
-	dispConn, _, err := reliable.Register(reliable.DefaultDispPath, laddr.IA, laddr.Host,
+	laddrMonitor := laddr.Copy()
+	laddrMonitor.Host.L4 = addr.NewL4UDPInfo(laddr.Host.L4.Port()+1)
+	dispConn, _, err := reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
 		overlayBindAddr, addr.SvcNone)
 	if err != nil {
 		//return nil, errors.New(fmt.Sprintf("Unable to register with the dispatcher addr=%s\nerr=%v", laddr, err))
+		fmt.Printf("mpsquic: l. 199:\n%v\n", err)
 		noDisp = true
 	}
 
-	flexConn := newSCIONFlexConn(sconn, raddrs[0])
+	active := 0
+	flexConn := newSCIONFlexConn(sconn, laddr, raddrs[active])
 
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
 	qsession, err := quic.Dial(flexConn, flexConn.raddr, "host:0", cliTlsCfg, quicConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &MPQuic{SCIONFlexConnection: flexConn, Qsession: qsession, dispConn: dispConn, raddrs: raddrs}, nil
+
+	raddrRTTs := []time.Duration{}
+	for _ = range raddrs {
+		raddrRTTs = append(raddrRTTs, 1<<63 - 1)
+	}
+	mpQuic := &MPQuic{SCIONFlexConnection: flexConn, raddrs: raddrs, active: active, Qsession: qsession, dispConn: dispConn, raddrRTTs: raddrRTTs}
+
+	_ = mpQuic.Monitor()
+
+	return mpQuic, nil
+}
+
+func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
+	if mpq.raddrRTTs[candidate] < mpq.raddrRTTs[mpq.active] {
+		return true
+	}
+	return false
 }
 
 // This switches between different SCION paths as given by the SCION address with path structs in raddrs
-func SwitchMPConn(mpConn *MPQuic) (*MPQuic, error) {
+// The force flag makes switching a requirement, continuing to use the existing path is not an option
+func SwitchMPConn(mpq *MPQuic, force bool) (*MPQuic, error) {
+	// Display stats
+	for i, rtt := range mpq.raddrRTTs {
+		fmt.Printf("Measured RTT of %v on path %v\n", rtt, i)
+	}
+
 	// Right now, the QUIC session is returned unmodified
 	// Still passing it in, since it might change later
-	for i := range mpConn.raddrs {
-		if mpConn.SCIONFlexConnection.raddr != mpConn.raddrs[i] {
+	for i := range mpq.raddrs {
+		if mpq.SCIONFlexConnection.raddr != mpq.raddrs[i] && mpq.policyLowerRTTMatch(i) {
 			// fmt.Printf("Previous path: %v\n", mpConn.SCIONFlexConnection.raddr.Path)
 			// fmt.Printf("New path: %v\n", mpConn.raddrs[i].Path)
-			mpConn.SCIONFlexConnection.SetRemoteAddr(mpConn.raddrs[i])
-			return mpConn, nil
+			mpq.SCIONFlexConnection.SetRemoteAddr(mpq.raddrs[i])
+			return mpq, nil
 		}
+	}
+	if !force {
+		return mpq, nil
 	}
 
 	return nil, common.NewBasicError("mpsquic: No fallback connection available.", nil)

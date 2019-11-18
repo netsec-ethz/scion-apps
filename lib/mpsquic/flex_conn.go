@@ -27,12 +27,14 @@ var _ snet.Conn = (*SCIONFlexConn)(nil)
 
 type SCIONFlexConn struct {
 	snet.Conn
+	laddr *snet.Addr
 	raddr *snet.Addr
 }
 
-func newSCIONFlexConn(sconn snet.Conn, raddr *snet.Addr) *SCIONFlexConn {
+func newSCIONFlexConn(sconn snet.Conn, laddr, raddr *snet.Addr) *SCIONFlexConn {
 	c := &SCIONFlexConn{
 		Conn:  sconn,
+		laddr: laddr,
 		raddr: raddr,
 	}
 	return c
