@@ -30,7 +30,7 @@ func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
 	if err != nil {
 		return nil, err
 	}
-	return mpQuic.Qsession, nil
+	return mpQuic, nil
 }
 
 func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.Addr,
@@ -40,7 +40,7 @@ func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.
 	if err != nil {
 		return nil, err
 	}
-	return mpQuic.Qsession, nil
+	return mpQuic, nil
 }
 
 func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr,

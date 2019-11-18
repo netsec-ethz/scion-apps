@@ -223,7 +223,6 @@ func (qs mpQuicStream) ReadMsg() (*message, error) {
 
 type client struct {
 	*mpQuicStream
-	qsess quic.Session
 	mpQuic *mpsquic.MPQuic
 }
 
@@ -249,9 +248,8 @@ func (c *client) run() {
 		LogFatal("Unable to dial", "err", err)
 	}
 	c.mpQuic = mpQuic
-	c.qsess = c.mpQuic.Qsession
 
-	qstream, err := c.qsess.OpenStreamSync()
+	qstream, err := c.mpQuic.OpenStreamSync()
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
@@ -269,16 +267,16 @@ func (c *client) Close() error {
 	if c.qstream != nil {
 		err = c.qstream.Close()
 	}
-	if err == nil && c.qsess != nil {
+	if err == nil && c.mpQuic != nil {
 		// Note closing the session here is fine since we know that all the traffic went through.
 		// If you are not sure that this is the case you should probably not close the session.
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		err = c.qsess.Close(err)
+		err = c.mpQuic.Close(err)
 	}
 	if c.mpQuic != nil {
-		c.mpQuic.Close()
+		err = c.mpQuic.CloseConn()
 	}
 	return err
 }

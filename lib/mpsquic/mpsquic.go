@@ -39,13 +39,23 @@ const (
 	defPemPath = "gen-certs/tls.pem"
 )
 
+var _ quic.Session = (*MPQuic)(nil)
+
 type MPQuic struct {
+	quic.Session
 	SCIONFlexConnection *SCIONFlexConn
 	raddrs              []*snet.Addr
 	active              int
-	Qsession            quic.Session
 	dispConn            *reliable.Conn
 	raddrRTTs           []time.Duration
+	raddrBW             []int // in bps
+}
+
+var _ quic.Stream = (*monitoredStream)(nil)
+
+type monitoredStream struct {
+	quic.Stream
+	underlayConn *MPQuic
 }
 
 var (
@@ -70,7 +80,29 @@ func Init(keyPath, pemPath string) error {
 	return nil
 }
 
-func (mpq *MPQuic) Close() error {
+func (ms monitoredStream) Write(p []byte) (n int, err error) {
+	//streamID := ms.Stream.StreamID()
+	start := time.Now()
+	n, err = ms.Stream.Write(p)
+	elapsed := time.Now().Sub(start)
+	bandwidth := len(p) * 8 * 1e9 / int(elapsed)
+	ms.underlayConn.raddrBW[ms.underlayConn.active] = bandwidth
+	return
+}
+
+func (mpq *MPQuic) OpenStreamSync() (quic.Stream, error) {
+	stream, err := mpq.Session.OpenStreamSync()
+	if err != nil {
+		return nil, err
+	}
+	return monitoredStream{stream, mpq}, nil
+}
+
+func (mpq *MPQuic) Close(err error) error {
+	return mpq.Session.Close(err)
+}
+
+func (mpq *MPQuic) CloseConn() error {
 	if !noDisp && mpq.dispConn != nil {
 		tmp := mpq.dispConn
 		mpq.dispConn = nil
@@ -244,7 +276,11 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 	for _ = range raddrs {
 		raddrRTTs = append(raddrRTTs, 1<<63 - 1)
 	}
-	mpQuic := &MPQuic{SCIONFlexConnection: flexConn, raddrs: raddrs, active: active, Qsession: qsession, dispConn: dispConn, raddrRTTs: raddrRTTs}
+	raddrBW := []int{}
+	for _ = range raddrs {
+		raddrBW = append(raddrBW, 0)
+	}
+	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, active: active, dispConn: dispConn, raddrRTTs: raddrRTTs, raddrBW: raddrBW}
 
 	_ = mpQuic.Monitor()
 
@@ -265,14 +301,18 @@ func SwitchMPConn(mpq *MPQuic, force bool) (*MPQuic, error) {
 	for i, rtt := range mpq.raddrRTTs {
 		fmt.Printf("Measured RTT of %v on path %v\n", rtt, i)
 	}
+	for i, bw := range mpq.raddrBW {
+		fmt.Printf("Measured approximate BW of %v Mbps on path %v\n", bw / 1e6, i)
+	}
 
 	// Right now, the QUIC session is returned unmodified
 	// Still passing it in, since it might change later
 	for i := range mpq.raddrs {
 		if mpq.SCIONFlexConnection.raddr != mpq.raddrs[i] && mpq.policyLowerRTTMatch(i) {
-			// fmt.Printf("Previous path: %v\n", mpConn.SCIONFlexConnection.raddr.Path)
-			// fmt.Printf("New path: %v\n", mpConn.raddrs[i].Path)
+			// fmt.Printf("Previous path: %v\n", mpq.SCIONFlexConnection.raddr.Path)
+			// fmt.Printf("New path: %v\n", mpq.raddrs[i].Path)
 			mpq.SCIONFlexConnection.SetRemoteAddr(mpq.raddrs[i])
+			mpq.active = i
 			return mpq, nil
 		}
 	}
