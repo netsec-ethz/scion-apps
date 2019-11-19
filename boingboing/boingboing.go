@@ -313,20 +313,14 @@ func (c client) send() {
 		}
 
 		reqMsg := requestMsg()
-		if i > 0 {
-			// Send different payload size every time we switch connection to correlate in network capture
-			if _, err := mpsquic.SwitchMPConn(c.mpQuic, false); err != nil {
-				infoString := "We failed to switch the connection: "
-				fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString), len(infoString))))
-				log.Error("Unable to switch SCION packet connection", "err", err)
-			} else {
-				infoString := fmt.Sprintf("We switched the connection for the %vth time", i)
-				fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString)-(100*(10-i)), len(infoString))))
-			}
-			reqMsg = &message{
-				BoingBoing: ReqMsg,
-				Data:     fileData,
-			}
+
+		// Send different payload size to correlate iterations in network capture
+		infoString := fmt.Sprintf("This is the %vth message sent on this stream", i)
+		fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString)-(100*(9-i)), len(infoString))))
+
+		reqMsg = &message{
+			BoingBoing: ReqMsg,
+			Data:     fileData,
 		}
 
 		// Send boing? message to destination

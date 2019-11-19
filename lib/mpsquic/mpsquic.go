@@ -39,6 +39,10 @@ const (
 	defPemPath = "gen-certs/tls.pem"
 )
 
+const (
+	maxDuration time.Duration = 1<<63 - 1
+)
+
 var _ quic.Session = (*MPQuic)(nil)
 
 type MPQuic struct {
@@ -134,12 +138,12 @@ func (mpq *MPQuic) sendSCMP() {
 			// Serialize packet to internal buffer
 			pktLen, err := hpkt.WriteScnPkt(pkt, b)
 			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to serialize SCION packet %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to serialize SCION packet. err=%v\n", err)
 				break
 			}
 			written, err := mpq.dispConn.WriteTo(b[:pktLen], nhAddr)
 			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to write %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to write. err=%v\n", err)
 				break
 			} else if written != pktLen {
 				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrote incomplete message. written=%d, expected=%d\n",
@@ -170,14 +174,14 @@ func (mpq *MPQuic) rcvSCMP() {
 			if common.IsTimeoutErr(err) {
 				continue
 			} else {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to read. err=%v\n", err)
 				break
 			}
 		}
 		now := time.Now()
 		err = hpkt.ParseScnPkt(pkt, b[:pktLen])
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse. err=%v\n", err)
 			continue
 		}
 		// Validate scmp packet
@@ -187,18 +191,18 @@ func (mpq *MPQuic) rcvSCMP() {
 
 		scmpHdr, ok := pkt.L4.(*scmp.Hdr)
 		if !ok {
-			_, _ = fmt.Fprintf(os.Stderr, "Not an SCMP header", nil, "type", common.TypeOf(pkt.L4))
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an SCMP header. type=%v\n", common.TypeOf(pkt.L4))
 			continue
 		}
 		scmpPld, ok = pkt.Pld.(*scmp.Payload)
 		if !ok {
-			_, _ = fmt.Fprintf(os.Stderr, "Not an SCMP payload", nil, "type", common.TypeOf(pkt.Pld))
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an SCMP payload. type=%v\n", common.TypeOf(pkt.Pld))
 			continue
 		}
 		_ = scmpPld
 		info, ok = scmpPld.Info.(*scmp.InfoEcho)
 		if !ok {
-			_, _ = fmt.Fprintf(os.Stderr, "Not an Info Echo", nil, "type", common.TypeOf(scmpPld.Info))
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an Info Echo. type=%v\n", common.TypeOf(scmpPld.Info))
 			continue
 		}
 
@@ -210,12 +214,40 @@ func (mpq *MPQuic) rcvSCMP() {
 			//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
 			mpq.raddrRTTs[info.Id - 1] = rtt
 		} else {
-			_, _ = fmt.Fprintf(os.Stderr, "Wrong InfoEcho Id", nil, "id", info.Id)
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrong InfoEcho Id. id=%v\n", info.Id)
 		}
 	}
 }
 
-func (mpq *MPQuic) Monitor() error {
+func (mpq *MPQuic) managePaths() {
+	// Busy wait until we have at least measurements on two paths
+	for {
+		var measuredPaths int
+		for _, v := range mpq.raddrRTTs {
+			if v != maxDuration {
+				measuredPaths += 1
+			}
+		}
+		if measuredPaths > 1 {
+			break
+		}
+	}
+	// Make a (voluntary) path change decision to increase performance at most once per 5 seconds
+	var maxFlap time.Duration = 5 * time.Second
+	for {
+		if mpq.dispConn == nil {
+			break
+		}
+
+		time.Sleep(maxFlap) // Failing paths are handled separately / faster
+		err := switchMPConn(mpq, false)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path. err=%v\n", err)
+		}
+	}
+}
+
+func (mpq *MPQuic) monitor() {
 	cmn.Remote = *mpq.SCIONFlexConnection.raddr
 	cmn.Local = *mpq.SCIONFlexConnection.laddr
 	if cmn.Stats == nil {
@@ -225,7 +257,7 @@ func (mpq *MPQuic) Monitor() error {
 	go mpq.sendSCMP()
 	go mpq.rcvSCMP()
 
-	return nil
+	go mpq.managePaths()
 }
 
 func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*snet.Addr,
@@ -274,7 +306,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 
 	raddrRTTs := []time.Duration{}
 	for _ = range raddrs {
-		raddrRTTs = append(raddrRTTs, 1<<63 - 1)
+		raddrRTTs = append(raddrRTTs, maxDuration)
 	}
 	raddrBW := []int{}
 	for _ = range raddrs {
@@ -282,9 +314,18 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 	}
 	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, active: active, dispConn: dispConn, raddrRTTs: raddrRTTs, raddrBW: raddrBW}
 
-	_ = mpQuic.Monitor()
+	mpQuic.monitor()
 
 	return mpQuic, nil
+}
+
+func (mpq *MPQuic) displayStats() {
+	for i, rtt := range mpq.raddrRTTs {
+		fmt.Printf("Measured RTT of %v on path %v\n", rtt, i)
+	}
+	for i, bw := range mpq.raddrBW {
+		fmt.Printf("Measured approximate BW of %v Mbps on path %v\n", bw / 1e6, i)
+	}
 }
 
 func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
@@ -295,30 +336,20 @@ func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
 }
 
 // This switches between different SCION paths as given by the SCION address with path structs in raddrs
-// The force flag makes switching a requirement, continuing to use the existing path is not an option
-func SwitchMPConn(mpq *MPQuic, force bool) (*MPQuic, error) {
-	// Display stats
-	for i, rtt := range mpq.raddrRTTs {
-		fmt.Printf("Measured RTT of %v on path %v\n", rtt, i)
-	}
-	for i, bw := range mpq.raddrBW {
-		fmt.Printf("Measured approximate BW of %v Mbps on path %v\n", bw / 1e6, i)
-	}
-
-	// Right now, the QUIC session is returned unmodified
-	// Still passing it in, since it might change later
+// The force flag makes switching a requirement, set it when continuing to use the existing path is not an option
+func switchMPConn(mpq *MPQuic, force bool) error {
 	for i := range mpq.raddrs {
 		if mpq.SCIONFlexConnection.raddr != mpq.raddrs[i] && mpq.policyLowerRTTMatch(i) {
 			// fmt.Printf("Previous path: %v\n", mpq.SCIONFlexConnection.raddr.Path)
 			// fmt.Printf("New path: %v\n", mpq.raddrs[i].Path)
 			mpq.SCIONFlexConnection.SetRemoteAddr(mpq.raddrs[i])
 			mpq.active = i
-			return mpq, nil
+			return nil
 		}
 	}
 	if !force {
-		return mpq, nil
+		return nil
 	}
 
-	return nil, common.NewBasicError("mpsquic: No fallback connection available.", nil)
+	return common.NewBasicError("mpsquic: No fallback connection available.", nil)
 }
