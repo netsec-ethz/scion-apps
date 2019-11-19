@@ -290,7 +290,7 @@ func (c client) setupPaths() {
 		for _, pathEntry := range pathEntries {
 			newRemote := remote.Copy()
 			newRemote.Path = spath.New(pathEntry.Path.FwdPath)
-			newRemote.Path.InitOffsets()
+			_ = newRemote.Path.InitOffsets()
 			newRemote.NextHop, _ = pathEntry.HostInfo.Overlay()
 			remotes = append(remotes, newRemote)
 		}

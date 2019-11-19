@@ -1191,6 +1191,12 @@
 			"revisionTime": "2019-08-27T08:37:21Z"
 		},
 		{
+			"checksumSHA1": "OPXDdhvt+8o6oEA8P3+JumloPP0=",
+			"path": "github.com/scionproto/scion/go/lib/infra/modules/combinator",
+			"revision": "a37267b8658955d883d4d66fef62d45ecb9e18b9",
+			"revisionTime": "2019-09-11T10:49:16Z"
+		},
+		{
 			"checksumSHA1": "jpAKUosduAH5YvguE9vPOIAg918=",
 			"path": "github.com/scionproto/scion/go/lib/infra/modules/itopo",
 			"revision": "a37267b8658955d883d4d66fef62d45ecb9e18b9",

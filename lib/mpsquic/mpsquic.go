@@ -53,6 +53,7 @@ type MPQuic struct {
 	dispConn            *reliable.Conn
 	raddrRTTs           []time.Duration
 	raddrBW             []int // in bps
+	raddrPathExp        []time.Time
 }
 
 var _ quic.Stream = (*monitoredStream)(nil)
@@ -66,7 +67,6 @@ var (
 	// Don't verify the server's cert, as we are not using the TLS PKI.
 	cliTlsCfg = &tls.Config{InsecureSkipVerify: true}
 	srvTlsCfg = &tls.Config{}
-	noDisp = false
 )
 
 func Init(keyPath, pemPath string) error {
@@ -103,11 +103,14 @@ func (mpq *MPQuic) OpenStreamSync() (quic.Stream, error) {
 }
 
 func (mpq *MPQuic) Close(err error) error {
-	return mpq.Session.Close(err)
+	if mpq.Session != nil {
+		return mpq.Session.Close(err)
+	}
+	return nil
 }
 
 func (mpq *MPQuic) CloseConn() error {
-	if !noDisp && mpq.dispConn != nil {
+	if mpq.dispConn != nil {
 		tmp := mpq.dispConn
 		mpq.dispConn = nil
 		time.Sleep(time.Second)
@@ -220,6 +223,15 @@ func (mpq *MPQuic) rcvSCMP() {
 }
 
 func (mpq *MPQuic) managePaths() {
+	// Get initial expiration time of all paths
+	for i, raddr := range mpq.raddrs {
+		cpath, err := parseSPath(*raddr.Path)
+		if err != nil {
+			continue
+		}
+		mpq.raddrPathExp[i] = cpath.ComputeExpTime()
+	}
+
 	// Busy wait until we have at least measurements on two paths
 	for {
 		var measuredPaths int
@@ -290,9 +302,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 	dispConn, _, err := reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
 		overlayBindAddr, addr.SvcNone)
 	if err != nil {
-		//return nil, errors.New(fmt.Sprintf("Unable to register with the dispatcher addr=%s\nerr=%v", laddr, err))
-		fmt.Printf("mpsquic: l. 199:\n%v\n", err)
-		noDisp = true
+		return nil, errors.New(fmt.Sprintf("Unable to register with the dispatcher addr=%s\nerr=%v", laddrMonitor, err))
 	}
 
 	active := 0
@@ -305,14 +315,16 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 	}
 
 	raddrRTTs := []time.Duration{}
+	raddrBW := []int{}
+	raddrPathExp := []time.Time{}
 	for _ = range raddrs {
 		raddrRTTs = append(raddrRTTs, maxDuration)
-	}
-	raddrBW := []int{}
-	for _ = range raddrs {
 		raddrBW = append(raddrBW, 0)
+		raddrPathExp = append(raddrPathExp, time.Time{})
 	}
-	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, active: active, dispConn: dispConn, raddrRTTs: raddrRTTs, raddrBW: raddrBW}
+
+	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, active: active, dispConn: dispConn,
+		raddrRTTs: raddrRTTs, raddrBW: raddrBW, raddrPathExp: raddrPathExp}
 
 	mpQuic.monitor()
 
@@ -320,11 +332,14 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 }
 
 func (mpq *MPQuic) displayStats() {
+	for i, expTime := range mpq.raddrPathExp {
+		fmt.Printf("Path %v will expire at %v.\n", i, expTime)
+	}
 	for i, rtt := range mpq.raddrRTTs {
-		fmt.Printf("Measured RTT of %v on path %v\n", rtt, i)
+		fmt.Printf("Measured RTT of %v on path %v.\n", rtt, i)
 	}
 	for i, bw := range mpq.raddrBW {
-		fmt.Printf("Measured approximate BW of %v Mbps on path %v\n", bw / 1e6, i)
+		fmt.Printf("Measured approximate BW of %v Mbps on path %v.\n", bw / 1e6, i)
 	}
 }
 
@@ -338,6 +353,7 @@ func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
 // This switches between different SCION paths as given by the SCION address with path structs in raddrs
 // The force flag makes switching a requirement, set it when continuing to use the existing path is not an option
 func switchMPConn(mpq *MPQuic, force bool) error {
+	mpq.displayStats()
 	for i := range mpq.raddrs {
 		if mpq.SCIONFlexConnection.raddr != mpq.raddrs[i] && mpq.policyLowerRTTMatch(i) {
 			// fmt.Printf("Previous path: %v\n", mpq.SCIONFlexConnection.raddr.Path)
