@@ -41,7 +41,7 @@ import (
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/lib/mpsquic"
@@ -61,7 +61,7 @@ const (
 var (
 	local   snet.Addr
 	remote  snet.Addr
-	remotes []*snet.Addr
+	paths   []spathmeta.AppPath
 	file    = flag.String("file", "",
 		"File containing the data to send, optional to test larger data (only client)")
 	interactive = flag.Bool("ibb", false, "Interactive mode")
@@ -243,7 +243,7 @@ func (c *client) run() {
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	mpQuic, err := mpsquic.DialMP(nil, &local, remotes, nil)
+	mpQuic, err := mpsquic.DialMP(nil, &local, &remote, &paths, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -288,11 +288,7 @@ func (c client) setupPaths() {
 			LogFatal("No paths available to remote destination")
 		}
 		for _, pathEntry := range pathEntries {
-			newRemote := remote.Copy()
-			newRemote.Path = spath.New(pathEntry.Path.FwdPath)
-			_ = newRemote.Path.InitOffsets()
-			newRemote.NextHop, _ = pathEntry.HostInfo.Overlay()
-			remotes = append(remotes, newRemote)
+			paths = append(paths, spathmeta.AppPath{pathEntry})
 		}
 	}
 }

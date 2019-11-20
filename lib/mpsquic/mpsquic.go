@@ -31,6 +31,8 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 )
 
@@ -49,6 +51,7 @@ type MPQuic struct {
 	quic.Session
 	SCIONFlexConnection *SCIONFlexConn
 	raddrs              []*snet.Addr
+	paths               *[]spathmeta.AppPath
 	active              int
 	dispConn            *reliable.Conn
 	raddrRTTs           []time.Duration
@@ -224,12 +227,8 @@ func (mpq *MPQuic) rcvSCMP() {
 
 func (mpq *MPQuic) managePaths() {
 	// Get initial expiration time of all paths
-	for i, raddr := range mpq.raddrs {
-		cpath, err := parseSPath(*raddr.Path)
-		if err != nil {
-			continue
-		}
-		mpq.raddrPathExp[i] = cpath.ComputeExpTime()
+	for i, path := range *mpq.paths {
+		mpq.raddrPathExp[i] = time.Unix(int64(path.Entry.Path.ExpTime), 0)
 	}
 
 	// Busy wait until we have at least measurements on two paths
@@ -272,13 +271,13 @@ func (mpq *MPQuic) monitor() {
 	go mpq.managePaths()
 }
 
-func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*snet.Addr,
+func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath,
 	quicConfig *quic.Config) (*MPQuic, error) {
 
-	return DialMPWithBindSVC(network, laddr, raddrs, nil, addr.SvcNone, quicConfig)
+	return DialMPWithBindSVC(network, laddr, raddr, paths,nil, addr.SvcNone, quicConfig)
 }
 
-func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*snet.Addr, baddr *snet.Addr,
+func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (*MPQuic, error) {
 
 	if network == nil {
@@ -305,7 +304,27 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 		return nil, errors.New(fmt.Sprintf("Unable to register with the dispatcher addr=%s\nerr=%v", laddrMonitor, err))
 	}
 
+	var raddrs []*snet.Addr = []*snet.Addr{}
+	if paths != nil {
+		for _, p := range *paths {
+			r := raddr.Copy()
+			r.Path = spath.New(p.Entry.Path.FwdPath)
+			_ = r.Path.InitOffsets()
+			r.NextHop, _ = p.Entry.HostInfo.Overlay()
+			raddrs = append(raddrs, r)
+		}
+	} else {
+		// No paths defined, only path information is already on the raddr
+		if raddr.Path != nil {
+			_ = raddr.Path.InitOffsets()
+		}
+		raddrs = append(raddrs, raddr)
+	}
+
 	active := 0
+	if len(raddrs) < 1 {
+		return nil, errors.New(fmt.Sprintf("No valid remote addresses or paths. raddr=%s\npaths=%v", raddr, paths))
+	}
 	flexConn := newSCIONFlexConn(sconn, laddr, raddrs[active])
 
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
@@ -323,7 +342,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddrs []*s
 		raddrPathExp = append(raddrPathExp, time.Time{})
 	}
 
-	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, active: active, dispConn: dispConn,
+	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, paths: paths, active: active, dispConn: dispConn,
 		raddrRTTs: raddrRTTs, raddrBW: raddrBW, raddrPathExp: raddrPathExp}
 
 	mpQuic.monitor()
@@ -353,7 +372,10 @@ func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
 // This switches between different SCION paths as given by the SCION address with path structs in raddrs
 // The force flag makes switching a requirement, set it when continuing to use the existing path is not an option
 func switchMPConn(mpq *MPQuic, force bool) error {
-	mpq.displayStats()
+	if _, set := os.LookupEnv("DEBUG"); set {
+		fmt.Println("Updating to better path:")
+		mpq.displayStats()
+	}
 	for i := range mpq.raddrs {
 		if mpq.SCIONFlexConnection.raddr != mpq.raddrs[i] && mpq.policyLowerRTTMatch(i) {
 			// fmt.Printf("Previous path: %v\n", mpq.SCIONFlexConnection.raddr.Path)
