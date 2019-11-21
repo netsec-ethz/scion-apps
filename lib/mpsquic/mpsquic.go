@@ -16,9 +16,11 @@
 package mpsquic
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -27,12 +29,14 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
+	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 )
 
@@ -51,8 +55,9 @@ type MPQuic struct {
 	quic.Session
 	SCIONFlexConnection *SCIONFlexConn
 	raddrs              []*snet.Addr
-	paths               *[]spathmeta.AppPath
+	paths               []spathmeta.AppPath
 	active              int
+	network             *snet.SCIONNetwork
 	dispConn            *reliable.Conn
 	raddrRTTs           []time.Duration
 	raddrBW             []int // in bps
@@ -119,7 +124,7 @@ func (mpq *MPQuic) CloseConn() error {
 		time.Sleep(time.Second)
 		err := tmp.Close()
 		if err != nil {
-			return  err
+			return err
 		}
 	}
 	return mpq.SCIONFlexConnection.Close()
@@ -133,10 +138,10 @@ func (mpq *MPQuic) sendSCMP() {
 
 		for i := range mpq.raddrs {
 			cmn.Remote = *mpq.raddrs[i]
-			id := uint64(i+1)
+			id := uint64(i + 1)
 			info := &scmp.InfoEcho{Id: id, Seq: 0}
 			pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
-			b := make(common.RawBytes, 1500) // TODO: Get proper MTU from PathEntry
+			b := make(common.RawBytes, mpq.paths[i].Entry.Path.Mtu)
 			nhAddr := cmn.NextHopAddr()
 
 			nextPktTS := time.Now()
@@ -216,18 +221,74 @@ func (mpq *MPQuic) rcvSCMP() {
 
 		// Calculate RTT
 		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-		if info.Id - 1 < uint64(len(mpq.raddrRTTs)) {
+		if info.Id-1 < uint64(len(mpq.raddrRTTs)) {
 			//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
-			mpq.raddrRTTs[info.Id - 1] = rtt
+			mpq.raddrRTTs[info.Id-1] = rtt
 		} else {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrong InfoEcho Id. id=%v\n", info.Id)
 		}
 	}
 }
 
+func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
+	var filter *pathpol.Policy = nil
+	sciondTimeout := 3 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), sciondTimeout)
+	defer cancel()
+	syncPathMonitor, err := resolver.WatchFilter(ctx, mpq.network.IA(), mpq.raddrs[0].IA, filter)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to monitor paths. src=%v, dst=%v, filter=%v\n", mpq.network.IA(), mpq.raddrs[0].IA, filter)
+		syncPathMonitor = nil
+	}
+
+	if syncPathMonitor == nil {
+		return
+	}
+
+	syncPathsData := syncPathMonitor.Load()
+	for pathIndex, expiringPath := range mpq.paths {
+		selectionKey := expiringPath.Key()
+		appPath := syncPathsData.APS.GetAppPath(selectionKey)
+		if appPath.Key() != selectionKey {
+			_, _ = fmt.Fprintf(os.Stderr, "INFO: Failed to refresh path. Retrying later. "+
+				"src=%v, dst=%v, key=%v, path=%v, filter=%v\n",
+				mpq.network.IA(), mpq.raddrs[0].IA, selectionKey, expiringPath.Entry.Path.Interfaces, filter)
+		} else {
+			freshExpTime := time.Unix(int64(appPath.Entry.Path.ExpTime), 0)
+			if freshExpTime.After(mpq.raddrPathExp[pathIndex]) {
+				mpq.paths[pathIndex] = *appPath
+
+				// Update the path on the remote address
+				newPath := spath.New(appPath.Entry.Path.FwdPath)
+				_ = newPath.InitOffsets()
+				tmpRaddr := mpq.raddrs[pathIndex].Copy()
+				tmpRaddr.Path = newPath
+				tmpRaddr.NextHop, _ = appPath.Entry.HostInfo.Overlay()
+				mpq.raddrs[pathIndex] = tmpRaddr
+			} else {
+				_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Refreshed path does not have later expiry. Retrying later. "+
+					"src=%v, dst=%v, key=%v, path=%v, filter=%v, currExp=%v, freshExp=%v\n",
+					mpq.network.IA(), mpq.raddrs[0].IA, selectionKey, expiringPath.Entry.Path.Interfaces, filter, mpq.raddrPathExp[pathIndex], freshExpTime)
+			}
+		}
+	}
+}
+
+func (mpq *MPQuic) earliestPathExpiry() (ret time.Time) {
+	ret = time.Now().Add(maxDuration)
+	for _, exp := range mpq.raddrPathExp {
+		if exp.Before(ret) {
+			ret = exp
+		}
+	}
+	return
+}
+
 func (mpq *MPQuic) managePaths() {
+	lastUpdate := time.Now()
+	pr := mpq.network.PathResolver()
 	// Get initial expiration time of all paths
-	for i, path := range *mpq.paths {
+	for i, path := range mpq.paths {
 		mpq.raddrPathExp[i] = time.Unix(int64(path.Entry.Path.ExpTime), 0)
 	}
 
@@ -243,18 +304,28 @@ func (mpq *MPQuic) managePaths() {
 			break
 		}
 	}
+
 	// Make a (voluntary) path change decision to increase performance at most once per 5 seconds
+	// Use the time in between to refresh the path information if required
 	var maxFlap time.Duration = 5 * time.Second
 	for {
 		if mpq.dispConn == nil {
 			break
 		}
 
-		time.Sleep(maxFlap) // Failing paths are handled separately / faster
+		earliesExp := mpq.earliestPathExpiry()
+		// Refresh the paths if one of them expires in less than 10 minutes
+		if earliesExp.Before(time.Now().Add(10*time.Minute - time.Duration(rand.Intn(10))*time.Second)) {
+			mpq.refreshPaths(pr)
+		}
+
+		sinceLastUpdate := time.Now().Sub(lastUpdate)
+		time.Sleep(maxFlap - sinceLastUpdate) // Failing paths are handled separately / faster
 		err := switchMPConn(mpq, false)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path. err=%v\n", err)
 		}
+		lastUpdate = time.Now()
 	}
 }
 
@@ -274,7 +345,7 @@ func (mpq *MPQuic) monitor() {
 func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath,
 	quicConfig *quic.Config) (*MPQuic, error) {
 
-	return DialMPWithBindSVC(network, laddr, raddr, paths,nil, addr.SvcNone, quicConfig)
+	return DialMPWithBindSVC(network, laddr, raddr, paths, nil, addr.SvcNone, quicConfig)
 }
 
 func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath, baddr *snet.Addr,
@@ -297,7 +368,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 		}
 	}
 	laddrMonitor := laddr.Copy()
-	laddrMonitor.Host.L4 = addr.NewL4UDPInfo(laddr.Host.L4.Port()+1)
+	laddrMonitor.Host.L4 = addr.NewL4UDPInfo(laddr.Host.L4.Port() + 1)
 	dispConn, _, err := reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
 		overlayBindAddr, addr.SvcNone)
 	if err != nil {
@@ -314,6 +385,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 			raddrs = append(raddrs, r)
 		}
 	} else {
+		paths = &[]spathmeta.AppPath{}
 		// No paths defined, only path information is already on the raddr
 		if raddr.Path != nil {
 			_ = raddr.Path.InitOffsets()
@@ -342,7 +414,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 		raddrPathExp = append(raddrPathExp, time.Time{})
 	}
 
-	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, paths: paths, active: active, dispConn: dispConn,
+	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, raddrs: raddrs, paths: *paths, active: active, network: network, dispConn: dispConn,
 		raddrRTTs: raddrRTTs, raddrBW: raddrBW, raddrPathExp: raddrPathExp}
 
 	mpQuic.monitor()
@@ -358,7 +430,7 @@ func (mpq *MPQuic) displayStats() {
 		fmt.Printf("Measured RTT of %v on path %v.\n", rtt, i)
 	}
 	for i, bw := range mpq.raddrBW {
-		fmt.Printf("Measured approximate BW of %v Mbps on path %v.\n", bw / 1e6, i)
+		fmt.Printf("Measured approximate BW of %v Mbps on path %v.\n", bw/1e6, i)
 	}
 }
 
