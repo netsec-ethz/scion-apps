@@ -27,10 +27,12 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pathpol"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -386,6 +388,19 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 		}
 	} else {
 		paths = &[]spathmeta.AppPath{}
+		con, err := parseSPath(*raddr.Path)
+		if err == nil {
+			pathMeta := sciond.FwdPathMeta{
+				FwdPath: raddr.Path.Raw,
+				Mtu: con.Mtu,
+				Interfaces: con.Interfaces,
+				ExpTime: uint32(con.ComputeExpTime().Unix())}
+			appPath := spathmeta.AppPath{
+				Entry: &sciond.PathReplyEntry{
+					Path: &pathMeta,
+					HostInfo:	*hostinfo.FromHostAddr(raddr.Host.L3, raddr.Host.L4.Port())}}
+			*paths = append(*paths, appPath)
+		}
 		// No paths defined, only path information is already on the raddr
 		if raddr.Path != nil {
 			_ = raddr.Path.InitOffsets()
