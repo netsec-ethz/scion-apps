@@ -16,6 +16,7 @@ package mpsquic
 
 import (
 	"net"
+	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -27,8 +28,9 @@ var _ snet.Conn = (*SCIONFlexConn)(nil)
 
 type SCIONFlexConn struct {
 	snet.Conn
-	laddr *snet.Addr
-	raddr *snet.Addr
+	laddr   *snet.Addr
+	raddr   *snet.Addr
+	addrMtx sync.RWMutex
 }
 
 func newSCIONFlexConn(sconn snet.Conn, laddr, raddr *snet.Addr) *SCIONFlexConn {
@@ -41,6 +43,8 @@ func newSCIONFlexConn(sconn snet.Conn, laddr, raddr *snet.Addr) *SCIONFlexConn {
 }
 
 func (c *SCIONFlexConn) SetRemoteAddr(raddr *snet.Addr) {
+	c.addrMtx.Lock()
+	defer c.addrMtx.Unlock()
 	c.raddr = raddr
 }
 
@@ -57,6 +61,8 @@ func (c *SCIONFlexConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 }
 
 func (c *SCIONFlexConn) WriteToSCION(b []byte, raddr *snet.Addr) (int, error) {
+	c.addrMtx.RLock()
+	defer c.addrMtx.RUnlock()
 	// Ignore raddr, force use of c.raddr
 	return c.Conn.WriteToSCION(b, c.raddr)
 }

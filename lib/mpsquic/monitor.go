@@ -49,6 +49,7 @@ func (mpq *MPQuic) monitor() {
 }
 
 func (mpq *MPQuic) sendSCMP() {
+	var seq uint16
 	for {
 		if mpq.dispConn == nil {
 			break
@@ -57,7 +58,7 @@ func (mpq *MPQuic) sendSCMP() {
 		for i := range mpq.raddrs {
 			cmn.Remote = *mpq.raddrs[i]
 			id := uint64(i + 1)
-			info := &scmp.InfoEcho{Id: id, Seq: 0}
+			info := &scmp.InfoEcho{Id: id, Seq: seq}
 			pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
 			b := make(common.RawBytes, mpq.paths[i].Entry.Path.Mtu)
 			nhAddr := cmn.NextHopAddr()
@@ -83,6 +84,7 @@ func (mpq *MPQuic) sendSCMP() {
 
 			payload := pkt.Pld.(common.RawBytes)
 			_, _ = info.Write(payload[scmp.MetaLen:])
+			seq += 1
 			//fmt.Println("Sent SCMP packet, len:", pktLen, "payload", payload, "ID", info.Id)
 		}
 		time.Sleep(200 * time.Millisecond)
