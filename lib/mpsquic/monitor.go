@@ -14,6 +14,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 )
@@ -179,7 +180,7 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 				"src=%v, dst=%v, key=%v, path=%v, filter=%v\n",
 				mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces, filter)
 		} else {
-			freshExpTime := time.Unix(int64(appPath.Entry.Path.ExpTime), 0)
+			freshExpTime := appPath.Entry.Path.Expiry()
 			if freshExpTime.After(mpq.paths[pathIndex].expiration) {
 				mpq.paths[pathIndex].path = *appPath
 
@@ -190,6 +191,8 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 				tmpRaddr.Path = newPath
 				tmpRaddr.NextHop, _ = appPath.Entry.HostInfo.Overlay()
 				mpq.paths[pathIndex].raddr = tmpRaddr
+				mpq.paths[pathIndex].path = spathmeta.AppPath{appPath.Entry}
+				mpq.paths[pathIndex].expiration = mpq.paths[pathIndex].path.Entry.Path.Expiry()
 			} else {
 				_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Refreshed path does not have later expiry. Retrying later. "+
 					"src=%v, dst=%v, key=%v, path=%v, filter=%v, currExp=%v, freshExp=%v\n",
