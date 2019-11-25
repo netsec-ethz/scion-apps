@@ -27,11 +27,15 @@ type monitoredStream struct {
 
 func (ms monitoredStream) Write(p []byte) (n int, err error) {
 	//streamID := ms.Stream.StreamID()
+	activeAtWriteStart := ms.underlayConn.active
 	start := time.Now()
 	n, err = ms.Stream.Write(p)
 	elapsed := time.Now().Sub(start)
 	bandwidth := len(p) * 8 * 1e9 / int(elapsed)
-	ms.underlayConn.raddrBW[ms.underlayConn.active] = bandwidth
+	// Check if the path remained the same
+	if ms.underlayConn.active == activeAtWriteStart {
+		activeAtWriteStart.bw = bandwidth
+	}
 	return
 }
 
@@ -55,12 +59,12 @@ func (mpq *MPQuic) sendSCMP() {
 			break
 		}
 
-		for i := range mpq.raddrs {
-			cmn.Remote = *mpq.raddrs[i]
+		for i := range mpq.paths {
+			cmn.Remote = *mpq.paths[i].raddr
 			id := uint64(i + 1)
 			info := &scmp.InfoEcho{Id: id, Seq: seq}
 			pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
-			b := make(common.RawBytes, mpq.paths[i].Entry.Path.Mtu)
+			b := make(common.RawBytes, mpq.paths[i].path.Entry.Path.Mtu)
 			nhAddr := cmn.NextHopAddr()
 
 			nextPktTS := time.Now()
@@ -141,9 +145,9 @@ func (mpq *MPQuic) rcvSCMP() {
 
 		// Calculate RTT
 		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-		if info.Id-1 < uint64(len(mpq.raddrRTTs)) {
+		if info.Id-1 < uint64(len(mpq.paths)) {
 			//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
-			mpq.raddrRTTs[info.Id-1] = rtt
+			mpq.paths[info.Id-1].rtt = rtt
 		} else {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrong InfoEcho Id. id=%v\n", info.Id)
 		}
@@ -155,9 +159,10 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 	sciondTimeout := 3 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), sciondTimeout)
 	defer cancel()
-	syncPathMonitor, err := resolver.WatchFilter(ctx, mpq.network.IA(), mpq.raddrs[0].IA, filter)
+	syncPathMonitor, err := resolver.WatchFilter(ctx, mpq.network.IA(), mpq.paths[0].raddr.IA, filter)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to monitor paths. src=%v, dst=%v, filter=%v\n", mpq.network.IA(), mpq.raddrs[0].IA, filter)
+		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to monitor paths. src=%v, dst=%v, filter=%v\n",
+			mpq.network.IA(), mpq.paths[0].raddr.IA, filter)
 		syncPathMonitor = nil
 	}
 
@@ -166,29 +171,30 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 	}
 
 	syncPathsData := syncPathMonitor.Load()
-	for pathIndex, expiringPath := range mpq.paths {
-		selectionKey := expiringPath.Key()
+	for pathIndex, expiringPathInfo := range mpq.paths {
+		selectionKey := expiringPathInfo.path.Key()
 		appPath := syncPathsData.APS.GetAppPath(selectionKey)
 		if appPath.Key() != selectionKey {
 			_, _ = fmt.Fprintf(os.Stderr, "INFO: Failed to refresh path. Retrying later. "+
 				"src=%v, dst=%v, key=%v, path=%v, filter=%v\n",
-				mpq.network.IA(), mpq.raddrs[0].IA, selectionKey, expiringPath.Entry.Path.Interfaces, filter)
+				mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces, filter)
 		} else {
 			freshExpTime := time.Unix(int64(appPath.Entry.Path.ExpTime), 0)
-			if freshExpTime.After(mpq.raddrPathExp[pathIndex]) {
-				mpq.paths[pathIndex] = *appPath
+			if freshExpTime.After(mpq.paths[pathIndex].expiration) {
+				mpq.paths[pathIndex].path = *appPath
 
 				// Update the path on the remote address
 				newPath := spath.New(appPath.Entry.Path.FwdPath)
 				_ = newPath.InitOffsets()
-				tmpRaddr := mpq.raddrs[pathIndex].Copy()
+				tmpRaddr := mpq.paths[pathIndex].raddr.Copy()
 				tmpRaddr.Path = newPath
 				tmpRaddr.NextHop, _ = appPath.Entry.HostInfo.Overlay()
-				mpq.raddrs[pathIndex] = tmpRaddr
+				mpq.paths[pathIndex].raddr = tmpRaddr
 			} else {
 				_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Refreshed path does not have later expiry. Retrying later. "+
 					"src=%v, dst=%v, key=%v, path=%v, filter=%v, currExp=%v, freshExp=%v\n",
-					mpq.network.IA(), mpq.raddrs[0].IA, selectionKey, expiringPath.Entry.Path.Interfaces, filter, mpq.raddrPathExp[pathIndex], freshExpTime)
+					mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces,
+					filter, mpq.paths[pathIndex].expiration, freshExpTime)
 			}
 		}
 	}
@@ -196,9 +202,9 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 
 func (mpq *MPQuic) earliestPathExpiry() (ret time.Time) {
 	ret = time.Now().Add(maxDuration)
-	for _, exp := range mpq.raddrPathExp {
-		if exp.Before(ret) {
-			ret = exp
+	for _, pathInfo := range mpq.paths {
+		if pathInfo.expiration.Before(ret) {
+			ret = pathInfo.expiration
 		}
 	}
 	return
@@ -208,15 +214,15 @@ func (mpq *MPQuic) managePaths() {
 	lastUpdate := time.Now()
 	pr := mpq.network.PathResolver()
 	// Get initial expiration time of all paths
-	for i, path := range mpq.paths {
-		mpq.raddrPathExp[i] = time.Unix(int64(path.Entry.Path.ExpTime), 0)
+	for i, pathInfo := range mpq.paths {
+		mpq.paths[i].expiration = time.Unix(int64(pathInfo.path.Entry.Path.ExpTime), 0)
 	}
 
 	// Busy wait until we have at least measurements on two paths
 	for {
 		var measuredPaths int
-		for _, v := range mpq.raddrRTTs {
-			if v != maxDuration {
+		for _, pathInfo := range mpq.paths {
+			if pathInfo.rtt != maxDuration {
 				measuredPaths += 1
 			}
 		}

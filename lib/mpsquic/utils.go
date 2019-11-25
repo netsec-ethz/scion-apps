@@ -1,8 +1,8 @@
 package mpsquic
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
@@ -40,7 +40,7 @@ func parseSPath(vpath spath.Path) (cpath *combinator.Path, err error) {
 
 		var hopFields []*combinator.HopField
 		var segInterfaces []sciond.PathInterface
-		for i:=0; i < int(infoF.Hops); i++ {
+		for i := 0; i < int(infoF.Hops); i++ {
 			hf, err := vpath.GetHopField(vpath.HopOff)
 			if err != nil {
 				return nil, err

@@ -59,10 +59,10 @@ const (
 )
 
 var (
-	local   snet.Addr
-	remote  snet.Addr
-	paths   []spathmeta.AppPath
-	file    = flag.String("file", "",
+	local  snet.Addr
+	remote snet.Addr
+	paths  []spathmeta.AppPath
+	file   = flag.String("file", "",
 		"File containing the data to send, optional to test larger data (only client)")
 	interactive = flag.Bool("ibb", false, "Interactive mode")
 	id          = flag.String("id", "boingboing", "Element ID")
@@ -170,15 +170,15 @@ func initNetwork() {
 }
 
 type message struct {
-	BoingBoing  string
-	Data      []byte
-	Timestamp int64
+	BoingBoing string
+	Data       []byte
+	Timestamp  int64
 }
 
 func requestMsg() *message {
 	return &message{
 		BoingBoing: ReqMsg,
-		Data:     fileData,
+		Data:       fileData,
 	}
 }
 
@@ -316,7 +316,7 @@ func (c client) send() {
 
 		reqMsg = &message{
 			BoingBoing: ReqMsg,
-			Data:     fileData,
+			Data:       fileData,
 		}
 
 		// Send boing? message to destination
@@ -489,7 +489,7 @@ func choosePaths(interactive bool) []*sd.PathReplyEntry {
 	for _, p := range pathSet {
 		paths = append(paths, p.Entry)
 	}
-	if  len(pathSet) == 0 || paths == nil {
+	if len(pathSet) == 0 || paths == nil {
 		return nil
 	}
 

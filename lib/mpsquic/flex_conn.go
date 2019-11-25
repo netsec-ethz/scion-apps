@@ -45,6 +45,10 @@ func newSCIONFlexConn(sconn snet.Conn, laddr, raddr *snet.Addr) *SCIONFlexConn {
 func (c *SCIONFlexConn) SetRemoteAddr(raddr *snet.Addr) {
 	c.addrMtx.Lock()
 	defer c.addrMtx.Unlock()
+	c.setRemoteAddr(raddr)
+}
+
+func (c *SCIONFlexConn) setRemoteAddr(raddr *snet.Addr) {
 	c.raddr = raddr
 }
 
