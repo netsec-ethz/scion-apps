@@ -44,7 +44,7 @@ func (conn *sessConn) Close() error {
 		return err
 	}
 
-	err = conn.sess.Close(nil)
+	err = conn.sess.Close()
 	if err != nil {
 		return err
 	}

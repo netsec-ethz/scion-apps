@@ -118,7 +118,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt h2quic.RoundTripOpt) (*h
 			This problem is solved in subsequent releases of quic-go (>v0.8.0)
 			See issue https://github.com/scionproto/scion/issues/2463
 			*/
-			cfg.RequestConnectionIDOmission = false
+			//cfg.RequestConnectionIDOmission = false
 
 			host, port, err := net.SplitHostPort(addrStr)
 			if err != nil {
