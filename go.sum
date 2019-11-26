@@ -83,8 +83,8 @@ github.com/matttproud/golang_protobuf_extensions v1.0.1 h1:4hp9jkHxhMHkqkrB3Ix0j
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9 h1:ZivaaKmjs9q90zi6I4gTLW6tbVGtlBjellr3hMYaly0=
 github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9/go.mod h1:np1wUFZ6tyoke22qDJZY40URn9Ae51gX7ljIWXN5TJs=
-github.com/netsec-ethz/rains v0.0.0-20191126102126-6bd703984e72 h1:8Jvyd2P5MyKzqNW1Wsc/LFHhzA9IEza5MiTwEC95hJ4=
-github.com/netsec-ethz/rains v0.0.0-20191126102126-6bd703984e72/go.mod h1:ni1o1IkkjOXwFllSKvk4YIST89bhoVC2KfAryAUcO/M=
+github.com/netsec-ethz/rains v0.0.0-20191126120654-4931e2c70057 h1:I0h+jBBjfdJfqpO75EKKjbApiYDl0k15U8U/VV8VqME=
+github.com/netsec-ethz/rains v0.0.0-20191126120654-4931e2c70057/go.mod h1:rHRWgPysw8oFUpmL0uk1E+BbgnLJx8G3nc7ibClKW9I=
 github.com/netsec-ethz/scion v0.0.0-20191126100951-b45109524c36 h1:wQ54mSW73GLCEFr0XqwKRWZmDFcHA8owohHUduM+oFg=
 github.com/netsec-ethz/scion v0.0.0-20191126100951-b45109524c36/go.mod h1:QRqz4BE99GSaV3rjKFxe65OKal3MHoHodFFBYFSmw08=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

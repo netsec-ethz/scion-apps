@@ -13,7 +13,7 @@ require (
 	github.com/lucas-clemente/quic-go v0.11.0
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
-	github.com/netsec-ethz/rains v0.0.0-20190912114116-83f56a7cb2d1
+	github.com/netsec-ethz/rains v0.0.0-20191126120654-4931e2c70057
 	github.com/scionproto/scion v0.4.0
 	github.com/smartystreets/goconvey v1.6.4
 	golang.org/x/crypto v0.0.0-20190909091759-094676da4a83
@@ -22,5 +22,3 @@ require (
 )
 
 replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20191126100951-b45109524c36
-
-replace github.com/netsec-ethz/rains => github.com/netsec-ethz/rains v0.0.0-20191126102126-6bd703984e72
