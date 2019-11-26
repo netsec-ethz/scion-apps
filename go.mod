@@ -5,9 +5,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/bclicn/color v0.0.0-20180711051946-108f2023dc84
 	github.com/bgentry/speakeasy v0.1.0 // indirect
-	github.com/britram/borat v0.0.0-20181011130314-f891bcfcfb9b // indirect
-	github.com/d4l3k/messagediff v1.2.1 // indirect
-	github.com/inconshreveable/log15 v0.0.0-20161013181240-944cbfb97b44
+	github.com/inconshreveable/log15 v0.0.0-20180818164646-67afb5ed74ec
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/kr/pty v1.1.8
 	github.com/lucas-clemente/quic-go v0.11.0
@@ -16,12 +14,11 @@ require (
 	github.com/netsec-ethz/rains v0.0.0-20190912114116-83f56a7cb2d1
 	github.com/scionproto/scion v0.4.0
 	github.com/smartystreets/goconvey v1.6.4
-	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+	golang.org/x/crypto v0.0.0-20190909091759-094676da4a83
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/d4l3k/messagediff.v1 v1.2.1 // indirect
 )
 
-replace github.com/scionproto/scion => github.com/netsec-ethz/netsec-scion v0.0.0-20191125131751-ff10566d67ac
+replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20191126100951-b45109524c36
 
-go 1.13
+replace github.com/netsec-ethz/rains => github.com/netsec-ethz/rains v0.0.0-20191126102126-6bd703984e72
