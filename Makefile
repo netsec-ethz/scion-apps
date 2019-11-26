@@ -15,7 +15,7 @@ install: all
 # using eval to create as many rules as we have $TARGETS
 # each target corresponds to the binary file name (e.g. sensorapp/sensorserver/sensorserver)
 define gobuild_tmpl = 
-$(1): $(2)
+$(1): go.mod $(2)
 	cd $$(dir $$@) && go build
 endef
 $(foreach D,$(TARGETS),$(eval $(call gobuild_tmpl, $(D), $(shell find $(dir $(D)) -name '*.go') )))
