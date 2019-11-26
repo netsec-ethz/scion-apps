@@ -117,15 +117,7 @@ func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, path
 	return DialMPWithBindSVC(network, laddr, raddr, paths, nil, addr.SvcNone, quicConfig)
 }
 
-func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath, baddr *snet.Addr,
-	svc addr.HostSVC, quicConfig *quic.Config) (*MPQuic, error) {
-
-	if network == nil {
-		network = snet.DefNetwork
-	}
-
-	sconn, err := sListen(network, laddr, baddr, svc)
-
+func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, err error) {
 	// Connect to the dispatcher
 	var overlayBindAddr *overlay.OverlayAddr
 	if baddr != nil {
@@ -138,45 +130,76 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 	}
 	laddrMonitor := laddr.Copy()
 	laddrMonitor.Host.L4 = addr.NewL4UDPInfo(laddr.Host.L4.Port() + 1)
-	dispConn, _, err := reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
+	dispConn, _, err = reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
 		overlayBindAddr, addr.SvcNone)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to register with the dispatcher addr=%s\nerr=%v", laddrMonitor, err))
 	}
+	return dispConn, err
+}
 
-	var raddrs []*snet.Addr = []*snet.Addr{}
-	if paths != nil {
-		for _, p := range *paths {
-			r := raddr.Copy()
-			r.Path = spath.New(p.Entry.Path.FwdPath)
-			_ = r.Path.InitOffsets()
-			r.NextHop, _ = p.Entry.HostInfo.Overlay()
-			raddrs = append(raddrs, r)
-		}
-	} else {
-		paths = &[]spathmeta.AppPath{}
-		// Infer path meta information from path on raddr, since no paths were provided
-		con, err := parseSPath(*raddr.Path)
-		if err == nil {
-			pathMeta := sciond.FwdPathMeta{
-				FwdPath:    raddr.Path.Raw,
-				Mtu:        con.Mtu,
-				Interfaces: con.Interfaces,
-				ExpTime:    uint32(con.ComputeExpTime().Unix())}
-			appPath := spathmeta.AppPath{
-				Entry: &sciond.PathReplyEntry{
-					Path:     &pathMeta,
-					HostInfo: *hostinfo.FromHostAddr(raddr.Host.L3, raddr.Host.L4.Port())}}
-			*paths = append(*paths, appPath)
-		}
-		if raddr.Path != nil {
-			_ = raddr.Path.InitOffsets()
-		}
-		raddrs = append(raddrs, raddr)
+// Creates a AppPath using the raw path available on a snet.Addr, missing values are set to their zero value
+func mockAppPath(raddr *snet.Addr) (appPath *spathmeta.AppPath, err error) {
+	appPath = &spathmeta.AppPath{
+		Entry: &sciond.PathReplyEntry{
+			Path:     nil,
+			HostInfo: *hostinfo.FromHostAddr(raddr.Host.L3, raddr.Host.L4.Port())}}
+	if raddr.Path == nil {
+		return appPath, nil
 	}
 
-	if len(raddrs) < 1 {
-		return nil, errors.New(fmt.Sprintf("No valid remote addresses or paths. raddr=%s\npaths=%v", raddr, paths))
+	cpath, err := parseSPath(*raddr.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	appPath.Entry.Path = &sciond.FwdPathMeta{
+		FwdPath:    raddr.Path.Raw,
+		Mtu:        cpath.Mtu,
+		Interfaces: cpath.Interfaces,
+		ExpTime:    uint32(cpath.ComputeExpTime().Unix())}
+	return appPath, nil
+}
+
+func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath, baddr *snet.Addr,
+	svc addr.HostSVC, quicConfig *quic.Config) (*MPQuic, error) {
+
+	if network == nil {
+		network = snet.DefNetwork
+	}
+
+	sconn, err := sListen(network, laddr, baddr, svc)
+	if err != nil {
+		return nil, err
+	}
+
+	dispConn, err := createSCMPMonitorConn(laddr, baddr)
+	if err != nil {
+		return nil, err
+	}
+
+	if paths == nil {
+		paths = &[]spathmeta.AppPath{}
+		// Infer path meta information from path on raddr, since no paths were provided
+		appPath, err := mockAppPath(raddr)
+		if err != nil {
+			return nil, err
+		}
+		*paths = append(*paths, *appPath)
+	}
+
+	var raddrs []*snet.Addr = []*snet.Addr{}
+	// Initialize a raddr for each path
+	for _, p := range *paths {
+		r := raddr.Copy()
+		if p.Entry.Path != nil {
+			r.Path = spath.New(p.Entry.Path.FwdPath)
+		}
+		if r.Path != nil {
+			_ = r.Path.InitOffsets()
+		}
+		r.NextHop, _ = p.Entry.HostInfo.Overlay()
+		raddrs = append(raddrs, r)
 	}
 
 	pathInfos := []pathInfo{}
