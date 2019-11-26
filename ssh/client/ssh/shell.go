@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/docker/docker/pkg/term"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // Shell opens a new Shell session on the server this Client is connected to.
@@ -25,20 +25,20 @@ func (client *Client) Shell() error {
 		ssh.ECHO: 1,
 	}
 
-	fd := os.Stdin.Fd()
+	fd := int(os.Stdin.Fd())
 
-	if term.IsTerminal(fd) {
-		oldState, err := term.MakeRaw(fd)
+	if terminal.IsTerminal(fd) {
+		oldState, err := terminal.MakeRaw(fd)
 		if err != nil {
 			return err
 		}
 
-		defer term.RestoreTerminal(fd, oldState)
+		defer terminal.Restore(fd, oldState)
 
-		winsize, err := term.GetWinsize(fd)
+		w, h, err := terminal.GetSize(fd)
 		if err == nil {
-			termWidth = int(winsize.Width)
-			termHeight = int(winsize.Height)
+			termWidth = w
+			termHeight = h
 		}
 	}
 
@@ -76,15 +76,15 @@ func monWinCh(session *ssh.Session, fd uintptr) {
 func termSize(fd uintptr) []byte {
 	size := make([]byte, 16)
 
-	winsize, err := term.GetWinsize(fd)
+	width, height, err := terminal.GetSize(int(fd))
 	if err != nil {
 		binary.BigEndian.PutUint32(size, uint32(80))
 		binary.BigEndian.PutUint32(size[4:], uint32(24))
 		return size
 	}
 
-	binary.BigEndian.PutUint32(size, uint32(winsize.Width))
-	binary.BigEndian.PutUint32(size[4:], uint32(winsize.Height))
+	binary.BigEndian.PutUint32(size, uint32(width))
+	binary.BigEndian.PutUint32(size[4:], uint32(height))
 
 	return size
 }
