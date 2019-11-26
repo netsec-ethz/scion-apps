@@ -10,7 +10,7 @@ require (
 	github.com/inconshreveable/log15 v0.0.0-20180818164646-67afb5ed74ec
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/kr/pty v1.1.8
-	github.com/lucas-clemente/quic-go v0.11.0
+	github.com/lucas-clemente/quic-go v0.7.1-0.20190212114006-fd7246d7ed6e
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.0.0-20191126120654-4931e2c70057
