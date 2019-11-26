@@ -6,14 +6,26 @@ The applications are written in Go, with some supporting code in Python. A SCION
 
 More information on [SCION](https://www.scion-architecture.net/), and [tutorials on how to set up SCION and SCIONLab](https://netsec-ethz.github.io/scion-tutorials/).
 
-To build:
-1. run once the provided script `deps.sh` to set up the dependencies
-2. run `make install` to build all projects and install into `$GOPATH/bin`
-
-Or to install our Debian package:
+### Installation:
+Download and install our Debian packages:
 ```shell
+sudo apt-get install apt-transport-https
+echo "deb [trusted=yes] https://packages.netsec.inf.ethz.ch/debian all main" | sudo tee /etc/apt/sources.list.d/scionlab.list
+sudo apt-get update
 sudo apt install scion-apps-*
 ```
+
+### Build:
+
+Building the `SSH` tool requires `libpam0g-dev`:
+
+```shell
+sudo apt-get install -y libpam0g-dev
+```
+
+Run `make` to build all projects.
+Run `make install` to build all projects and install into `$GOPATH/bin`
+
 
 ## bat
 

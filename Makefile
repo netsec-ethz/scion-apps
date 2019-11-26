@@ -6,9 +6,6 @@ TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
 all: $(TARGETS)
 
-deps:
-	./deps.sh
-
 clean:
 	@$(foreach d,$(SRCDIRS),cd $(ROOT_DIR)/$(d) && go clean;)
 
