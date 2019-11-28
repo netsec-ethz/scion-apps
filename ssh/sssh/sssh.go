@@ -2,6 +2,8 @@ package sssh
 
 import (
 	"errors"
+	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"net"
 	"time"
 
@@ -11,18 +13,12 @@ import (
 )
 
 // DialSCION starts a client connection to the given SSH server over SCION using QUIC.
-func DialSCION(addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
-	transportStream, err := scionutils.DialSCION(addr)
-	if err != nil {
-		return nil, err
-	}
-
-	conn, nc, rc, err := ssh.NewClientConn(transportStream, transportStream.RemoteAddr().String(), config)
-	if err != nil {
-		return nil, err
-	}
-
-	return ssh.NewClient(conn, nc, rc), nil
+func DialSCION(clientAddr string, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	return dialSCION(clientAddr, addr, config, scionutils.DialSCION)
+}
+// DialSCION starts a client connection to the given SSH server over SCION using QUIC.
+func DialSCIONWithConf(clientAddr string, addr string, config *ssh.ClientConfig, appConf *scionutil.AppConf) (*ssh.Client, error) {
+	return dialSCION(clientAddr, addr, config, dialCSCIONWithConf(appConf))
 }
 
 // TunnelDialSCION creates a tunnel using the given SSH client.
@@ -86,4 +82,24 @@ func (t *chanConn) SetReadDeadline(deadline time.Time) error {
 // but is not implemented by this type.  It always returns an error.
 func (t *chanConn) SetWriteDeadline(deadline time.Time) error {
 	return errors.New("scion-ssh: deadline not supported")
+}
+
+type dial func (localAddress string, remoteAddress string) (*quicconn.QuicConn, error)
+
+func dialSCION(clientAddr string, addr string, config *ssh.ClientConfig, dialFunc dial) (*ssh.Client, error) {
+	transportStream, err := dialFunc(clientAddr, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, nc, rc, err := ssh.NewClientConn(transportStream, transportStream.RemoteAddr().String(), config)
+	if err != nil {
+		return nil, err
+	}
+	return ssh.NewClient(conn, nc, rc), nil
+}
+func dialCSCIONWithConf(conf *scionutil.AppConf) dial {
+	return func(localAddress string, remoteAddress string) (conn *quicconn.QuicConn, e error) {
+		return scionutils.DialSCIONWithConf(localAddress, remoteAddress, conf)
+	}
 }

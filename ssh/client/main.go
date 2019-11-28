@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/scionproto/scion/go/lib/pathpol"
+	"github.com/scionproto/scion/go/lib/sciond"
+	"io/ioutil"
 	golog "log"
 	"net"
 	"os"
@@ -36,15 +40,20 @@ var (
 	verbose       = kingpin.Flag("verbose", "Be verbose").Short('v').Default("false").Bool()
 	configFiles   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
 	xDead         = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
+	clientAddrStr = kingpin.Flag("client-address", "SCION address of the client").Default("").String()
+	policyFile  = kingpin.Flag("policy-file", "Path to the JSON policy file").Default("").String()
+	policyName = kingpin.Flag("policy-name", "Name of policy to be applied.").Default("").String()
+	pathSelection = kingpin.Flag("selection", "Path selection mode").Default("arbitrary").Enum("static", "arbitrary", "random", "round-robin")
 
 	// TODO: additional file paths
 	knownHostsFile = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
 	identityFile   = kingpin.Flag("identity", "Identity (private key) file").Short('i').ExistingFile()
 
 	loginName = kingpin.Flag("login-name", "Username to login with").String()
-)
+	clientCCAddr *snet.Addr
+	err error
+	)
 
-var clientCCAddr *snet.Addr
 
 // PromptPassword prompts the user for a password to authenticate with.
 func PromptPassword() (secret string, err error) {
@@ -115,7 +124,9 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
-	scionlog.SetupLogConsole("debug")
+	//scionlog.SetupLogConsole("debug")
+	dir, _ := os.Getwd()
+	scionlog.SetupLogFile("ssh-client", dir, "debug", 10, 10, 100, 0 )
 
 	conf := createConfig()
 
@@ -124,15 +135,30 @@ func main() {
 		golog.Panicf("Can't find current user: %s", err)
 	}
 
-	localhost, err := scionutil.GetLocalhost()
-	if err != nil {
-		golog.Panicf("Can't get localhost: %v", err)
+
+
+	if *clientAddrStr == "" { //connect via default.sock, used for running on scionlab AS
+		clientCCAddr, err = scionutil.GetLocalhost()
+		if err != nil {
+			golog.Panicf("Can't get localhost: %v", err)
+		}
+		err = scionutil.InitSCION(clientCCAddr)
+		if err != nil {
+			golog.Panicf("Error initializing SCION: %v", err)
+		}
+	} else { // for local topologies, used client address from command line
+		clientCCAddr, err = snet.AddrFromString(*clientAddrStr)
+		if err != nil {
+			golog.Panicf("Cannot get client local address from string: %v", err)
+		}
+		sciondPath := sciond.GetDefaultSCIONDPath(&clientCCAddr.IA)
+		err = snet.Init(clientCCAddr.IA, sciondPath , scionutil.GetDefaultDispatcher())
+		if err != nil {
+			golog.Panicf("Error initializing SCION: %v", err)
+		}
 	}
 
-	err = scionutil.InitSCION(localhost)
-	if err != nil {
-		golog.Panicf("Error initializing SCION: %v", err)
-	}
+
 
 	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
 	if err != nil {
@@ -150,15 +176,37 @@ func main() {
 	if remoteUsername == "" {
 		remoteUsername = localUser.Username
 	}
+	var policyMap pathpol.PolicyMap
+	var policy *pathpol.Policy
+	if *policyFile != "" {
+		file, err := ioutil.ReadFile(*policyFile)
+		if err != nil {
+			golog.Panicf("Cannot read policy file: %v", err)
+		}
+		err = json.Unmarshal(file, &policyMap)
+		if err != nil {
+			golog.Panicf("Cannot unmarshal policy form file: %v", err)
+		}
+		extPolicy, policyExists := policyMap[*policyName]
 
-	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler)
+		if !policyExists {
+			golog.Panicf("No policy with name %s exists", *policyName)
+		}
+		policy = extPolicy.Policy
+	}
+	appConf, err := scionutil.NewAppConf(policy, *pathSelection)
+	if err != nil {
+		golog.Panicf("Invalid application config: %v", err)
+	}
+
+	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler, appConf)
 	if err != nil {
 		golog.Panicf("Error creating ssh client: %v", err)
 	}
 
 	serverAddress := fmt.Sprintf("%s:%v", conf.HostAddress, conf.Port)
 
-	err = sshClient.Connect(serverAddress)
+	err = sshClient.Connect(*clientAddrStr, serverAddress)
 	if err != nil {
 		golog.Panicf("Error connecting: %v", err)
 	}

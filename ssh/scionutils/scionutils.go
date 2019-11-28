@@ -1,7 +1,10 @@
 package scionutils
 
 import (
+	"crypto/tls"
 	"fmt"
+	"github.com/netsec-ethz/netsec-scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/addr"
 	"regexp"
 
 	"github.com/lucas-clemente/quic-go"
@@ -26,39 +29,13 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 }
 
 // DialSCION dials a SCION host and opens a new QUIC stream
-func DialSCION(remoteAddress string) (*quicconn.QuicConn, error) {
-	localhost, err := scionutil.GetLocalhostString()
-	if err != nil {
-		return nil, err
-	}
-
-	localAddress := fmt.Sprintf("%v:%v", localhost, 0)
-
-	localCCAddr, err := snet.AddrFromString(localAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	remoteCCAddr, err := snet.AddrFromString(remoteAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	quicConfig := &quic.Config{
-		KeepAlive: true,
-	}
-
-	sess, err := squic.DialSCION(nil, localCCAddr, remoteCCAddr, quicConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	stream, err := sess.OpenStreamSync()
-	if err != nil {
-		return nil, err
-	}
-
-	return &quicconn.QuicConn{Session: sess, Stream: stream}, nil
+func DialSCION(localAddress string, remoteAddress string) (*quicconn.QuicConn, error) {
+	return dialSCION(localAddress, remoteAddress, squic.DialSCION)
+}
+// DialSCIONWithConf performs the same funcionality as DialSCION, but with a SCION connection that is aware of
+// user-defined configurations specified in scionutil.AppConf
+func DialSCIONWithConf(localAddress string, remoteAddress string, appConf *scionutil.AppConf) (*quicconn.QuicConn, error) {
+	return dialSCION(localAddress, remoteAddress, squicDialWithConf(appConf))
 }
 
 // ListenSCION listens on the given port with the QUIC protocol, and returns a listener
@@ -82,3 +59,59 @@ func ListenSCION(port uint16) (quic.Listener, error) {
 
 	return listener, nil
 }
+
+type squicDial func (network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
+	quicConfig *quic.Config) (quic.Session, error)
+
+func dialSCION(localAddress string, remoteAddress string, dialer squicDial) (*quicconn.QuicConn, error) {
+	if localAddress == "" {
+		localhost, err := scionutil.GetLocalhostString()
+		if err != nil {
+			return nil, err
+		}
+
+		localAddress = fmt.Sprintf("%v:%v", localhost, 0)
+	}
+	localCCAddr, err := snet.AddrFromString(localAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	remoteCCAddr, err := snet.AddrFromString(remoteAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	quicConfig := &quic.Config{
+		KeepAlive: true,
+	}
+
+	sess, err := dialer(nil, localCCAddr, remoteCCAddr, quicConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	stream, err := sess.OpenStreamSync()
+	if err != nil {
+		return nil, err
+	}
+
+	return &quicconn.QuicConn{Session: sess, Stream: stream}, nil
+}
+
+//partially applied function to wrap the SICONConn passed to quic.Dial in a ConnWrapper object
+func squicDialWithConf (conf *scionutil.AppConf) squicDial {
+
+	return func(network *snet.SCIONNetwork, laddr, raddr *snet.Addr, quicConfig *quic.Config) (session quic.Session, e error) {
+		sconn, err := snet.DefNetwork.ListenSCIONWithBindSVC("udp4", laddr, nil, addr.SvcNone, 0)
+		if err != nil {
+			return nil, common.NewBasicError("ConnWrapper: error listening SCION", err)
+		}
+		wrappedConn := scionutil.NewConnWrapper(sconn, conf) // connWrapper takes a SCIONConn and an AppConf
+		return quic.Dial(wrappedConn, raddr, "host:0", &tls.Config{InsecureSkipVerify:true}, quicConfig)
+	}
+}
+
+
+
+
