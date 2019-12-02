@@ -40,6 +40,8 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 	return
 }
 
+// monitor monitors the paths of mpq by sending SCMP messages at regular intervals and recording the replies in separate goroutines.
+// It manages path expiration and path change decisions.
 func (mpq *MPQuic) monitor() {
 	cmn.Remote = *mpq.SCIONFlexConnection.raddr
 	cmn.Local = *mpq.SCIONFlexConnection.laddr
@@ -53,6 +55,7 @@ func (mpq *MPQuic) monitor() {
 	go mpq.managePaths()
 }
 
+// sendSCMP sends SCMP messages on all paths in mpq.
 func (mpq *MPQuic) sendSCMP() {
 	var seq uint16
 	for {
@@ -96,6 +99,7 @@ func (mpq *MPQuic) sendSCMP() {
 	}
 }
 
+// rcvSCMP receives SCMP messages and records the RTT for each path in mpq.
 func (mpq *MPQuic) rcvSCMP() {
 	for {
 		if mpq.dispConn == nil {
@@ -155,6 +159,7 @@ func (mpq *MPQuic) rcvSCMP() {
 	}
 }
 
+// refreshPaths request sciond for updated paths
 func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 	var filter *pathpol.Policy = nil
 	sciondTimeout := 3 * time.Second
@@ -203,6 +208,7 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 	}
 }
 
+// earliestPathExpiry computes the earliest expiration time of any path registered in mpq.
 func (mpq *MPQuic) earliestPathExpiry() (ret time.Time) {
 	ret = time.Now().Add(maxDuration)
 	for _, pathInfo := range mpq.paths {
@@ -213,6 +219,7 @@ func (mpq *MPQuic) earliestPathExpiry() (ret time.Time) {
 	return
 }
 
+// managePaths evaluates every 5 seconds if a path is about to expire and if there is a better path to switch to.
 func (mpq *MPQuic) managePaths() {
 	lastUpdate := time.Now()
 	pr := mpq.network.PathResolver()

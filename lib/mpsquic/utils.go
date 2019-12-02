@@ -10,7 +10,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-// Parse raw forwarding path spath.Path to combinator.Path
+// Parse raw forwarding path spath.Path to combinator.Path .
 func parseSPath(vpath spath.Path) (cpath *combinator.Path, err error) {
 	var segments []*combinator.Segment
 	var interfaces []sciond.PathInterface
@@ -74,6 +74,7 @@ func parseSPath(vpath spath.Path) (cpath *combinator.Path, err error) {
 
 // Debug helpers
 
+// printHFDetails prints the HopField metainformation: Ingress/Egress interface, expiration time, MAC and Xover/VerifyOnly properties.
 func printHFDetails(path *spath.Path) {
 	cpath, err := parseSPath(*path)
 	if err != nil {

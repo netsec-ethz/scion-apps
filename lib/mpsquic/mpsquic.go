@@ -68,6 +68,7 @@ var (
 	srvTlsCfg = &tls.Config{}
 )
 
+// Init initializes the QUIC session's crypto.
 func Init(keyPath, pemPath string) error {
 	if keyPath == "" {
 		keyPath = defKeyPath
@@ -83,6 +84,8 @@ func Init(keyPath, pemPath string) error {
 	return nil
 }
 
+// OpenStreamSync opens a QUIC stream over the QUIC session.
+// It returns a QUIC stream ready to be written/read.
 func (mpq *MPQuic) OpenStreamSync() (quic.Stream, error) {
 	stream, err := mpq.Session.OpenStreamSync()
 	if err != nil {
@@ -91,6 +94,7 @@ func (mpq *MPQuic) OpenStreamSync() (quic.Stream, error) {
 	return monitoredStream{stream, mpq}, nil
 }
 
+// Close closes the QUIC session.
 func (mpq *MPQuic) Close(err error) error {
 	if mpq.Session != nil {
 		return mpq.Session.Close(err)
@@ -98,6 +102,7 @@ func (mpq *MPQuic) Close(err error) error {
 	return nil
 }
 
+// CloseConn closes the embedded SCION connection.
 func (mpq *MPQuic) CloseConn() error {
 	if mpq.dispConn != nil {
 		tmp := mpq.dispConn
@@ -111,12 +116,16 @@ func (mpq *MPQuic) CloseConn() error {
 	return mpq.SCIONFlexConnection.Close()
 }
 
+// DialMP creates a monitored multiple path connection using QUIC over SCION.
+// It returns a MPQuic struct if opening a QUIC session over the initial SCION path succeeded.
 func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath,
 	quicConfig *quic.Config) (*MPQuic, error) {
 
 	return DialMPWithBindSVC(network, laddr, raddr, paths, nil, addr.SvcNone, quicConfig)
 }
 
+// createSCMPMonitorConn opens a connection to the default dispatcher.
+// It returns a reliable socket connection.
 func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, err error) {
 	// Connect to the dispatcher
 	var overlayBindAddr *overlay.OverlayAddr
@@ -138,7 +147,7 @@ func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, er
 	return dispConn, err
 }
 
-// Creates a AppPath using the raw path available on a snet.Addr, missing values are set to their zero value
+// Creates a AppPath using the raw path available on a snet.Addr, missing values are set to their zero value.
 func mockAppPath(raddr *snet.Addr) (appPath *spathmeta.AppPath, err error) {
 	appPath = &spathmeta.AppPath{
 		Entry: &sciond.PathReplyEntry{
@@ -161,6 +170,8 @@ func mockAppPath(raddr *snet.Addr) (appPath *spathmeta.AppPath, err error) {
 	return appPath, nil
 }
 
+// DialMPWithBindSVC creates a monitored multiple paths connection using QUIC over SCION on the specified bind address baddr.
+// It returns a MPQuic struct if a opening a QUIC session over the initial SCION path succeeded.
 func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (*MPQuic, error) {
 
@@ -230,6 +241,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 	return mpQuic, nil
 }
 
+// displayStats prints the collected metrics for all monitored paths.
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
 		fmt.Printf("Path %v will expire at %v.\n", i, pathInfo.expiration)
@@ -238,6 +250,7 @@ func (mpq *MPQuic) displayStats() {
 	}
 }
 
+// policyLowerRTTMatch returns true if the path with candidate index has a lower RTT than the active path.
 func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
 	if mpq.paths[candidate].rtt < mpq.active.rtt {
 		return true
@@ -245,16 +258,17 @@ func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
 	return false
 }
 
+// updateActivePath updates the active path in a thread safe manner.
 func (mpq *MPQuic) updateActivePath(newPathIndex int) {
-	// Lock the connection raddr, and update both the active path and the raddr of the FlexConn
+	// Lock the connection raddr, and update both the active path and the raddr of the FlexConn.
 	mpq.SCIONFlexConnection.addrMtx.Lock()
 	defer mpq.SCIONFlexConnection.addrMtx.Unlock()
 	mpq.active = &mpq.paths[newPathIndex]
 	mpq.SCIONFlexConnection.setRemoteAddr(mpq.active.raddr)
 }
 
-// This switches between different SCION paths as given by the SCION address with path structs in paths
-// The force flag makes switching a requirement, set it when continuing to use the existing path is not an option
+// switchMPConn switches between different SCION paths as given by the SCION address with path structs in paths.
+// The force flag makes switching a requirement, set it when continuing to use the existing path is not an option.
 func switchMPConn(mpq *MPQuic, force bool) error {
 	if _, set := os.LookupEnv("DEBUG"); set { // TODO: Remove this when cleaning up logging
 		fmt.Println("Updating to better path:")

@@ -23,6 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+// DialSCION creates a single path QUIC connection over SCION.
+// It returns a QUIC Session.
 func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
 	quicConfig *quic.Config) (quic.Session, error) {
 
@@ -33,6 +35,8 @@ func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
 	return mpQuic, nil
 }
 
+// DialSCION creates a single path QUIC connection over SCION on the bind address baddr.
+// It returns a QUIC Session.
 func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (quic.Session, error) {
 
@@ -43,12 +47,16 @@ func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.
 	return mpQuic, nil
 }
 
+// ListenSCION listens for incoming QUIC connections over SCION addresses to the local SCION address laddr.
+// It returns a QUIC Listener.
 func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr,
 	quicConfig *quic.Config) (quic.Listener, error) {
 
 	return ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone, quicConfig)
 }
 
+// ListenSCION listens for incoming QUIC connections over SCION binding to the SCION address baddr.
+// It returns a QUIC Listener.
 func ListenSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (quic.Listener, error) {
 

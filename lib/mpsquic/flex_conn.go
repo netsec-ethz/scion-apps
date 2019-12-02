@@ -42,6 +42,7 @@ func newSCIONFlexConn(sconn snet.Conn, laddr, raddr *snet.Addr) *SCIONFlexConn {
 	return c
 }
 
+// SetRemoteAddr updates the remote address raddr of the SCIONFlexConn connection in a thread safe manner.
 func (c *SCIONFlexConn) SetRemoteAddr(raddr *snet.Addr) {
 	c.addrMtx.Lock()
 	defer c.addrMtx.Unlock()
@@ -52,9 +53,15 @@ func (c *SCIONFlexConn) setRemoteAddr(raddr *snet.Addr) {
 	c.raddr = raddr
 }
 
+// Write writes the byte slice b to the embedded SCION connection of the SCIONFlexConn.
+// It returns the number of bytes written and any write error encountered.
 func (c *SCIONFlexConn) Write(b []byte) (n int, err error) {
 	return c.WriteToSCION(b, c.raddr)
 }
+
+// WriteTo writes the byte slice b to the embedded SCION connection of the SCIONFlexConn. The raddr parameter is ignored
+// and the data is always written to the raddr on the connection.
+// It returns the number of bytes written and any write error encountered.
 func (c *SCIONFlexConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	_, ok := raddr.(*snet.Addr)
 	if !ok {
@@ -64,6 +71,9 @@ func (c *SCIONFlexConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	return c.WriteToSCION(b, c.raddr)
 }
 
+// WriteToSCION writes the byte slice b to the embedded SCION connection of the SCIONFlexConn. The raddr parameter is ignored
+// and the data is always written to the raddr on the connection.
+// It returns the number of bytes written and any write error encountered.
 func (c *SCIONFlexConn) WriteToSCION(b []byte, raddr *snet.Addr) (int, error) {
 	c.addrMtx.RLock()
 	defer c.addrMtx.RUnlock()
