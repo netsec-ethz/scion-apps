@@ -3,7 +3,6 @@ package ssh
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"io"
 	"io/ioutil"
 	"net"
@@ -39,12 +38,12 @@ type Client struct {
 
 	client  *ssh.Client
 	session *ssh.Session
-	appConf *scionutil.AppConf
+	appConf *scionutils.PathAppConf
 }
 
 // Create creates a new unconnected Client.
 func Create(username string, config *clientconfig.ClientConfig, passAuthHandler AuthenticationHandler,
-	verifyNewKeyHandler VerifyHostKeyHandler, appConf *scionutil.AppConf) (*Client, error) {
+	verifyNewKeyHandler VerifyHostKeyHandler, appConf *scionutils.PathAppConf) (*Client, error) {
 	client := &Client{
 		config: &ssh.ClientConfig{
 			User: username,

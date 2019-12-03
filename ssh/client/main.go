@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"io/ioutil"
@@ -124,7 +125,6 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
-	//scionlog.SetupLogConsole("debug")
 	dir, _ := os.Getwd()
 	scionlog.SetupLogFile("ssh-client", dir, "debug", 10, 10, 100, 0 )
 
@@ -194,7 +194,7 @@ func main() {
 		}
 		policy = extPolicy.Policy
 	}
-	appConf, err := scionutil.NewAppConf(policy, *pathSelection)
+	appConf, err := scionutils.NewPathAppConf(policy, *pathSelection)
 	if err != nil {
 		golog.Panicf("Invalid application config: %v", err)
 	}

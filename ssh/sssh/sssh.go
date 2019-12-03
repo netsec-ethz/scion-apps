@@ -2,7 +2,6 @@ package sssh
 
 import (
 	"errors"
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"net"
 	"time"
@@ -16,8 +15,9 @@ import (
 func DialSCION(clientAddr string, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
 	return dialSCION(clientAddr, addr, config, scionutils.DialSCION)
 }
-// DialSCION starts a client connection to the given SSH server over SCION using QUIC.
-func DialSCIONWithConf(clientAddr string, addr string, config *ssh.ClientConfig, appConf *scionutil.AppConf) (*ssh.Client, error) {
+// DialSCION starts a client connection to the given SSH server over SCION using QUIC
+// Passes an instance of PathAppConf to the connection to make it aware of user-defined path configurations
+func DialSCIONWithConf(clientAddr string, addr string, config *ssh.ClientConfig, appConf *scionutils.PathAppConf) (*ssh.Client, error) {
 	return dialSCION(clientAddr, addr, config, dialCSCIONWithConf(appConf))
 }
 
@@ -98,7 +98,7 @@ func dialSCION(clientAddr string, addr string, config *ssh.ClientConfig, dialFun
 	}
 	return ssh.NewClient(conn, nc, rc), nil
 }
-func dialCSCIONWithConf(conf *scionutil.AppConf) dial {
+func dialCSCIONWithConf(conf *scionutils.PathAppConf) dial {
 	return func(localAddress string, remoteAddress string) (conn *quicconn.QuicConn, e error) {
 		return scionutils.DialSCIONWithConf(localAddress, remoteAddress, conf)
 	}

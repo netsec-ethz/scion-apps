@@ -33,8 +33,8 @@ func DialSCION(localAddress string, remoteAddress string) (*quicconn.QuicConn, e
 	return dialSCION(localAddress, remoteAddress, squic.DialSCION)
 }
 // DialSCIONWithConf performs the same funcionality as DialSCION, but with a SCION connection that is aware of
-// user-defined configurations specified in scionutil.AppConf
-func DialSCIONWithConf(localAddress string, remoteAddress string, appConf *scionutil.AppConf) (*quicconn.QuicConn, error) {
+// user-defined configurations specified in scionutil.PathAppConf
+func DialSCIONWithConf(localAddress string, remoteAddress string, appConf *PathAppConf) (*quicconn.QuicConn, error) {
 	return dialSCION(localAddress, remoteAddress, squicDialWithConf(appConf))
 }
 
@@ -100,14 +100,14 @@ func dialSCION(localAddress string, remoteAddress string, dialer squicDial) (*qu
 }
 
 //partially applied function to wrap the SICONConn passed to quic.Dial in a ConnWrapper object
-func squicDialWithConf (conf *scionutil.AppConf) squicDial {
+func squicDialWithConf (conf *PathAppConf) squicDial {
 
 	return func(network *snet.SCIONNetwork, laddr, raddr *snet.Addr, quicConfig *quic.Config) (session quic.Session, e error) {
 		sconn, err := snet.DefNetwork.ListenSCIONWithBindSVC("udp4", laddr, nil, addr.SvcNone, 0)
 		if err != nil {
 			return nil, common.NewBasicError("ConnWrapper: error listening SCION", err)
 		}
-		wrappedConn := scionutil.NewConnWrapper(sconn, conf) // connWrapper takes a SCIONConn and an AppConf
+		wrappedConn, err := conf.ConnWrapperFromConfig(sconn) // policyConn takes a SCIONConn and an PathAppConf
 		return quic.Dial(wrappedConn, raddr, "host:0", &tls.Config{InsecureSkipVerify:true}, quicConfig)
 	}
 }
