@@ -23,30 +23,6 @@
    "isdas": "19-ffaa:1:22",
    "addr": "141.44.25.146",
    "port": 30100
-  },
-  {
-   "name": "17-ffaa:0:1107 Attachment Point",
-   "isdas": "17-ffaa:0:1107",
-   "addr": "10.0.8.1",
-   "port": 30100
-  },
-  {
-   "name": "18-ffaa:0:1206 Attachment Point",
-   "isdas": "18-ffaa:0:1206",
-   "addr": "10.0.8.1",
-   "port": 30100
-  },
-  {
-   "name": "19-ffaa:0:1303 Attachment Point",
-   "isdas": "19-ffaa:0:1303",
-   "addr": "10.0.8.1",
-   "port": 30100
-  },
-  {
-   "name": "20-ffaa:0:1404 Attachment Point",
-   "isdas": "20-ffaa:0:1404",
-   "addr": "10.0.8.1",
-   "port": 30100
   }
  ],
  "camerapp": [
