@@ -147,23 +147,23 @@ func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, er
 	return dispConn, err
 }
 
-// Creates a AppPath using the raw path available on a snet.Addr, missing values are set to their zero value.
-func mockAppPath(raddr *snet.Addr) (appPath *spathmeta.AppPath, err error) {
+// Creates an AppPath using the spath.Path and hostinfo addr.AppAddr available on a snet.Addr, missing values are set to their zero value.
+func mockAppPath(spathP *spath.Path, host *addr.AppAddr) (appPath *spathmeta.AppPath, err error) {
 	appPath = &spathmeta.AppPath{
 		Entry: &sciond.PathReplyEntry{
 			Path:     nil,
-			HostInfo: *hostinfo.FromHostAddr(raddr.Host.L3, raddr.Host.L4.Port())}}
-	if raddr.Path == nil {
+			HostInfo: *hostinfo.FromHostAddr(host.L3, host.L4.Port())}}
+	if spathP == nil {
 		return appPath, nil
 	}
 
-	cpath, err := parseSPath(*raddr.Path)
+	cpath, err := parseSPath(*spathP)
 	if err != nil {
 		return nil, err
 	}
 
 	appPath.Entry.Path = &sciond.FwdPathMeta{
-		FwdPath:    raddr.Path.Raw,
+		FwdPath:    spathP.Raw,
 		Mtu:        cpath.Mtu,
 		Interfaces: cpath.Interfaces,
 		ExpTime:    uint32(cpath.ComputeExpTime().Unix())}
@@ -192,7 +192,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 	if paths == nil {
 		paths = &[]spathmeta.AppPath{}
 		// Infer path meta information from path on raddr, since no paths were provided
-		appPath, err := mockAppPath(raddr)
+		appPath, err := mockAppPath(raddr.Path, raddr.Host)
 		if err != nil {
 			return nil, err
 		}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pathpol"
@@ -125,41 +126,88 @@ func (mpq *MPQuic) rcvSCMP() {
 			continue
 		}
 		// Validate scmp packet
-		var scmpHdr *scmp.Hdr
-		var scmpPld *scmp.Payload
-		var info *scmp.InfoEcho
-
 		scmpHdr, ok := pkt.L4.(*scmp.Hdr)
 		if !ok {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an SCMP header. type=%v\n", common.TypeOf(pkt.L4))
 			continue
 		}
-		scmpPld, ok = pkt.Pld.(*scmp.Payload)
+		scmpPld, ok := pkt.Pld.(*scmp.Payload)
 		if !ok {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an SCMP payload. type=%v\n", common.TypeOf(pkt.Pld))
 			continue
 		}
-		_ = scmpPld
-		info, ok = scmpPld.Info.(*scmp.InfoEcho)
-		if !ok {
+
+		switch scmpPld.Info.(type) {
+		case *scmp.InfoRevocation:
+			pathKey, err := getReversePathKey(*pkt.Path)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to map revocation to path key. err=%v\n", err)
+			}
+			mpq.handleSCMPRevocation(scmpPld.Info.(*scmp.InfoRevocation), pathKey)
+		case *scmp.InfoEcho:
+			cmn.Stats.Recv += 1
+			// Calculate RTT
+			rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
+			scmpId := scmpPld.Info.(*scmp.InfoEcho).Id
+			if scmpId-1 < uint64(len(mpq.paths)) {
+				//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
+				mpq.paths[scmpId-1].rtt = rtt
+			} else {
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrong InfoEcho Id. id=%v\n", scmpId)
+			}
+		default:
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an Info Echo. type=%v\n", common.TypeOf(scmpPld.Info))
-			continue
-		}
-
-		cmn.Stats.Recv += 1
-
-		// Calculate RTT
-		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-		if info.Id-1 < uint64(len(mpq.paths)) {
-			//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
-			mpq.paths[info.Id-1].rtt = rtt
-		} else {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrong InfoEcho Id. id=%v\n", info.Id)
 		}
 	}
 }
 
-// refreshPaths request sciond for updated paths
+// getReversePathKey gets an AppPath key for path after reversing it.
+func getReversePathKey(path spath.Path) (pk *spathmeta.PathKey, err error) {
+	err = path.Reverse()
+	if err != nil {
+		return nil, err
+	}
+	appPath, err := mockAppPath(&path, nil)
+	if err != nil {
+		return nil, err
+	}
+	appPathKey := appPath.Key()
+	return &appPathKey, nil
+}
+
+// handleSCMPRevocation revocation handles explicit revocation notification of a link on a path being probed
+// The active path is switched if the revocation expiration is in the future and was issued for an interface on the active path.
+// If the revocation expiration is in the future, but for a backup path, the only the expiration time of the path is set to the current time.
+func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *spathmeta.PathKey) {
+	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(revocation.RawSRev)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to decode SignedRevInfo from SCMP InfoRevocation payload. err=%v\n", err)
+	}
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to decode SCMP signed revocation Info. err=%v\n", err)
+	}
+	ri, err := signedRevInfo.RevInfo()
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to decode SCMP revocation Info. err=%v\n", err)
+	}
+	if ri.Expiration().After(time.Now()) {
+		for i, pathInfo := range mpq.paths {
+			if pathInfo.path.Key() == *pk {
+				mpq.paths[i].expiration = time.Now()
+			}
+		}
+	} else {
+		// Ignore expired revocations
+	}
+	if *pk == mpq.active.path.Key() {
+		err := switchMPConn(mpq, false)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path after path revocation. err=%v\n", err)
+		}
+	}
+}
+
+// refreshPaths requests sciond for updated paths
 func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 	var filter *pathpol.Policy = nil
 	sciondTimeout := 3 * time.Second
