@@ -46,7 +46,8 @@ var chartCS;
 var chartSC;
 var chartSE;
 var lastTime;
-var lastTimeBwDb = new Date((new Date()).getTime() - (xAxisSec * 1000));
+var lastTimeBwDb = new Date((new Date()).getTime() - (xAxisSec * 1000))
+        .getTime();
 
 var dial_prop_all = {
     // dial constants
@@ -108,6 +109,7 @@ function initBwGraphs() {
     updateBwInterval();
 
     // charts update on tab switch
+    handleSwitchTabs(); // init
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
         var name = $(e.target).attr("name");
         if (name != "as-graphs" && name != "as-tab-pathtopo") {
@@ -127,7 +129,7 @@ function initBwGraphs() {
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
     manageTickData();
-    manageTestData();
+    // avoid manageTestData on startup before tests
 }
 
 function showOnlyConsoleGraphs(activeApp) {
@@ -359,9 +361,6 @@ function manageTickData() {
 
 function manageTestData() {
     // setup interval to request data point updates, only in range
-    var now = (new Date()).getTime();
-    maxTimeBwDb = (new Date(now - (xAxisSec * 1000))).getTime();
-    lastTimeBwDb = (lastTimeBwDb < maxTimeBwDb ? maxTimeBwDb : lastTimeBwDb);
     clearInterval(intervalGraphData); // prevent overlap
     intervalGraphData = setInterval(function() {
         // update continuous test parameters
@@ -369,7 +368,6 @@ function manageTestData() {
         if (checked) {
             command(true);
         }
-        now = (new Date()).getTime();
         // update continuous results
         var form_data = {
             since : lastTimeBwDb
@@ -386,8 +384,24 @@ function manageTestData() {
         } else if (activeApp == "traceroute") {
             requestTraceRouteByTime(form_data);
         }
-        lastTimeBwDb = now;
     }, dataIntervalMs);
+}
+
+function manageTestEnd(d, appSel, since) {
+    if (d.active != null) {
+        if (d.active) {
+            enableTestControls(false);
+            lockTab(appSel);
+            failContinuousOff();
+        } else {
+            enableTestControls(true);
+            releaseTabs();
+            // waiting for reported data
+            if (d.graph != null) {
+                clearInterval(intervalGraphData);
+            }
+        }
+    }
 }
 
 function requestBwTestByTime(form_data) {
@@ -395,17 +409,7 @@ function requestBwTestByTime(form_data) {
         var d = JSON.parse(json);
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
-            if (d.active != null) {
-                if (d.active) {
-                    enableTestControls(false);
-                    lockTab("bwtester");
-                    failContinuousOff();
-                } else {
-                    enableTestControls(true);
-                    releaseTabs();
-                    clearInterval(intervalGraphData);
-                }
-            }
+            manageTestEnd(d, "bwtester", form_data.since);
             if (d.graph != null) {
                 // write data on graph
                 for (var i = 0; i < d.graph.length; i++) {
@@ -432,6 +436,7 @@ function requestBwTestByTime(form_data) {
                     console.info(JSON.stringify(data));
                     console.info('continuous bwtester', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+                    lastTimeBwDb = Math.max(lastTimeBwDb, d.graph[i].Inserted);
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updateBwGraph(data, time)
@@ -446,17 +451,7 @@ function requestEchoByTime(form_data) {
         var d = JSON.parse(json);
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
-            if (d.active != null) {
-                if (d.active) {
-                    enableTestControls(false);
-                    lockTab("echo");
-                    failContinuousOff();
-                } else {
-                    enableTestControls(true);
-                    releaseTabs();
-                    clearInterval(intervalGraphData);
-                }
-            }
+            manageTestEnd(d, "echo", form_data.since);
             if (d.graph != null) {
                 // write data on graph
                 for (var i = 0; i < d.graph.length; i++) {
@@ -477,11 +472,22 @@ function requestEchoByTime(form_data) {
                         data.runTime = d.graph[i].ActualDuration;
                     }
                     console.info(JSON.stringify(data));
-                    console.info('continous echo', 'duration:',
+                    console.info('continuous echo', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+                    lastTimeBwDb = Math.max(lastTimeBwDb, d.graph[i].Inserted);
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updatePingGraph(chartSE, data, time)
+
+                    // update latency stats, when valid, use average
+                    if (d.graph[i].ResponseTime > 0) {
+                        var path = setEchoLatency(d.graph[i].Path
+                                .match("\\[.*]"), d.graph[i].ResponseTime);
+                        if (path.latency) {
+                            var latStr = formatLatency(path.latency.Last);
+                            $('#path-lat-' + path.listIdx).html(latStr);
+                        }
+                    }
                 }
             }
         }
@@ -493,17 +499,7 @@ function requestTraceRouteByTime(form_data) {
         var d = JSON.parse(json);
         console.info('resp:', JSON.stringify(d));
         if (d != null) {
-            if (d.active != null) {
-                $('#switch_cont').prop("checked", d.active);
-                if (d.active) {
-                    enableTestControls(false);
-                    lockTab("traceroute");
-                } else {
-                    enableTestControls(true);
-                    releaseTabs();
-                    clearInterval(intervalGraphData);
-                }
-            }
+            manageTestEnd(d, "traceroute", form_data.since);
             if (d.graph != null) {
                 // write data on graph
                 for (var i = 0; i < d.graph.length; i++) {
@@ -513,10 +509,109 @@ function requestTraceRouteByTime(form_data) {
                         handleEndCmdDisplay(d.graph[i].CmdOutput);
                     }
 
-                    console.info('continous traceroute', 'duration:',
+                    console.info('continuous traceroute', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+                    lastTimeBwDb = Math.max(lastTimeBwDb, d.graph[i].Inserted);
+                    // use the time the test began
+                    var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
 
                     // TODO (mwfarb): implement traceroute graph
+
+                    // update latency stats, when valid, use average
+                    var trhops = ((d.graph[i].Path.split('>').length) * 2) - 1;
+                    if (!d.graph[i].TrHops
+                            || d.graph[i].TrHops.length != trhops) {
+                        console.error("Did not receive expected " + trhops
+                                + " traceroute hops.");
+                        continue;
+                    }
+                    var path = setTracerouteLatency(d.graph[i].Path
+                            .match("\\[.*]"), d.graph[i].TrHops);
+                    for (var i = 0; i < path.interfaces.length; i++) {
+                        var if_ = path.interfaces[i];
+                        var if_prev = path.interfaces[i - 1];
+                        if (if_.latency) {
+                            var latStr = formatLatency(if_.latency.Last);
+                            $('#path-lat-' + path.listIdx + '-' + i).html(
+                                    latStr);
+                        }
+                        // update each inter-AS link with difference
+                        if (i % 2 == 1) {
+                            var diff = if_.latency.Min - if_prev.latency.Min;
+                            var latStr = formatLatency(diff);
+                            $('#path-lat-diff-' + path.listIdx + '-' + (i - 1))
+                                    .html(latStr);
+                        }
+                    }
+                    if (path.latency) {
+                        var latStr = formatLatency(path.latency.Last);
+                        $('#path-lat-' + path.listIdx).html(latStr);
+                    }
+                }
+            }
+        }
+    });
+}
+
+var backgroundEcho;
+function surveyEchoBackground() {
+    var lastTimeBkg = (new Date()).getTime();
+    var form_data = $('#command-form').serializeArray();
+    var interval = 0.1;
+    var count = 3;
+    form_data.push({
+        name : "apps",
+        value : "echo"
+    }, {
+        name : "count",
+        value : count
+    }, {
+        name : "continuous",
+        value : true
+    }, {
+        name : "pathStr",
+        value : formatPathStringAll(resPath, 'PATH')
+    }, {
+        name : "interval",
+        value : interval
+    });
+    // start background echo
+    console.info('req:', JSON.stringify(form_data));
+    $.post('/command', form_data, function(resp, status, jqXHR) {
+        console.info('resp:', resp);
+    }).fail(function(error) {
+        showError(error.responseJSON);
+    });
+
+    clearInterval(backgroundEcho);
+    backgroundEcho = setInterval(function() {
+        reportEchoBackground({
+            since : lastTimeBkg
+        });
+        lastTimeBkg = (new Date()).getTime();
+    }, dataIntervalMs);
+}
+
+function reportEchoBackground(form_data) {
+    $.post("/getechobytime", form_data, function(json) {
+        var d = JSON.parse(json);
+        console.info('resp:', JSON.stringify(d));
+        if (d != null) {
+            if (!d.active) {
+                // end background echo
+                clearInterval(backgroundEcho);
+            }
+            if (d.graph != null) {
+                for (var i = 0; i < d.graph.length; i++) {
+                    // update latency stats, when valid, use average
+                    if (d.graph[i].ResponseTime > 0) {
+                        var path = setEchoLatency(d.graph[i].Path
+                                .match("\\[.*]"), d.graph[i].ResponseTime);
+                        if (path.latency) {
+                            var latStr = formatLatency(path.latency.Last);
+                            $('#path-lat-' + path.listIdx).html(latStr);
+                        }
+                    }
                 }
             }
         }
@@ -654,13 +749,19 @@ function command(continuous) {
             name : "continuous",
             value : continuous
         });
-        if (self.segType == 'PATH') { // only full paths allowed
+        if (self.segType == 'PATH') { // single path open
             form_data.push({
                 name : "pathStr",
                 value : formatPathString(resPath, self.segNum, self.segType)
             });
+        } else if (continuous) { // all paths in survey
+            form_data.push({
+                name : "pathStr",
+                value : formatPathStringAll(resPath, 'PATH')
+            });
         }
     }
+
     if (activeApp == "bwtester") {
         form_data.push({
             name : "interval",

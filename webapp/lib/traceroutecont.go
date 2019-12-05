@@ -41,8 +41,6 @@ func ExtractTracerouteRespData(resp string, d *model.TracerouteItem, start time.
 	// store current epoch in ms
 	d.Inserted = time.Now().UnixNano() / 1e6
 
-	//log.Info("resp response", "content", resp)
-
 	var path, err string
 	pathNext := false
 	r := strings.Split(resp, "\n")
@@ -144,7 +142,7 @@ func GetTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request, active b
 		returnError(w, err)
 		return
 	}
-	// log.Debug("Requested data:", "tracerouteResults", tracerouteResults)
+	log.Debug("Requested data:", "tracerouteResults", tracerouteResults)
 
 	tracerouteJSON, err := json.Marshal(tracerouteResults)
 	if CheckError(err) {
@@ -156,7 +154,6 @@ func GetTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request, active b
 	jsonBuf = append(jsonBuf, json...)
 	jsonBuf = append(jsonBuf, []byte(`}`)...)
 
-	//log.Debug(string(jsonBuf))
 	// ensure % if any, is escaped correctly before writing to printf formatter
 	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
 }

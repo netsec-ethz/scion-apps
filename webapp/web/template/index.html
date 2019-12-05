@@ -411,10 +411,16 @@
     </div>
 
     <div id="as-iflist">
-     <h2>
-      Available Paths <span class='badge'>hops</span>
-     </h2>
      <input type="button" value="Update Paths" onclick="requestPaths();" />
+     <p>
+     <div>
+      <span class='path-text'
+       style='background-color: black; font-weight: bold;'>
+       Available Paths</span> <span class='path-text'
+       style='background-color: gray; font-weight: bold;'>Hops</span> <span
+       id='path-lat-title' class='latency-text'
+       style='font-weight: bold;'>RTT ms</span>
+     </div>
      <p>
      <p id="path-info"></p>
     </div>

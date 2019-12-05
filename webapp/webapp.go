@@ -394,10 +394,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			bwSC := fmt.Sprintf("-sc=%d,%d,%d,%dbps", d.SCDuration/1000, d.SCPktSize,
 				d.SCPackets, d.SCBandwidth)
 			command = append(command, bwCS, bwSC)
-			if len(pathStr) > 0 {
-				// if path choice provided, use interactive mode
-				command = append(command, "-i")
-			}
 		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
@@ -414,10 +410,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
 		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
-		if len(pathStr) > 0 {
-			// if path choice provided, use interactive mode
-			command = append(command, "-i")
-		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
 	case "traceroute":
@@ -431,13 +423,13 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		command = append(command, installpath, optApp, optRemote, optLocal, optTimeout)
-		if len(pathStr) > 0 {
-			// if path choice provided, use interactive mode
-			command = append(command, "-i")
-		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
 
+	if len(pathStr) > 0 {
+		// if path choice provided, use interactive mode
+		command = append(command, "-i")
+	}
 	if isdCli < 16 {
 		// -sciondFromIA is better for localhost testing, with test isds
 		command = append(command, "-sciondFromIA")
@@ -452,6 +444,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	appSel := r.PostFormValue("apps")
 	continuous, _ := strconv.ParseBool(r.PostFormValue("continuous"))
 	interval, _ := strconv.Atoi(r.PostFormValue("interval"))
+	count, _ := strconv.Atoi(r.PostFormValue("count"))
 	if appSel == "" {
 		fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
 		return
@@ -476,7 +469,8 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		if !contCmdActive {
 			// run continuous goroutine
 			contCmdActive = true
-			go continuousCmd(t)
+			log.Warn("Launching continuousCmd", "count", count)
+			go continuousCmd(t, count)
 		} else {
 			// continuous goroutine running?
 			if continuous {
@@ -489,14 +483,18 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// single run
-		executeCommand(w, r)
+		pathStr := r.PostFormValue("pathStr")
+		executeCommand(w, r, pathStr)
 	}
 }
 
 // Could either be bwtest, echo or traceroute
-func continuousCmd(t contCmd) {
+func continuousCmd(t contCmd, count int) {
 	log.Info(fmt.Sprintf("Starting continuous %s...", t))
+	pathIdx := 0
+	attempts := 0
 	defer func() {
+		log.Warn("Ending continuousCmd", "count", count)
 		log.Info(fmt.Sprintf("Ending continuous %s...", t))
 	}()
 	for contCmdActive {
@@ -506,9 +504,16 @@ func continuousCmd(t contCmd) {
 			contCmdActive = false
 			break
 		}
+
 		r := contCmdRequest
+		thePath := ""
+		pathStr := r.PostFormValue("pathStr")
+		paths := strings.Split(pathStr, ",")
+		if pathIdx >= 0 && pathIdx < len(paths) {
+			thePath = paths[pathIdx]
+		}
 		start := time.Now()
-		executeCommand(nil, r)
+		executeCommand(nil, r, thePath)
 
 		// block on cmd output finish
 		<-contCmdChanDone
@@ -522,14 +527,23 @@ func continuousCmd(t contCmd) {
 		}
 		log.Info(fmt.Sprintf("Test took %d ms, sleeping for remaining interval: %d ms",
 			elapsed.Nanoseconds()/1e6, remaining.Nanoseconds()/1e6))
+		if pathIdx >= (len(paths) - 1) { // iterate all paths given
+			pathIdx = 0
+			attempts++
+		} else {
+			pathIdx++
+		}
+		if count > 0 && attempts >= count {
+			log.Info("Continuous count reached ", "count", count, "attempts", attempts)
+			contCmdActive = false
+		}
 		time.Sleep(remaining)
 	}
 }
 
-func executeCommand(w http.ResponseWriter, r *http.Request) {
+func executeCommand(w http.ResponseWriter, r *http.Request, pathStr string) {
 	r.ParseForm()
 	appSel := r.PostFormValue("apps")
-	pathStr := r.PostFormValue("pathStr")
 	d, addlOpt := parseRequest2CmdItem(r, appSel)
 	command := parseCmdItem2Cmd(d, appSel, pathStr)
 	if addlOpt != "" {
@@ -707,7 +721,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 	}
 
 	if appSel == "traceroute" {
-		// parse traceroute data/error
+		// parse scmp traceroute data/error
 		d, ok := d.(model.TracerouteItem)
 		if !ok {
 			log.Error("Parsing error, CmdItem category doesn't match its name")

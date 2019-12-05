@@ -52,6 +52,7 @@ var cNodes string
 var cGeoLoc string
 
 func returnError(w http.ResponseWriter, err error) {
+	log.Error("Error:", "err", err)
 	fmt.Fprintf(w, `{"err":`+strconv.Quote(err.Error())+`}`)
 }
 
