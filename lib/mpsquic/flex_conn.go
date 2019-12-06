@@ -28,14 +28,16 @@ var _ snet.Conn = (*SCIONFlexConn)(nil)
 
 type SCIONFlexConn struct {
 	snet.Conn
+	mpq     *MPQuic
 	laddr   *snet.Addr
 	raddr   *snet.Addr
 	addrMtx sync.RWMutex
 }
 
-func newSCIONFlexConn(sconn snet.Conn, laddr, raddr *snet.Addr) *SCIONFlexConn {
+func newSCIONFlexConn(sconn snet.Conn, mpq *MPQuic, laddr, raddr *snet.Addr) *SCIONFlexConn {
 	c := &SCIONFlexConn{
 		Conn:  sconn,
+		mpq:   mpq,
 		laddr: laddr,
 		raddr: raddr,
 	}
@@ -78,5 +80,21 @@ func (c *SCIONFlexConn) WriteToSCION(b []byte, raddr *snet.Addr) (int, error) {
 	c.addrMtx.RLock()
 	defer c.addrMtx.RUnlock()
 	// Ignore raddr, force use of c.raddr
-	return c.Conn.WriteToSCION(b, c.raddr)
+	n, err := c.Conn.WriteToSCION(b, c.raddr)
+	return n, err
+}
+
+func (c *SCIONFlexConn) Read(b []byte) (int, error) {
+	n, _, err := c.ReadFromSCION(b)
+	return n, err
+}
+
+func (c *SCIONFlexConn) ReadFrom(b []byte) (int, net.Addr, error) {
+	n, addr, err := c.ReadFromSCION(b)
+	return n, addr, err
+}
+
+func (c *SCIONFlexConn) ReadFromSCION(b []byte) (int, *snet.Addr, error) {
+	n, addr, err := c.Conn.ReadFromSCION(b)
+	return n, addr, err
 }

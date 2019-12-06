@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -412,7 +413,19 @@ func (s server) handleClient(qsess quic.Session) {
 		// Receive boing? message
 		msg, err := qs.ReadMsg()
 		if err != nil {
-			log.Error("Unable to read", "err", err)
+			if qErr, ok := err.(*qerr.QuicError); ok {
+				if qErr.ErrorCode == qerr.PeerGoingAway {
+					// Client went away
+					log.Debug("Client went away and closed the stream.", "err", err)
+					break
+				}
+			}
+			if err == io.EOF {
+				// Client went away
+				log.Debug("Client went away without closing the stream.", "err", err)
+				break
+			}
+			log.Error("Unable to read from client", "err", err)
 			break
 		}
 
@@ -420,6 +433,13 @@ func (s server) handleClient(qsess quic.Session) {
 		replyMsg := replyMsg(msg)
 		err = qs.WriteMsg(replyMsg)
 		if err != nil {
+			if qErr, ok := err.(*qerr.QuicError); ok {
+				if qErr.ErrorCode == qerr.PeerGoingAway {
+					// Client went away
+					log.Debug("Client went away and closed the stream.", "err", err)
+					break
+				}
+			}
 			log.Error("Unable to write", "err", err)
 			break
 		}

@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/qerr"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hpkt"
@@ -32,6 +36,20 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 	activeAtWriteStart := ms.underlayConn.active
 	start := time.Now()
 	n, err = ms.Stream.Write(p)
+	if err != nil {
+		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+			fmt.Println("Stream timeout", "err", err)
+			return
+		}
+		if qErr, ok := err.(*qerr.QuicError); ok {
+			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
+				// Remote went away
+				fmt.Println("Stream error", "err", err)
+				return 0, qErr
+			}
+		}
+		fmt.Println("monitoredStream error", err)
+	}
 	elapsed := time.Now().Sub(start)
 	bandwidth := len(p) * 8 * 1e9 / int(elapsed)
 	// Check if the path remained the same
@@ -41,11 +59,30 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 	return
 }
 
+func (ms monitoredStream) Read(p []byte) (n int, err error) {
+	n, err = ms.Stream.Read(p)
+	if err != nil {
+		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+			fmt.Println("Stream timeout", "err", err)
+			return
+		}
+		if qErr, ok := err.(*qerr.QuicError); ok {
+			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
+				// Remote went away
+				fmt.Println("Stream error", "err", err)
+				return 0, qErr
+			}
+		}
+		fmt.Println("monitoredStream error", err)
+	}
+	return
+}
+
 // monitor monitors the paths of mpq by sending SCMP messages at regular intervals and recording the replies in separate goroutines.
 // It manages path expiration and path change decisions.
 func (mpq *MPQuic) monitor() {
-	cmn.Remote = *mpq.SCIONFlexConnection.raddr
-	cmn.Local = *mpq.SCIONFlexConnection.laddr
+	cmn.Remote = *mpq.scionFlexConnection.raddr
+	cmn.Local = *mpq.scionFlexConnection.laddr
 	if cmn.Stats == nil {
 		cmn.Stats = &cmn.ScmpStats{}
 	}
@@ -115,7 +152,11 @@ func (mpq *MPQuic) rcvSCMP() {
 			if common.IsTimeoutErr(err) {
 				continue
 			} else {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to read. err=%v\n", err)
+				if strings.Contains(err.Error(), "use of closed network connection") {
+					_, _ = fmt.Fprintf(os.Stderr, "INFO: Unable to read SCMP reply. Network down.\n")
+					break
+				}
+				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to read SCMP reply. err=%v\n", err)
 				break
 			}
 		}
@@ -142,6 +183,7 @@ func (mpq *MPQuic) rcvSCMP() {
 			pathKey, err := getReversePathKey(*pkt.Path)
 			if err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to map revocation to path key. err=%v\n", err)
+				continue
 			}
 			mpq.handleSCMPRevocation(scmpPld.Info.(*scmp.InfoRevocation), pathKey)
 		case *scmp.InfoEcho:
@@ -198,9 +240,10 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *spa
 		}
 	} else {
 		// Ignore expired revocations
+		fmt.Println("Processing revocation", "Ignoring expired revocation.")
 	}
 	if *pk == mpq.active.path.Key() {
-		err := switchMPConn(mpq, false)
+		err := mpq.switchMPConn(true, false)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path after path revocation. err=%v\n", err)
 		}
@@ -273,7 +316,7 @@ func (mpq *MPQuic) managePaths() {
 	pr := mpq.network.PathResolver()
 	// Get initial expiration time of all paths
 	for i, pathInfo := range mpq.paths {
-		mpq.paths[i].expiration = time.Unix(int64(pathInfo.path.Entry.Path.ExpTime), 0)
+		mpq.paths[i].expiration = pathInfo.path.Entry.Path.Expiry()
 	}
 
 	// Busy wait until we have at least measurements on two paths
@@ -305,7 +348,7 @@ func (mpq *MPQuic) managePaths() {
 
 		sinceLastUpdate := time.Now().Sub(lastUpdate)
 		time.Sleep(maxFlap - sinceLastUpdate) // Failing paths are handled separately / faster
-		err := switchMPConn(mpq, false)
+		err := mpq.switchMPConn(false, true)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path. err=%v\n", err)
 		}

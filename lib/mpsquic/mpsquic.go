@@ -55,7 +55,7 @@ type pathInfo struct {
 
 type MPQuic struct {
 	quic.Session
-	SCIONFlexConnection *SCIONFlexConn
+	scionFlexConnection *SCIONFlexConn
 	network             *snet.SCIONNetwork
 	dispConn            *reliable.Conn
 	paths               []pathInfo
@@ -113,10 +113,10 @@ func (mpq *MPQuic) CloseConn() error {
 			return err
 		}
 	}
-	return mpq.SCIONFlexConnection.Close()
+	return mpq.scionFlexConnection.Close()
 }
 
-// DialMP creates a monitored multiple path connection using QUIC over SCION.
+// DialMP creates a monitored multiple paths connection using QUIC over SCION.
 // It returns a MPQuic struct if opening a QUIC session over the initial SCION path succeeded.
 func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath,
 	quicConfig *quic.Config) (*MPQuic, error) {
@@ -152,7 +152,10 @@ func mockAppPath(spathP *spath.Path, host *addr.AppAddr) (appPath *spathmeta.App
 	appPath = &spathmeta.AppPath{
 		Entry: &sciond.PathReplyEntry{
 			Path:     nil,
-			HostInfo: *hostinfo.FromHostAddr(host.L3, host.L4.Port())}}
+			HostInfo: *hostinfo.FromHostAddr(addr.HostFromIPStr("127.0.0.1"), 30041)}}
+	if host != nil {
+		appPath.Entry.HostInfo = *hostinfo.FromHostAddr(host.L3, host.L4.Port())
+	}
 	if spathP == nil {
 		return appPath, nil
 	}
@@ -225,19 +228,28 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 		pathInfos = append(pathInfos, pi)
 	}
 
+	mpQuic, err := newMPQuic(sconn, laddr, network, quicConfig, dispConn, pathInfos)
+	if err != nil {
+		return nil, err
+	}
+	mpQuic.monitor()
+
+	return mpQuic, nil
+}
+
+func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, quicConfig *quic.Config, dispConn *reliable.Conn, pathInfos []pathInfo) (mpQuic *MPQuic, err error) {
 	active := &pathInfos[0]
-	flexConn := newSCIONFlexConn(sconn, laddr, active.raddr)
+	mpQuic = &MPQuic{Session: nil, scionFlexConnection: nil, network: network, dispConn: dispConn, paths: pathInfos, active: active}
+	fmt.Printf("Active path key: %v,\tHops: %v\n", active.path.Key(), active.path.Entry.Path.Interfaces)
+	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
+	mpQuic.scionFlexConnection = flexConn
 
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
 	qsession, err := quic.Dial(flexConn, flexConn.raddr, "host:0", cliTlsCfg, quicConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	mpQuic := &MPQuic{Session: qsession, SCIONFlexConnection: flexConn, network: network, dispConn: dispConn, paths: pathInfos, active: active}
-
-	mpQuic.monitor()
-
+	mpQuic.Session = qsession
 	return mpQuic, nil
 }
 
@@ -252,39 +264,50 @@ func (mpq *MPQuic) displayStats() {
 
 // policyLowerRTTMatch returns true if the path with candidate index has a lower RTT than the active path.
 func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
-	if mpq.paths[candidate].rtt < mpq.active.rtt {
-		return true
-	}
-	return false
+	return mpq.paths[candidate].rtt < mpq.active.rtt
 }
 
 // updateActivePath updates the active path in a thread safe manner.
 func (mpq *MPQuic) updateActivePath(newPathIndex int) {
 	// Lock the connection raddr, and update both the active path and the raddr of the FlexConn.
-	mpq.SCIONFlexConnection.addrMtx.Lock()
-	defer mpq.SCIONFlexConnection.addrMtx.Unlock()
+	mpq.scionFlexConnection.addrMtx.Lock()
+	defer mpq.scionFlexConnection.addrMtx.Unlock()
 	mpq.active = &mpq.paths[newPathIndex]
-	mpq.SCIONFlexConnection.setRemoteAddr(mpq.active.raddr)
+	mpq.scionFlexConnection.setRemoteAddr(mpq.active.raddr)
 }
 
 // switchMPConn switches between different SCION paths as given by the SCION address with path structs in paths.
 // The force flag makes switching a requirement, set it when continuing to use the existing path is not an option.
-func switchMPConn(mpq *MPQuic, force bool) error {
+func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 	if _, set := os.LookupEnv("DEBUG"); set { // TODO: Remove this when cleaning up logging
-		fmt.Println("Updating to better path:")
 		mpq.displayStats()
 	}
+	if force {
+		// Always refresh available paths, as failing to find a fresh path leads to a hard failure
+		mpq.refreshPaths(mpq.network.PathResolver())
+	}
 	for i := range mpq.paths {
-		if mpq.SCIONFlexConnection.raddr != mpq.paths[i].raddr && mpq.policyLowerRTTMatch(i) {
-			// fmt.Printf("Previous path: %v\n", mpq.SCIONFlexConnection.raddr.Path)
+		// Do not switch to identical path or to expired path
+		if mpq.scionFlexConnection.raddr != mpq.paths[i].raddr && mpq.paths[i].expiration.After(time.Now()) {
+			// fmt.Printf("Previous path: %v\n", mpq.scionFlexConnection.raddr.Path)
 			// fmt.Printf("New path: %v\n", mpq.paths[i].raddr.Path)
-			mpq.updateActivePath(i)
-			return nil
+			if !filter {
+				mpq.updateActivePath(i)
+				fmt.Printf("Updating to path %d\n", i)
+				return nil
+			}
+			if mpq.policyLowerRTTMatch(i) {
+				mpq.updateActivePath(i)
+				fmt.Printf("Updating to better path %d\n", i)
+				return nil
+			}
 		}
 	}
 	if !force {
 		return nil
 	}
+	fmt.Printf("No path available now %v\n", time.Now())
+	mpq.displayStats()
 
 	return common.NewBasicError("mpsquic: No fallback connection available.", nil)
 }
