@@ -68,8 +68,14 @@ var (
 	srvTlsCfg = &tls.Config{}
 )
 
-// Init initializes the QUIC session's crypto.
-func Init(keyPath, pemPath string) error {
+// Init initializes initializes the SCION networking context and the QUIC session's crypto.
+func Init(ia addr.IA, sciondPath, dispatcher , keyPath, pemPath string) error {
+	/*if err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
+		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
+	}*/
+	if err := initNetworkWithPRCustomSCMPHandler(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
+		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
+	}
 	if keyPath == "" {
 		keyPath = defKeyPath
 	}

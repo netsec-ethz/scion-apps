@@ -41,7 +41,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"strings"
 
@@ -76,6 +75,7 @@ var (
 		"Timeout for the boing response")
 	interval     = flag.Duration("intervalbb", DefaultInterval, "time between boings")
 	verbose      = flag.Bool("v", false, "sets verbose output")
+	quiet        = flag.Bool("q", false, "sets quiet output, only show control output. Suppresses verbose.")
 	sciondFromIA = flag.Bool("sciondFromIA", false,
 		"SCIOND socket path from IA address:ISD-AS")
 	fileData []byte
@@ -159,12 +159,16 @@ func LogFatal(msg string, a ...interface{}) {
 }
 
 func initNetwork() {
+	/*
 	// Initialize default SCION networking context
 	if err := snet.Init(local.IA, *sciond, reliable.NewDispatcherService(*dispatcher)); err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
-	if err := mpsquic.Init("", ""); err != nil {
+	*/
+
+	// We let mpsquic initialize the SCION networking context with a custom SCMP handler
+	if err := mpsquic.Init(local.IA, *sciond, *dispatcher, "", ""); err != nil {
 		LogFatal("Unable to initialize QUIC/SCION", "err", err)
 	}
 	log.Debug("QUIC/SCION successfully initialized")
@@ -304,6 +308,7 @@ func imax(a, b int) (maximum int) {
 }
 
 func (c client) send() {
+	fileData = []byte(strings.Repeat("A", 1e5))
 	for i := 0; i < *count || *count == 0; i++ {
 		if i != 0 && *interval != 0 {
 			time.Sleep(*interval)
@@ -311,9 +316,11 @@ func (c client) send() {
 
 		reqMsg := requestMsg()
 
+		/*
 		// Send different payload size to correlate iterations in network capture
 		infoString := fmt.Sprintf("This is the %vth message sent on this stream", i)
 		fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString)-(100*(9-i)), len(infoString))))
+		*/
 
 		reqMsg = &message{
 			BoingBoing: ReqMsg,
@@ -330,6 +337,7 @@ func (c client) send() {
 			continue
 		}
 	}
+	fmt.Println("-----------------------------Client done sending.-----------------------------")
 	// After sending the last boing?, set a ReadDeadline on the stream
 	err := c.qstream.SetReadDeadline(time.Now().Add(*timeout))
 	if err != nil {
@@ -347,6 +355,7 @@ func (c client) read() {
 				log.Debug("ReadDeadline missed", "err", err)
 				// ReadDeadline is only set after we are done writing
 				// and we don't want to wait indefinitely for the remaining responses
+				fmt.Println("-----------------------------Client done receiving.-----------------------------")
 				break
 			}
 			log.Error("Unable to read", "err", err)
@@ -355,10 +364,15 @@ func (c client) read() {
 		if msg.BoingBoing != ReplyMsg {
 			log.Error("Received wrong boingboing", "expected", ReplyMsg, "actual", msg.BoingBoing)
 		}
+		if *quiet {
+			// Do not inspect data received
+			continue
+		}
 		if !bytes.Equal(msg.Data, fileData) {
 			log.Error("Received different data than sent.")
 			continue
 		}
+
 		before := time.Unix(0, int64(msg.Timestamp))
 		elapsed := after.Sub(before).Round(time.Microsecond)
 		if *verbose {

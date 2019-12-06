@@ -272,9 +272,9 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 		selectionKey := expiringPathInfo.path.Key()
 		appPath := syncPathsData.APS.GetAppPath(selectionKey)
 		if appPath.Key() != selectionKey {
-			_, _ = fmt.Fprintf(os.Stderr, "INFO: Failed to refresh path. Retrying later. "+
-				"src=%v, dst=%v, key=%v, path=%v, filter=%v\n",
-				mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces, filter)
+			_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Failed to refresh path, key does not match. Retrying later.\n")
+			//_, _ = fmt.Fprintf(os.Stderr, "INFO: src=%v, dst=%v, key=%v, path=%v, filter=%v\n",
+			//	mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces, filter)
 		} else {
 			freshExpTime := appPath.Entry.Path.Expiry()
 			if freshExpTime.After(mpq.paths[pathIndex].expiration) {
@@ -290,10 +290,10 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 				mpq.paths[pathIndex].path = spathmeta.AppPath{appPath.Entry}
 				mpq.paths[pathIndex].expiration = mpq.paths[pathIndex].path.Entry.Path.Expiry()
 			} else {
-				_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Refreshed path does not have later expiry. Retrying later. "+
-					"src=%v, dst=%v, key=%v, path=%v, filter=%v, currExp=%v, freshExp=%v\n",
-					mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces,
-					filter, mpq.paths[pathIndex].expiration, freshExpTime)
+				_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Refreshed path does not have later expiry. Retrying later.\n")
+				//_, _ = fmt.Fprintf(os.Stderr, "INFO: src=%v, dst=%v, key=%v, path=%v, filter=%v, currExp=%v, freshExp=%v\n",
+				//	mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces,
+				//	filter, mpq.paths[pathIndex].expiration, freshExpTime)
 			}
 		}
 	}
