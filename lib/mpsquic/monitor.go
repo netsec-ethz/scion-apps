@@ -2,6 +2,8 @@ package mpsquic
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"net"
@@ -89,6 +91,8 @@ func (mpq *MPQuic) monitor() {
 
 	go mpq.sendSCMP()
 	go mpq.rcvSCMP()
+
+	go mpq.processRevocations()
 
 	go mpq.managePaths()
 }
@@ -180,12 +184,17 @@ func (mpq *MPQuic) rcvSCMP() {
 
 		switch scmpPld.Info.(type) {
 		case *scmp.InfoRevocation:
-			pathKey, err := getReversePathKey(*pkt.Path)
+			pathKey, err := getSpathKey(*pkt.Path)
 			if err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to map revocation to path key. err=%v\n", err)
 				continue
 			}
-			mpq.handleSCMPRevocation(scmpPld.Info.(*scmp.InfoRevocation), pathKey)
+			select {
+				case revocationQ <- keyedRevocation{key: pathKey, revocationInfo: scmpPld.Info.(*scmp.InfoRevocation)}:
+					//fmt.Println("Processing scmp probe packet", "Revocation queued in revocationQ channel.")
+				default:
+					fmt.Println("Ignoring scmp probe packet", "Revocation channel full.")
+			}
 		case *scmp.InfoEcho:
 			cmn.Stats.Recv += 1
 			// Calculate RTT
@@ -203,25 +212,42 @@ func (mpq *MPQuic) rcvSCMP() {
 	}
 }
 
-// getReversePathKey gets an AppPath key for path after reversing it.
-func getReversePathKey(path spath.Path) (pk *spathmeta.PathKey, err error) {
-	err = path.Reverse()
+// getSpathKey returns a unique PathKey from a raw spath that can be used for map indexing.
+func getSpathKey(path spath.Path) (pk *RawKey, err error) {
+	h := sha256.New()
+	err = binary.Write(h, common.Order, path.Raw)
 	if err != nil {
 		return nil, err
 	}
-	appPath, err := mockAppPath(&path, nil)
-	if err != nil {
-		return nil, err
+	pkv := RawKey(h.Sum(nil))
+	return &pkv, nil
+}
+
+func (mpq *MPQuic) processRevocations() {
+	var rev keyedRevocation
+	for {
+		if mpq.dispConn == nil {
+			break
+		}
+		rev = <-revocationQ
+		//fmt.Println("Processing revocation", "Retrieved queued revocation from revocationQ channel.")
+		mpq.handleSCMPRevocation(rev.revocationInfo, rev.key)
 	}
-	appPathKey := appPath.Key()
-	return &appPathKey, nil
+}
+
+// Helper type for distinguishing keys on raw spaths.
+type RawKey string
+
+func (pk RawKey) String() string {
+	return common.RawBytes(pk).String()
 }
 
 // handleSCMPRevocation revocation handles explicit revocation notification of a link on a path being probed
 // The active path is switched if the revocation expiration is in the future and was issued for an interface on the active path.
 // If the revocation expiration is in the future, but for a backup path, the only the expiration time of the path is set to the current time.
-func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *spathmeta.PathKey) {
+func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *RawKey) {
 	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(revocation.RawSRev)
+
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to decode SignedRevInfo from SCMP InfoRevocation payload. err=%v\n", err)
 	}
@@ -232,9 +258,13 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *spa
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to decode SCMP revocation Info. err=%v\n", err)
 	}
+
+	// Revoke path from sciond
+	mpq.network.PathResolver().RevokeRaw(context.TODO(), revocation.RawSRev)
+
 	if ri.Expiration().After(time.Now()) {
 		for i, pathInfo := range mpq.paths {
-			if pathInfo.path.Key() == *pk {
+			if pathInfo.rawPathKey == *pk {
 				mpq.paths[i].expiration = time.Now()
 			}
 		}
@@ -242,7 +272,15 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *spa
 		// Ignore expired revocations
 		fmt.Println("Processing revocation", "Ignoring expired revocation.")
 	}
-	if *pk == mpq.active.path.Key() {
+
+	if pk == nil {
+		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to process SCMP revocation. Invalid PathKey: %v\n", pk)
+		return
+	}
+
+
+	if *pk == mpq.active.rawPathKey {
+		fmt.Println("Processing revocation", "Revocation IS for active path.")
 		err := mpq.switchMPConn(true, false)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path after path revocation. err=%v\n", err)

@@ -2,7 +2,6 @@ package mpsquic
 
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 type scmpHandler struct {
 	// pathResolver manages revocations received via SCMP. If nil, nothing is informed.
 	pathResolver pathmgr.Resolver
+	revocationQ  chan keyedRevocation
 }
 
 func (h *scmpHandler) Handle(pkt *snet.SCIONPacket) error {
@@ -45,12 +45,23 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *snet.SCIONPacket) error 
 		return common.NewBasicError("Unable to type assert SCMP Info to SCMP Revocation Info", nil,
 			"type", common.TypeOf(scmpPayload.Info))
 	}
-	fmt.Println("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String(),
-		"src", pkt.Source)
-	if h.pathResolver != nil {
-		h.pathResolver.RevokeRaw(context.TODO(), info.RawSRev)
+	//fmt.Println("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String(),
+	//	"src", pkt.Source)
+	rpath := pkt.Path
+	err := rpath.Reverse()
+	if err != nil{
+		return common.NewBasicError("Unable to reverse path from packet with SCMP revocation", err)
 	}
-	// Path has been r
+	pathKey, err := getSpathKey(*rpath)
+	if err != nil || pathKey == nil{
+		return common.NewBasicError("Unable to extract path key from packet with SCMP revocation", err)
+	}
+	select {
+		case h.revocationQ <- keyedRevocation{key: pathKey, revocationInfo: info}:
+		default:
+			fmt.Println("Ignoring scmp packet", "Revocation channel full.")
+	}
+	// Path revocation has been triggered
 	return nil
 }
 
@@ -85,6 +96,7 @@ func initNetworkWithPRCustomSCMPHandler(ia addr.IA, sciondPath string, dispatche
 			Dispatcher: dispatcher,
 			SCMPHandler: &scmpHandler{
 				pathResolver: pathResolver,
+				revocationQ:  revocationQ,
 			},
 		},
 		pathResolver,

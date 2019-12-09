@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"os"
 	"time"
 
@@ -48,6 +49,8 @@ var _ quic.Session = (*MPQuic)(nil)
 type pathInfo struct {
 	raddr      *snet.Addr
 	path       spathmeta.AppPath
+	appPathKey spathmeta.PathKey // caches path.Key()
+	rawPathKey RawKey // caches
 	expiration time.Time
 	rtt        time.Duration
 	bw         int // in bps
@@ -62,17 +65,28 @@ type MPQuic struct {
 	active              *pathInfo
 }
 
+type keyedRevocation struct {
+	key            *RawKey
+	revocationInfo *scmp.InfoRevocation
+}
+
 var (
+	revocationQ chan keyedRevocation
+
 	// Don't verify the server's cert, as we are not using the TLS PKI.
 	cliTlsCfg = &tls.Config{InsecureSkipVerify: true}
 	srvTlsCfg = &tls.Config{}
 )
 
-// Init initializes initializes the SCION networking context and the QUIC session's crypto.
-func Init(ia addr.IA, sciondPath, dispatcher , keyPath, pemPath string) error {
-	/*if err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
+// Init initializes the SCION networking context and the QUIC session's crypto.
+func Init(ia addr.IA, sciondPath, dispatcher, keyPath, pemPath string) error {
+	/*
+	// Default SCION networking context without custom SCMP handler
+	if err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
 		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
-	}*/
+	}
+	*/
+	revocationQ = make(chan keyedRevocation, 50) // Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
 	if err := initNetworkWithPRCustomSCMPHandler(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
 		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
 	}
@@ -210,7 +224,8 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 
 	var raddrs []*snet.Addr = []*snet.Addr{}
 	// Initialize a raddr for each path
-	for _, p := range *paths {
+	for i, p := range *paths {
+		fmt.Println("Path", i, p.Entry.Path.Interfaces)
 		r := raddr.Copy()
 		if p.Entry.Path != nil {
 			r.Path = spath.New(p.Entry.Path.FwdPath)
@@ -224,9 +239,17 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 
 	pathInfos := []pathInfo{}
 	for i, raddr := range raddrs {
+		spathRepr := spath.New((*paths)[i].Entry.Path.FwdPath)
+		rawSpathKey, err := getSpathKey(*spathRepr)
+		if err != nil {
+			rspk := RawKey([]byte{})
+			rawSpathKey = &rspk
+		}
 		pi := pathInfo{
 			raddr:      raddr,
 			path:       (*paths)[i],
+			appPathKey: (*paths)[i].Key(),
+			rawPathKey: *rawSpathKey,
 			expiration: time.Time{},
 			rtt:        maxDuration,
 			bw:         0,
@@ -246,7 +269,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, quicConfig *quic.Config, dispConn *reliable.Conn, pathInfos []pathInfo) (mpQuic *MPQuic, err error) {
 	active := &pathInfos[0]
 	mpQuic = &MPQuic{Session: nil, scionFlexConnection: nil, network: network, dispConn: dispConn, paths: pathInfos, active: active}
-	fmt.Printf("Active path key: %v,\tHops: %v\n", active.path.Key(), active.path.Entry.Path.Interfaces)
+	fmt.Printf("Active AppPath key: %v,\tHops: %v\n", active.appPathKey, active.path.Entry.Path.Interfaces)
 	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
 	mpQuic.scionFlexConnection = flexConn
 

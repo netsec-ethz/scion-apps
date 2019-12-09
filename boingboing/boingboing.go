@@ -166,7 +166,6 @@ func initNetwork() {
 	}
 	log.Debug("SCION network successfully initialized")
 	*/
-
 	// We let mpsquic initialize the SCION networking context with a custom SCMP handler
 	if err := mpsquic.Init(local.IA, *sciond, *dispatcher, "", ""); err != nil {
 		LogFatal("Unable to initialize QUIC/SCION", "err", err)
