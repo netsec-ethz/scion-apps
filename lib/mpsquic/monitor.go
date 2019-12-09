@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -118,16 +117,15 @@ func (mpq *MPQuic) sendSCMP() {
 			// Serialize packet to internal buffer
 			pktLen, err := hpkt.WriteScnPkt(pkt, b)
 			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to serialize SCION packet. err=%v\n", err)
+				logger.Error("Unable to serialize SCION packet.", "err", err)
 				break
 			}
 			written, err := mpq.dispConn.WriteTo(b[:pktLen], nhAddr)
 			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to write. err=%v\n", err)
+				logger.Error("Unable to write", "err", err)
 				break
 			} else if written != pktLen {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrote incomplete message. written=%d, expected=%d\n",
-					len(b), written)
+				logger.Error("Wrote incomplete message", "written", len(b), "expected", written)
 				break
 			}
 			cmn.Stats.Sent += 1
@@ -157,28 +155,28 @@ func (mpq *MPQuic) rcvSCMP() {
 				continue
 			} else {
 				if strings.Contains(err.Error(), "use of closed network connection") {
-					_, _ = fmt.Fprintf(os.Stderr, "INFO: Unable to read SCMP reply. Network down.\n")
+					logger.Info("Unable to read SCMP reply. Network down.")
 					break
 				}
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to read SCMP reply. err=%v\n", err)
+				logger.Error("Unable to read SCMP reply.", "err", err)
 				break
 			}
 		}
 		now := time.Now()
 		err = hpkt.ParseScnPkt(pkt, b[:pktLen])
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse. err=%v\n", err)
+			logger.Error("SCION packet parse", "err", err)
 			continue
 		}
 		// Validate scmp packet
 		scmpHdr, ok := pkt.L4.(*scmp.Hdr)
 		if !ok {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an SCMP header. type=%v\n", common.TypeOf(pkt.L4))
+			logger.Error("Not an SCMP header.", "type", common.TypeOf(pkt.L4))
 			continue
 		}
 		scmpPld, ok := pkt.Pld.(*scmp.Payload)
 		if !ok {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an SCMP payload. type=%v\n", common.TypeOf(pkt.Pld))
+			logger.Error("Not an SCMP payload.", "type", common.TypeOf(pkt.Pld))
 			continue
 		}
 
@@ -186,7 +184,7 @@ func (mpq *MPQuic) rcvSCMP() {
 		case *scmp.InfoRevocation:
 			pathKey, err := getSpathKey(*pkt.Path)
 			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to map revocation to path key. err=%v\n", err)
+				logger.Error("Unable to map revocation to path key.", "err", err)
 				continue
 			}
 			select {
@@ -204,10 +202,10 @@ func (mpq *MPQuic) rcvSCMP() {
 				//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
 				mpq.paths[scmpId-1].rtt = rtt
 			} else {
-				_, _ = fmt.Fprintf(os.Stderr, "ERROR: Wrong InfoEcho Id. id=%v\n", scmpId)
+				logger.Error("Wrong InfoEcho Id.",  "id", scmpId)
 			}
 		default:
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Not an Info Echo. type=%v\n", common.TypeOf(scmpPld.Info))
+			logger.Error("Not an Info Echo.", "type", common.TypeOf(scmpPld.Info))
 		}
 	}
 }
@@ -249,14 +247,14 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *Raw
 	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(revocation.RawSRev)
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Unable to decode SignedRevInfo from SCMP InfoRevocation payload. err=%v\n", err)
+		logger.Error("Unable to decode SignedRevInfo from SCMP InfoRevocation payload.", "err", err)
 	}
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to decode SCMP signed revocation Info. err=%v\n", err)
+		logger.Error("Failed to decode SCMP signed revocation Info.", "err", err)
 	}
 	ri, err := signedRevInfo.RevInfo()
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to decode SCMP revocation Info. err=%v\n", err)
+		logger.Error("Failed to decode SCMP revocation Info.", "err", err)
 	}
 
 	// Revoke path from sciond
@@ -274,7 +272,7 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *Raw
 	}
 
 	if pk == nil {
-		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to process SCMP revocation. Invalid PathKey: %v\n", pk)
+		logger.Error("Failed to process SCMP revocation.", "Invalid PathKey", pk)
 		return
 	}
 
@@ -283,7 +281,7 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *Raw
 		fmt.Println("Processing revocation", "Revocation IS for active path.")
 		err := mpq.switchMPConn(true, false)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path after path revocation. err=%v\n", err)
+			logger.Error("Failed to switch path after path revocation.", "err", err)
 		}
 	}
 }
@@ -296,8 +294,8 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 	defer cancel()
 	syncPathMonitor, err := resolver.WatchFilter(ctx, mpq.network.IA(), mpq.paths[0].raddr.IA, filter)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to monitor paths. src=%v, dst=%v, filter=%v\n",
-			mpq.network.IA(), mpq.paths[0].raddr.IA, filter)
+		logger.Error("Failed to monitor paths.", "src", mpq.network.IA(), "dst", mpq.paths[0].raddr.IA,
+			"filter", filter)
 		syncPathMonitor = nil
 	}
 
@@ -310,7 +308,7 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 		selectionKey := expiringPathInfo.path.Key()
 		appPath := syncPathsData.APS.GetAppPath(selectionKey)
 		if appPath.Key() != selectionKey {
-			_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Failed to refresh path, key does not match. Retrying later.\n")
+			logger.Debug("Failed to refresh path, key does not match. Retrying later.", "Received", appPath.Key(), "Queried", selectionKey)
 			//_, _ = fmt.Fprintf(os.Stderr, "INFO: src=%v, dst=%v, key=%v, path=%v, filter=%v\n",
 			//	mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces, filter)
 		} else {
@@ -328,10 +326,15 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 				mpq.paths[pathIndex].path = spathmeta.AppPath{appPath.Entry}
 				mpq.paths[pathIndex].expiration = mpq.paths[pathIndex].path.Entry.Path.Expiry()
 			} else {
-				_, _ = fmt.Fprintf(os.Stderr, "DEBUG: Refreshed path does not have later expiry. Retrying later.\n")
-				//_, _ = fmt.Fprintf(os.Stderr, "INFO: src=%v, dst=%v, key=%v, path=%v, filter=%v, currExp=%v, freshExp=%v\n",
-				//	mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces,
-				//	filter, mpq.paths[pathIndex].expiration, freshExpTime)
+				logger.Debug("Refreshed path does not have later expiry. Retrying later.")
+				logger.Trace("Path refresh details",
+					"src", mpq.network.IA(),
+					"dst", mpq.paths[0].raddr.IA,
+					"key", selectionKey,
+					"path", expiringPathInfo.path.Entry.Path.Interfaces,
+					"filter", filter,
+					"currExp", mpq.paths[pathIndex].expiration,
+					"freshExp", freshExpTime)
 			}
 		}
 	}
@@ -388,7 +391,7 @@ func (mpq *MPQuic) managePaths() {
 		time.Sleep(maxFlap - sinceLastUpdate) // Failing paths are handled separately / faster
 		err := mpq.switchMPConn(false, true)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "ERROR: Failed to switch path. err=%v\n", err)
+			logger.Error("Failed to switch path.", "err", err)
 		}
 		lastUpdate = time.Now()
 	}

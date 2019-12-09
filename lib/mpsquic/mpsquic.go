@@ -19,16 +19,17 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"os"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -65,12 +66,23 @@ type MPQuic struct {
 	active              *pathInfo
 }
 
+type Logger struct {
+	Trace func(msg string, ctx ...interface{})
+	Debug func(msg string, ctx ...interface{})
+	Info func(msg string, ctx ...interface{})
+	Warn func(msg string, ctx ...interface{})
+	Error func(msg string, ctx ...interface{})
+	Crit func(msg string, ctx ...interface{})
+}
+
 type keyedRevocation struct {
 	key            *RawKey
 	revocationInfo *scmp.InfoRevocation
 }
 
 var (
+	logger      *Logger
+
 	revocationQ chan keyedRevocation
 
 	// Don't verify the server's cert, as we are not using the TLS PKI.
@@ -80,6 +92,10 @@ var (
 
 // Init initializes the SCION networking context and the QUIC session's crypto.
 func Init(ia addr.IA, sciondPath, dispatcher, keyPath, pemPath string) error {
+	if logger == nil {
+		// By default this library is noisy, to mute it call msquic.MuteLogging
+		initLogging(log.Root())
+	}
 	/*
 	// Default SCION networking context without custom SCMP handler
 	if err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
@@ -102,6 +118,41 @@ func Init(ia addr.IA, sciondPath, dispatcher, keyPath, pemPath string) error {
 	}
 	srvTlsCfg.Certificates = []tls.Certificate{cert}
 	return nil
+}
+
+// initLogging initializes logging for the mpsquic library using the passed scionproto (or similar) logger
+func initLogging(baseLogger log.Logger) {
+	logger = &Logger{}
+	logger.Trace = func(msg string, ctx ...interface{}) {baseLogger.Trace("MSQUIC: "+msg, ctx...)}
+	logger.Debug = func(msg string, ctx ...interface{}) {baseLogger.Debug("MSQUIC: "+msg, ctx...)}
+	logger.Info = func(msg string, ctx ...interface{}) {baseLogger.Info("MSQUIC: "+msg, ctx...)}
+	logger.Warn = func(msg string, ctx ...interface{}) {baseLogger.Warn("MSQUIC: "+msg, ctx...)}
+	logger.Error = func(msg string, ctx ...interface{}) {baseLogger.Error("MSQUIC: "+msg, ctx...)}
+	logger.Crit = func(msg string, ctx ...interface{}) {baseLogger.Crit("MSQUIC: "+msg, ctx...)}
+}
+
+// SetBasicLogging sets mpsquic logging to only write to os.Stdout and os.Stderr
+func SetBasicLogging() {
+	if logger != nil {
+		logger.Trace = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
+		logger.Debug = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
+		logger.Info = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
+		logger.Warn = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
+		logger.Error = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx)}
+		logger.Crit = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx)}
+	}
+}
+
+// MuteLogging mutes all logging in this library
+func MuteLogging() {
+	if logger != nil {
+		logger.Trace = func(msg string, ctx ...interface{}) {}
+		logger.Debug = func(msg string, ctx ...interface{}) {}
+		logger.Info = func(msg string, ctx ...interface{}) {}
+		logger.Warn = func(msg string, ctx ...interface{}) {}
+		logger.Error = func(msg string, ctx ...interface{}) {}
+		logger.Crit = func(msg string, ctx ...interface{}) {}
+	}
 }
 
 // OpenStreamSync opens a QUIC stream over the QUIC session.

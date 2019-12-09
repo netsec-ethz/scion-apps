@@ -78,7 +78,7 @@ func parseSPath(vpath spath.Path) (cpath *combinator.Path, err error) {
 func printHFDetails(path *spath.Path) {
 	cpath, err := parseSPath(*path)
 	if err != nil {
-		fmt.Printf("\n\nERROR: Failed to parse path info. err:%v", err)
+		logger.Error("Failed to parse path info.", "err", err)
 		return
 	}
 	fmt.Printf("\nFields:")
