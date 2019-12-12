@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
-	"fmt"
 	"math/rand"
 	"net"
 	"strings"
@@ -39,17 +38,17 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 	n, err = ms.Stream.Write(p)
 	if err != nil {
 		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-			fmt.Println("Stream timeout", "err", err)
+			logger.Error("Stream timeout", "err", err)
 			return
 		}
 		if qErr, ok := err.(*qerr.QuicError); ok {
 			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
 				// Remote went away
-				fmt.Println("Stream error", "err", err)
+				logger.Error("Stream error", "err", err)
 				return 0, qErr
 			}
 		}
-		fmt.Println("monitoredStream error", err)
+		logger.Error("monitoredStream error", "err", err)
 	}
 	elapsed := time.Now().Sub(start)
 	bandwidth := len(p) * 8 * 1e9 / int(elapsed)
@@ -64,17 +63,17 @@ func (ms monitoredStream) Read(p []byte) (n int, err error) {
 	n, err = ms.Stream.Read(p)
 	if err != nil {
 		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-			fmt.Println("Stream timeout", "err", err)
+			logger.Error("Stream timeout", "err", err)
 			return
 		}
 		if qErr, ok := err.(*qerr.QuicError); ok {
 			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
 				// Remote went away
-				fmt.Println("Stream error", "err", err)
+				logger.Error("Stream error", "err", err)
 				return 0, qErr
 			}
 		}
-		fmt.Println("monitoredStream error", err)
+		logger.Error("monitoredStream error", "err", err)
 	}
 	return
 }
@@ -133,7 +132,7 @@ func (mpq *MPQuic) sendSCMP() {
 			payload := pkt.Pld.(common.RawBytes)
 			_, _ = info.Write(payload[scmp.MetaLen:])
 			seq += 1
-			//fmt.Println("Sent SCMP packet, len:", pktLen, "payload", payload, "ID", info.Id)
+			logger.Trace("Sent SCMP packet", "len", pktLen, "payload", payload, "ID", info.Id)
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
@@ -189,9 +188,9 @@ func (mpq *MPQuic) rcvSCMP() {
 			}
 			select {
 				case revocationQ <- keyedRevocation{key: pathKey, revocationInfo: scmpPld.Info.(*scmp.InfoRevocation)}:
-					//fmt.Println("Processing scmp probe packet", "Revocation queued in revocationQ channel.")
+					logger.Trace("Processing scmp probe packet", "Action", "Revocation queued in revocationQ channel.")
 				default:
-					fmt.Println("Ignoring scmp probe packet", "Revocation channel full.")
+					logger.Trace("Ignoring scmp probe packet", "Reason", "Revocation channel full.")
 			}
 		case *scmp.InfoEcho:
 			cmn.Stats.Recv += 1
@@ -199,7 +198,7 @@ func (mpq *MPQuic) rcvSCMP() {
 			rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
 			scmpId := scmpPld.Info.(*scmp.InfoEcho).Id
 			if scmpId-1 < uint64(len(mpq.paths)) {
-				//fmt.Println("Received SCMP packet, len:", pktLen, "ID", info.Id)
+				logger.Trace("Received SCMP packet", "len", pktLen, "ID", scmpId)
 				mpq.paths[scmpId-1].rtt = rtt
 			} else {
 				logger.Error("Wrong InfoEcho Id.",  "id", scmpId)
@@ -228,7 +227,7 @@ func (mpq *MPQuic) processRevocations() {
 			break
 		}
 		rev = <-revocationQ
-		//fmt.Println("Processing revocation", "Retrieved queued revocation from revocationQ channel.")
+		logger.Trace("Processing revocation", "Action", "Retrieved queued revocation from revocationQ channel.")
 		mpq.handleSCMPRevocation(rev.revocationInfo, rev.key)
 	}
 }
@@ -268,7 +267,7 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *Raw
 		}
 	} else {
 		// Ignore expired revocations
-		fmt.Println("Processing revocation", "Ignoring expired revocation.")
+		logger.Trace("Processing revocation", "Action", "Ignoring expired revocation.")
 	}
 
 	if pk == nil {
@@ -278,7 +277,7 @@ func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *Raw
 
 
 	if *pk == mpq.active.rawPathKey {
-		fmt.Println("Processing revocation", "Revocation IS for active path.")
+		logger.Trace("Processing revocation", "Reason", "Revocation IS for active path.")
 		err := mpq.switchMPConn(true, false)
 		if err != nil {
 			logger.Error("Failed to switch path after path revocation.", "err", err)
@@ -309,8 +308,12 @@ func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
 		appPath := syncPathsData.APS.GetAppPath(selectionKey)
 		if appPath.Key() != selectionKey {
 			logger.Debug("Failed to refresh path, key does not match. Retrying later.", "Received", appPath.Key(), "Queried", selectionKey)
-			//_, _ = fmt.Fprintf(os.Stderr, "INFO: src=%v, dst=%v, key=%v, path=%v, filter=%v\n",
-			//	mpq.network.IA(), mpq.paths[0].raddr.IA, selectionKey, expiringPathInfo.path.Entry.Path.Interfaces, filter)
+			logger.Trace("Path refresh details",
+				"src", mpq.network.IA(),
+				"dst", mpq.paths[0].raddr.IA,
+				"key", selectionKey,
+				"path", expiringPathInfo.path.Entry.Path.Interfaces,
+				"filter", filter)
 		} else {
 			freshExpTime := appPath.Entry.Path.Expiry()
 			if freshExpTime.After(mpq.paths[pathIndex].expiration) {

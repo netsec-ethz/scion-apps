@@ -559,6 +559,7 @@ func choosePaths(interactive bool) []*sd.PathReplyEntry {
 	for _, path := range selectedPaths {
 		fmt.Printf("  %s\n", path.Path.String())
 	}
+	fmt.Println()
 	return selectedPaths
 }
 

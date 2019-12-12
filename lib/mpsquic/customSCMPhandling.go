@@ -1,8 +1,6 @@
 package mpsquic
 
-
 import (
-	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -30,7 +28,7 @@ func (h *scmpHandler) Handle(pkt *snet.SCIONPacket) error {
 	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
 		return h.handleSCMPRev(hdr, pkt)
 	}
-	fmt.Println("Ignoring scmp packet", "hdr", hdr, "src", pkt.Source)
+	logger.Info("Ignoring scmp packet", "hdr", hdr, "src", pkt.Source)
 	return nil
 }
 
@@ -45,8 +43,10 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *snet.SCIONPacket) error 
 		return common.NewBasicError("Unable to type assert SCMP Info to SCMP Revocation Info", nil,
 			"type", common.TypeOf(scmpPayload.Info))
 	}
-	//fmt.Println("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String(),
-	//	"src", pkt.Source)
+	logger.Trace("Received SCMP revocation",
+		"header", hdr.String(),
+		"payload", scmpPayload.String(),
+		"src", pkt.Source)
 	rpath := pkt.Path
 	err := rpath.Reverse()
 	if err != nil{
@@ -59,7 +59,7 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *snet.SCIONPacket) error 
 	select {
 		case h.revocationQ <- keyedRevocation{key: pathKey, revocationInfo: info}:
 		default:
-			fmt.Println("Ignoring scmp packet", "Revocation channel full.")
+			logger.Info("Ignoring scmp packet", "cause", "Revocation channel full.")
 	}
 	// Path revocation has been triggered
 	return nil

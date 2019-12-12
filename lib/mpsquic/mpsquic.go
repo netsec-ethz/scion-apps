@@ -17,7 +17,6 @@ package mpsquic
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -204,7 +203,8 @@ func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, er
 		if baddr.Host != nil {
 			overlayBindAddr, err = overlay.NewOverlayAddr(baddr.Host.L3, baddr.Host.L4)
 			if err != nil {
-				return nil, errors.New(fmt.Sprintf("Failed to create bind address: %v\n", err))
+				logger.Error("Failed to create bind address", "err", err)
+				return nil, err
 			}
 		}
 	}
@@ -213,9 +213,10 @@ func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, er
 	dispConn, _, err = reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
 		overlayBindAddr, addr.SvcNone)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Unable to register with the dispatcher addr=%s\nerr=%v", laddrMonitor, err))
+		logger.Error("Unable to register with the dispatcher", "addr", laddrMonitor, "err", err)
+		return nil, err
 	}
-	return dispConn, err
+	return dispConn, nil
 }
 
 // Creates an AppPath using the spath.Path and hostinfo addr.AppAddr available on a snet.Addr, missing values are set to their zero value.
@@ -276,7 +277,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 	var raddrs []*snet.Addr = []*snet.Addr{}
 	// Initialize a raddr for each path
 	for i, p := range *paths {
-		fmt.Println("Path", i, p.Entry.Path.Interfaces)
+		logger.Info("Path", "index", i, "interfaces", p.Entry.Path.Interfaces)
 		r := raddr.Copy()
 		if p.Entry.Path != nil {
 			r.Path = spath.New(p.Entry.Path.FwdPath)
@@ -320,7 +321,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, quicConfig *quic.Config, dispConn *reliable.Conn, pathInfos []pathInfo) (mpQuic *MPQuic, err error) {
 	active := &pathInfos[0]
 	mpQuic = &MPQuic{Session: nil, scionFlexConnection: nil, network: network, dispConn: dispConn, paths: pathInfos, active: active}
-	fmt.Printf("Active AppPath key: %v,\tHops: %v\n", active.appPathKey, active.path.Entry.Path.Interfaces)
+	logger.Info("Active AppPath", "key",  active.appPathKey, "Hops", active.path.Entry.Path.Interfaces)
 	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
 	mpQuic.scionFlexConnection = flexConn
 
@@ -336,9 +337,9 @@ func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, qu
 // displayStats prints the collected metrics for all monitored paths.
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
-		fmt.Printf("Path %v will expire at %v.\n", i, pathInfo.expiration)
-		fmt.Printf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i)
-		fmt.Printf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i)
+		logger.Info(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiration))
+		logger.Info(fmt.Sprintf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i))
+		logger.Info(fmt.Sprintf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i))
 	}
 }
 
@@ -369,16 +370,16 @@ func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 	for i := range mpq.paths {
 		// Do not switch to identical path or to expired path
 		if mpq.scionFlexConnection.raddr != mpq.paths[i].raddr && mpq.paths[i].expiration.After(time.Now()) {
-			// fmt.Printf("Previous path: %v\n", mpq.scionFlexConnection.raddr.Path)
-			// fmt.Printf("New path: %v\n", mpq.paths[i].raddr.Path)
+			logger.Trace("Previous path", "path", mpq.scionFlexConnection.raddr.Path)
+			logger.Trace("New path", "path", mpq.paths[i].raddr.Path)
 			if !filter {
 				mpq.updateActivePath(i)
-				fmt.Printf("Updating to path %d\n", i)
+				logger.Trace("Updating to path", "index", i)
 				return nil
 			}
 			if mpq.policyLowerRTTMatch(i) {
 				mpq.updateActivePath(i)
-				fmt.Printf("Updating to better path %d\n", i)
+				logger.Trace("Updating to better path", "index", i)
 				return nil
 			}
 		}
@@ -386,7 +387,7 @@ func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 	if !force {
 		return nil
 	}
-	fmt.Printf("No path available now %v\n", time.Now())
+	logger.Trace("No path available now", "now", time.Now())
 	mpq.displayStats()
 
 	return common.NewBasicError("mpsquic: No fallback connection available.", nil)

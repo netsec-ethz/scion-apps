@@ -62,7 +62,8 @@ func parseSPath(vpath spath.Path) (cpath *combinator.Path, err error) {
 		interfaces = append(interfaces, segInterfaces...)
 	}
 	if !vpath.IsEmpty() && len(segments) == 0 {
-		return nil, errors.New(fmt.Sprintf("Invalid raw path length. HopOff=%v, len(Raw)=%v", vpath.HopOff, len(vpath.Raw)))
+		logger.Error("Invalid raw path length.", "HopOff", vpath.HopOff, "len(Raw)", len(vpath.Raw))
+		return nil, errors.New("invalid raw path length")
 	}
 	return &combinator.Path{
 		Segments:   segments,
