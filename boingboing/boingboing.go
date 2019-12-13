@@ -170,7 +170,7 @@ func initNetwork() {
 	if err := mpsquic.Init(local.IA, *sciond, *dispatcher, "", ""); err != nil {
 		LogFatal("Unable to initialize QUIC/SCION", "err", err)
 	}
-	if *verbose {
+	if !*verbose {
 		mpsquic.MuteLogging()
 	}
 	log.Debug("QUIC/SCION successfully initialized")

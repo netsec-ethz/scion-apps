@@ -24,8 +24,8 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/hostinfo"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -36,8 +36,9 @@ import (
 )
 
 const (
-	defKeyPath = "gen-certs/tls.key"
-	defPemPath = "gen-certs/tls.pem"
+	defScionConfPath = "/etc/scion/"
+	defKeyPath       = "gen-certs/tls.key"
+	defPemPath       = "gen-certs/tls.pem"
 )
 
 const (
@@ -50,7 +51,7 @@ type pathInfo struct {
 	raddr      *snet.Addr
 	path       spathmeta.AppPath
 	appPathKey spathmeta.PathKey // caches path.Key()
-	rawPathKey RawKey // caches
+	rawPathKey RawKey            // caches
 	expiration time.Time
 	rtt        time.Duration
 	bw         int // in bps
@@ -68,10 +69,10 @@ type MPQuic struct {
 type Logger struct {
 	Trace func(msg string, ctx ...interface{})
 	Debug func(msg string, ctx ...interface{})
-	Info func(msg string, ctx ...interface{})
-	Warn func(msg string, ctx ...interface{})
+	Info  func(msg string, ctx ...interface{})
+	Warn  func(msg string, ctx ...interface{})
 	Error func(msg string, ctx ...interface{})
-	Crit func(msg string, ctx ...interface{})
+	Crit  func(msg string, ctx ...interface{})
 }
 
 type keyedRevocation struct {
@@ -80,7 +81,7 @@ type keyedRevocation struct {
 }
 
 var (
-	logger      *Logger
+	logger *Logger
 
 	revocationQ chan keyedRevocation
 
@@ -96,20 +97,20 @@ func Init(ia addr.IA, sciondPath, dispatcher, keyPath, pemPath string) error {
 		initLogging(log.Root())
 	}
 	/*
-	// Default SCION networking context without custom SCMP handler
-	if err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
-		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
-	}
+		// Default SCION networking context without custom SCMP handler
+		if err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
+			return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
+		}
 	*/
 	revocationQ = make(chan keyedRevocation, 50) // Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
 	if err := initNetworkWithPRCustomSCMPHandler(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
 		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
 	}
 	if keyPath == "" {
-		keyPath = defKeyPath
+		keyPath = defScionConfPath + defKeyPath
 	}
 	if pemPath == "" {
-		pemPath = defPemPath
+		pemPath = defScionConfPath + defPemPath
 	}
 	cert, err := tls.LoadX509KeyPair(pemPath, keyPath)
 	if err != nil {
@@ -122,23 +123,23 @@ func Init(ia addr.IA, sciondPath, dispatcher, keyPath, pemPath string) error {
 // initLogging initializes logging for the mpsquic library using the passed scionproto (or similar) logger
 func initLogging(baseLogger log.Logger) {
 	logger = &Logger{}
-	logger.Trace = func(msg string, ctx ...interface{}) {baseLogger.Trace("MSQUIC: "+msg, ctx...)}
-	logger.Debug = func(msg string, ctx ...interface{}) {baseLogger.Debug("MSQUIC: "+msg, ctx...)}
-	logger.Info = func(msg string, ctx ...interface{}) {baseLogger.Info("MSQUIC: "+msg, ctx...)}
-	logger.Warn = func(msg string, ctx ...interface{}) {baseLogger.Warn("MSQUIC: "+msg, ctx...)}
-	logger.Error = func(msg string, ctx ...interface{}) {baseLogger.Error("MSQUIC: "+msg, ctx...)}
-	logger.Crit = func(msg string, ctx ...interface{}) {baseLogger.Crit("MSQUIC: "+msg, ctx...)}
+	logger.Trace = func(msg string, ctx ...interface{}) { baseLogger.Trace("MSQUIC: "+msg, ctx...) }
+	logger.Debug = func(msg string, ctx ...interface{}) { baseLogger.Debug("MSQUIC: "+msg, ctx...) }
+	logger.Info = func(msg string, ctx ...interface{}) { baseLogger.Info("MSQUIC: "+msg, ctx...) }
+	logger.Warn = func(msg string, ctx ...interface{}) { baseLogger.Warn("MSQUIC: "+msg, ctx...) }
+	logger.Error = func(msg string, ctx ...interface{}) { baseLogger.Error("MSQUIC: "+msg, ctx...) }
+	logger.Crit = func(msg string, ctx ...interface{}) { baseLogger.Crit("MSQUIC: "+msg, ctx...) }
 }
 
 // SetBasicLogging sets mpsquic logging to only write to os.Stdout and os.Stderr
 func SetBasicLogging() {
 	if logger != nil {
-		logger.Trace = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
-		logger.Debug = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
-		logger.Info = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
-		logger.Warn = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx)}
-		logger.Error = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx)}
-		logger.Crit = func(msg string, ctx ...interface{}) {_, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx)}
+		logger.Trace = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
+		logger.Debug = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
+		logger.Info = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
+		logger.Warn = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
+		logger.Error = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx) }
+		logger.Crit = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx) }
 	}
 }
 
@@ -321,7 +322,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, quicConfig *quic.Config, dispConn *reliable.Conn, pathInfos []pathInfo) (mpQuic *MPQuic, err error) {
 	active := &pathInfos[0]
 	mpQuic = &MPQuic{Session: nil, scionFlexConnection: nil, network: network, dispConn: dispConn, paths: pathInfos, active: active}
-	logger.Info("Active AppPath", "key",  active.appPathKey, "Hops", active.path.Entry.Path.Interfaces)
+	logger.Info("Active AppPath", "key", active.appPathKey, "Hops", active.path.Entry.Path.Interfaces)
 	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
 	mpQuic.scionFlexConnection = flexConn
 
