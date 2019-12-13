@@ -34,6 +34,7 @@ type SCIONFlexConn struct {
 	addrMtx sync.RWMutex
 }
 
+// newSCIONFlexConn returns an initalized SCIONFlexConn, on which the used path can be dynamically updated
 func newSCIONFlexConn(sconn snet.Conn, mpq *MPQuic, laddr, raddr *snet.Addr) *SCIONFlexConn {
 	c := &SCIONFlexConn{
 		Conn:  sconn,
@@ -51,6 +52,7 @@ func (c *SCIONFlexConn) SetRemoteAddr(raddr *snet.Addr) {
 	c.setRemoteAddr(raddr)
 }
 
+// setRemoteAddr implements the update of the remote address of the SCION connection
 func (c *SCIONFlexConn) setRemoteAddr(raddr *snet.Addr) {
 	c.raddr = raddr
 }
@@ -84,16 +86,22 @@ func (c *SCIONFlexConn) WriteToSCION(b []byte, raddr *snet.Addr) (int, error) {
 	return n, err
 }
 
+// Read reads from the embedded SCION connection of the SCIONFlexConn into the byte slice b.
+// It returns the number of bytes read and any read error encountered.
 func (c *SCIONFlexConn) Read(b []byte) (int, error) {
 	n, _, err := c.ReadFromSCION(b)
 	return n, err
 }
 
+// ReadFrom reads from the embedded SCION connection of the SCIONFlexConn into the byte slice b.
+// It returns the number of bytes read, the address read from and any read error encountered.
 func (c *SCIONFlexConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, addr, err := c.ReadFromSCION(b)
 	return n, addr, err
 }
 
+// ReadFromSCION reads from the embedded SCION connection of the SCIONFlexConn into the byte slice b.
+// It returns the number of bytes read, the address read from and any read error encountered.
 func (c *SCIONFlexConn) ReadFromSCION(b []byte) (int, *snet.Addr, error) {
 	n, addr, err := c.Conn.ReadFromSCION(b)
 	return n, addr, err

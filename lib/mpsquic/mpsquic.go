@@ -335,12 +335,12 @@ func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, qu
 	return mpQuic, nil
 }
 
-// displayStats prints the collected metrics for all monitored paths.
+// displayStats logs the collected metrics for all monitored paths.
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
-		logger.Info(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiration))
-		logger.Info(fmt.Sprintf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i))
-		logger.Info(fmt.Sprintf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i))
+		logger.Trace(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiration))
+		logger.Trace(fmt.Sprintf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i))
+		logger.Trace(fmt.Sprintf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i))
 	}
 }
 
@@ -361,9 +361,7 @@ func (mpq *MPQuic) updateActivePath(newPathIndex int) {
 // switchMPConn switches between different SCION paths as given by the SCION address with path structs in paths.
 // The force flag makes switching a requirement, set it when continuing to use the existing path is not an option.
 func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
-	if _, set := os.LookupEnv("DEBUG"); set { // TODO: Remove this when cleaning up logging
-		mpq.displayStats()
-	}
+	mpq.displayStats()
 	if force {
 		// Always refresh available paths, as failing to find a fresh path leads to a hard failure
 		mpq.refreshPaths(mpq.network.PathResolver())

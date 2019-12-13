@@ -18,6 +18,7 @@ type scmpHandler struct {
 	revocationQ  chan keyedRevocation
 }
 
+// Handle handles the SCMP header information and triggers SCMP specific handlers
 func (h *scmpHandler) Handle(pkt *snet.SCIONPacket) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if !ok {
@@ -32,6 +33,7 @@ func (h *scmpHandler) Handle(pkt *snet.SCIONPacket) error {
 	return nil
 }
 
+// handleSCMPRev handles SCMP revocations and adds keyedRevocation to the revocationQ channel if the revocation parses
 func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *snet.SCIONPacket) error {
 	scmpPayload, ok := pkt.Payload.(*scmp.Payload)
 	if !ok {
@@ -63,25 +65,6 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *snet.SCIONPacket) error 
 	}
 	// Path revocation has been triggered
 	return nil
-}
-
-type Error interface {
-	error
-	SCMP() *scmp.Hdr
-}
-
-var _ Error = (*OpError)(nil)
-
-type OpError struct {
-	scmp *scmp.Hdr
-}
-
-func (e *OpError) SCMP() *scmp.Hdr {
-	return e.scmp
-}
-
-func (e *OpError) Error() string {
-	return e.scmp.String()
 }
 
 // initNetworkWithPRCustomSCMPHandler user the default snet DefaultPacketDispatcherService, but

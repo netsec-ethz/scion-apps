@@ -31,6 +31,7 @@ type monitoredStream struct {
 	underlayConn *MPQuic
 }
 
+// Write writes to a quic Stream while monitoring its approximate bandwidth
 func (ms monitoredStream) Write(p []byte) (n int, err error) {
 	//streamID := ms.Stream.StreamID()
 	activeAtWriteStart := ms.underlayConn.active
@@ -59,6 +60,7 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 	return
 }
 
+// Read reads from a quic Stream while monitoring it
 func (ms monitoredStream) Read(p []byte) (n int, err error) {
 	n, err = ms.Stream.Read(p)
 	if err != nil {
@@ -220,6 +222,7 @@ func getSpathKey(path spath.Path) (pk *RawKey, err error) {
 	return &pkv, nil
 }
 
+// processRevocations processed entries on the revocationQ channel
 func (mpq *MPQuic) processRevocations() {
 	var rev keyedRevocation
 	for {
@@ -235,6 +238,7 @@ func (mpq *MPQuic) processRevocations() {
 // Helper type for distinguishing keys on raw spaths.
 type RawKey string
 
+// String returns the string representation of the raw bytes of a RawKey (as obtained from the hash of a spath.Path.Raw)
 func (pk RawKey) String() string {
 	return common.RawBytes(pk).String()
 }
