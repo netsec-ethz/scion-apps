@@ -20,7 +20,6 @@ import (
 	"os"
 
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -35,26 +34,19 @@ func main() {
 		check(fmt.Errorf("Either specify -port for server or -remote for client"))
 	}
 
-	localAddr, err := scionutil.GetLocalhost()
-	check(err)
-	// initialize SCION
-	err = scionutil.InitSCION(localAddr)
-	check(err)
-
 	if *port > 0 {
-		localAddr.Host.L4 = addr.NewL4UDPInfo(uint16(*port))
-		err = runServer(localAddr)
+		err = runServer(uint16(*port))
 		check(err)
 	} else {
 		remoteAddr, err := snet.AddrFromString(*remoteAddrStr)
 		check(err)
-		err = runClient(localAddr, remoteAddr)
+		err = runClient(remoteAddr)
 		check(err)
 	}
 }
 
-func runServer(localAddr *snet.Addr) error {
-	conn, err := snet.ListenSCION("udp4", localAddr)
+func runServer(port uint16) error {
+	conn, err := scionutil.ListenPort(port)
 	if err != nil {
 		return err
 	}
@@ -71,8 +63,8 @@ func runServer(localAddr *snet.Addr) error {
 	}
 }
 
-func runClient(localAddr, remoteAddr *snet.Addr) error {
-	conn, err := snet.DialSCION("udp4", localAddr, remoteAddr)
+func runClient(remoteAddr *snet.Addr) error {
+	conn, err := scionutil.Dial(remoteAddr)
 	if err != nil {
 		return err
 	}
