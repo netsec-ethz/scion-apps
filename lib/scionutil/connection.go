@@ -47,29 +47,22 @@ func Network() *network {
 
 func Dial(raddr *snet.Addr) (snet.Conn, error) {
 	laddr := localAddr(raddr)
-	return Network().DialSCIONWithBindSVC("udp4", laddr, raddr, nil, addr.SvcNone, 0)
+	return Network().Dial("udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone, 0)
 }
 
-func Listen(laddr *snet.Addr) (snet.Conn, error) {
-	def := localAddr(nil)
-	cpy := laddr.Copy()
-	if laddr.IA.I == 0 {
-		cpy.IA.I = def.IA.I
+func Listen(listen *net.UDPAddr) (snet.Conn, error) {
+	if listen.IP.IsUnspecified() {
+		ip := localAddr(nil).IP
+		listen = &net.UDPAddr{IP: ip, Port: listen.Port, Zone: listen.Zone}
 	}
-	if laddr.IA.A == 0 {
-		cpy.IA.A = def.IA.A
-	}
-	if laddr.Host.L3 == nil || laddr.Host.L3.IP().IsUnspecified() {
-		cpy.Host.L3 = def.Host.L3
-	}
-	return Network().ListenSCIONWithBindSVC("udp4", cpy, nil, addr.SvcNone, 0)
+	return Network().Listen("udp", listen, addr.SvcNone, 0)
 }
 
 // ListenPort is a shortcut to listen on a port with a wildcard address
 func ListenPort(port uint16) (snet.Conn, error) {
-	laddr := localAddr(nil)
-	laddr.Host.L4 = port
-	return Network().ListenSCIONWithBindSVC("udp4", laddr, nil, addr.SvcNone, 0)
+	listen := localAddr(nil)
+	listen.Port = int(port)
+	return Network().Listen("udp", listen, addr.SvcNone, 0)
 }
 
 // localAddr returns _a_ sensible local address. The local IA is determined
@@ -80,17 +73,21 @@ func ListenPort(port uint16) (snet.Conn, error) {
 // used.
 // Note: this is only to workaround not being able to bind to wildcard addresses.
 // Note: this will NOT work nicely if you expect to e.g. switch between VPN/non-VPN paths.
-func localAddr(raddr *snet.Addr) *snet.Addr {
-	n := Network()
-	localIA := n.localIA
+func localAddr(raddr *snet.Addr) *net.UDPAddr {
 	var localIP net.IP
 	if raddr != nil && raddr.NextHop != nil {
 		nextHop := raddr.NextHop.IP
 		localIP = findSrcIP(nextHop)
 	} else {
-		localIP = findSrcIP(n.hostInLocalAS)
+		localIP = findSrcIP(Network().hostInLocalAS)
 	}
-	return &snet.Addr{IA: localIA, Host: &addr.AppAddr{L3: addr.HostFromIP(localIP)}}
+	return &net.UDPAddr{IP: localIP, Port: 0}
+}
+
+// ToSNetUDPAddr is a helper to convert snet.Addr to the newer snet.UDPAddr type
+// XXX: snet.Addr will be removed...
+func ToSNetUDPAddr(addr *snet.Addr) *snet.UDPAddr {
+	return snet.NewUDPAddr(addr.IA, addr.Path, addr.NextHop, &net.UDPAddr{IP: addr.Host.L3.IP(), Port: int(addr.Host.L4)})
 }
 
 func mustInitDefNetwork() {

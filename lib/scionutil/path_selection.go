@@ -36,8 +36,13 @@ const (
 	Shortest               // metric for shortest path
 )
 
-// ChoosePathInteractive presents the user a selection of paths to choose from
-func ChoosePathInteractive(local, remote *snet.Addr) (snet.Path, error) {
+// ChoosePathInteractive presents the user a selection of paths to choose from.
+// If the remote address is in the local IA, return (nil, nil), without prompting the user.
+func ChoosePathInteractive(remote *snet.Addr) (snet.Path, error) {
+
+	if remote.IA == Network().localIA {
+		return nil, nil
+	}
 
 	paths, err := Network().PathQuerier.Query(context.Background(), remote.IA)
 	if err != nil || len(paths) == 0 {
@@ -68,8 +73,12 @@ func ChoosePathInteractive(local, remote *snet.Addr) (snet.Path, error) {
 }
 
 // ChoosePathByMetric chooses the best path based on the metric pathAlgo
-func ChoosePathByMetric(pathAlgo int, local, remote *snet.Addr) (snet.Path, error) {
+// If the remote address is in the local IA, return (nil, nil).
+func ChoosePathByMetric(pathAlgo int, remote *snet.Addr) (snet.Path, error) {
 
+	if remote.IA == Network().localIA {
+		return nil, nil
+	}
 	paths, err := Network().PathQuerier.Query(context.Background(), remote.IA)
 	if err != nil || len(paths) == 0 {
 		return nil, err
