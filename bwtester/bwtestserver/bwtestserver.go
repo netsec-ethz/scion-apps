@@ -8,9 +8,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"net"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -20,16 +19,8 @@ import (
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
-
-func printUsage() {
-	fmt.Println("bwtestserver -s ServerSCIONAddress")
-	fmt.Println("The SCION address is specified as ISD-AS,[IP Address]:Port")
-	fmt.Println("Example SCION address 17-ffaa:0:1102,[192.33.93.173]:42002")
-}
 
 var (
 	resultsMap     map[string]*BwtestResult
@@ -53,32 +44,14 @@ func purgeOldResults() {
 	}
 }
 
-var (
-	serverCCAddrStr string
-	serverCCAddr    *snet.Addr
-	serverPort      uint
-	err             error
-	CCConn          snet.Conn
-	sciondPath      *string
-	sciondFromIA    *bool
-	dispatcherPath  *string
-	overlayType     string
-)
-
 func main() {
 	resultsMap = make(map[string]*BwtestResult)
 	go purgeOldResults()
 
 	// Fetch arguments from command line
-	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
-	flag.UintVar(&serverPort, "p", 40002, "Server Port (only used when Server Address not set)")
+	serverPort := flag.Uint("p", 40002, "Port")
 	id := flag.String("id", "bwtester", "Element ID")
 	logDir := flag.String("log_dir", "./logs", "Log directory")
-	sciondPath = flag.String("sciond", "", "Path to sciond socket")
-	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
-		"Path to dispatcher socket")
-	useIPv6 := flag.Bool("6", false, "Use IPv6")
 
 	flag.Parse()
 
@@ -93,77 +66,26 @@ func main() {
 			log.Must.FileHandler(fmt.Sprintf("%s/%s.log", *logDir, *id),
 				fmt15.Fmt15Format(nil)))))
 
-	if *useIPv6 {
-		overlayType = "udp6"
-	} else {
-		overlayType = "udp4"
-	}
-
-	var pflag bool
-	var sflag bool
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "s" {
-			sflag = true
-		}
-		if f.Name == "p" {
-			pflag = true
-		}
-	})
-	if sflag && pflag {
-		log.Warn("Flags '-s' and '-p' provided. '-p' has no effect")
-	}
-
-	// Create the SCION UDP socket
-	if len(serverCCAddrStr) == 0 {
-		serverCCAddr, err = scionutil.GetLocalhost()
-		if err != nil {
-			printUsage()
-			LogFatal("Unable to start server, please provide the server address manually", "err", err)
-		}
-		serverCCAddr.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
-	} else {
-		serverCCAddr, err = snet.AddrFromString(serverCCAddrStr)
-		if err != nil {
-			printUsage()
-			LogFatal("Unable to start server", "err", err)
-		}
-		if serverCCAddr.Host.L4 == nil {
-			LogFatal("Port in server address is missing")
-		}
-	}
-
-	runServer()
+	err := runServer(uint16(*serverPort))
 	if err != nil {
-		printUsage()
 		LogFatal("Unable to start server", "err", err)
 	}
 }
 
-func runServer() {
+func runServer(port uint16) error {
 
-	if *sciondFromIA {
-		if *sciondPath != "" {
-			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		*sciondPath = sciond.GetDefaultSCIONDPath(&serverCCAddr.IA)
-	} else if *sciondPath == "" {
-		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
+	conn, err := scionutil.ListenPort(port)
+	if err != nil {
+		return err
 	}
-	log.Info("Starting server")
-	snet.Init(serverCCAddr.IA, *sciondPath, reliable.NewDispatcherService(*dispatcherPath))
-
-	serverISDASIP := fmt.Sprintf("%s,[%s]", serverCCAddr.IA, serverCCAddr.Host.L3)
-
-	CCConn, err = snet.ListenSCION(overlayType, serverCCAddr)
-	Check(err)
 
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)
-	handleClients(CCConn, serverISDASIP, receivePacketBuffer, sendPacketBuffer)
+	handleClients(conn, receivePacketBuffer, sendPacketBuffer)
+	return nil
 }
 
-func handleClients(CCConn snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
-	defer LogPanicAndRestart(handleClients, CCConn, serverISDASIP, receivePacketBuffer, sendPacketBuffer)
+func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffer []byte) {
 
 	for {
 		// Handle client requests
@@ -250,35 +172,19 @@ func handleClients(CCConn snet.Conn, serverISDASIP string, receivePacketBuffer [
 				continue
 			}
 
-			ci := strings.LastIndex(clientCCAddrStr, ":")
-			if ci < 0 {
-				// This should never happen
-				LogFatal("Malformed client address")
-			}
-			clientISDASIP := clientCCAddrStr[:ci]
-
 			// Address of client Data Connection (DC)
-			ca := clientISDASIP + ":" + strconv.Itoa(int(clientBwp.Port))
-			clientDCAddr, err := snet.AddrFromString(ca)
-			if err != nil {
-				LogFatal("Cannot convert string to address", err)
-			}
+			clientDCAddr := scionutil.ToSNetUDPAddr(clientCCAddr)
+			clientDCAddr.Host.Port = int(clientBwp.Port)
 
 			// Address of server Data Connection (DC)
-			serverDCAddr, err := snet.AddrFromString(serverISDASIP + ":" + strconv.Itoa(int(serverBwp.Port)))
-			if err != nil {
-				LogFatal("Cannot convert string to address", err)
-			}
-
-			// Set path on data connection as reverse of client path (received address is already Reversed)
-			clientDCAddr.Path = clientCCAddr.Path
-			clientDCAddr.NextHop = clientCCAddr.NextHop
-			log.Debug("Server DC", "Next Hop", clientDCAddr.NextHop, "Client Host", clientDCAddr.Host)
+			serverCCAddr := CCConn.LocalAddr().(*net.UDPAddr)
+			serverDCAddr := &net.UDPAddr{IP: serverCCAddr.IP, Port: int(serverBwp.Port)}
 
 			// Open Data Connection
-			DCConn, err := snet.DialSCION(overlayType, serverDCAddr, clientDCAddr)
+			DCConn, err := scionutil.Network().Dial(
+				"udp", serverDCAddr, clientDCAddr, addr.SvcNone, 0)
 			if err != nil {
-				// An error happened, ask the client to try again in 1 second (perhaps no path to client was found)
+				// An error happened, ask the client to try again in 1 second
 				sendPacketBuffer[0] = 'N'
 				sendPacketBuffer[1] = byte(1)
 				CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
