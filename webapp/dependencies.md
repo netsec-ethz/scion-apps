@@ -2,32 +2,12 @@
 
 ## Package Default CL
 ```shell
-webapp \
--a 0.0.0.0 \
--p 8000 \
--r /var/lib/scion/webapp/web/data \
--srvroot /var/lib/scion/webapp/web \
--sabin /usr/bin \
--sroot /etc/scion \
--sbin /usr/bin \
--sgen  /etc/scion/gen \
--sgenc /var/lib/scion \
--slogs /var/log/scion
+systemctl cat scion-webapp
 ```
 
 ## Developer Default CL
 ```shell
-webapp \
--a 127.0.0.1 \
--p 8000 \
--r . \
--srvroot $GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web \
--sabin $GOPATH/bin \
--sroot $GOPATH/src/github.com/scionproto/scion \
--sbin $GOPATH/src/github.com/scionproto/scion/bin \
--sgen $GOPATH/src/github.com/scionproto/scion/gen \
--sgenc $GOPATH/src/github.com/scionproto/scion/gen-cache \
--slogs $GOPATH/src/github.com/scionproto/scion/logs
+webapp -h
 ```
 
 ## System Binaries Used

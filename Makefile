@@ -6,16 +6,8 @@ TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
 all: $(TARGETS)
 
-deps:
-	./deps.sh
-
-vendor: deps
-
 clean:
 	@$(foreach d,$(SRCDIRS),cd $(ROOT_DIR)/$(d) && go clean;)
-
-mrproper: clean
-	rm -rf vendor/*/
 
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)
@@ -23,7 +15,7 @@ install: all
 # using eval to create as many rules as we have $TARGETS
 # each target corresponds to the binary file name (e.g. sensorapp/sensorserver/sensorserver)
 define gobuild_tmpl = 
-$(1): $(2)
-	cd $$(dir $$@) && go build
+$(1): go.mod $(2)
+	cd $$(dir $$@) && GO111MODULE=on go build
 endef
 $(foreach D,$(TARGETS),$(eval $(call gobuild_tmpl, $(D), $(shell find $(dir $(D)) -name '*.go') )))
