@@ -18,33 +18,28 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path"
+	"net"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/netsec-ethz/rains/pkg/rains"
-	libaddr "github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
-
-type scionAddress struct {
-	ia libaddr.IA
-	l3 libaddr.HostAddr
-}
 
 // hosts file
 var (
 	hostFilePath = "/etc/hosts"
 	addrRegexp   = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\]`)
-	hosts        = make(map[string]scionAddress) // hostname -> scionAddress
-	revHosts     = make(map[string][]string)     // SCION address w/o port -> hostnames
+	hosts        = make(map[string]snet.SCIONAddress) // hostname -> scionAddress
+	revHosts     = make(map[string][]string)          // SCION address w/o port -> hostnames
 )
 
 // RAINS
 var (
-	rainsConfigPath = path.Join(os.Getenv("SC"), "gen", "rains.cfg")
+	rainsConfigPath = "/etc/scion/rains.cfg"
 	ctx             = "."                    // use global context
 	qType           = rains.OTScionAddr4     // request SCION IPv4 addresses
 	qOpts           = []rains.Option{}       // no options
@@ -87,16 +82,35 @@ func AddHost(hostname, address string) error {
 	return nil
 }
 
+func ResolveUDPAddr(address string) (*snet.Addr, error) {
+	raddr, err := snet.AddrFromString(address)
+	if err == nil {
+		return raddr, nil
+	}
+	hostStr, portStr, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	port, err := strconv.Atoi(portStr)
+	host, err := GetHostByName(hostStr)
+	if err != nil {
+		return nil, err
+	}
+	ia := host.IA
+	udp := addr.AppAddrFromUDP(&net.UDPAddr{IP: host.Host.IP(), Port: port})
+	return &snet.Addr{IA: ia, Host: udp}, nil
+}
+
 // GetHostByName returns the IA and HostAddr corresponding to hostname
-func GetHostByName(hostname string) (libaddr.IA, libaddr.HostAddr, error) {
+func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 	// try to resolve hostname locally
 	addr, ok := hosts[hostname]
 	if ok {
-		return addr.ia, addr.l3, nil
+		return addr, nil
 	}
 
 	if rainsServer == nil {
-		return libaddr.IA{}, nil, fmt.Errorf("Could not resolve %q, no RAINS server configured", hostname)
+		return snet.SCIONAddress{}, fmt.Errorf("Could not resolve %q, no RAINS server configured", hostname)
 	}
 
 	// fall back to RAINS
@@ -105,15 +119,14 @@ func GetHostByName(hostname string) (libaddr.IA, libaddr.HostAddr, error) {
 	// The timeout value has been decreased to counter this behavior until the problem is resolved.
 	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
 	if err != nil {
-		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q not found: %v", hostname, err)
+		return snet.SCIONAddress{}, fmt.Errorf("Address for host %q not found: %v", hostname, err)
 	}
 	scionAddr, err := addrFromString(reply[qType])
 	if err != nil {
-		return libaddr.IA{}, nil, fmt.Errorf("Address for host %q invalid: %v", hostname, err)
+		return snet.SCIONAddress{}, fmt.Errorf("Address for host %q invalid: %v", hostname, err)
 	}
 
-	return scionAddr.ia, scionAddr.l3, nil
-
+	return scionAddr, nil
 }
 
 // GetHostnamesByAddress returns the hostnames corresponding to address
@@ -143,7 +156,7 @@ func parseHostsFile(hostsFile []byte) {
 			continue
 		}
 		if matched := addrRegexp.MatchString(fields[0]); matched {
-			addr, err := addrFromString(fields[0])
+			address, err := addrFromString(fields[0])
 			if err != nil {
 				continue
 			}
@@ -151,12 +164,11 @@ func parseHostsFile(hostsFile []byte) {
 			// map hostnames to scionAddress
 			for _, field := range fields[1:] {
 				if _, ok := hosts[field]; !ok {
-					hosts[field] = addr
+					hosts[field] = address
 					revHosts[fields[0]] = append(revHosts[fields[0]], field)
 				}
 			}
 		}
-
 	}
 }
 
@@ -165,30 +177,30 @@ func readRainsConfig() *snet.Addr {
 	if err != nil {
 		return nil
 	}
-	addr, err := snet.AddrFromString(strings.TrimSpace(string(bs)))
+	address, err := snet.AddrFromString(strings.TrimSpace(string(bs)))
 	if err != nil {
 		return nil
 	}
-	return addr
+	return address
 }
 
-func addrFromString(addr string) (scionAddress, error) {
-	parts := addrRegexp.FindStringSubmatch(addr)
+func addrFromString(address string) (snet.SCIONAddress, error) {
+	parts := addrRegexp.FindStringSubmatch(address)
 	if parts == nil {
-		return scionAddress{}, fmt.Errorf("No valid SCION address: %q", addr)
+		return snet.SCIONAddress{}, fmt.Errorf("No valid SCION address: %q", address)
 	}
-	ia, err := libaddr.IAFromString(parts[iaIndex])
+	ia, err := addr.IAFromString(parts[iaIndex])
 	if err != nil {
-		return scionAddress{}, fmt.Errorf("Invalid IA string: %v", parts[iaIndex])
+		return snet.SCIONAddress{}, fmt.Errorf("Invalid IA string: %v", parts[iaIndex])
 	}
-	var l3 libaddr.HostAddr
-	if hostSVC := libaddr.HostSVCFromString(parts[l3Index]); hostSVC != libaddr.SvcNone {
+	var l3 addr.HostAddr
+	if hostSVC := addr.HostSVCFromString(parts[l3Index]); hostSVC != addr.SvcNone {
 		l3 = hostSVC
 	} else {
-		l3 = libaddr.HostFromIPStr(parts[l3Index])
+		l3 = addr.HostFromIPStr(parts[l3Index])
 		if l3 == nil {
-			return scionAddress{}, fmt.Errorf("Invalid IP address string: %v", parts[l3Index])
+			return snet.SCIONAddress{}, fmt.Errorf("Invalid IP address string: %v", parts[l3Index])
 		}
 	}
-	return scionAddress{ia, l3}, nil
+	return snet.SCIONAddress{IA: ia, Host: l3}, nil
 }

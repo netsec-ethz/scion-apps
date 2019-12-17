@@ -20,17 +20,16 @@ import (
 	"os"
 
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func main() {
 	var err error
 	// get local and remote addresses from program arguments:
 	port := flag.Uint("port", 0, "[Server] local port to listen on")
-	remoteAddrStr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
+	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
 	flag.Parse()
 
-	if (*port > 0) == (len(*remoteAddrStr) > 0) {
+	if (*port > 0) == (len(*remoteAddr) > 0) {
 		check(fmt.Errorf("Either specify -port for server or -remote for client"))
 	}
 
@@ -38,9 +37,7 @@ func main() {
 		err = runServer(uint16(*port))
 		check(err)
 	} else {
-		remoteAddr, err := snet.AddrFromString(*remoteAddrStr)
-		check(err)
-		err = runClient(remoteAddr)
+		err = runClient(*remoteAddr)
 		check(err)
 	}
 }
@@ -63,8 +60,8 @@ func runServer(port uint16) error {
 	}
 }
 
-func runClient(remoteAddr *snet.Addr) error {
-	conn, err := scionutil.Dial(remoteAddr)
+func runClient(address string) error {
+	conn, err := scionutil.Dial(address)
 	if err != nil {
 		return err
 	}

@@ -45,7 +45,15 @@ func Network() *network {
 	return &defNetwork
 }
 
-func Dial(raddr *snet.Addr) (snet.Conn, error) {
+func Dial(address string) (snet.Conn, error) {
+	raddr, err := ResolveUDPAddr(address)
+	if err != nil {
+		return nil, err
+	}
+	return DialAddr(raddr)
+}
+
+func DialAddr(raddr *snet.Addr) (snet.Conn, error) {
 	laddr := localAddr(raddr)
 	return Network().Dial("udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone, 0)
 }
