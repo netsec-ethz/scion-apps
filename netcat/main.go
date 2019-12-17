@@ -24,21 +24,13 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-
 	"github.com/netsec-ethz/scion-apps/netcat/modes"
 	scionlog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
 
 	log "github.com/inconshreveable/log15"
 )
 
 var (
-	remoteAddressString string
-	port                uint16
-	localAddrString     string
-
 	quicTLSKeyPath         string
 	quicTLSCertificatePath string
 
@@ -57,7 +49,7 @@ var (
 )
 
 func printUsage() {
-	fmt.Println("netcat [flags] host-address port")
+	fmt.Println("netcat [flags] host-address:port")
 	fmt.Println("netcat [flags] -l port")
 	fmt.Println("The host address is specified as ISD-AS,[IP Address]")
 	fmt.Println("Example SCION address: 17-ffaa:1:bfd,[127.0.0.1]")
@@ -78,8 +70,8 @@ func printUsage() {
 }
 
 func main() {
+
 	flag.Usage = printUsage
-	flag.StringVar(&localAddrString, "local", "", "Local address string")
 	flag.StringVar(&quicTLSKeyPath, "tlsKey", "./key.pem", "TLS key path")
 	flag.StringVar(&quicTLSCertificatePath, "tlsCert", "./certificate.pem", "TLS certificate path")
 	flag.BoolVar(&extraByte, "b", false, "Expect extra byte")
@@ -101,8 +93,12 @@ func main() {
 	}
 
 	tail := flag.Args()
-	if !(len(tail) == 1 && listen) && !(len(tail) == 2 && !listen) {
-		golog.Panicf("Incorrect number of arguments! Arguments: %v", tail)
+	if len(tail) != 1 {
+		expected := "host-address:port"
+		if listen {
+			expected = "port"
+		}
+		golog.Panicf("Incorrect number of arguments! Expected %s, got: %v", expected, tail)
 	}
 
 	if repeatAfter && repeatDuring {
@@ -123,48 +119,19 @@ func main() {
 
 	log.Info("Launching netcat")
 
-	remoteAddressString = tail[0]
-	port64, err := strconv.ParseUint(tail[len(tail)-1], 10, 16)
-	if err != nil {
-		printUsage()
-		golog.Panicf("Can't parse port string %v: %v", port64, err)
-	}
-	port = uint16(port64)
-
-	if localAddrString == "" {
-		localAddrString, err = appnet.GetLocalhostString()
-		if err != nil {
-			golog.Panicf("Error getting localhost: %v", err)
-		}
-	}
-
-	if listen {
-		localAddrString = fmt.Sprintf("%s:%v", localAddrString, port)
-	}
-
-	localAddr, err := snet.AddrFromString(localAddrString)
-	if err != nil {
-		golog.Panicf("Error parsing local address: %v", err)
-	}
-
-	// Initialize SCION library
-	err = appnet.InitSCION(localAddr)
-	if err != nil {
-		golog.Panicf("Error initializing SCION connection: %v", err)
-	}
-
 	var conns chan io.ReadWriteCloser
 
 	if listen {
-		conns = doListen(localAddr)
-	} else {
-		remoteAddr, err := snet.AddrFromString(fmt.Sprintf("%s:%v", remoteAddressString, port))
+		port, err := strconv.Atoi(tail[0])
 		if err != nil {
-			golog.Panicf("Can't parse remote address %s: %v", remoteAddressString)
+			printUsage()
+			golog.Panicf("Invalid port %s: %v", tail[0], err)
 		}
-
+		conns = doListen(uint16(port))
+	} else {
+		remoteAddr := tail[0]
 		conns = make(chan io.ReadWriteCloser, 1)
-		conns <- doDial(localAddr, remoteAddr)
+		conns <- doDial(remoteAddr)
 	}
 
 	if repeatAfter {
@@ -273,12 +240,12 @@ func pipeConn(conn io.ReadWriteCloser) {
 	log.Info("Connection closed", "conn", conn)
 }
 
-func doDial(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
+func doDial(remoteAddr string) io.ReadWriteCloser {
 	var conn io.ReadWriteCloser
 	if udpMode {
-		conn = modes.DoDialUDP(localAddr, remoteAddr)
+		conn = modes.DoDialUDP(remoteAddr)
 	} else {
-		conn = modes.DoDialQUIC(localAddr, remoteAddr)
+		conn = modes.DoDialQUIC(remoteAddr)
 	}
 
 	if extraByte {
@@ -293,17 +260,12 @@ func doDial(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
 	return conn
 }
 
-func doListen(localAddr *snet.Addr) chan io.ReadWriteCloser {
-	err := squic.Init(quicTLSKeyPath, quicTLSCertificatePath)
-	if err != nil {
-		golog.Panicf("Error initializing squic: %v", err)
-	}
-
+func doListen(port uint16) chan io.ReadWriteCloser {
 	var conns chan io.ReadWriteCloser
 	if udpMode {
-		conns = modes.DoListenUDP(localAddr)
+		conns = modes.DoListenUDP(port)
 	} else {
-		conns = modes.DoListenQUIC(localAddr)
+		conns = modes.DoListenQUIC(port)
 	}
 
 	var nconns chan io.ReadWriteCloser

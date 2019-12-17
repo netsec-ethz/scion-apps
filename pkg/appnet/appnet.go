@@ -59,7 +59,9 @@ func DialAddr(raddr *snet.Addr) (snet.Conn, error) {
 }
 
 func Listen(listen *net.UDPAddr) (snet.Conn, error) {
-	if listen.IP.IsUnspecified() {
+	if listen == nil {
+		listen = localAddr(nil)
+	} else if listen.IP.IsUnspecified() {
 		ip := localAddr(nil).IP
 		listen = &net.UDPAddr{IP: ip, Port: listen.Port, Zone: listen.Zone}
 	}
