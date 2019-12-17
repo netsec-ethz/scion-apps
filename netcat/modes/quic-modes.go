@@ -18,9 +18,8 @@ import (
 	"io"
 	golog "log"
 
-	quic "github.com/lucas-clemente/quic-go"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 
 	log "github.com/inconshreveable/log15"
 )
@@ -53,10 +52,10 @@ func (conn *sessConn) Close() error {
 }
 
 // DoListenQUIC listens on a QUIC socket
-func DoListenQUIC(localAddr *snet.Addr) chan io.ReadWriteCloser {
-	listener, err := squic.ListenSCION(nil, localAddr, &quic.Config{KeepAlive: true})
+func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
+	listener, err := appquic.ListenPort(port, nil, &quic.Config{KeepAlive: true})
 	if err != nil {
-		golog.Panicf("Can't listen on address %v: %v", localAddr, err)
+		golog.Panicf("Can't listen on port %d: %v", port, err)
 	}
 
 	conns := make(chan io.ReadWriteCloser)
@@ -87,8 +86,8 @@ func DoListenQUIC(localAddr *snet.Addr) chan io.ReadWriteCloser {
 }
 
 // DoDialQUIC dials with a QUIC socket
-func DoDialQUIC(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
-	sess, err := squic.DialSCION(nil, localAddr, remoteAddr, &quic.Config{KeepAlive: true})
+func DoDialQUIC(remoteAddr string) io.ReadWriteCloser {
+	sess, err := appquic.Dial(remoteAddr, &quic.Config{KeepAlive: true})
 	if err != nil {
 		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)
 	}
