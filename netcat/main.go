@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
 
 	"github.com/netsec-ethz/scion-apps/netcat/modes"
 	scionlog "github.com/scionproto/scion/go/lib/log"

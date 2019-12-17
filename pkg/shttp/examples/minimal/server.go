@@ -17,11 +17,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
-	. "github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	. "github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
 func main() {
@@ -33,12 +34,23 @@ func main() {
 
 	flag.Parse()
 
-	http.HandleFunc("/image", func(w http.ResponseWriter, r *http.Request) {
-		// serve the sample JPG file
+	m := http.NewServeMux()
+
+	m.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Print(err)
+		}
+		log.Println("Body: ", string(body))
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	m.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
+		// serve the sample HTML file
 		// Status 200 OK will be set implicitly
 		// Content-Length will be inferred by server
 		// Content-Type will be detected by server
-		http.ServeFile(w, r, "dog.jpg")
+		http.ServeFile(w, r, "sample.html")
 	})
 
 	var laddr string
@@ -53,5 +65,5 @@ func main() {
 		laddr = *local
 	}
 
-	log.Fatal(shttp.ListenAndServeSCION(laddr, *tlsCert, *tlsKey, nil))
+	log.Fatal(shttp.ListenAndServeSCION(laddr, *tlsCert, *tlsKey, m))
 }

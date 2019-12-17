@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
 func main() {

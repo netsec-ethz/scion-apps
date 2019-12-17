@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
 )
 
 const (

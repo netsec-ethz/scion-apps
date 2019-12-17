@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/lucas-clemente/quic-go/h2quic"
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
