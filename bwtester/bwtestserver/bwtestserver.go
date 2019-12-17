@@ -17,7 +17,7 @@ import (
 	"github.com/kormat/fmt15"
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -74,7 +74,7 @@ func main() {
 
 func runServer(port uint16) error {
 
-	conn, err := scionutil.ListenPort(port)
+	conn, err := appnet.ListenPort(port)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 			}
 
 			// Address of client Data Connection (DC)
-			clientDCAddr := scionutil.ToSNetUDPAddr(clientCCAddr)
+			clientDCAddr := appnet.ToSNetUDPAddr(clientCCAddr)
 			clientDCAddr.Host.Port = int(clientBwp.Port)
 
 			// Address of server Data Connection (DC)
@@ -181,7 +181,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 			serverDCAddr := &net.UDPAddr{IP: serverCCAddr.IP, Port: int(serverBwp.Port)}
 
 			// Open Data Connection
-			DCConn, err := scionutil.Network().Dial(
+			DCConn, err := appnet.Network().Dial(
 				"udp", serverDCAddr, clientDCAddr, addr.SvcNone, 0)
 			if err != nil {
 				// An error happened, ask the client to try again in 1 second

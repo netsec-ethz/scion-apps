@@ -32,7 +32,7 @@ import (
 	"strings"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -77,7 +77,7 @@ func getNetworkByIA(iaCli string) (*snet.SCIONNetwork, error) {
 		return nil, err
 	}
 	dispatcherPath := "/run/shm/dispatcher/default.sock"
-	sciondPath := scionutil.GetSCIONDPath(&ia)
+	sciondPath := appnet.GetSCIONDPath(&ia)
 	if snet.DefNetwork == nil {
 		err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcherPath))
 		if CheckError(err) {

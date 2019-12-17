@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 
 	"github.com/netsec-ethz/scion-apps/netcat/modes"
 	scionlog "github.com/scionproto/scion/go/lib/log"
@@ -132,7 +132,7 @@ func main() {
 	port = uint16(port64)
 
 	if localAddrString == "" {
-		localAddrString, err = scionutil.GetLocalhostString()
+		localAddrString, err = appnet.GetLocalhostString()
 		if err != nil {
 			golog.Panicf("Error getting localhost: %v", err)
 		}
@@ -148,7 +148,7 @@ func main() {
 	}
 
 	// Initialize SCION library
-	err = scionutil.InitSCION(localAddr)
+	err = appnet.InitSCION(localAddr)
 	if err != nil {
 		golog.Panicf("Error initializing SCION connection: %v", err)
 	}

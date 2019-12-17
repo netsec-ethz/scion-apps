@@ -12,7 +12,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -188,7 +188,7 @@ func main() {
 	if len(clientAddress) > 0 {
 		local, err = snet.AddrFromString(clientAddress)
 	} else {
-		local, err = scionutil.GetLocalhost()
+		local, err = appnet.GetLocalhost()
 	}
 	check(err)
 

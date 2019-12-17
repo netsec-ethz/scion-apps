@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
@@ -77,12 +77,12 @@ func main() {
 
 	conf := createConfig()
 
-	localhost, err := scionutil.GetLocalhost()
+	localhost, err := appnet.GetLocalhost()
 	if err != nil {
 		golog.Panicf("Can't get localhost: %v", err)
 	}
 
-	err = scionutil.InitSCION(localhost)
+	err = appnet.InitSCION(localhost)
 	if err != nil {
 		golog.Panicf("Error initializing SCION: %v", err)
 	}

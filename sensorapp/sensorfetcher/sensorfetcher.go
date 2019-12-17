@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 func check(e error) {
@@ -28,7 +28,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	conn, err := scionutil.Dial(*serverAddrStr)
+	conn, err := appnet.Dial(*serverAddrStr)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

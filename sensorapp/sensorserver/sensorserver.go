@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 const (
@@ -65,7 +65,7 @@ func main() {
 	port := flag.Uint("p", 40002, "Server Port")
 	flag.Parse()
 
-	conn, err := scionutil.ListenPort(uint16(*port))
+	conn, err := appnet.ListenPort(uint16(*port))
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

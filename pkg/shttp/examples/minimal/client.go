@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	. "github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"

@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -155,7 +155,7 @@ func main() {
 			log.Fatal("Port in server address is missing")
 		}
 	} else {
-		server, err = scionutil.GetLocalhost()
+		server, err = appnet.GetLocalhost()
 		check(err)
 		server.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
 	}

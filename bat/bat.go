@@ -36,7 +36,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	slog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -106,7 +106,7 @@ func init() {
 	var laddr *snet.Addr
 	var err error
 	if local == "" {
-		laddr, err = scionutil.GetLocalhost()
+		laddr, err = appnet.GetLocalhost()
 	} else {
 		laddr, err = snet.AddrFromString(local)
 	}
