@@ -42,19 +42,18 @@ var (
 	configFiles   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
 	xDead         = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
 	clientAddrStr = kingpin.Flag("client-address", "SCION address of the client").Default("").String()
-	policyFile  = kingpin.Flag("policy-file", "Path to the JSON policy file").Default("").String()
-	policyName = kingpin.Flag("policy-name", "Name of policy to be applied.").Default("").String()
+	policyFile    = kingpin.Flag("policy-file", "Path to the JSON policy file").Default("").String()
+	policyName    = kingpin.Flag("policy-name", "Name of policy to be applied.").Default("").String()
 	pathSelection = kingpin.Flag("selection", "Path selection mode").Default("arbitrary").Enum("static", "arbitrary", "random", "round-robin")
 
 	// TODO: additional file paths
 	knownHostsFile = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
 	identityFile   = kingpin.Flag("identity", "Identity (private key) file").Short('i').ExistingFile()
 
-	loginName = kingpin.Flag("login-name", "Username to login with").String()
+	loginName    = kingpin.Flag("login-name", "Username to login with").String()
 	clientCCAddr *snet.Addr
-	err error
-	)
-
+	err          error
+)
 
 // PromptPassword prompts the user for a password to authenticate with.
 func PromptPassword() (secret string, err error) {
@@ -126,7 +125,7 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 func main() {
 	kingpin.Parse()
 	dir, _ := os.Getwd()
-	scionlog.SetupLogFile("ssh-client", dir, "debug", 10, 10, 100, 0 )
+	scionlog.SetupLogFile("ssh-client", dir, "trace", 10, 10, 100, 0)
 
 	conf := createConfig()
 
@@ -134,8 +133,6 @@ func main() {
 	if err != nil {
 		golog.Panicf("Can't find current user: %s", err)
 	}
-
-
 
 	if *clientAddrStr == "" { //connect via default.sock, used for running on scionlab AS
 		clientCCAddr, err = scionutil.GetLocalhost()
@@ -152,13 +149,11 @@ func main() {
 			golog.Panicf("Cannot get client local address from string: %v", err)
 		}
 		sciondPath := sciond.GetDefaultSCIONDPath(&clientCCAddr.IA)
-		err = snet.Init(clientCCAddr.IA, sciondPath , scionutil.GetDefaultDispatcher())
+		err = snet.Init(clientCCAddr.IA, sciondPath, scionutil.GetDefaultDispatcher())
 		if err != nil {
 			golog.Panicf("Error initializing SCION: %v", err)
 		}
 	}
-
-
 
 	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
 	if err != nil {

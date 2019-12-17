@@ -67,7 +67,7 @@ func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 
 	go ssh.DiscardRequests(requests)
 
-	remoteConnection, err := scionutils.DialSCION(address)
+	remoteConnection, err := scionutils.DialSCION("", address)
 	if err != nil {
 		log.Debug("Could not open remote connection (%s)", err)
 		return

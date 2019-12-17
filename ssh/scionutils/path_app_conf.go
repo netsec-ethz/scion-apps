@@ -11,7 +11,7 @@ import (
 // policy: SCION path policy
 // pathSelection: path selection mode
 type PathAppConf struct {
-	policy *pathpol.Policy
+	policy        *pathpol.Policy
 	pathSelection PathSelection
 }
 
@@ -30,18 +30,17 @@ func (c *PathAppConf) PathSelection() PathSelection {
 	return c.pathSelection
 }
 
-func (c *PathAppConf) Policy () *pathpol.Policy {
+func (c *PathAppConf) Policy() *pathpol.Policy {
 	return c.policy
 }
 
-
-func (c*PathAppConf) ConnWrapperFromConfig(conn snet.Conn) (net.PacketConn, error) {
+func (c *PathAppConf) ConnWrapperFromConfig(conn snet.Conn) (net.PacketConn, error) {
 	connWrapper := NewPolicyConn(conn, c)
-	switch  c.pathSelection{
+	switch c.pathSelection {
 	case Static:
-		return NewStaticPolicyConn(connWrapper), nil
+		return NewStaticPolicyConn(*connWrapper), nil
 	case RoundRobin:
-		return NewRoundRobinPolicyConn(connWrapper), nil
+		return NewRoundRobinPolicyConn(*connWrapper), nil
 	case Arbitrary:
 		return connWrapper, nil
 	default:
@@ -57,26 +56,22 @@ func (c*PathAppConf) ConnWrapperFromConfig(conn snet.Conn) (net.PacketConn, erro
 type PathSelection int
 
 const (
-	Arbitrary PathSelection = 0
-	Static PathSelection = 1
+	Arbitrary  PathSelection = 0
+	Static     PathSelection = 1
 	RoundRobin PathSelection = 2
-	Random PathSelection = 3
+	Random     PathSelection = 3
 )
 
-func PathSelectionFromString (s string) (PathSelection, error) {
-	selectionMap := map[string]PathSelection {
-		"arbitrary" : Arbitrary,
-		"static": Static,
+func PathSelectionFromString(s string) (PathSelection, error) {
+	selectionMap := map[string]PathSelection{
+		"arbitrary":   Arbitrary,
+		"static":      Static,
 		"round-robin": RoundRobin,
-		"random": Random,
+		"random":      Random,
 	}
 	pathSelection, ok := selectionMap[s]
 	if !ok {
-		return 0, common.NewBasicError("Unknown path selection option", nil )
+		return 0, common.NewBasicError("Unknown path selection option", nil)
 	}
 	return pathSelection, nil
 }
-
-
-
-

@@ -20,9 +20,9 @@ type ClientConfig struct {
 // Create creates a new ClientConfig with the default values.
 func Create() *ClientConfig {
 	return &ClientConfig{
-		User:        "",
-		HostAddress: "",
-		Port:        "22",
+		User:                   "",
+		HostAddress:            "",
+		Port:                   "22",
 		PasswordAuthentication: "yes",
 		PubkeyAuthentication:   "yes",
 		StrictHostKeyChecking:  "ask",

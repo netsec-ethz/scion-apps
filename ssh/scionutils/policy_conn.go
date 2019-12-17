@@ -20,37 +20,46 @@ const (
 	ErrInitPath   = "raw forwarding path offsets could not be initialized"
 	ErrBadOverlay = "unable to extract next hop from sciond path entry"
 )
+
+type PathSelector interface {
+	SelectPath(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error)
+}
+
 var _ net.PacketConn = (*policyConn)(nil)
 
 // policyConn is a wrapper class around snet.SCIONConn
 // policyConn overrides its WriteTo function, so that it chooses the path on which the packet is written based on
 // a user-defined path policy and path selection mode defined in the field conf
+// Subclasses must explicitly set pathSelectorFunc to their own SelectPath methods
 // policyConn is not thread safe
 type policyConn struct {
 	snet.Conn
-	conf *PathAppConf
-	pathResolver pathmgr.Resolver
-	localIA addr.IA
+	conf             *PathAppConf
+	pathResolver     pathmgr.Resolver
+	localIA          addr.IA
+	pathSelectorFunc func(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error)
 }
 
 func NewPolicyConn(c snet.Conn, conf *PathAppConf) *policyConn {
-	return &policyConn{
-		Conn: c,
-		conf: conf,
+	pc := &policyConn{
+		Conn:         c,
+		conf:         conf,
 		pathResolver: snet.DefNetwork.PathResolver(),
-		localIA: snet.DefNetwork.IA()}
+		localIA:      snet.DefNetwork.IA()}
+	pc.pathSelectorFunc = (pc).SelectPath
+	return pc
 }
 
 // WriteTo overrides snet.SCIONConn.WriteTo
 // If the application calls Write instead of WriteTo, the logic defined here will be bypassed
-func (c *policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
+func (c policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	address, ok := raddr.(*snet.Addr)
 	if !ok {
 		return 0, common.NewBasicError("Unable to write to non-SCION address", nil, "addr", raddr)
 	}
 	var err error
 	remoteAddr := address.Copy()
-	remoteAddr.NextHop, remoteAddr.Path, err = c.SelectPath(*address)
+	remoteAddr.NextHop, remoteAddr.Path, err = c.pathSelectorFunc(*address)
 	if err != nil {
 		return 0, common.NewBasicError("ConnWrapper: Path slection error: ", err)
 	}
@@ -60,48 +69,49 @@ func (c *policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 // SelectPath implements the path selection logic specified in PathAppConf
 // Default behavior is arbitrary path selection
 // Subclasses that wish to specialize path selection modes should override this function
-func (c *policyConn) SelectPath (address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error) {
+func (c *policyConn) SelectPath(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error) {
 	log.Trace("default policyConn.. arbitrary path selection")
 	pathSet := c.pathResolver.Query(context.Background(), c.localIA, address.IA, sciond.PathReqFlags{})
 	appPath := pathSet.GetAppPath("")
 	nextHop, path, err := getSCIONPath(appPath)
 	if err != nil {
-		return nil, nil , common.NewBasicError(fmt.Sprintf("Conn Wrapper: Arbitrary : error getting SCION path " +
+		return nil, nil, common.NewBasicError(fmt.Sprintf("Conn Wrapper: Arbitrary : error getting SCION path "+
 			"between client %v and server %v", c.localIA.String(), address.IA.String()), err)
 	}
 	log.Trace(fmt.Sprintf("SELECTED PATH %s\n", appPath.Entry.Path.String()))
 	return nextHop, path, nil
 }
 
-
 // staticConnWraper is a subclass of policyConn which implements static path selection
 // The connection uses the same path used in the first call to WriteTo for all subsequenet packets
 type staticPolicyConn struct {
-	*policyConn
-	staticPath *spath.Path
+	policyConn
+	staticPath    *spath.Path
 	staticNextHop *overlay.OverlayAddr
 }
 
-func NewStaticPolicyConn(c *policyConn) *staticPolicyConn {
-	return &staticPolicyConn{policyConn: c}
+func NewStaticPolicyConn(c policyConn) *staticPolicyConn {
+	pc := &staticPolicyConn{policyConn: c}
+	pc.policyConn.pathSelectorFunc = pc.SelectPath
+	return pc
 }
 
-func (c *staticPolicyConn) SelectPath (address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error) {
+func (c *staticPolicyConn) SelectPath(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error) {
 	log.Trace("staticPolicyConn.. selecting path")
 	//if we're using a static path, query resolver only if this is the first call to write
-	if  c.staticNextHop == nil && c.staticPath == nil {
+	if c.staticNextHop == nil && c.staticPath == nil {
 		log.Trace("querying resolver...")
 		pathSet := c.pathResolver.QueryFilter(context.Background(), c.localIA, address.IA, c.conf.Policy())
 		appPath := pathSet.GetAppPath("")
 		nextHop, path, err := getSCIONPath(appPath)
-		log.Trace(fmt.Sprintf("SELECTED PATH: %s\n",appPath.Entry.Path.String()))
+		log.Trace(fmt.Sprintf("SELECTED PATH: %s\n", appPath.Entry.Path.String()))
 		if err != nil {
-			return nil, nil , common.NewBasicError(fmt.Sprintf("staticPolicyConn: error getting SCION path " +
+			return nil, nil, common.NewBasicError(fmt.Sprintf("staticPolicyConn: error getting SCION path "+
 				"between client %v and server %v", c.localIA.String(), address.IA.String()), err)
 		}
 		c.staticPath, c.staticNextHop = path, nextHop
 	} else if c.staticNextHop != nil && c.staticPath == nil || c.staticNextHop == nil && c.staticPath != nil {
-		return nil, nil, common.NewBasicError("staticPolicyConn:" +
+		return nil, nil, common.NewBasicError("staticPolicyConn:"+
 			"Next hop and path must both be either defined or undefined", nil)
 	}
 
@@ -112,16 +122,18 @@ func (c *staticPolicyConn) SelectPath (address snet.Addr) (*overlay.OverlayAddr,
 // roundrobinConnWraper is a subclass of policyConn which implements round-robin path selection
 // For N arbitrarily ordered paths, the ith call for WriteTo uses the (i % N)th path
 type roundRobinPolicyConn struct {
-	*policyConn
-	paths []*spathmeta.AppPath
+	policyConn
+	paths        []*spathmeta.AppPath
 	nextKeyIndex int
 }
 
-func NewRoundRobinPolicyConn(c *policyConn) *roundRobinPolicyConn {
-	return &roundRobinPolicyConn{policyConn: c}
+func NewRoundRobinPolicyConn(c policyConn) *roundRobinPolicyConn {
+	pc := &roundRobinPolicyConn{policyConn: c}
+	pc.policyConn.pathSelectorFunc = (pc).SelectPath
+	return pc
 }
 
-func (c *roundRobinPolicyConn) SelectPath (address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error) {
+func (c *roundRobinPolicyConn) SelectPath(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error) {
 	log.Trace("roundRobinPolicyConn.. slecting path")
 	// if there are no paths available, on the first call to WriteTo
 	if len(c.paths) == 0 {
@@ -136,7 +148,7 @@ func (c *roundRobinPolicyConn) SelectPath (address snet.Addr) (*overlay.OverlayA
 	c.nextKeyIndex = (c.nextKeyIndex + 1) % len(c.paths)
 	nextHop, path, err := getSCIONPath(appPath)
 	if err != nil {
-		return nil, nil, common.NewBasicError(fmt.Sprintf("roundRobinPolicyConn: error getting SCION path" +
+		return nil, nil, common.NewBasicError(fmt.Sprintf("roundRobinPolicyConn: error getting SCION path"+
 			" between client %v and server %v", c.localIA, address.IA.String()), err)
 	}
 	return nextHop, path, nil
@@ -158,8 +170,3 @@ func getSCIONPath(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path
 	return overlayAddr, path, nil
 
 }
-
-
-
-
-

@@ -15,8 +15,8 @@ type ServerConfig struct {
 // Create creates a new ServerConfig with the default values.
 func Create() *ServerConfig {
 	return &ServerConfig{
-		AuthorizedKeysFile: ".ssh/authorized_keys",
-		Port:               "22",
+		AuthorizedKeysFile:     ".ssh/authorized_keys",
+		Port:                   "22",
 		PasswordAuthentication: "yes",
 		PubkeyAuthentication:   "yes",
 		HostKey:                "/etc/ssh/ssh_host_key",

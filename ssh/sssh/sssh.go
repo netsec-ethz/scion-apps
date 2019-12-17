@@ -15,6 +15,7 @@ import (
 func DialSCION(clientAddr string, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
 	return dialSCION(clientAddr, addr, config, scionutils.DialSCION)
 }
+
 // DialSCION starts a client connection to the given SSH server over SCION using QUIC
 // Passes an instance of PathAppConf to the connection to make it aware of user-defined path configurations
 func DialSCIONWithConf(clientAddr string, addr string, config *ssh.ClientConfig, appConf *scionutils.PathAppConf) (*ssh.Client, error) {
@@ -84,7 +85,7 @@ func (t *chanConn) SetWriteDeadline(deadline time.Time) error {
 	return errors.New("scion-ssh: deadline not supported")
 }
 
-type dial func (localAddress string, remoteAddress string) (*quicconn.QuicConn, error)
+type dial func(localAddress string, remoteAddress string) (*quicconn.QuicConn, error)
 
 func dialSCION(clientAddr string, addr string, config *ssh.ClientConfig, dialFunc dial) (*ssh.Client, error) {
 	transportStream, err := dialFunc(clientAddr, addr)
