@@ -13,9 +13,7 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -33,13 +31,6 @@ func check(e error) {
 	if e != nil {
 		log.Fatal(e)
 	}
-}
-
-func printUsage() {
-	fmt.Println("imagefetcher -c ClientSCIONAddress -s ServerSCIONAddress")
-	fmt.Println("The SCION address is specified as ISD-AS,[IP Address]:Port")
-	fmt.Println("Example SCION address 1-1011,[192.33.93.166]:42002")
-	fmt.Println("ClientSCIONAddress can be omitted, the application then binds to localhost")
 }
 
 func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, error) {
@@ -160,56 +151,11 @@ func blockReceiver(receivedBlockChan chan uint32, udpConnection snet.Conn, fileB
 func main() {
 	startTime := time.Now()
 
-	var (
-		clientAddress  string
-		serverAddress  string
-		sciondPath     string
-		sciondFromIA   bool
-		dispatcherPath string
-		outputFilePath string
-
-		err    error
-		local  *snet.Addr
-		remote *snet.Addr
-
-		udpConnection snet.Conn
-	)
-
-	flag.StringVar(&clientAddress, "c", "", "Client SCION Address")
-	flag.StringVar(&serverAddress, "s", "", "Server SCION Address")
-	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
-	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
-		"Path to dispatcher socket")
-	flag.StringVar(&outputFilePath, "output", "", "Path to the output file")
+	serverAddrStr := flag.String("s", "", "Server address (<ISD-AS,[IP]:port> or <hostname:port>)")
+	outputFilePath := flag.String("output", "", "Path to the output file")
 	flag.Parse()
 
-	// Create SCION UDP socket
-	if len(clientAddress) > 0 {
-		local, err = snet.AddrFromString(clientAddress)
-	} else {
-		local, err = appnet.GetLocalhost()
-	}
-	check(err)
-
-	if len(serverAddress) > 0 {
-		remote, err = snet.AddrFromString(serverAddress)
-		check(err)
-	} else {
-		printUsage()
-		check(fmt.Errorf("Error, server address needs to be specified with -s"))
-	}
-
-	if sciondFromIA {
-		if sciondPath != "" {
-			log.Fatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		sciondPath = sciond.GetDefaultSCIONDPath(&local.IA)
-	} else if sciondPath == "" {
-		sciondPath = sciond.GetDefaultSCIONDPath(nil)
-	}
-	snet.Init(local.IA, sciondPath, reliable.NewDispatcherService(dispatcherPath))
-	udpConnection, err = snet.DialSCION("udp4", local, remote)
+	udpConnection, err := appnet.Dial(*serverAddrStr)
 	check(err)
 
 	fileName, fileSize, rttApprox, err := fetchFileInfo(udpConnection)
@@ -283,10 +229,10 @@ func main() {
 	}
 
 	// Write file to disk
-	if outputFilePath == "" {
-		outputFilePath = fileName
+	if *outputFilePath == "" {
+		*outputFilePath = fileName
 	}
-	err = ioutil.WriteFile(outputFilePath, fileBuffer, 0600)
+	err = ioutil.WriteFile(*outputFilePath, fileBuffer, 0600)
 	check(err)
 	fmt.Println("\nDone, exiting. Total duration", time.Now().Sub(startTime))
 }
