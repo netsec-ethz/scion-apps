@@ -135,6 +135,9 @@ github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d/go.mod h1:c3At6R
 github.com/prometheus/procfs v0.0.2/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsTZCD3I8kEA=
 github.com/prometheus/procfs v0.0.3 h1:CTwfnzjQ+8dS6MhHHu4YswVAD99sL2wjPqP+VkURmKE=
 github.com/prometheus/procfs v0.0.3/go.mod h1:4A/X28fw3Fc593LaREMrKMqOKvUAntwMDaekg4FpcdQ=
+github.com/scionproto/scion v0.4.1-0.20191216090707-c2b6c9f8162b/go.mod h1:l3XrI8tUDxl5laXnV9fQifpVOXtNlb7eqHw1MrZD0HY=
+github.com/scionproto/scion v0.4.1-0.20191217084310-5756f179b034 h1:dGtjZBCqaVlf3+VCEZJtqWNRwyqfW0nKIVgScm7g/+w=
+github.com/scionproto/scion v0.4.1-0.20191217084310-5756f179b034/go.mod h1:l3XrI8tUDxl5laXnV9fQifpVOXtNlb7eqHw1MrZD0HY=
 github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d h1:zE9ykElWQ6/NYmHa3jpm/yHnI4xSofP+UP6SpjHcSeM=
