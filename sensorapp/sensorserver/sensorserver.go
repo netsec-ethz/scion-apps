@@ -6,17 +6,12 @@ package main
 import (
 	"bufio"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
 	"sync"
 
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 const (
@@ -63,80 +58,20 @@ func parseInput() {
 	}
 }
 
-func printUsage() {
-	fmt.Println("sensorserver -s ServerSCIONAddress")
-	fmt.Println("The SCION address is specified as ISD-AS,[IP Address]:Port")
-	fmt.Println("Example SCION address 17-ffaa:0:1102,[192.33.93.173]:42002")
-}
-
 func main() {
 	go parseInput()
 
-	var (
-		serverAddress  string
-		serverPort     uint
-		sciondPath     string
-		sciondFromIA   bool
-		dispatcherPath string
-
-		err    error
-		server *snet.Addr
-
-		udpConnection snet.Conn
-	)
-
 	// Fetch arguments from command line
-	flag.StringVar(&serverAddress, "s", "", "Server SCION Address")
-	flag.UintVar(&serverPort, "p", 40002, "Server Port (only used when Server Address not set)")
-	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
-	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
-		"Path to dispatcher socket")
+	port := flag.Uint("p", 40002, "Server Port")
 	flag.Parse()
 
-	var pflag bool
-	var sflag bool
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "s" {
-			sflag = true
-		}
-		if f.Name == "p" {
-			pflag = true
-		}
-	})
-	if sflag && pflag {
-		log.Println("Warning: flags '-s' and '-p' provided. '-p' has no effect")
-	}
-
-	// Create the SCION UDP socket
-	if len(serverAddress) > 0 {
-		server, err = snet.AddrFromString(serverAddress)
-		check(err)
-		if server.Host.L4 == nil {
-			log.Fatal("Port in server address is missing")
-		}
-	} else {
-		server, err = scionutil.GetLocalhost()
-		check(err)
-		server.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
-	}
-
-	if sciondFromIA {
-		if sciondPath != "" {
-			log.Fatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		sciondPath = sciond.GetDefaultSCIONDPath(&server.IA)
-	} else if sciondPath == "" {
-		sciondPath = sciond.GetDefaultSCIONDPath(nil)
-	}
-	snet.Init(server.IA, sciondPath, reliable.NewDispatcherService(dispatcherPath))
-	udpConnection, err = snet.ListenSCION("udp4", server)
+	conn, err := scionutil.ListenPort(uint16(*port))
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)
 	for {
-		_, clientAddress, err := udpConnection.ReadFrom(receivePacketBuffer)
+		_, clientAddress, err := conn.ReadFrom(receivePacketBuffer)
 		check(err)
 
 		// Packet received, send back response to same client
@@ -154,7 +89,7 @@ func main() {
 		sensorValues = timeString + "\n" + sensorValues
 		copy(sendPacketBuffer, sensorValues)
 
-		_, err = udpConnection.WriteTo(sendPacketBuffer[:len(sensorValues)], clientAddress)
+		_, err = conn.WriteTo(sendPacketBuffer[:len(sensorValues)], clientAddress)
 		check(err)
 	}
 }
