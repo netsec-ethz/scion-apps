@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
 )
 
 func check(e error) {

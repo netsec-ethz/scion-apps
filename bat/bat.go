@@ -36,8 +36,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	slog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )

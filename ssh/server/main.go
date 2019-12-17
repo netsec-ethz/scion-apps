@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
