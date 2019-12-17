@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/lucas-clemente/quic-go/h2quic"
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -80,7 +80,7 @@ func (srv *Server) ListenAndServeSCION(certFile, keyFile string) error {
 	// initialize SCION
 	initOnce.Do(func() {
 		if snet.DefNetwork == nil {
-			initErr = scionutil.InitSCION(laddr)
+			initErr = appnet.InitSCION(laddr)
 		}
 	})
 	if initErr != nil {

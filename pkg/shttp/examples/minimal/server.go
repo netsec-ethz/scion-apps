@@ -21,7 +21,7 @@ import (
 	"log"
 	"net/http"
 
-	. "github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	. "github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 

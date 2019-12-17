@@ -17,7 +17,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
@@ -124,12 +124,12 @@ func main() {
 		golog.Panicf("Can't find current user: %s", err)
 	}
 
-	localhost, err := scionutil.GetLocalhost()
+	localhost, err := appnet.GetLocalhost()
 	if err != nil {
 		golog.Panicf("Can't get localhost: %v", err)
 	}
 
-	err = scionutil.InitSCION(localhost)
+	err = appnet.InitSCION(localhost)
 	if err != nil {
 		golog.Panicf("Error initializing SCION: %v", err)
 	}

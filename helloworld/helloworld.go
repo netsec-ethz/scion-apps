@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 }
 
 func runServer(port uint16) error {
-	conn, err := scionutil.ListenPort(port)
+	conn, err := appnet.ListenPort(port)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func runServer(port uint16) error {
 }
 
 func runClient(address string) error {
-	conn, err := scionutil.Dial(address)
+	conn, err := appnet.Dial(address)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ import (
 	"unicode"
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -278,7 +278,7 @@ func main() {
 	}
 
 	if len(serverCCAddrStr) > 0 {
-		serverCCAddr, err = scionutil.ResolveUDPAddr(serverCCAddrStr)
+		serverCCAddr, err = appnet.ResolveUDPAddr(serverCCAddrStr)
 	} else {
 		printUsage()
 		Check(fmt.Errorf("Error, server address needs to be specified with -s"))
@@ -286,16 +286,16 @@ func main() {
 
 	var path snet.Path
 	if interactive {
-		path, err = scionutil.ChoosePathInteractive(serverCCAddr)
+		path, err = appnet.ChoosePathInteractive(serverCCAddr)
 		Check(err)
 	} else {
 		var metric int
 		if pathAlgo == "mtu" {
-			metric = scionutil.MTU
+			metric = appnet.MTU
 		} else if pathAlgo == "shortest" {
-			metric = scionutil.Shortest
+			metric = appnet.Shortest
 		}
-		path, err = scionutil.ChoosePathByMetric(metric, serverCCAddr)
+		path, err = appnet.ChoosePathByMetric(metric, serverCCAddr)
 		Check(err)
 	}
 	if path != nil {
@@ -304,7 +304,7 @@ func main() {
 		serverCCAddr.NextHop = path.OverlayNextHop()
 	}
 
-	CCConn, err = scionutil.DialAddr(serverCCAddr)
+	CCConn, err = appnet.DialAddr(serverCCAddr)
 	Check(err)
 
 	// get the port used by clientCC after it bound to the dispatcher (because it might be 0)
@@ -316,8 +316,8 @@ func main() {
 	serverDCAddr.Host.L4 = serverCCAddr.Host.L4 + 1
 
 	// Data channel connection
-	DCConn, err = scionutil.Network().Dial(
-		"udp", clientDCAddr, scionutil.ToSNetUDPAddr(serverDCAddr), addr.SvcNone, 0)
+	DCConn, err = appnet.Network().Dial(
+		"udp", clientDCAddr, appnet.ToSNetUDPAddr(serverDCAddr), addr.SvcNone, 0)
 	Check(err)
 
 	// update default packet size to max MTU on the selected path

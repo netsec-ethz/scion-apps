@@ -9,7 +9,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 
-	"github.com/netsec-ethz/scion-apps/pkg/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 )
 
@@ -27,7 +27,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 
 // DialSCION dials a SCION host and opens a new QUIC stream
 func DialSCION(remoteAddress string) (*quicconn.QuicConn, error) {
-	localhost, err := scionutil.GetLocalhostString()
+	localhost, err := appnet.GetLocalhostString()
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func DialSCION(remoteAddress string) (*quicconn.QuicConn, error) {
 
 // ListenSCION listens on the given port with the QUIC protocol, and returns a listener
 func ListenSCION(port uint16) (quic.Listener, error) {
-	localhost, err := scionutil.GetLocalhostString()
+	localhost, err := appnet.GetLocalhostString()
 	if err != nil {
 		return nil, err
 	}
