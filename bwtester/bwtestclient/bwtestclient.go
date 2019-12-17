@@ -278,8 +278,7 @@ func main() {
 	}
 
 	if len(serverCCAddrStr) > 0 {
-		serverCCAddr, err = snet.AddrFromString(serverCCAddrStr)
-		Check(err)
+		serverCCAddr, err = scionutil.ResolveUDPAddr(serverCCAddrStr)
 	} else {
 		printUsage()
 		Check(fmt.Errorf("Error, server address needs to be specified with -s"))
@@ -305,7 +304,7 @@ func main() {
 		serverCCAddr.NextHop = path.OverlayNextHop()
 	}
 
-	CCConn, err = scionutil.Dial(serverCCAddr)
+	CCConn, err = scionutil.DialAddr(serverCCAddr)
 	Check(err)
 
 	// get the port used by clientCC after it bound to the dispatcher (because it might be 0)
