@@ -7,13 +7,11 @@ This package contains a client/server implementation of HTTP/2 over SCION/QUIC.
 First, create a client:
 ```Go
 client := &http.Client{
-    Transport: &shttp.Transport{
-        LAddr: lAddr,
-    },
+    Transport: &shttp.NewTransport(tlsCfg, quicCfg)
 }
 ```
 
-where `LAddr` is the local SCION address of the client.
+where `tlsCfg` and `quicCfg` can both be left `nil`.
 
 Then, make requests as usual:
 ```Go
@@ -59,10 +57,10 @@ http.Handle("/download", handler)
 
 Finally, start the server:
 ```Go
-err := server.ListenAndServeSCION(local, tlsCert, tlsKey, mux)
+err := shttp.ListenAndServe(local, mux)
 if err != nil {
 	log.Fatal(err)
 }
 
 ```
-where `local` is the local address of the server, `tlsCert` and `tlsKey` are the TLS key and cert files.
+where `local` is the local (UDP)-address of the server.
