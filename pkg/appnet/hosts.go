@@ -64,6 +64,17 @@ func init() {
 	rainsServer = readRainsConfig()
 }
 
+var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
+
+// SplitHostPort splits a host:port string into host and port variables
+func SplitHostPort(hostport string) (host, port string, err error) {
+	split := addressPortSplitRegex.FindAllStringSubmatch(hostport, -1)
+	if len(split) == 1 {
+		return split[0][1], split[0][2], nil
+	}
+	return "", "", fmt.Errorf("appnet.SplitHostPort: invalid SCION address")
+}
+
 // AddHost adds a host to the map of known hosts
 // An error is returned if the address has a wrong format or
 // the hostname already exists

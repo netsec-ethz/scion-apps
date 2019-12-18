@@ -13,16 +13,14 @@ type ClientConfig struct {
 	RemoteForward          string   `regex:".*"`
 	UserKnownHostsFile     string   `regex:".*"`
 	ProxyCommand           string   `regex:".*"`
-	QUICCertificatePath    string   `regex:".*"`
-	QUICKeyPath            string   `regex:".*"`
 }
 
 // Create creates a new ClientConfig with the default values.
 func Create() *ClientConfig {
 	return &ClientConfig{
-		User:        "",
-		HostAddress: "",
-		Port:        "22",
+		User:                   "",
+		HostAddress:            "",
+		Port:                   "22",
 		PasswordAuthentication: "yes",
 		PubkeyAuthentication:   "yes",
 		StrictHostKeyChecking:  "ask",
@@ -34,10 +32,8 @@ func Create() *ClientConfig {
 			"~/.ssh/id_rsa",
 			"~/.ssh/identity",
 		},
-		LocalForward:        "",
-		RemoteForward:       "",
-		ProxyCommand:        "",
-		QUICCertificatePath: "~/.ssh/quic-conn-certificate.pem",
-		QUICKeyPath:         "~/.ssh/quic-conn-key.pem",
+		LocalForward:  "",
+		RemoteForward: "",
+		ProxyCommand:  "",
 	}
 }

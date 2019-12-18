@@ -7,12 +7,12 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
+	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 )
 
 // DialSCION starts a client connection to the given SSH server over SCION using QUIC.
 func DialSCION(addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
-	transportStream, err := scionutils.DialSCION(addr)
+	transportStream, err := quicconn.Dial(addr)
 	if err != nil {
 		return nil, err
 	}

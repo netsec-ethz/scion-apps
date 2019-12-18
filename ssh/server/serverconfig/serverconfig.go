@@ -7,20 +7,16 @@ type ServerConfig struct {
 	PasswordAuthentication string `regex:"(yes|no)"`
 	PubkeyAuthentication   string `regex:"(yes|no)"`
 	HostKey                string `regex:".*"`
-	QUICCertificatePath    string `regex:".*"`
-	QUICKeyPath            string `regex:".*"`
 	MaxAuthTries           string `regex:"[1-9]\\d*"`
 }
 
 // Create creates a new ServerConfig with the default values.
 func Create() *ServerConfig {
 	return &ServerConfig{
-		AuthorizedKeysFile: ".ssh/authorized_keys",
-		Port:               "22",
+		AuthorizedKeysFile:     ".ssh/authorized_keys",
+		Port:                   "22",
 		PasswordAuthentication: "yes",
 		PubkeyAuthentication:   "yes",
 		HostKey:                "/etc/ssh/ssh_host_key",
-		QUICCertificatePath:    "/etc/ssh/quic-conn-certificate.pem",
-		QUICKeyPath:            "/etc/ssh/quic-conn-key.pem",
 	}
 }
