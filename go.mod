@@ -14,7 +14,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.0.0-20191216133524-985bf1f73f5d // matzf/scionlab_nextversion
-	github.com/scionproto/scion v0.4.1-0.20191217084310-5756f179b034
+	github.com/scionproto/scion v0.4.1-0.20191218095655-c11f4468ffd2
 	github.com/smartystreets/goconvey v1.6.4
 	golang.org/x/crypto v0.0.0-20190909091759-094676da4a83
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
