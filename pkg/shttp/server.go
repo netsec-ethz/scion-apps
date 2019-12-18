@@ -15,111 +15,79 @@
 package shttp
 
 import (
-	"crypto/tls"
 	"net"
 	"net/http"
-	"sync"
 
 	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
 // Server wraps a h2quic.Server making it work with SCION
 type Server struct {
-	Addr string
-
-	s *h2quic.Server
+	*h2quic.Server
 }
 
-var (
-	initOnce sync.Once
-	initErr  error
-)
-
-// ListenAndServeSCION listens for HTTPS connections on the SCION address addr and calls ServeSCION
+// ListenAndServe listens for HTTPS connections on the SCION address addr and calls Serve
 // with handler to handle requests
-func ListenAndServeSCION(addr, certFile, keyFile string, handler http.Handler) error {
+func ListenAndServe(addr string, handler http.Handler) error {
+
 	scionServer := &Server{
-		Addr: addr,
-		s: &h2quic.Server{
+		Server: &h2quic.Server{
 			Server: &http.Server{
+				Addr:    addr,
 				Handler: handler,
 			},
 		},
 	}
-
-	return scionServer.ListenAndServeSCION(certFile, keyFile)
+	return scionServer.ListenAndServe()
 }
 
-// ServeSCION creates a listener on conn and listens for HTTPS connections.
+// Serve creates a listener on conn and listens for HTTPS connections.
 // A new goroutine handles each request using handler
-func ServeSCION(conn net.PacketConn, handler http.Handler, certFile, keyFile string) error {
+func Serve(conn net.PacketConn, handler http.Handler) error {
 
 	scionServer := &Server{
-		Addr: conn.LocalAddr().String(),
-		s: &h2quic.Server{
+		Server: &h2quic.Server{
 			Server: &http.Server{
 				Handler: handler,
 			},
 		},
 	}
 
-	return scionServer.ServeSCION(conn, certFile, keyFile)
+	return scionServer.Serve(conn)
 }
 
-// ListenAndServeSCION listens for QUIC connections on srv.Addr and
-// calls ServeSCION to handle incoming requests
-func (srv *Server) ListenAndServeSCION(certFile, keyFile string) error {
+// ListenAndServe listens for QUIC connections on srv.Addr and
+// calls Serve to handle incoming requests
+func (srv *Server) ListenAndServe() error {
 
-	laddr, err := snet.AddrFromString(srv.Addr)
+	laddr, err := net.ResolveUDPAddr("udp", srv.Addr)
+	sconn, err := appnet.Listen(laddr)
 	if err != nil {
 		return err
 	}
-
-	// initialize SCION
-	initOnce.Do(func() {
-		if snet.DefNetwork == nil {
-			initErr = appnet.InitSCION(laddr)
-		}
-	})
-	if initErr != nil {
-		return initErr
-	}
-
-	sconn, err := snet.ListenSCION("udp4", laddr)
-	if err != nil {
-		return err
-	}
-
-	return srv.ServeSCION(sconn, certFile, keyFile)
-
+	return srv.Serve(sconn)
 }
 
-// ServeSCION listens on conn and accepts incoming connections
+// Serve listens on conn and accepts incoming connections
 // a goroutine is spawned for every request and handled by srv.srv.handler
-func (srv *Server) ServeSCION(conn net.PacketConn, certFile, keyFile string) error {
+func (srv *Server) Serve(conn net.PacketConn) error {
 
-	// create TLS config
-	var err error
-	certs := make([]tls.Certificate, 1)
-	certs[0], err = tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return err
+	// set dummy TLS config if not set:
+	if srv.TLSConfig == nil {
+		cfg, err := appquic.GetDummyTLSConfig()
+		if err != nil {
+			return err
+		}
+		srv.TLSConfig = cfg
 	}
 
-	config := &tls.Config{
-		Certificates: certs,
-	}
-
-	// set TLS config of underlying http.Server
-	srv.s.TLSConfig = config
-
-	return srv.s.Serve(conn)
+	return srv.Server.Serve(conn)
 }
 
 // Close the server immediately, aborting requests and sending CONNECTION_CLOSE frames to connected clients
-// Close in combination with ListenAndServeSCION (instead of ServeSCION) may race if it is called before a UDP socket is established
+// Close in combination with ListenAndServe (instead of Serve) may race if it is called before a UDP socket is established
 func (srv *Server) Close() error {
-	return srv.s.Close()
+	return srv.Server.Close()
 }

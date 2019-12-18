@@ -50,7 +50,7 @@ func (s *closerSession) Close() error {
 	return s.Session.Close()
 }
 
-func Dial(remote string, quicConfig *quic.Config) (quic.Session, error) {
+func Dial(remote string, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Session, error) {
 	remoteAddr, err := appnet.ResolveUDPAddr(remote)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,10 @@ func Dial(remote string, quicConfig *quic.Config) (quic.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	session, err := quic.Dial(sconn, remoteAddr, "host:0", cliTlsCfg, quicConfig)
+	if tlsConf == nil {
+		tlsConf = cliTlsCfg
+	}
+	session, err := quic.Dial(sconn, remoteAddr, "host:0", tlsConf, quicConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +75,7 @@ func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic
 		return nil, err
 	}
 	if tlsConf == nil {
-		tlsConf, err = getSrvTlsCfg()
+		tlsConf, err = GetDummyTLSConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -80,8 +83,9 @@ func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic
 	return quic.Listen(sconn, tlsConf, quicConfig)
 }
 
-// getSrvTlsCfg returns the (singleton) default server TLS config with a fresh private key and a dummy certificate.
-func getSrvTlsCfg() (*tls.Config, error) {
+// GetDummyTLSConfig returns the (singleton) default server TLS config with a fresh
+// private key and a dummy certificate.
+func GetDummyTLSConfig() (*tls.Config, error) {
 	srvTlsCfgInit.Do(func() {
 		cert, err := generateKeyAndCert()
 		if err != nil {

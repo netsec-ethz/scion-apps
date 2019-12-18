@@ -54,17 +54,9 @@ func main() {
 	l4 := addr.NewL4UDPInfo(40002)
 	raddr := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}
 
-	if *interactive {
-		ChoosePathInteractive(laddr, raddr)
-	} else {
-		ChoosePathByMetric(Shortest, laddr, raddr)
-	}
-
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
-		Transport: &shttp.Transport{
-			LAddr: laddr,
-		},
+		Transport: &shttp.NewTransport(nil,nil)
 	}
 
 	// Make a get request

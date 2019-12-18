@@ -27,10 +27,7 @@ import (
 
 func main() {
 
-	var local = flag.String("local", "", "The address on which the server will be listening")
-	var tlsCert = flag.String("cert", "tls.pem", "Path to TLS pemfile")
-	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
-
+	local := flag.String("local", ":443", "The (SCION/UDP) address on which the server will be listening")
 	flag.Parse()
 
 	/*** start of public routes ***/
@@ -73,7 +70,7 @@ func main() {
 
 	/*** end of public routes ***/
 
-	err := shttp.ListenAndServeSCION(*local, *tlsCert, *tlsKey, nil)
+	err := shttp.ListenAndServe(*local, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
