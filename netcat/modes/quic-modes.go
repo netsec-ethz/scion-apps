@@ -87,7 +87,7 @@ func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
 
 // DoDialQUIC dials with a QUIC socket
 func DoDialQUIC(remoteAddr string) io.ReadWriteCloser {
-	sess, err := appquic.Dial(remoteAddr, &quic.Config{KeepAlive: true})
+	sess, err := appquic.Dial(remoteAddr, nil, &quic.Config{KeepAlive: true})
 	if err != nil {
 		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)
 	}

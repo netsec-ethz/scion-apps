@@ -4,12 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
-
-	log "github.com/inconshreveable/log15"
 )
 
 // Config is an interface representing a configuration file
@@ -106,7 +105,7 @@ func UpdateFromReader(conf Config, reader io.Reader) error {
 	for i := len(lines) - 1; i >= 0; i-- {
 		err := UpdateFromString(conf, lines[i])
 		if err != nil {
-			log.Debug("Error while updating config: %v", err)
+			log.Printf("Error while updating config: %v", err)
 		}
 	}
 

@@ -15,10 +15,10 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh/knownhosts"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/sssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 )
@@ -55,8 +55,9 @@ func Create(username string, config *clientconfig.ClientConfig, passAuthHandler 
 		for i := len(config.IdentityFile) - 1; i >= 0; i-- {
 			am, err := loadPrivateKey(utils.ParsePath(config.IdentityFile[i]))
 			if err != nil {
-				log.Debug("Error loading private key at %s, trying next. %s", config.IdentityFile[i], err)
+				log.Debug("Error loading private key, skipped.", "IdentityFile", config.IdentityFile[i], "err", err)
 			} else {
+				log.Debug("Loaded private key", "IdentityFile", config.IdentityFile[i])
 				authMethods = append(authMethods, am)
 			}
 		}
@@ -178,7 +179,7 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 // StartTunnel creates a new tunnel to the given address, forwarding all connections on the given port over the server to the given address. If the given address is a SCION address, QUIC is used; else TCP.
 func (client *Client) StartTunnel(localPort uint16, addr string) error {
 	if strings.Contains(addr, ",") {
-		localListener, err := scionutils.ListenSCION(localPort)
+		localListener, err := appquic.ListenPort(localPort, nil, nil)
 		if err != nil {
 			return err
 		}

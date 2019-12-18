@@ -4,8 +4,25 @@ import (
 	"net"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
+
+// Dial dials a new Quic session, opens a new stream in this session and
+// returns this session/stream pair as a QuicConn
+func Dial(addr string) (*QuicConn, error) {
+	session, err := appquic.Dial(addr, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	stream, err := session.OpenStreamSync()
+	if err != nil {
+		return nil, err
+	}
+	return &QuicConn{Session: session, Stream: stream}, nil
+}
+
+var _ net.Conn = (*QuicConn)(nil)
 
 // QuicConn is a struct wrapping a single QUIC stream into a net.Conn connection.
 type QuicConn struct {

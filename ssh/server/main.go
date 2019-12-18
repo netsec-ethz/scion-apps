@@ -7,10 +7,9 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/server/serverconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/server/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
@@ -18,7 +17,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	scionlog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 const (
@@ -77,21 +75,6 @@ func main() {
 
 	conf := createConfig()
 
-	localhost, err := appnet.GetLocalhost()
-	if err != nil {
-		golog.Panicf("Can't get localhost: %v", err)
-	}
-
-	err = appnet.InitSCION(localhost)
-	if err != nil {
-		golog.Panicf("Error initializing SCION: %v", err)
-	}
-
-	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
-	if err != nil {
-		golog.Panicf("Error initializing SQUIC: %v", err)
-	}
-
 	sshServer, err := ssh.Create(conf, version)
 	if err != nil {
 		golog.Panicf("Error creating ssh server: %v", err)
@@ -103,7 +86,7 @@ func main() {
 	}
 
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
-	listener, err := scionutils.ListenSCION(uint16(port))
+	listener, err := appquic.ListenPort(uint16(port), nil, nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
