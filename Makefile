@@ -7,7 +7,7 @@ TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 all: $(TARGETS)
 
 clean:
-	@$(foreach d,$(SRCDIRS),cd $(ROOT_DIR)/$(d) && go clean;)
+	go clean ./...
 
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)
