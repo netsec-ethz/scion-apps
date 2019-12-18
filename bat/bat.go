@@ -36,10 +36,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	slog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -57,7 +55,6 @@ var (
 	pretty           bool
 	download         bool
 	insecureSSL      bool
-	local            string // TODO: remove as soon as dispatcher supports nil local address
 	auth             string
 	proxy            string
 	printV           string
@@ -86,7 +83,6 @@ func init() {
 	flag.BoolVar(&download, "d", false, "Download the url content as file")
 	flag.BoolVar(&insecureSSL, "insecure", false, "Allow connections to SSL sites without certs")
 	flag.BoolVar(&insecureSSL, "i", false, "Allow connections to SSL sites without certs")
-	flag.StringVar(&local, "l", "", "local SCION address")
 	flag.StringVar(&auth, "auth", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&auth, "a", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&proxy, "proxy", "", "Proxy host and port, PROXY_URL")
@@ -102,23 +98,7 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	// SCION: add shttp Transport to defaultSetting
-	var laddr *snet.Addr
-	var err error
-	if local == "" {
-		laddr, err = appnet.GetLocalhost()
-	} else {
-		laddr, err = snet.AddrFromString(local)
-	}
-
-	if err != nil {
-		log.Fatal("Could get local address: ", err)
-		usage()
-	}
-
-	defaultSetting.Transport = &shttp.Transport{
-		LAddr: laddr,
-	}
+	defaultSetting.Transport = shttp.NewTransport(nil, nil)
 
 	// redirect SCION log to a log file
 	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0)
