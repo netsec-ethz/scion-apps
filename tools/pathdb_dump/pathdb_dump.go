@@ -34,6 +34,7 @@ import (
 
 func errorAndQuit(msg string, params ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg, params...)
+	fmt.Fprintln(os.Stderr)
 	os.Exit(1)
 }
 
@@ -112,44 +113,22 @@ func (s *segment) lessThan(o *segment) bool {
 			(len(s.interfaces) == len(o.interfaces) && (segsLessThan(s, o)))))
 }
 
-func getSC() string {
-	SC := os.Getenv("SC")
-	if SC == "" {
-		errorAndQuit("Env $SC not defined")
-	}
-	return SC
-}
-
-func findIA() addr.IA {
-	SC := getSC()
-	iaFile := filepath.Join(SC, "gen", "ia")
-	if _, err := os.Stat(iaFile); err == nil {
-		iaBytes, err := ioutil.ReadFile(iaFile)
-		if err != nil {
-			errorAndQuit("Cannot read %s: %v", iaFile, err)
-		}
-		ia, err := addr.IAFromFileFmt(string(iaBytes), false)
-		if err != nil {
-			errorAndQuit("Cannot parse IA %s: %v", string(iaBytes), err)
-		}
-		return ia
-	}
-	// we have no ia file, complain for now
-	errorAndQuit("Could not find ia file on %s", iaFile)
-	return addr.IA{}
-}
 func findDBFilename() string {
-	SC := getSC()
-	filenames, err := filepath.Glob(filepath.Join(SC, "gen-cache", "ps*path.db"))
+	searchPath := "/etc/scion/gen-cache/"
+	glob := filepath.Join(searchPath, "ps*path.db")
+	filenames, err := filepath.Glob(glob)
 	if err != nil {
 		errorAndQuit("Error while listing files: %v", err)
 	}
 	if len(filenames) == 1 {
 		return filenames[0]
 	}
-	ia := findIA()
-	pathDBFileName := fmt.Sprintf("ps%s-1.path.db", ia.FileFmt(false))
-	return filepath.Join(SC, "gen-cache", pathDBFileName)
+	reason := "no"
+	if len(filenames) > 1 {
+		reason = "more than one"
+	}
+	errorAndQuit("Found %s files matching '%s'. Please specify the path to a DB file using the -db flag.", reason, glob)
+	return ""
 }
 
 // returns the name of the created file
@@ -183,7 +162,7 @@ func copyDBToTemp(filename string) string {
 	}
 	err = copyOneFile(dirName, filename+"-wal")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "No panic: %v", err)
+		errorAndQuit(err.Error())
 	}
 	return filepath.Join(dirName, filepath.Base(filename))
 }
