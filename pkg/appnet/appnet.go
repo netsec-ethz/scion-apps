@@ -103,7 +103,8 @@ func ToSNetUDPAddr(addr *snet.Addr) *snet.UDPAddr {
 func mustInitDefNetwork() {
 	err := initDefNetwork()
 	if err != nil {
-		panic(fmt.Errorf("Error initializing SCION network: %v", err))
+		fmt.Fprintf(os.Stderr, "Error initializing SCION network: %v\n", err)
+		os.Exit(1)
 	}
 }
 

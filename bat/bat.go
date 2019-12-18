@@ -171,7 +171,7 @@ func main() {
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
 		*URL = "https://" + *URL
 	}
-	u, err := url.Parse(*URL)
+	u, err := url.Parse(shttp.MangleSCIONAddrURL(*URL))
 	if err != nil {
 		log.Fatal(err)
 	}

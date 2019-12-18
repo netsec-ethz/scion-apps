@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -62,11 +63,12 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// If req.URL.Host is a SCION address, we need to mangle it so it passes through
 	// h2quic without tripping up.
-	mangled_host := mangleSCIONAddr(req.URL.Host)
+	// Note: when using the http.Client, the URL must already arrive mangled
+	// here, otherwise it would not have parsed.
 	cpy := *req
 	cpy.URL = new(url.URL)
 	*cpy.URL = *req.URL
-	cpy.URL.Host = mangled_host
+	cpy.URL.Host = mangleSCIONAddr(req.URL.Host)
 
 	return t.rt.RoundTrip(&cpy)
 }
@@ -101,13 +103,33 @@ func dial(network, addrStr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.S
 	return appquic.Dial(fmt.Sprintf("%s:%d", host, p), tlsCfg, cfg)
 }
 
-// mangleSCIONAddr encodes the given SCION address so that it can be safely
-// used in the host part of a URL.
+var scionAddrURLRegexp = regexp.MustCompile(
+	`^(\w*://)?(\w+@)?(\d+-[\d:A-Fa-f]+,\[[^\]]+\])(.*)$`)
+
+// MangleSCIONAddrURL mangles a SCION address in the host part of a URL-ish
+// string so that it can be safely used as a URL, i.e. it can be parsed by
+// net/url.Parse
+func MangleSCIONAddrURL(url string) string {
+
+	match := scionAddrURLRegexp.FindStringSubmatch(url)
+	if len(match) == 0 {
+		return url // does not match: it's not a URL or not a URL with a SCION address. Just pass it through.
+	}
+
+	schemePart := match[1]
+	userInfoPart := match[2]
+	scionAddrPart := match[3]
+	tail := match[4]
+	return schemePart + userInfoPart + mangleSCIONAddr(scionAddrPart) + tail
+}
+
+// mangleSCIONAddr mangles a SCION address string (if it is one) so it can be
+// safely used in the host part of a URL.
 func mangleSCIONAddr(address string) string {
 
 	raddr, err := snet.AddrFromString(address)
 	if err != nil {
-		return address // if it doesn't parse, it's probably not a SCION address.
+		return address
 	}
 	// The HostAddr will be either IPv4 or IPv6 (not a HostSVC-addr).
 	// To make this a valid host string for a URL, replace : for IPv6 addresses by ~. There will
@@ -115,11 +137,11 @@ func mangleSCIONAddr(address string) string {
 	l3 := raddr.Host.L3.String()
 	l3_mangled := strings.Replace(l3, ":", "~", -1)
 
-	u := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), l3_mangled)
+	mangledAddr := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), l3_mangled)
 	if raddr.Host.L4 != 0 {
-		u += fmt.Sprintf(":%d", raddr.Host.L4)
+		mangledAddr += fmt.Sprintf(":%d", raddr.Host.L4)
 	}
-	return u
+	return mangledAddr
 }
 
 // isMangledSCIONAddr checks if this is an address previously encoded with mangleSCIONAddr
@@ -144,6 +166,5 @@ func unmangleSCIONAddr(host string) (string, error) {
 	if l3 == nil {
 		return "", errors.New("Could not parse IP in SCION-address")
 	}
-	h := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3}}
-	return h.String(), nil
+	return fmt.Sprintf("%s,[%v]", ia, l3), nil
 }

@@ -20,48 +20,33 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
-	. "github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func main() {
-
-	local := flag.String("local", "", "The clients local address")
-	interactive := flag.Bool("i", false, "Wether to use interactive mode for path selection")
-
+	serverAddrStr := flag.String("s", "", "Server address (<ISD-AS,[IP]> or <hostname>, optionally with appended <:port>)")
 	flag.Parse()
 
-	var laddr *snet.Addr
-	var err error
-	if *local == "" {
-		laddr, err = GetLocalhost()
-	} else {
-		laddr, err = snet.AddrFromString(*local)
+	if len(*serverAddrStr) == 0 {
+		flag.Usage()
+		os.Exit(2)
 	}
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	ia, l3, err := GetHostByName("minimal-server")
-	if err != nil {
-		log.Fatal(err)
-	}
-	l4 := addr.NewL4UDPInfo(40002)
-	raddr := &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}
 
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
-		Transport: &shttp.NewTransport(nil,nil)
+		Transport: shttp.NewTransport(nil, nil),
 	}
+	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
+	defer c.Transport.(shttp.Transport).Close()
 
 	// Make a get request
 	start := time.Now()
-	resp, err := c.Get("https://minimal-server:40002/download")
+	query := fmt.Sprintf("https://%s/hello", *serverAddrStr)
+	resp, err := c.Get(shttp.MangleSCIONAddrURL(query))
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
@@ -71,20 +56,9 @@ func main() {
 	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp, true)
 
-	// close the transport to free address/port from dispatcher
-	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
-	t, _ := c.Transport.(*shttp.Transport)
-	t.Close()
-
-	// create a new client using the same address/port combination which is now free again
-	c = &http.Client{
-		Transport: &shttp.Transport{
-			LAddr: laddr,
-		},
-	}
-
 	start = time.Now()
-	resp, err = c.Post("https://minimal-server:40002/upload", "text/plain", strings.NewReader("Sample payload for POST request"))
+	query = fmt.Sprintf("https://%s/upload", *serverAddrStr)
+	resp, err = c.Post(shttp.MangleSCIONAddrURL(query), "text/plain", strings.NewReader("Sample payload for POST request"))
 	if err != nil {
 		log.Fatal("POST request failed: ", err)
 	}
