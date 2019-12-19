@@ -52,7 +52,6 @@ var (
 
 	loginName    = kingpin.Flag("login-name", "Username to login with").String()
 	clientCCAddr *snet.Addr
-	err          error
 )
 
 // PromptPassword prompts the user for a password to authenticate with.
