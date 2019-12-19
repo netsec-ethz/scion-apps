@@ -90,6 +90,11 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
+	err = os.Setenv("APPS_ROOT", path.Clean(options.AppsRoot))
+	if CheckError(err) {
+		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		return
+	}
 
 	var tests DefTests
 	err = json.Unmarshal([]byte(raw), &tests)
