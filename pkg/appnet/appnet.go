@@ -55,7 +55,7 @@ func Dial(address string) (snet.Conn, error) {
 
 func DialAddr(raddr *snet.Addr) (snet.Conn, error) {
 	laddr := localAddr(raddr)
-	return Network().Dial("udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone, 0)
+	return Network().Dial(context.TODO(), "udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone)
 }
 
 func Listen(listen *net.UDPAddr) (snet.Conn, error) {
@@ -65,14 +65,14 @@ func Listen(listen *net.UDPAddr) (snet.Conn, error) {
 		ip := localAddr(nil).IP
 		listen = &net.UDPAddr{IP: ip, Port: listen.Port, Zone: listen.Zone}
 	}
-	return Network().Listen("udp", listen, addr.SvcNone, 0)
+	return Network().Listen(context.TODO(), "udp", listen, addr.SvcNone)
 }
 
 // ListenPort is a shortcut to listen on a port with a wildcard address
 func ListenPort(port uint16) (snet.Conn, error) {
 	listen := localAddr(nil)
 	listen.Port = int(port)
-	return Network().Listen("udp", listen, addr.SvcNone, 0)
+	return Network().Listen(context.TODO(), "udp", listen, addr.SvcNone)
 }
 
 // localAddr returns _a_ sensible local address. The local IA is determined

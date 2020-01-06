@@ -5,7 +5,6 @@ import (
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/gob"
-	"fmt"
 	"os"
 	"sort"
 	"sync"
@@ -13,7 +12,6 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -173,17 +171,8 @@ func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
 		PrgFill(bwp.PrgKey, int(i*bwp.PacketSize), sb)
 		// Place packet number at the beginning of the packet, overwriting some PRG data
 		binary.LittleEndian.PutUint32(sb, uint32(i*bwp.PacketSize))
-		n, err := udpConnection.Write(sb)
-		if err != nil {
-			if common.GetErrorMsg(err) == "Path not found" { // TODO: add const error string to snet/conn and use that
-				// Do not handle "Path not found" as fatal, log and skip
-				log.Debug("No path to remote found", "err", common.FmtError(err))
-			} else {
-				Check(err)
-			}
-		} else if int64(n) < bwp.PacketSize {
-			Check(fmt.Errorf("Insufficient number of bytes written: %d instead of %d", n, bwp.PacketSize))
-		}
+		_, err := udpConnection.Write(sb)
+		Check(err)
 		i++
 	}
 }

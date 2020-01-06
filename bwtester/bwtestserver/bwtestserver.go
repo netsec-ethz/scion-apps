@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -182,7 +183,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 
 			// Open Data Connection
 			DCConn, err := appnet.Network().Dial(
-				"udp", serverDCAddr, clientDCAddr, addr.SvcNone, 0)
+				context.TODO(), "udp", serverDCAddr, clientDCAddr, addr.SvcNone)
 			if err != nil {
 				// An error happened, ask the client to try again in 1 second
 				sendPacketBuffer[0] = 'N'
