@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"flag"
 	"fmt"
@@ -317,7 +318,7 @@ func main() {
 
 	// Data channel connection
 	DCConn, err = appnet.Network().Dial(
-		"udp", clientDCAddr, appnet.ToSNetUDPAddr(serverDCAddr), addr.SvcNone, 0)
+		context.TODO(), "udp", clientDCAddr, appnet.ToSNetUDPAddr(serverDCAddr), addr.SvcNone)
 	Check(err)
 
 	// update default packet size to max MTU on the selected path

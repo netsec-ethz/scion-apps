@@ -14,7 +14,6 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	scionlog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh"
@@ -41,8 +40,6 @@ var (
 
 	loginName = kingpin.Flag("login-name", "Username to login with").String()
 )
-
-var clientCCAddr *snet.Addr
 
 // PromptPassword prompts the user for a password to authenticate with.
 func PromptPassword() (secret string, err error) {
