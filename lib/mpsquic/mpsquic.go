@@ -189,7 +189,7 @@ func (mpq *MPQuic) CloseConn() error {
 
 // DialMP creates a monitored multiple paths connection using QUIC over SCION.
 // It returns a MPQuic struct if opening a QUIC session over the initial SCION path succeeded.
-func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath,
+func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths []spathmeta.AppPath,
 	quicConfig *quic.Config) (*MPQuic, error) {
 
 	return DialMPWithBindSVC(network, laddr, raddr, paths, nil, addr.SvcNone, quicConfig)
@@ -248,7 +248,7 @@ func mockAppPath(spathP *spath.Path, host *addr.AppAddr) (appPath *spathmeta.App
 
 // DialMPWithBindSVC creates a monitored multiple paths connection using QUIC over SCION on the specified bind address baddr.
 // It returns a MPQuic struct if a opening a QUIC session over the initial SCION path succeeded.
-func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths *[]spathmeta.AppPath, baddr *snet.Addr,
+func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths []spathmeta.AppPath, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (*MPQuic, error) {
 
 	if network == nil {
@@ -266,18 +266,18 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 	}
 
 	if paths == nil {
-		paths = &[]spathmeta.AppPath{}
+		paths = []spathmeta.AppPath{}
 		// Infer path meta information from path on raddr, since no paths were provided
 		appPath, err := mockAppPath(raddr.Path, raddr.Host)
 		if err != nil {
 			return nil, err
 		}
-		*paths = append(*paths, *appPath)
+		paths = append(paths, *appPath)
 	}
 
 	var raddrs []*snet.Addr = []*snet.Addr{}
 	// Initialize a raddr for each path
-	for i, p := range *paths {
+	for i, p := range paths {
 		logger.Info("Path", "index", i, "interfaces", p.Entry.Path.Interfaces)
 		r := raddr.Copy()
 		if p.Entry.Path != nil {
@@ -292,7 +292,7 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 
 	pathInfos := []pathInfo{}
 	for i, raddr := range raddrs {
-		spathRepr := spath.New((*paths)[i].Entry.Path.FwdPath)
+		spathRepr := spath.New(paths[i].Entry.Path.FwdPath)
 		rawSpathKey, err := getSpathKey(*spathRepr)
 		if err != nil {
 			rspk := RawKey([]byte{})
@@ -300,8 +300,8 @@ func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet
 		}
 		pi := pathInfo{
 			raddr:      raddr,
-			path:       (*paths)[i],
-			appPathKey: (*paths)[i].Key(),
+			path:       paths[i],
+			appPathKey: paths[i].Key(),
 			rawPathKey: *rawSpathKey,
 			expiration: time.Time{},
 			rtt:        maxDuration,

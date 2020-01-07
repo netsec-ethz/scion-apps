@@ -243,21 +243,18 @@ func (pk RawKey) String() string {
 	return common.RawBytes(pk).String()
 }
 
-// handleSCMPRevocation revocation handles explicit revocation notification of a link on a path being probed
+// handleSCMPRevocation handles explicit revocation notification of a link on a path being probed
 // The active path is switched if the revocation expiration is in the future and was issued for an interface on the active path.
-// If the revocation expiration is in the future, but for a backup path, the only the expiration time of the path is set to the current time.
+// If the revocation expiration is in the future, but for a backup path, then only the expiration time of the path is set to the current time.
 func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk *RawKey) {
 	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(revocation.RawSRev)
 
 	if err != nil {
 		logger.Error("Unable to decode SignedRevInfo from SCMP InfoRevocation payload.", "err", err)
 	}
-	if err != nil {
-		logger.Error("Failed to decode SCMP signed revocation Info.", "err", err)
-	}
 	ri, err := signedRevInfo.RevInfo()
 	if err != nil {
-		logger.Error("Failed to decode SCMP revocation Info.", "err", err)
+		logger.Error("Failed to decode SCMP signed revocation Info.", "err", err)
 	}
 
 	// Revoke path from sciond

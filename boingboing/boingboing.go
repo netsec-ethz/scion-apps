@@ -250,7 +250,7 @@ func (c *client) run() {
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	mpQuic, err := mpsquic.DialMP(nil, &local, &remote, &paths, nil)
+	mpQuic, err := mpsquic.DialMP(nil, &local, &remote, paths, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
