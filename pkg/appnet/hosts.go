@@ -93,6 +93,9 @@ func AddHost(hostname, address string) error {
 	return nil
 }
 
+// ResolveUDPAddr parses the address and resolves the hostname.
+// The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
+// or in the form of "hostname:port".
 func ResolveUDPAddr(address string) (*snet.Addr, error) {
 	raddr, err := snet.AddrFromString(address)
 	if err == nil {
