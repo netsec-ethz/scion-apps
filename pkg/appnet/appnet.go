@@ -12,6 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.package main
 
+/*
+Package appnet provides a simplified and functionally extended wrapper interface to the
+scionproto/scion package snet.
+
+
+Dispatcher and SCION daemon sockets
+
+During the hidden initialisation of this package, the dispatcher and sciond sockets are
+opened. The sciond connection determines the local IA.
+The dispatcher and sciond sockets are assumed to be at default locations, but this can
+be overriden using environment variables:
+
+		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
+		SCION_DEAMON_SOCKET: /run/shm/sciond/default.sock
+
+This is convenient for the normal use case of running a the endhost stack for
+a single SCION AS. When running multiple local ASes, e.g. during development, the path
+to the sciond corresponding to the desired AS needs to be specified in the
+SCION_DEAMON_SOCKET environment variable.
+
+
+Wildcard IP Addresses
+
+snet does not currently support binding to wildcard addresses. This will hopefully be
+added soon-ish, but in the meantime, this package emulates this functionality.
+There is one restriction, that applies to hosts with multiple IP addresses in the AS:
+the behaviour will be that of binding to one specific local IP address, which means that
+the application will not be reachable using any of the other IP addresses.
+Traffic sent will always appear to originate from this specific IP address,
+even if that's not the correct route to a destination in the local AS.
+
+This restriction will very likely not cause any issues, as a fairly contrived
+network setup would be required. Also, sciond has a similar restriction (binds
+to one specific IP address).
+*/
 package appnet
 
 import (
@@ -41,10 +76,13 @@ var initOnce sync.Once
 // Typically, this will not be needed for applications directly, as they can
 // use the helper Dial/Listen functions provided here.
 func Network() *network {
-	initOnce.Do(mustInitDefNetwork) // XXX: is it better to init()?
+	initOnce.Do(mustInitDefNetwork)
 	return &defNetwork
 }
 
+// Dial connects to the address (on the SCION/UDP network).
+// The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
+// or in the form of hostname:port.
 func Dial(address string) (snet.Conn, error) {
 	raddr, err := ResolveUDPAddr(address)
 	if err != nil {
@@ -53,51 +91,68 @@ func Dial(address string) (snet.Conn, error) {
 	return DialAddr(raddr)
 }
 
+// DialAddr connects to the address (on the SCION/UDP network).
 func DialAddr(raddr *snet.Addr) (snet.Conn, error) {
-	laddr := localAddr(raddr)
+	laddr := &net.UDPAddr{IP: localIP(raddr)}
 	return Network().Dial(context.TODO(), "udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone)
 }
 
+// Listen acts like net.ListenUDP in a SCION network.
+// The listen address or parts of it may be nil or unspecified, signifying to
+// listen on a wildcard address.
+//
+// See note on wildcard addresses in the package documentation.
 func Listen(listen *net.UDPAddr) (snet.Conn, error) {
 	if listen == nil {
-		listen = localAddr(nil)
-	} else if listen.IP == nil || listen.IP.IsUnspecified() {
-		ip := localAddr(nil).IP
-		listen = &net.UDPAddr{IP: ip, Port: listen.Port, Zone: listen.Zone}
+		listen = &net.UDPAddr{}
+	}
+	if listen.IP == nil || listen.IP.IsUnspecified() {
+		listen = &net.UDPAddr{IP: defaultLocalIP(), Port: listen.Port, Zone: listen.Zone}
 	}
 	return Network().Listen(context.TODO(), "udp", listen, addr.SvcNone)
 }
 
-// ListenPort is a shortcut to listen on a port with a wildcard address
+// ListenPort is a shortcut to Listen on a specific port with a wildcard IP address.
+//
+// See note on wildcard addresses in the package documentation.
 func ListenPort(port uint16) (snet.Conn, error) {
-	listen := localAddr(nil)
-	listen.Port = int(port)
+	listen := &net.UDPAddr{IP: defaultLocalIP(), Port: int(port)}
 	return Network().Listen(context.TODO(), "udp", listen, addr.SvcNone)
 }
 
-// localAddr returns _a_ sensible local address. The local IA is determined
-// based on the IA of the sciond (which is in turn defined to be either at the
-// default path or overriden using SCION_DAEMON_SOCKET).
-// If raddr is not nil and NextHop is set, the NextHop will be considered to
-// determine the local IP address. Otherwise, the default local IP address is
-// used.
-// Note: this is only to workaround not being able to bind to wildcard addresses.
-// Note: this will NOT work nicely if you expect to e.g. switch between VPN/non-VPN paths.
-func localAddr(raddr *snet.Addr) *net.UDPAddr {
-	var localIP net.IP
-	if raddr != nil && raddr.NextHop != nil {
+// localAddr returns the source IP address for traffic to raddr. If
+// raddr.NextHop is set, it's used to determine the local IP address.
+// Otherwise, the default local IP address is returned.
+//
+// The purpose of this function is to workaround not being able to bind to
+// wildcard addresses in snet.
+// See note on wildcard addresses in the package documentation.
+func localIP(raddr *snet.Addr) net.IP {
+	if raddr.NextHop != nil {
 		nextHop := raddr.NextHop.IP
-		localIP = findSrcIP(nextHop)
-	} else {
-		localIP = findSrcIP(Network().hostInLocalAS)
+		return findSrcIP(nextHop)
 	}
-	return &net.UDPAddr{IP: localIP, Port: 0}
+	return defaultLocalIP()
+}
+
+// defaultLocalIP returns _a_ IP of this host in the local AS.
+//
+// The purpose of this function is to workaround not being able to bind to
+// wildcard addresses in snet.
+// See note on wildcard addresses in the package documentation.
+func defaultLocalIP() net.IP {
+	return findSrcIP(Network().hostInLocalAS)
 }
 
 // ToSNetUDPAddr is a helper to convert snet.Addr to the newer snet.UDPAddr type
 // XXX: snet.Addr will be removed...
 func ToSNetUDPAddr(addr *snet.Addr) *snet.UDPAddr {
-	return snet.NewUDPAddr(addr.IA, addr.Path, addr.NextHop, &net.UDPAddr{IP: addr.Host.L3.IP(), Port: int(addr.Host.L4)})
+	return snet.NewUDPAddr(
+		addr.IA,
+		addr.Path,
+		addr.NextHop,
+		&net.UDPAddr{IP: addr.Host.L3.IP(), Port: int(addr.Host.L4)},
+	)
 }
 
 func mustInitDefNetwork() {
