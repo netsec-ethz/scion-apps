@@ -160,10 +160,7 @@ func copyDBToTemp(filename string) string {
 	if err != nil {
 		errorAndQuit(err.Error())
 	}
-	err = copyOneFile(dirName, filename+"-wal")
-	if err != nil {
-		errorAndQuit(err.Error())
-	}
+	_ = copyOneFile(dirName, filename+"-wal") // Fails when DB is not open (i.e. SCION is not running)
 	return filepath.Join(dirName, filepath.Base(filename))
 }
 
