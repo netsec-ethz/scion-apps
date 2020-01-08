@@ -25,6 +25,8 @@ type PathSelector interface {
 	SelectPath(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error)
 }
 
+type pathConverter func (appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error)
+
 var _ net.PacketConn = (*policyConn)(nil)
 
 // policyConn is a wrapper class around snet.SCIONConn
@@ -38,15 +40,15 @@ type policyConn struct {
 	pathResolver     pathmgr.Resolver
 	localIA          addr.IA
 	pathSelector PathSelector
+	pathConverter pathConverter
 }
 
 func NewPolicyConn(c snet.Conn, conf *PathAppConf) *policyConn {
 	pc := &policyConn{
 		Conn:         c,
-		conf:         conf,
-		pathResolver: snet.DefNetwork.PathResolver(),
-		localIA:      snet.DefNetwork.IA()}
+		conf:         conf,}
 	pc.pathSelector = pc
+	pc.pathConverter = getSCIONPath
 	return pc
 }
 
@@ -107,14 +109,14 @@ func (c *staticPolicyConn) SelectPath(address snet.Addr) (*overlay.OverlayAddr, 
 		log.Trace(fmt.Sprintf("SELECTED PATH: %s\n", appPath.Entry.Path))
 		if err != nil {
 			return nil, nil, common.NewBasicError(fmt.Sprintf("staticPolicyConn: error getting SCION path "+
-				"between client %s% and server %s", c.localIA, address.IA), err)
+				"between client %s and server %s", c.localIA, address.IA), err)
 		}
 		c.staticPath, c.staticNextHop = path, nextHop
 	} else if c.staticNextHop != nil && c.staticPath == nil || c.staticNextHop == nil && c.staticPath != nil {
 		return nil, nil, common.NewBasicError("staticPolicyConn:"+
 			"Next hop and path must both be either defined or undefined", nil)
 	}
-	log.Trace(fmt.Sprintf("Path exists: %s", c.staticPath))
+	log.Trace(fmt.Sprintf("Path exists: %v", c.staticPath))
 
 	return c.staticNextHop, c.staticPath, nil
 
@@ -147,7 +149,7 @@ func (c *roundRobinPolicyConn) SelectPath(address snet.Addr) (*overlay.OverlayAd
 	appPath := c.paths[c.nextKeyIndex]
 	log.Trace(fmt.Sprintf("SELECTED PATH # %d: %s\n", c.nextKeyIndex, appPath.Entry.Path))
 	c.nextKeyIndex = (c.nextKeyIndex + 1) % len(c.paths)
-	nextHop, path, err := getSCIONPath(appPath)
+	nextHop, path, err := c.pathConverter(appPath)
 	if err != nil {
 		return nil, nil, common.NewBasicError(fmt.Sprintf("roundRobinPolicyConn: error getting SCION path"+
 			" between client %s and server %s", c.localIA, address.IA), err)
@@ -156,17 +158,18 @@ func (c *roundRobinPolicyConn) SelectPath(address snet.Addr) (*overlay.OverlayAd
 
 }
 
+
 func getSCIONPath(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error) {
 	if appPath == nil {
 		return nil, nil, common.NewBasicError(ErrNoPath, nil)
 	}
 	path := &spath.Path{Raw: appPath.Entry.Path.FwdPath}
 	if err := path.InitOffsets(); err != nil {
-		return nil, nil, common.NewBasicError(ErrInitPath, nil)
+		return nil, nil, common.NewBasicError(ErrInitPath, err)
 	}
 	overlayAddr, err := appPath.Entry.HostInfo.Overlay()
 	if err != nil {
-		return nil, nil, common.NewBasicError(ErrBadOverlay, nil)
+		return nil, nil, common.NewBasicError(ErrBadOverlay, err)
 	}
 	return overlayAddr, path, nil
 

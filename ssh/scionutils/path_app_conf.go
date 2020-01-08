@@ -34,8 +34,9 @@ func (c *PathAppConf) Policy() *pathpol.Policy {
 	return c.policy
 }
 
-func (c *PathAppConf) ConnWrapperFromConfig(conn snet.Conn) (net.PacketConn, error) {
+func (c *PathAppConf) PolicyConnFromConfig(conn snet.Conn) (net.PacketConn, error) {
 	connWrapper := NewPolicyConn(conn, c)
+
 	switch c.pathSelection {
 	case Static:
 		return NewStaticPolicyConn(*connWrapper), nil
