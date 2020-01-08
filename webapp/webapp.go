@@ -245,7 +245,6 @@ func initServeHandlers() {
 	http.HandleFunc("/geolocate", lib.GeolocateHandler)
 	http.HandleFunc("/getpathtopo", getPathInfoHandler)
 	http.HandleFunc("/getastopo", lib.AsTopoHandler)
-	http.HandleFunc("/getcrt", getCrtInfoHandler)
 	http.HandleFunc("/gettrc", getTrcInfoHandler)
 }
 
@@ -747,10 +746,6 @@ func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
 	lib.TrcHandler(w, r, &options)
-}
-
-func getCrtInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.CrtHandler(w, r, &options)
 }
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {

@@ -17,7 +17,7 @@
  </div>
 
  <script type="text/javascript">
-        $.when($.ajax({
+        $.ajax({
             url : 'gettrc',
             type : 'post',
             dataType : "json",
@@ -31,31 +31,11 @@
                     showError(data.err);
                 }
                 $('#json-trc').html(json2html(data, true));
+                setupListTree();
             },
             error : function(jqXHR, textStatus, errorThrown) {
                 showError(this.url + ' ' + textStatus + ': ' + errorThrown);
             },
-        }), $.ajax({
-            url : 'getcrt',
-            type : 'post',
-            dataType : "json",
-            data : {
-                "src" : "{{.MyIA}}"
-            },
-            timeout : 10000,
-            success : function(data, textStatus, jqXHR) {
-                console.info(JSON.stringify(data));
-                if (data.err) {
-                    showError(data.err);
-                }
-                var items = $(json2html(data, true)).contents().unwrap();
-                $('#json-trc ul.tree').append(items);
-            },
-            error : function(jqXHR, textStatus, errorThrown) {
-                showError(this.url + ' ' + textStatus + ': ' + errorThrown);
-            },
-        })).then(function() {
-            setupListTree();
         });
     </script>
 
