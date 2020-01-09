@@ -106,6 +106,9 @@ func ResolveUDPAddr(address string) (*snet.Addr, error) {
 		return nil, err
 	}
 	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return nil, err
+	}
 	host, err := GetHostByName(hostStr)
 	if err != nil {
 		return nil, err
