@@ -1,5 +1,6 @@
 {{define "astopo"}} {{template "header" .}}
 
+
 <script type="text/javascript" src="static/js/cola.v3.min.js"></script>
 <script type="text/javascript" src="static/js/d3.v3.min.js"></script>
 <script type="text/javascript" src="static/js/topojson.min.js"></script>
@@ -9,10 +10,12 @@
 
  <div id='as-error'></div>
 
+ <h2>SCIONLab AS Monitor</h2>
  <div id="as-tab-astopo">
   <div id="as-astopo"></div>
   <div id="as-svclist">
    <h2>AS {{.MyIA}} Topology Services</h2>
+   <br>
    <p id="as-selection"></p>
    <table id='service_table'>
     <thead>
@@ -43,12 +46,13 @@
             if (data.err) {
                 showError(data.err);
             }
-            var json_as_topo = get_json_as_topo(data);
             // add AS topology layout
             var width = $("#as-astopo").width();
             var height = $("#as-astopo").height();
+            var json_as_topo = get_json_as_topo(data, width, height);
             drawAsTopo("as-astopo", json_as_topo, width, height);
-            $("#as-selection").html("Click on a service");
+            var info = "Click on a service for details.";
+            $("#as-selection").html(info);
         },
         error : function(jqXHR, textStatus, errorThrown) {
             showError(this.url + ' ' + textStatus + ': ' + errorThrown);

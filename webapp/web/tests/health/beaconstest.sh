@@ -47,4 +47,3 @@ do
 done
 
 echo "PCB verification found ${diff_ms}ms ago."
-exit $?

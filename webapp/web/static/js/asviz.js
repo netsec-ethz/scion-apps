@@ -407,7 +407,7 @@ var svc_pre = {
     6 : "ds",
 };
 
-var svc_icon = {
+var svc_service = {
     0 : "unset",
     1 : "BEACON",
     2 : "PATH",
@@ -417,7 +417,7 @@ var svc_icon = {
     6 : "DISCOVERY",
 };
 
-function get_json_as_topo(data) {
+function get_json_as_topo(data, width, height) {
     var nodes = [];
     var links = [];
     var gidx = 0;
@@ -430,14 +430,19 @@ function get_json_as_topo(data) {
     var a = data.as_info.Entries[0];
     var ia = iaRaw2Read(a.RawIsdas);
     var iaf = iaRaw2File(a.RawIsdas);
+
     // asinfo: add AS root node
     var asnode = {};
     asnode.name = ia;
-    asnode.icon = "ISD-AS";
+    asnode.service = "ISD-AS";
     asnode.mtu = a.Mtu;
     asnode.is_core_as = a.IsCore;
     asnode.type = "root";
     asnode.group = gidx;
+    // fix root in center
+    asnode.x = width / 2;
+    asnode.y = height / 2;
+    asnode.fixed = true;
     nodes.push(asnode);
 
     var sinfos = data.svc_info.Entries;
@@ -449,7 +454,7 @@ function get_json_as_topo(data) {
             // svcinfo: add all service nodes
             var snode = {};
             snode.name = svc_pre[st] + iaf + "-" + (parseInt(h) + 1);
-            snode.icon = svc_icon[st];
+            snode.service = svc_service[st];
             snode.ttl = sinfos[s].Ttl;
             if (hinfos[h].Addrs.Ipv4) {
                 snode.ipv4 = ipv4Raw2Read(hinfos[h].Addrs.Ipv4);
@@ -491,7 +496,7 @@ function get_json_as_topo(data) {
             var snode = {};
             brs[brkey] = "br" + iaf + "-" + (Object.keys(brs).length + 1);
             snode.name = brs[brkey];
-            snode.icon = "BORDER";
+            snode.service = "BORDER";
             if (iinfos[i].HostInfo.Addrs.Ipv4) {
                 snode.ipv4 = ipv4;
             }
@@ -514,7 +519,7 @@ function get_json_as_topo(data) {
         // ifinfo: add all interface dest AS nodes
         var lnode = {};
         lnode.name = "(" + iinfos[i].IfID + ")";
-        lnode.icon = "ISD_AS";
+        lnode.service = "ISD-AS";
         lnode.type = "interface";
         lnode.link_type = "parent";
         lnode.group = 0;
@@ -526,6 +531,7 @@ function get_json_as_topo(data) {
         llink.type = "as-parent";
         links.push(llink);
     }
+
     var graph = {};
     graph.nodes = nodes;
     graph.links = links;
