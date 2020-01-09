@@ -106,7 +106,7 @@ func UpdateFromReader(conf Config, reader io.Reader) error {
 	for i := len(lines) - 1; i >= 0; i-- {
 		err := UpdateFromString(conf, lines[i])
 		if err != nil {
-			log.Debug("Error while updating config: %v", err)
+			log.Debug("Error while updating config", "err", err)
 		}
 	}
 

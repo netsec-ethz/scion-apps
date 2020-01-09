@@ -1,7 +1,6 @@
 package main
 
 import (
-	golog "log"
 	"os"
 	"strconv"
 
@@ -15,9 +14,7 @@ import (
 	"github.com/netsec-ethz/scion-apps/ssh/server/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 
-	log "github.com/inconshreveable/log15"
-
-	scionlog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
@@ -37,7 +34,7 @@ var (
 func setConfIfNot(conf *serverconfig.ServerConfig, name string, value, not interface{}) bool {
 	res, err := config.SetIfNot(conf, name, value, not)
 	if err != nil {
-		golog.Panicf("Error setting option %s to %v: %v", name, value, err)
+		utils.Panicf("Error setting option %s to %v: %v", name, value, err)
 	}
 	return res
 }
@@ -50,7 +47,7 @@ func createConfig() *serverconfig.ServerConfig {
 	for _, option := range *options {
 		err := config.UpdateFromString(conf, option)
 		if err != nil {
-			log.Debug("Error updating config from --option flag: %v", err)
+			log.Debug("Error updating config from --option flag", "err", err)
 		}
 	}
 
@@ -64,14 +61,14 @@ func updateConfigFromFile(conf *serverconfig.ServerConfig, pth string) {
 	err := config.UpdateFromFile(conf, utils.ParsePath(pth))
 	if err != nil {
 		if !os.IsNotExist(err) {
-			golog.Panicf("Error updating config from file %s: %v", pth, err)
+			utils.Panicf("Error updating config from file %s: %v", pth, err)
 		}
 	}
 }
 
 func main() {
 	kingpin.Parse()
-	scionlog.SetupLogConsole("debug")
+	log.SetupLogConsole("debug")
 
 	log.Debug("Starting SCION SSH server...")
 
@@ -79,33 +76,33 @@ func main() {
 
 	localhost, err := scionutil.GetLocalhost()
 	if err != nil {
-		golog.Panicf("Can't get localhost: %v", err)
+		utils.Panicf("Can't get localhost: %v", err)
 	}
 
 	err = scionutil.InitSCION(localhost)
 	if err != nil {
-		golog.Panicf("Error initializing SCION: %v", err)
+		utils.Panicf("Error initializing SCION: %v", err)
 	}
 
 	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
 	if err != nil {
-		golog.Panicf("Error initializing SQUIC: %v", err)
+		utils.Panicf("Error initializing SQUIC: %v", err)
 	}
 
 	sshServer, err := ssh.Create(conf, version)
 	if err != nil {
-		golog.Panicf("Error creating ssh server: %v", err)
+		utils.Panicf("Error creating ssh server: %v", err)
 	}
 
 	port, err := strconv.Atoi(conf.Port)
 	if err != nil {
-		golog.Panicf("Can't parse port %v: %v", conf.Port, err)
+		utils.Panicf("Can't parse port %v: %v", conf.Port, err)
 	}
 
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
 	listener, err := scionutils.ListenSCION(uint16(port))
 	if err != nil {
-		golog.Panicf("Failed to listen (%v)", err)
+		utils.Panicf("Failed to listen (%v)", err)
 	}
 
 	log.Debug("Starting to wait for connections")

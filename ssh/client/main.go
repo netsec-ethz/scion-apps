@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	golog "log"
 	"net"
 	"os"
 	"os/user"
@@ -10,10 +9,9 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/ssh/terminal"
-
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	scionlog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 
@@ -22,8 +20,6 @@ import (
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
-
-	log "github.com/inconshreveable/log15"
 )
 
 var (
@@ -75,7 +71,7 @@ func PromptAcceptHostKey(hostname string, remote net.Addr, publicKey string) boo
 func setConfIfNot(conf *clientconfig.ClientConfig, name string, value, not interface{}) bool {
 	res, err := config.SetIfNot(conf, name, value, not)
 	if err != nil {
-		golog.Panicf("Error setting option %s to %v: %v", name, value, err)
+		utils.Panicf("Error setting option %s to %v: %v", name, value, err)
 	}
 	return res
 }
@@ -108,35 +104,35 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 	err := config.UpdateFromFile(conf, utils.ParsePath(pth))
 	if err != nil {
 		if !os.IsNotExist(err) {
-			golog.Panicf("Error updating config from file %s: %v", pth, err)
+			utils.Panicf("Error updating config from file %s: %v", pth, err)
 		}
 	}
 }
 
 func main() {
 	kingpin.Parse()
-	scionlog.SetupLogConsole("debug")
+	log.SetupLogConsole("debug")
 
 	conf := createConfig()
 
 	localUser, err := user.Current()
 	if err != nil {
-		golog.Panicf("Can't find current user: %s", err)
+		utils.Panicf("Can't find current user: %s", err)
 	}
 
 	localhost, err := scionutil.GetLocalhost()
 	if err != nil {
-		golog.Panicf("Can't get localhost: %v", err)
+		utils.Panicf("Can't get localhost: %v", err)
 	}
 
 	err = scionutil.InitSCION(localhost)
 	if err != nil {
-		golog.Panicf("Error initializing SCION: %v", err)
+		utils.Panicf("Error initializing SCION: %v", err)
 	}
 
 	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
 	if err != nil {
-		golog.Panicf("Error initializing SQUIC: %v", err)
+		utils.Panicf("Error initializing SQUIC: %v", err)
 	}
 
 	verifyNewKeyHandler := PromptAcceptHostKey
@@ -153,14 +149,14 @@ func main() {
 
 	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler)
 	if err != nil {
-		golog.Panicf("Error creating ssh client: %v", err)
+		utils.Panicf("Error creating ssh client: %v", err)
 	}
 
 	serverAddress := fmt.Sprintf("%s:%v", conf.HostAddress, conf.Port)
 
 	err = sshClient.Connect(serverAddress)
 	if err != nil {
-		golog.Panicf("Error connecting: %v", err)
+		utils.Panicf("Error connecting: %v", err)
 	}
 	defer sshClient.CloseSession()
 
@@ -169,12 +165,12 @@ func main() {
 
 		port, err := strconv.ParseUint(localForward[0], 10, 16)
 		if err != nil {
-			golog.Panicf("Error parsing forwarding port: %v", err)
+			utils.Panicf("Error parsing forwarding port: %v", err)
 		}
 
 		err = sshClient.StartTunnel(uint16(port), localForward[1])
 		if err != nil {
-			golog.Panicf("Error starting tunnel: %v", err)
+			utils.Panicf("Error starting tunnel: %v", err)
 		}
 	}
 
@@ -182,26 +178,27 @@ func main() {
 	runCommand := strings.Join((*runCommand)[:], " ")
 
 	if runCommand == "" {
+		log.Debug("Starting interactive shell now")
 		err = sshClient.Shell()
 		if err != nil {
-			golog.Panicf("Error starting shell: %v", err)
+			utils.Panicf("Error starting shell: %v", err)
 		}
 	} else {
-		log.Debug("Running command: %s", runCommand)
+		log.Debug("Running command", "command", runCommand)
 
 		err = sshClient.ConnectPipes(os.Stdin, os.Stdout)
 		if err != nil {
-			golog.Panicf("Error connecting pipes: %v", err)
+			utils.Panicf("Error connecting pipes: %v", err)
 		}
 
 		err = sshClient.StartSession(runCommand)
 		if err != nil {
-			golog.Panicf("Error running command: %v", err)
+			utils.Panicf("Error running command: %v", err)
 		}
 
 		err = sshClient.WaitSession()
 		if err != nil {
-			golog.Panicf("Error waiting for command to complete: %v", err)
+			utils.Panicf("Error waiting for command to complete: %v", err)
 		}
 	}
 }
