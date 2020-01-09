@@ -68,7 +68,8 @@ function setPaths(type, idx, open) {
         } else if (type == 'UP') {
             addSegments(resUp, idx, num, colorSegUp, type);
         } else if (type == 'PATH') {
-            var latencies = getPathLatencyAvg(formatPathString(resPath, idx,
+            // use min(best) for inter AS as it will be more accurate for length
+            var latencies = getPathLatencyLast(formatPathString(resPath, idx,
                     type));
             addPaths(resPath, idx, num, colorPaths, type, latencies);
         }

@@ -481,7 +481,7 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         var hops = if_.length / 2;
 
         var pathStr = formatPathJson(paths, parseInt(p));
-        var latencies = getPathLatencyAvg(pathStr);
+        var latencies = getPathLatencyLast(pathStr);
         var latencyPath = latencies[latencies.length - 1];
         var latPathStr = latencyPath ? formatLatency(latencyPath) : '';
         var aStyle = "style='background-color:" + getPathColor(pathStr) + ";'";

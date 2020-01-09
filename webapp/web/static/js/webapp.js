@@ -386,7 +386,7 @@ function manageTestData() {
         } else if (activeApp == "traceroute") {
             requestTraceRouteByTime(form_data);
         }
-        lastTimeBwDb = now;
+        // lastTimeBwDb = now;
     }, dataIntervalMs);
 }
 
@@ -401,8 +401,8 @@ function manageTestEnd(d, appSel, since) {
             releaseTabs();
             if (d.graph != null) {
                 clearInterval(intervalGraphData);
-            } else {
-                lastTimeBwDb = since;
+                // } else {
+                // lastTimeBwDb = since;
             }
         }
     }
@@ -440,6 +440,7 @@ function requestBwTestByTime(form_data) {
                     console.info(JSON.stringify(data));
                     console.info('continuous bwtester', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+                    lastTimeBwDb = d.graph[i].Inserted;
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updateBwGraph(data, time)
@@ -477,6 +478,7 @@ function requestEchoByTime(form_data) {
                     console.info(JSON.stringify(data));
                     console.info('continuous echo', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+                    lastTimeBwDb = d.graph[i].Inserted;
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
                     updatePingGraph(chartSE, data, time)
@@ -513,6 +515,7 @@ function requestTraceRouteByTime(form_data) {
 
                     console.info('continuous traceroute', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
+                    lastTimeBwDb = d.graph[i].Inserted;
                     // use the time the test began
                     var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
 
@@ -564,7 +567,7 @@ function requestTraceRouteByTime(form_data) {
 
 var backgroundEcho;
 function surveyEchoBackground() {
-    var lastTimeBwDb = (new Date()).getTime();
+    var blastTimeBwDb = (new Date()).getTime();
     var form_data = $('#command-form').serializeArray();
     var interval = 0.1;
     var count = 3;
@@ -595,9 +598,9 @@ function surveyEchoBackground() {
     clearInterval(backgroundEcho);
     backgroundEcho = setInterval(function() {
         reportEchoBackground({
-            since : lastTimeBwDb
+            since : blastTimeBwDb
         });
-        lastTimeBwDb = (new Date()).getTime();
+        blastTimeBwDb = (new Date()).getTime();
     }, dataIntervalMs);
 }
 
