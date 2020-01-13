@@ -131,36 +131,24 @@ a:hover {
 
 #as-astopo {
  width: 600px;
- height: 450px;
+ height: 300px;
  border: 1px solid #ccc;
  position: absolute;
 }
 
 #as-svclist {
  width: 300px;
- height: 450px;
+ height: 300px;
  left: 610px;
  padding-left: 10px;
  border: 1px solid #ccc;
  position: absolute;
 }
 
-#as-trclist {
- width: 900px;
- height: 450px;
- padding-left: 10px;
- border: 1px solid #ccc;
- overflow: scroll;
- overflow-x: hidden;
-}
-
-#as-crtlist {
- width: 900px;
- height: 450px;
- padding-left: 10px;
- border: 1px solid #ccc;
- overflow: scroll;
- overflow-x: hidden;
+#as-trclist, #as-crtlist {
+ overflow-x: scroll;
+ overflow-y: scroll;
+ white-space: nowrap;
 }
 
 #as-trclist h2 {

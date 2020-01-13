@@ -213,12 +213,11 @@ func initLocalIaOptions() {
 }
 
 func initServeHandlers() {
-	serveExact("/favicon.ico", "./favicon.ico")
+	serveExact("/favicon.ico", path.Join(options.StaticRoot, "favicon.ico"))
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/about", aboutHandler)
 	http.HandleFunc("/apps", appsHandler)
 	http.HandleFunc("/astopo", astopoHandler)
-	http.HandleFunc("/crt", crtHandler)
 	http.HandleFunc("/trc", trcHandler)
 	fsStatic := http.FileServer(http.Dir(path.Join(options.StaticRoot, "static")))
 	http.Handle("/static/", http.StripPrefix("/static/", fsStatic))
@@ -246,7 +245,6 @@ func initServeHandlers() {
 	http.HandleFunc("/geolocate", lib.GeolocateHandler)
 	http.HandleFunc("/getpathtopo", getPathInfoHandler)
 	http.HandleFunc("/getastopo", lib.AsTopoHandler)
-	http.HandleFunc("/getcrt", getCrtInfoHandler)
 	http.HandleFunc("/gettrc", getTrcInfoHandler)
 }
 
@@ -267,7 +265,6 @@ func prepareTemplates(srcpath string) *template.Template {
 		path.Join(srcpath, "template/health.html"),
 		path.Join(srcpath, "template/about.html"),
 		path.Join(srcpath, "template/astopo.html"),
-		path.Join(srcpath, "template/crt.html"),
 		path.Join(srcpath, "template/trc.html"),
 	))
 }
@@ -309,10 +306,6 @@ func appsHandler(w http.ResponseWriter, r *http.Request) {
 
 func astopoHandler(w http.ResponseWriter, r *http.Request) {
 	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: settings.MyIA})
-}
-
-func crtHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "crt", &Page{Title: "SCIONLab Cert", MyIA: settings.MyIA})
 }
 
 func trcHandler(w http.ResponseWriter, r *http.Request) {
@@ -580,7 +573,7 @@ func appsBuildCheck(app string) {
 	installpath := getClientLocationBin(app)
 	if _, err := os.Stat(installpath); os.IsNotExist(err) {
 		CheckError(err)
-		CheckError(errors.New("App missing, build all apps with 'deps.sh' and 'make install'."))
+		CheckError(errors.New("App missing, build all apps with 'make install'."))
 	} else {
 		log.Info(fmt.Sprintf("Existing install, found %s...", app))
 	}
@@ -767,10 +760,6 @@ func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
 	lib.TrcHandler(w, r, &options)
-}
-
-func getCrtInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.CrtHandler(w, r, &options)
 }
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {

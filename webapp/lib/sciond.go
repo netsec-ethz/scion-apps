@@ -306,25 +306,12 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
 func TrcHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
-	raw, err := loadJSONCerts(CIa, "*.trc", options)
+	raw, err := loadJSONCerts(CIa, "*.???", options)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
 	log.Debug("TrcHandler:", "trcInfo", string(raw))
-	fmt.Fprintf(w, string(raw))
-}
-
-// CrtHandler handles requests for all local certificate data.
-func CrtHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
-	r.ParseForm()
-	CIa := r.PostFormValue("src")
-	raw, err := loadJSONCerts(CIa, "*.crt", options)
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-	log.Debug("CrtHandler:", "crtInfo", string(raw))
 	fmt.Fprintf(w, string(raw))
 }
 
@@ -369,6 +356,9 @@ func loadJSONFiles(files []string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !isJSON(raw) {
+			continue // skip non-json
+		}
 		// concat raw files...
 		if idx > 0 {
 			jsonBuf = append(jsonBuf, []byte(`, `)...)
@@ -378,6 +368,11 @@ func loadJSONFiles(files []string) ([]byte, error) {
 		idx++
 	}
 	return jsonBuf, nil
+}
+
+func isJSON(b []byte) bool {
+	var js interface{}
+	return json.Unmarshal(b, &js) == nil
 }
 
 // remote data files and services
