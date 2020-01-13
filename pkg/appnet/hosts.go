@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/netsec-ethz/rains/pkg/rains"
@@ -29,13 +30,36 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+var addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),\[([^\]]+)\]$`)
+var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,\[[^\]]+\])):(\d+)$`)
+
 // hosts file
-var (
-	hostFilePath = "/etc/hosts"
-	addrRegexp   = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\]`)
-	hosts        = make(map[string]snet.SCIONAddress) // hostname -> scionAddress
-	revHosts     = make(map[string][]string)          // SCION address w/o port -> hostnames
-)
+const hostFilePath = "/etc/hosts"
+
+type hostsTable struct {
+	byName map[string]snet.SCIONAddress // hostname -> scionAddress
+	byAddr map[string][]string          // SCION address (w/o port) -> hostnames
+}
+
+func newHostsTable() hostsTable {
+	return hostsTable{
+		byName: make(map[string]snet.SCIONAddress),
+		byAddr: make(map[string][]string),
+	}
+}
+
+func (h hostsTable) add(name string, addr snet.SCIONAddress) bool {
+	if _, ok := h.byName[name]; !ok {
+		h.byName[name] = addr
+		addrStr := addrToString(addr)
+		h.byAddr[addrStr] = append(h.byAddr[addrStr], name)
+		return true
+	}
+	return false
+}
+
+var loadHostsOnce sync.Once
+var hostsTableInstance hostsTable
 
 // RAINS
 var (
@@ -54,43 +78,20 @@ const (
 )
 
 func init() {
-	// parse hosts file
-	hostsFile, err := readHostsFile()
-	if err == nil {
-		parseHostsFile(hostsFile)
-	}
-
 	// read RAINS server address
 	rainsServer = readRainsConfig()
 }
 
-var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
-
-// SplitHostPort splits a host:port string into host and port variables
+// SplitHostPort splits a host:port string into host and port variables.
+// This is analogous to net.SplitHostPort, which however refuses to handle SCION addresses.
+// The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
+// or in the form of "hostname:port".
 func SplitHostPort(hostport string) (host, port string, err error) {
-	split := addressPortSplitRegex.FindAllStringSubmatch(hostport, -1)
-	if len(split) == 1 {
-		return split[0][1], split[0][2], nil
+	match := hostPortRegexp.FindStringSubmatch(hostport)
+	if match != nil {
+		return match[1], match[2], nil
 	}
-	return "", "", fmt.Errorf("appnet.SplitHostPort: invalid SCION address")
-}
-
-// AddHost adds a host to the map of known hosts
-// An error is returned if the address has a wrong format or
-// the hostname already exists
-// The added host will not persist between program executions
-func AddHost(hostname, address string) error {
-	if addrs, ok := hosts[hostname]; ok {
-		return fmt.Errorf("Host %q already exists, address(es): %v", hostname, addrs)
-	}
-	addr, err := addrFromString(address)
-	if err != nil {
-		return fmt.Errorf("Cannot add host %q: %v", hostname, err)
-	}
-	hosts[hostname] = addr
-	revHosts[address] = append(revHosts[address], hostname)
-
-	return nil
+	return "", "", fmt.Errorf("appnet.SplitHostPort: invalid address")
 }
 
 // ResolveUDPAddr parses the address and resolves the hostname.
@@ -120,8 +121,9 @@ func ResolveUDPAddr(address string) (*snet.Addr, error) {
 
 // GetHostByName returns the IA and HostAddr corresponding to hostname
 func GetHostByName(hostname string) (snet.SCIONAddress, error) {
+
 	// try to resolve hostname locally
-	addr, ok := hosts[hostname]
+	addr, ok := hosts().byName[hostname]
 	if ok {
 		return addr, nil
 	}
@@ -146,47 +148,77 @@ func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 	return scionAddr, nil
 }
 
+// AddHost adds a host to the map of known hosts
+// An error is returned if the address has a wrong format or
+// the hostname already exists
+// The added host will not persist between program executions
+func AddHost(hostname, address string) error {
+	addr, err := addrFromString(address)
+	if err != nil {
+		return fmt.Errorf("Cannot add host %q: %v", hostname, err)
+	}
+	if !hosts().add(hostname, addr) {
+		return fmt.Errorf("Host %q already exists", hostname)
+	}
+
+	return nil
+}
+
 // GetHostnamesByAddress returns the hostnames corresponding to address
 // TODO: (chaehni) RAINS address query to resolve address to name
-func GetHostnamesByAddress(address string) ([]string, error) {
-	match := addrRegexp.FindString(address)
-	host, ok := revHosts[match]
+func GetHostnamesByAddress(address snet.SCIONAddress) ([]string, error) {
+
+	host, ok := hosts().byAddr[addrToString(address)]
 	if !ok {
 		return []string{}, fmt.Errorf("Hostname for address %q not found", address)
 	}
 	return host, nil
 }
 
-func readHostsFile() ([]byte, error) {
-	bs, err := ioutil.ReadFile(hostFilePath)
+func hosts() *hostsTable {
+	loadHostsOnce.Do(func() {
+		hostsTableInstance = loadHostsFile(hostFilePath)
+	})
+	return &hostsTableInstance
+}
+
+func loadHostsFile(path string) hostsTable {
+	hostsFile, err := readHostsFile(path)
+	if err == nil {
+		return parseHostsFile(hostsFile)
+	}
+	return newHostsTable()
+}
+
+func readHostsFile(path string) ([]byte, error) {
+	bs, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 	return bs, nil
 }
 
-func parseHostsFile(hostsFile []byte) {
+func parseHostsFile(hostsFile []byte) hostsTable {
+	hosts := newHostsTable()
 	lines := bytes.Split(hostsFile, []byte("\n"))
 	for _, line := range lines {
 		fields := strings.Fields(string(line))
 		if len(fields) == 0 {
 			continue
 		}
-		if matched := addrRegexp.MatchString(fields[0]); matched {
-			address, err := addrFromString(fields[0])
+		if addrRegexp.MatchString(fields[0]) {
+			addr, err := addrFromString(fields[0])
 			if err != nil {
 				continue
 			}
 
 			// map hostnames to scionAddress
 			for _, field := range fields[1:] {
-				if _, ok := hosts[field]; !ok {
-					hosts[field] = address
-					revHosts[fields[0]] = append(revHosts[fields[0]], field)
-				}
+				_ = hosts.add(field, addr)
 			}
 		}
 	}
+	return hosts
 }
 
 func readRainsConfig() *snet.Addr {
@@ -201,6 +233,8 @@ func readRainsConfig() *snet.Addr {
 	return address
 }
 
+// addrFromString parses a string to a snet.SCIONAddress
+// XXX(matzf) this would optimally be part of snet
 func addrFromString(address string) (snet.SCIONAddress, error) {
 	parts := addrRegexp.FindStringSubmatch(address)
 	if parts == nil {
@@ -220,4 +254,10 @@ func addrFromString(address string) (snet.SCIONAddress, error) {
 		}
 	}
 	return snet.SCIONAddress{IA: ia, Host: l3}, nil
+}
+
+// addrToString formats an snet.SCIONAddress as a string
+// XXX(matzf) this would optimally be part of snet
+func addrToString(addr snet.SCIONAddress) string {
+	return fmt.Sprintf("%s,[%s]", addr.IA, addr.Host)
 }
