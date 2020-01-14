@@ -38,10 +38,10 @@ func main() {
 
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
-		Transport: shttp.NewTransport(nil, nil),
+		Transport: shttp.NewRoundTripper(nil, nil),
 	}
 	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
-	defer c.Transport.(shttp.Transport).Close()
+	defer c.Transport.(shttp.RoundTripper).Close()
 
 	// Make a get request
 	start := time.Now()

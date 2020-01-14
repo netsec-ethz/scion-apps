@@ -323,7 +323,7 @@ func main() {
 	serverDCAddr.Host.L4 = serverCCAddr.Host.L4 + 1
 
 	// Data channel connection
-	DCConn, err = appnet.Network().Dial(
+	DCConn, err = appnet.DefNetwork().Dial(
 		context.TODO(), "udp", clientDCAddr, appnet.ToSNetUDPAddr(serverDCAddr), addr.SvcNone)
 	Check(err)
 

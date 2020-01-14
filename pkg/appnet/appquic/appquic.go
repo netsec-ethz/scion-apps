@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// appquic provides a simple interface to use QUIC over SCION.
+// Package appquic provides a simple interface to use QUIC over SCION.
 // This package is similar to snet/squic, but offers a smoother interface for
 // applications and, like appnet, it allows to Dial hostnames resolved with RAINS.
 package appquic
@@ -30,10 +30,9 @@ import (
 
 var (
 	// Don't verify the server's cert, as we are not using the TLS PKI.
-	cliTlsCfg        = &tls.Config{InsecureSkipVerify: true}
-	srvTlsCfg        *tls.Config
-	srvTlsCfgInit    sync.Once
-	srvTlsCfgInitErr error
+	cliTLSCfg     = &tls.Config{InsecureSkipVerify: true}
+	srvTLSCfg     *tls.Config
+	srvTLSCfgInit sync.Once
 )
 
 // closerSession is a wrapper around quic.Session that always closes the
@@ -50,6 +49,7 @@ func (s *closerSession) Close() error {
 	return s.Session.Close()
 }
 
+// Dial establishes a new QUIC connection to a server at the remote address.
 func Dial(remote string, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Session, error) {
 	remoteAddr, err := appnet.ResolveUDPAddr(remote)
 	if err != nil {
@@ -60,7 +60,7 @@ func Dial(remote string, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Ses
 		return nil, err
 	}
 	if tlsConf == nil {
-		tlsConf = cliTlsCfg
+		tlsConf = cliTLSCfg
 	}
 	session, err := quic.Dial(sconn, remoteAddr, "host:0", tlsConf, quicConfig)
 	if err != nil {
@@ -69,6 +69,9 @@ func Dial(remote string, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Ses
 	return &closerSession{session, sconn}, nil
 }
 
+// ListenPort listens for QUIC connections on a SCION/UDP port.
+//
+// See note on wildcard addresses in the appnet package documentation.
 func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
 	sconn, err := appnet.ListenPort(port)
 	if err != nil {
@@ -86,12 +89,13 @@ func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic
 // GetDummyTLSConfig returns the (singleton) default server TLS config with a fresh
 // private key and a dummy certificate.
 func GetDummyTLSConfig() (*tls.Config, error) {
-	srvTlsCfgInit.Do(func() {
+	var initErr error
+	srvTLSCfgInit.Do(func() {
 		cert, err := generateKeyAndCert()
 		if err != nil {
-			srvTlsCfgInitErr = fmt.Errorf("appquic: Unable to generate dummy TLS cert/key: %v", err)
+			initErr = fmt.Errorf("appquic: Unable to generate dummy TLS cert/key: %v", err)
 		}
-		srvTlsCfg = &tls.Config{Certificates: []tls.Certificate{*cert}}
+		srvTLSCfg = &tls.Config{Certificates: []tls.Certificate{*cert}}
 	})
-	return srvTlsCfg, srvTlsCfgInitErr
+	return srvTLSCfg, initErr
 }

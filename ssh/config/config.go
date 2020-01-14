@@ -30,12 +30,10 @@ func cToString(valueA interface{}) string {
 	if ok {
 		if bval {
 			return "yes"
-		} else {
-			return "no"
 		}
-	} else {
-		return fmt.Sprintf("%v", valueA)
+		return "no"
 	}
+	return fmt.Sprintf("%v", valueA)
 }
 
 // Set sets the given option on the given configuration file.
@@ -73,9 +71,8 @@ func Set(conf Config, name string, valueA interface{}) error {
 func SetIfNot(conf Config, name string, value, not interface{}) (bool, error) {
 	if cToString(value) == cToString(not) {
 		return true, nil
-	} else {
-		return false, Set(conf, name, value)
 	}
+	return false, Set(conf, name, value)
 }
 
 // UpdateFromFile automatically reads a file and updates the configuration object from its contents.

@@ -36,13 +36,16 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-type Transport interface {
+// RoundTripper extends the http.RoundTripper interface with a Close
+type RoundTripper interface {
 	http.RoundTripper
 	io.Closer
 }
 
-func NewTransport(tlsClientCfg *tls.Config, quicCfg *quic.Config) Transport {
-	return &transport{
+// NewRoundTripper creates a new RoundTripper that can be used as the Transport
+// of an http.Client.
+func NewRoundTripper(tlsClientCfg *tls.Config, quicCfg *quic.Config) RoundTripper {
+	return &roundTripper{
 		&h2quic.RoundTripper{
 			Dial:            dial,
 			QuicConfig:      quicCfg,
@@ -51,15 +54,16 @@ func NewTransport(tlsClientCfg *tls.Config, quicCfg *quic.Config) Transport {
 	}
 }
 
-var _ Transport = (*transport)(nil)
+var _ RoundTripper = (*roundTripper)(nil)
 
-// Transport wraps a h2quic.RoundTripper making it compatible with SCION
-type transport struct {
+// roundTripper implements the RoundTripper interface. It wraps a
+// h2quic.RoundTripper, making it compatible with SCION
+type roundTripper struct {
 	rt *h2quic.RoundTripper
 }
 
 // RoundTrip does a single round trip; retreiving a response for a given request
-func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// If req.URL.Host is a SCION address, we need to mangle it so it passes through
 	// h2quic without tripping up.
@@ -74,7 +78,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // Close closes the QUIC connections that this RoundTripper has used
-func (t *transport) Close() (err error) {
+func (t *roundTripper) Close() (err error) {
 
 	if t.rt != nil {
 		err = t.rt.Close()
@@ -135,9 +139,9 @@ func mangleSCIONAddr(address string) string {
 	// To make this a valid host string for a URL, replace : for IPv6 addresses by ~. There will
 	// not be any other tildes, so no need to escape them.
 	l3 := raddr.Host.L3.String()
-	l3_mangled := strings.Replace(l3, ":", "~", -1)
+	l3Mangled := strings.Replace(l3, ":", "~", -1)
 
-	mangledAddr := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), l3_mangled)
+	mangledAddr := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), l3Mangled)
 	if raddr.Host.L4 != 0 {
 		mangledAddr += fmt.Sprintf(":%d", raddr.Host.L4)
 	}
@@ -161,8 +165,8 @@ func unmangleSCIONAddr(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	l3_str := strings.Replace(parts[2], "~", ":", -1)
-	l3 := addr.HostFromIPStr(l3_str)
+	l3Str := strings.Replace(parts[2], "~", ":", -1)
+	l3 := addr.HostFromIPStr(l3Str)
 	if l3 == nil {
 		return "", errors.New("Could not parse IP in SCION-address")
 	}

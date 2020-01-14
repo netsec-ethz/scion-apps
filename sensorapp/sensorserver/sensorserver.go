@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	TIMESTRING             string = "Time"
-	TIMEFORMAT             string = "2006/01/02 15:04:05"
-	SEPARATORSTRING        string = ": "
-	TIMEANDSEPARATORSTRING string = TIMESTRING + SEPARATORSTRING
+	timeString             string = "Time"
+	separatorString        string = ": "
+	timeAndSeparatorString string = timeString + separatorString
 )
 
 func check(e error) {
@@ -39,16 +38,16 @@ func parseInput() {
 	input := bufio.NewScanner(os.Stdin)
 	for input.Scan() {
 		line := input.Text()
-		index := strings.Index(line, TIMEANDSEPARATORSTRING)
+		index := strings.Index(line, timeAndSeparatorString)
 		if index == 0 {
 			// We found a time string, format in case parsing is desired: 2017/11/16 21:29:49
-			timestr := line[len(TIMEANDSEPARATORSTRING):]
+			timestr := line[len(timeAndSeparatorString):]
 			sensorDataLock.Lock()
-			sensorData[TIMESTRING] = timestr
+			sensorData[timeString] = timestr
 			sensorDataLock.Unlock()
 			continue
 		}
-		index = strings.Index(line, SEPARATORSTRING)
+		index = strings.Index(line, separatorString)
 		if index > 0 {
 			sensorType := line[:index]
 			sensorDataLock.Lock()
@@ -76,17 +75,17 @@ func main() {
 
 		// Packet received, send back response to same client
 		var sensorValues string
-		var timeString string
+		var timeStr string
 		sensorDataLock.Lock()
 		for k, v := range sensorData {
-			if strings.Index(k, TIMESTRING) == 0 {
-				timeString = v
+			if strings.Index(k, timeString) == 0 {
+				timeStr = v
 			} else {
 				sensorValues = sensorValues + v + "\n"
 			}
 		}
 		sensorDataLock.Unlock()
-		sensorValues = timeString + "\n" + sensorValues
+		sensorValues = timeStr + "\n" + sensorValues
 		copy(sendPacketBuffer, sensorValues)
 
 		_, err = conn.WriteTo(sendPacketBuffer[:len(sensorValues)], clientAddress)

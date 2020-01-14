@@ -98,7 +98,7 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	defaultSetting.Transport = shttp.NewTransport(nil, nil)
+	defaultSetting.Transport = shttp.NewRoundTripper(nil, nil)
 
 	// redirect SCION log to a log file
 	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0, false)

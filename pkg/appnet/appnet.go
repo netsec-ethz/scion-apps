@@ -62,20 +62,24 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-type network struct {
+// Network extends the snet.Network interface by making the local IA and common
+// sciond connections public.
+// The default singleton instance of this type is obtained by the DefNetork
+// function.
+type Network struct {
 	snet.Network
-	localIA       addr.IA
-	hostInLocalAS net.IP
+	IA            addr.IA
 	PathQuerier   snet.PathQuerier
+	hostInLocalAS net.IP
 }
 
-var defNetwork network
+var defNetwork Network
 var initOnce sync.Once
 
-// Network returns the singleton snet.Network.
+// DefNetwork initialises and returns the singleton default Network.
 // Typically, this will not be needed for applications directly, as they can
-// use the helper Dial/Listen functions provided here.
-func Network() *network {
+// use the simplified Dial/Listen functions provided here.
+func DefNetwork() *Network {
 	initOnce.Do(mustInitDefNetwork)
 	return &defNetwork
 }
@@ -94,7 +98,7 @@ func Dial(address string) (snet.Conn, error) {
 // DialAddr connects to the address (on the SCION/UDP network).
 func DialAddr(raddr *snet.Addr) (snet.Conn, error) {
 	laddr := &net.UDPAddr{IP: localIP(raddr)}
-	return Network().Dial(context.TODO(), "udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone)
+	return DefNetwork().Dial(context.TODO(), "udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone)
 }
 
 // Listen acts like net.ListenUDP in a SCION network.
@@ -109,7 +113,7 @@ func Listen(listen *net.UDPAddr) (snet.Conn, error) {
 	if listen.IP == nil || listen.IP.IsUnspecified() {
 		listen = &net.UDPAddr{IP: defaultLocalIP(), Port: listen.Port, Zone: listen.Zone}
 	}
-	return Network().Listen(context.TODO(), "udp", listen, addr.SvcNone)
+	return DefNetwork().Listen(context.TODO(), "udp", listen, addr.SvcNone)
 }
 
 // ListenPort is a shortcut to Listen on a specific port with a wildcard IP address.
@@ -117,7 +121,7 @@ func Listen(listen *net.UDPAddr) (snet.Conn, error) {
 // See note on wildcard addresses in the package documentation.
 func ListenPort(port uint16) (snet.Conn, error) {
 	listen := &net.UDPAddr{IP: defaultLocalIP(), Port: int(port)}
-	return Network().Listen(context.TODO(), "udp", listen, addr.SvcNone)
+	return DefNetwork().Listen(context.TODO(), "udp", listen, addr.SvcNone)
 }
 
 // localAddr returns the source IP address for traffic to raddr. If
@@ -141,7 +145,7 @@ func localIP(raddr *snet.Addr) net.IP {
 // wildcard addresses in snet.
 // See note on wildcard addresses in the package documentation.
 func defaultLocalIP() net.IP {
-	return findSrcIP(Network().hostInLocalAS)
+	return findSrcIP(DefNetwork().hostInLocalAS)
 }
 
 // ToSNetUDPAddr is a helper to convert snet.Addr to the newer snet.UDPAddr type
@@ -193,7 +197,7 @@ func initDefNetwork() error {
 		pathQuerier,
 		sciond.RevHandler{Connector: sciondConn},
 	)
-	defNetwork = network{n, localIA, hostInLocalAS, pathQuerier}
+	defNetwork = Network{Network: n, IA: localIA, PathQuerier: pathQuerier, hostInLocalAS: hostInLocalAS}
 	return nil
 }
 

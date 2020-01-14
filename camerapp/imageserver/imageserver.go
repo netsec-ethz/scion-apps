@@ -18,12 +18,15 @@ import (
 )
 
 const (
+	// MaxFileNameLength is the max acceptable length for file names of served images
 	MaxFileNameLength int = 255
 
-	// After an image was stored for this amount of time, it will be deleted
+	// MaxFileAge defines that after an image was stored for this amount of time,
+	// it will be deleted
 	MaxFileAge time.Duration = time.Minute * 10
 
-	// Duration after which an image is still available for download, but it will not be listed any more in new requests
+	// MaxFileAgeGracePeriod defines the duration after which an image is still
+	// available for download, but it will not be listed any more in new requests
 	MaxFileAgeGracePeriod time.Duration = time.Minute * 1
 
 	// Interval after which the file system is read to check for new images
@@ -49,7 +52,7 @@ var (
 	currentFilesLock sync.Mutex
 )
 
-func HandleImageFiles() {
+func handleImageFiles() {
 	for {
 		// Read the directory and look for new .jpg images
 		direntries, err := ioutil.ReadDir(".")
@@ -105,7 +108,7 @@ func main() {
 	udpConnection, err := appnet.ListenPort(uint16(*port))
 	check(err)
 
-	go HandleImageFiles()
+	go handleImageFiles()
 
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)

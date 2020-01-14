@@ -40,11 +40,11 @@ const (
 // If the remote address is in the local IA, return (nil, nil), without prompting the user.
 func ChoosePathInteractive(remote *snet.Addr) (snet.Path, error) {
 
-	if remote.IA == Network().localIA {
+	if remote.IA == DefNetwork().IA {
 		return nil, nil
 	}
 
-	paths, err := Network().PathQuerier.Query(context.Background(), remote.IA)
+	paths, err := DefNetwork().PathQuerier.Query(context.Background(), remote.IA)
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
@@ -76,10 +76,10 @@ func ChoosePathInteractive(remote *snet.Addr) (snet.Path, error) {
 // If the remote address is in the local IA, return (nil, nil).
 func ChoosePathByMetric(pathAlgo int, remote *snet.Addr) (snet.Path, error) {
 
-	if remote.IA == Network().localIA {
+	if remote.IA == DefNetwork().IA {
 		return nil, nil
 	}
-	paths, err := Network().PathQuerier.Query(context.Background(), remote.IA)
+	paths, err := DefNetwork().PathQuerier.Query(context.Background(), remote.IA)
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}

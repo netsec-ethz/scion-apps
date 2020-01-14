@@ -182,7 +182,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 			serverDCAddr := &net.UDPAddr{IP: serverCCAddr.IP, Port: int(serverBwp.Port)}
 
 			// Open Data Connection
-			DCConn, err := appnet.Network().Dial(
+			DCConn, err := appnet.DefNetwork().Dial(
 				context.TODO(), "udp", serverDCAddr, clientDCAddr, addr.SvcNone)
 			if err != nil {
 				// An error happened, ask the client to try again in 1 second

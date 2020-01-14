@@ -7,7 +7,7 @@ This package contains a client/server implementation of HTTP/2 over SCION/QUIC.
 First, create a client:
 ```Go
 client := &http.Client{
-    Transport: &shttp.NewTransport(tlsCfg, quicCfg)
+    Transport: &shttp.NewRoundTripper(tlsCfg, quicCfg)
 }
 ```
 
