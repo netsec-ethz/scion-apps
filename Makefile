@@ -17,7 +17,7 @@ lint:
 	go vet ./...
 	# golint ./... # XXX(matzf): too many issues in bat, bwtester and webapp to solve right now.
 	# Enable selectively to at least avoid regressions
-	golint ./pkg/... ./sensorapp/... ./sensorapp/... ./camerapp/... ./tools/... ./ssh/... ./netcat/...
+	golint ./pkg/... ./sensorapp/... ./sensorapp/... ./camerapp/... ./tools/... ./ssh/... ./netcat/... ./_examples/helloworld ./_examples/shttp
 
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)
