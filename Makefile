@@ -1,7 +1,7 @@
 .PHONY: all clean test lint install
 
 ROOT_DIR=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-SRCDIRS= helloworld sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient bat bat/example_server tools/pathdb_dump ssh/client ssh/server netcat webapp
+SRCDIRS= sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient bat tools/pathdb_dump ssh/client ssh/server netcat webapp _examples/helloworld _examples/shttp/client _examples/shttp/server
 TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
 all: lint $(TARGETS)
@@ -17,7 +17,7 @@ lint:
 	go vet ./...
 	# golint ./... # XXX(matzf): too many issues in bat, bwtester and webapp to solve right now.
 	# Enable selectively to at least avoid regressions
-	golint ./helloworld/... ./sensorapp/... ./sensorapp/... ./camerapp/... ./tools/... ./ssh/... ./netcat/...
+	golint ./pkg/... ./sensorapp/... ./sensorapp/... ./camerapp/... ./tools/... ./ssh/... ./netcat/...
 
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)

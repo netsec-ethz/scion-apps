@@ -57,7 +57,7 @@ func main() {
 	printResponse(resp, true)
 
 	start = time.Now()
-	query = fmt.Sprintf("https://%s/upload", *serverAddrStr)
+	query = fmt.Sprintf("https://%s/form", *serverAddrStr)
 	resp, err = c.Post(shttp.MangleSCIONAddrURL(query), "text/plain", strings.NewReader("Sample payload for POST request"))
 	if err != nil {
 		log.Fatal("POST request failed: ", err)
