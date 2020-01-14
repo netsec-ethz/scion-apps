@@ -101,7 +101,7 @@ func init() {
 	defaultSetting.Transport = shttp.NewTransport(nil, nil)
 
 	// redirect SCION log to a log file
-	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0)
+	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0, false)
 }
 
 func parsePrintOption(s string) {

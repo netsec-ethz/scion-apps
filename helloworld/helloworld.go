@@ -51,7 +51,7 @@ func runServer(port uint16) error {
 
 	buffer := make([]byte, 16*1024)
 	for {
-		n, from, err := conn.ReadFromSCION(buffer)
+		n, from, err := conn.ReadFrom(buffer)
 		if err != nil {
 			return err
 		}

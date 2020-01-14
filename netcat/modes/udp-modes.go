@@ -73,7 +73,7 @@ func DoListenUDP(port uint16) chan io.ReadWriteCloser {
 	go func() {
 		buf := make([]byte, 65536)
 		for {
-			n, addr, err := conn.ReadFromSCION(buf)
+			n, addr, err := conn.ReadFrom(buf)
 			if err != nil {
 				golog.Panicf("Error reading from UDP socket: %v", err)
 			}
@@ -95,7 +95,7 @@ func DoListenUDP(port uint16) chan io.ReadWriteCloser {
 					responses: nrespChan,
 					isClosed:  false,
 					write: func(b []byte) (n int, err error) {
-						return conn.WriteToSCION(b, addr)
+						return conn.WriteTo(b, addr)
 					},
 					close: func() (err error) {
 						close(nbufChan)

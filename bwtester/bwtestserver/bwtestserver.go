@@ -90,7 +90,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 
 	for {
 		// Handle client requests
-		n, clientCCAddr, err := CCConn.ReadFromSCION(receivePacketBuffer)
+		n, clientCCAddr, err := CCConn.ReadFrom(receivePacketBuffer)
 		if err != nil {
 			// Todo: check error in detail, but for now simply continue
 			continue
@@ -174,7 +174,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 			}
 
 			// Address of client Data Connection (DC)
-			clientDCAddr := appnet.ToSNetUDPAddr(clientCCAddr)
+			clientDCAddr := appnet.ToSNetUDPAddr(clientCCAddr.(*snet.Addr))
 			clientDCAddr.Host.Port = int(clientBwp.Port)
 
 			// Address of server Data Connection (DC)
