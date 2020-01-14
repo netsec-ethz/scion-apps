@@ -155,7 +155,13 @@ func parseBwtestParameters(s string) BwtestParameters {
 		}
 	}
 	key := prepareAESKey()
-	return BwtestParameters{time.Second * time.Duration(a1), a2, a3, key, 0}
+	return BwtestParameters{
+		BwtestDuration: time.Second * time.Duration(a1),
+		PacketSize:     a2,
+		NumPackets:     a3,
+		PrgKey:         key,
+		Port:           0,
+	}
 }
 
 func parseBandwidth(bw string) int64 {
@@ -350,7 +356,16 @@ func main() {
 	t := time.Now()
 	expFinishTimeSend := t.Add(serverBwp.BwtestDuration + MaxRTT + GracePeriodSend)
 	expFinishTimeReceive := t.Add(clientBwp.BwtestDuration + MaxRTT + StragglerWaitPeriod)
-	res := BwtestResult{-1, -1, -1, -1, -1, -1, clientBwp.PrgKey, expFinishTimeReceive}
+	res := BwtestResult{
+		NumPacketsReceived: -1,
+		CorrectlyReceived:  -1,
+		IPAvar:             -1,
+		IPAmin:             -1,
+		IPAavg:             -1,
+		IPAmax:             -1,
+		PrgKey:             clientBwp.PrgKey,
+		ExpectedFinishTime: expFinishTimeReceive,
+	}
 	var resLock sync.Mutex
 	if expFinishTimeReceive.Before(expFinishTimeSend) {
 		// The receiver will close the DC connection, so it will wait long enough until the

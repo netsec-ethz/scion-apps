@@ -129,7 +129,16 @@ func checkPath(dir string) {
 
 func main() {
 	flag.Parse()
-	options = lib.CmdOptions{*staticRoot, *browseRoot, *appsRoot, *scionRoot, *scionBin, *scionGen, *scionGenCache, *scionLogs}
+	options = lib.CmdOptions{
+		StaticRoot:    *staticRoot,
+		BrowseRoot:    *browseRoot,
+		AppsRoot:      *appsRoot,
+		ScionRoot:     *scionRoot,
+		ScionBin:      *scionBin,
+		ScionGen:      *scionGen,
+		ScionGenCache: *scionGenCache,
+		ScionLogs:     *scionLogs,
+	}
 	// correct static files are required for the app to serve them, else fail
 	if _, err := os.Stat(path.Join(options.StaticRoot, "static")); os.IsNotExist(err) {
 		log.Error("-s flag must be set with local repo: scion-apps/webapp/web")

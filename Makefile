@@ -1,16 +1,20 @@
-.PHONY: all clean test install
+.PHONY: all clean test vet install
 
 ROOT_DIR=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 SRCDIRS= helloworld sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient bat bat/example_server tools/pathdb_dump ssh/client ssh/server netcat webapp
 TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
-all: $(TARGETS)
+all: vet $(TARGETS)
 
 clean:
 	go clean ./...
 
-test:
+test: vet
 	go test ./...
+
+vet:
+	go fmt ./...
+	go vet ./...
 
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)

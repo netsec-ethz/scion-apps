@@ -137,7 +137,7 @@ func main() {
 	if repeatAfter {
 		isAvailable := make(chan bool, 1)
 		for conn := range conns {
-			go func() {
+			go func(conn io.ReadWriteCloser) {
 				select {
 				case isAvailable <- true:
 					pipeConn(conn)
@@ -146,7 +146,7 @@ func main() {
 					log.Info("Closing new connection as there's already a connection", "conn", conn)
 					conn.Close()
 				}
-			}()
+			}(conn)
 		}
 	} else if repeatDuring {
 		for conn := range conns {
