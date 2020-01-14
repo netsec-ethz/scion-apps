@@ -54,11 +54,15 @@ func main() {
 	end := time.Now()
 
 	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
-	printResponse(resp, true)
+	printResponse(resp)
 
 	start = time.Now()
 	query = fmt.Sprintf("https://%s/form", *serverAddrStr)
-	resp, err = c.Post(shttp.MangleSCIONAddrURL(query), "text/plain", strings.NewReader("Sample payload for POST request"))
+	resp, err = c.Post(
+		shttp.MangleSCIONAddrURL(query),
+		"application/x-www-form-urlencoded",
+		strings.NewReader("surname=threepwood&firstname=guybrush"),
+	)
 	if err != nil {
 		log.Fatal("POST request failed: ", err)
 	}
@@ -66,23 +70,21 @@ func main() {
 	end = time.Now()
 
 	log.Printf("POST request succeeded in %v seconds", end.Sub(start).Seconds())
-	printResponse(resp, false)
+	printResponse(resp)
 }
 
-func printResponse(resp *http.Response, hasBody bool) {
+func printResponse(resp *http.Response) {
 	fmt.Println("\n***Printing Response***")
 	fmt.Println("Status: ", resp.Status)
 	fmt.Println("Protocol:", resp.Proto)
 	fmt.Println("Content-Length: ", resp.ContentLength)
-	if !hasBody {
-		fmt.Print("\n\n")
-		return
-	}
 	fmt.Println("Content-Type: ", resp.Header.Get("Content-Type"))
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Print(err)
 	}
-	fmt.Println("Body: ", string(body))
+	if len(body) != 0 {
+		fmt.Println("Body: ", string(body))
+	}
 	fmt.Print("\n\n")
 }

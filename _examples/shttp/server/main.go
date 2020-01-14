@@ -49,7 +49,7 @@ func main() {
 	})
 
 	// GET handler that responds with some json data
-	http.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
+	m.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			data := struct {
 				Time    string
@@ -71,7 +71,7 @@ func main() {
 	})
 
 	// POST handler that responds by parsing form values and returns them as string
-	http.HandleFunc("/form", func(w http.ResponseWriter, r *http.Request) {
+	m.HandleFunc("/form", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			r.ParseForm()
 			w.Header().Set("Content-Type", "text/plain")
