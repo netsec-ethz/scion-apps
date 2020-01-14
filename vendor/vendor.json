@@ -693,82 +693,145 @@
 			"revisionTime": "2017-10-27T16:34:21Z"
 		},
 		{
-			"checksumSHA1": "bSiorvjqpeIFFLEvD7h+QiJmO4k=",
+			"checksumSHA1": "ISxsnHGIwsBKslG5A9NxG5G0wa0=",
 			"path": "github.com/lucas-clemente/quic-go",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
 			"checksumSHA1": "OA9E+y7g05x/mWJJHmA7oPxWKQo=",
 			"path": "github.com/lucas-clemente/quic-go-certificates",
 			"revision": "d2f86524cced5186554df90d92529757d22c1cb6",
-			"revisionTime": "2016-08-23T09:51:56Z"
+			"revisionTime": "2016-08-23T09:51:56Z",
+			"version": "v0.14.0"
 		},
 		{
 			"checksumSHA1": "Sxan6/vgsRTZtrxXLtZ/QWcREE4=",
 			"path": "github.com/lucas-clemente/quic-go/h2quic",
 			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revisionTime": "2018-06-23T06:33:31Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "q5Mmgdu/11zEFx8Qew7wt0BvR34=",
+			"checksumSHA1": "yZfdR1L5kXHka4CAgtQd/gbWCDs=",
 			"path": "github.com/lucas-clemente/quic-go/internal/ackhandler",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "i1yfut7QQqMehw5yE9llhWNnrxk=",
+			"checksumSHA1": "CY95Ab/gWZiH0nqIX7LY7OeB4Ak=",
 			"path": "github.com/lucas-clemente/quic-go/internal/congestion",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
 			"checksumSHA1": "UHZLcr1DMPEfc+4F67yGF4nF1EM=",
 			"path": "github.com/lucas-clemente/quic-go/internal/crypto",
 			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revisionTime": "2018-06-23T06:33:31Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "rnRicg73lPAeRh9Nko6a0CZQS5I=",
+			"checksumSHA1": "HDkX616FVT7b8nZ0H5poD3xzD2I=",
 			"path": "github.com/lucas-clemente/quic-go/internal/flowcontrol",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "VDAmO1aQcHrZGfHBolw4bMjlCIo=",
+			"checksumSHA1": "KqT5eda73JcxPcYLUqEjnv6MwCo=",
 			"path": "github.com/lucas-clemente/quic-go/internal/handshake",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "bRdC+JFUV5SDsdRTt3s4Xr/dYIE=",
+			"checksumSHA1": "OGY4TOjV3EkcnM3gBjv1gVPAlgc=",
 			"path": "github.com/lucas-clemente/quic-go/internal/protocol",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "0vSbWIQ7O34u4kDMR+FHr7/FINk=",
+			"checksumSHA1": "bJz/Vd7kvF63BhOiUlgeDQeWZic=",
+			"path": "github.com/lucas-clemente/quic-go/internal/qerr",
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
+		},
+		{
+			"checksumSHA1": "L0Lp6A+gRhS6xnC9B7xNcHNc4T4=",
 			"path": "github.com/lucas-clemente/quic-go/internal/utils",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "XffpGTFqeLH70f+ToHMqmmt4wjE=",
+			"checksumSHA1": "F4iDIzESP2Tk+aitEvK6NrgcpaU=",
 			"path": "github.com/lucas-clemente/quic-go/internal/wire",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
-			"checksumSHA1": "bFSC4TOZGOZGBJEFmLAT3V4ieoo=",
-			"path": "github.com/lucas-clemente/quic-go/qerr",
-			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
-			"revisionTime": "2018-06-23T06:33:31Z"
+			"checksumSHA1": "8OOwQJGMaCZMJ6/Hrf44/1VCiEk=",
+			"path": "github.com/lucas-clemente/quic-go/quictrace",
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
+		},
+		{
+			"checksumSHA1": "BEmwZjenZ5kQw704NYtyHqaW8NQ=",
+			"path": "github.com/lucas-clemente/quic-go/quictrace/pb",
+			"revision": "87ea3339f5f3b43ffe70448cc5d74def1ad986c9",
+			"revisionTime": "2019-08-05T01:00:23Z",
+			"version": "v0.14.0",
+			"versionExact": "v0.14.0"
 		},
 		{
 			"checksumSHA1": "nsiDN1JmbYszL69i6eYUAyL9y8E=",
 			"path": "github.com/magiconair/properties",
 			"revision": "de8848e004dd33dc07a2947b3d76f618a7fc7ef1",
 			"revisionTime": "2019-05-10T14:34:07Z"
+		},
+		{
+			"checksumSHA1": "j4eMhpVKh7QbPBE/vZL+VxQwJT0=",
+			"path": "github.com/marten-seemann/chacha20",
+			"revision": "36564989294fee5f3957d3e3fbfc655e10786ec0",
+			"revisionTime": "2019-09-06T10:21:14Z",
+			"version": "v0.2.0",
+			"versionExact": "v0.2.0"
+		},
+		{
+			"checksumSHA1": "Urc++6mqm/jcr3SSL/MMN5v7Owk=",
+			"path": "github.com/marten-seemann/qpack",
+			"revision": "f8170edcec3367407e53d6cac6035f27ee18f88c",
+			"revisionTime": "2019-03-10T00:01:41Z",
+			"version": "v0.1.0",
+			"versionExact": "v0.1.0"
+		},
+		{
+			"checksumSHA1": "AxGJ32XerKzP8Rxi8S1vZ3E/JFU=",
+			"path": "github.com/marten-seemann/qtls",
+			"revision": "6f6c03202c2cd1f60588fc703c2d15d12721c44d",
+			"revisionTime": "2019-09-06T03:51:05Z",
+			"version": "v0.4.1",
+			"versionExact": "v0.4.1"
 		},
 		{
 			"checksumSHA1": "SaVXxoFG75x104SdXULcP0g7uwc=",

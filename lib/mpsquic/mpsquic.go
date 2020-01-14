@@ -16,12 +16,15 @@
 package mpsquic
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/quictrace"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hostinfo"
@@ -85,9 +88,13 @@ var (
 
 	revocationQ chan keyedRevocation
 
+	tracer quictrace.Tracer
 	// Don't verify the server's cert, as we are not using the TLS PKI.
-	cliTlsCfg = &tls.Config{InsecureSkipVerify: true}
-	srvTlsCfg = &tls.Config{}
+	cliTlsCfg = &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"SCION"},
+	}
+	srvTlsCfg = &tls.Config{NextProtos: []string{"SCION"}}
 )
 
 // Init initializes the SCION networking context and the QUIC session's crypto.
@@ -157,8 +164,8 @@ func MuteLogging() {
 
 // OpenStreamSync opens a QUIC stream over the QUIC session.
 // It returns a QUIC stream ready to be written/read.
-func (mpq *MPQuic) OpenStreamSync() (quic.Stream, error) {
-	stream, err := mpq.Session.OpenStreamSync()
+func (mpq *MPQuic) OpenStreamSync(ctx context.Context) (quic.Stream, error) {
+	stream, err := mpq.Session.OpenStreamSync(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -166,9 +173,12 @@ func (mpq *MPQuic) OpenStreamSync() (quic.Stream, error) {
 }
 
 // Close closes the QUIC session.
-func (mpq *MPQuic) Close(err error) error {
+func (mpq *MPQuic) Close() error {
+	if err := exportTraces(); err != nil {
+		logger.Warn("Failed to export QUIC trace", "err", err)
+	}
 	if mpq.Session != nil {
-		return mpq.Session.Close(err)
+		return mpq.Session.Close()
 	}
 	return nil
 }
@@ -326,6 +336,13 @@ func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, qu
 	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
 	mpQuic.scionFlexConnection = flexConn
 
+	if tracer == nil {
+		tracer = quictrace.NewTracer()
+		if quicConfig == nil {
+			quicConfig = &quic.Config{}
+		}
+		quicConfig.QuicTracer = tracer
+	}
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
 	qsession, err := quic.Dial(flexConn, flexConn.raddr, "host:0", cliTlsCfg, quicConfig)
 	if err != nil {

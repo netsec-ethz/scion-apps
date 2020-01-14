@@ -35,7 +35,6 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -256,7 +255,7 @@ func (c *client) run() {
 	}
 	c.mpQuic = mpQuic
 
-	qstream, err := c.mpQuic.OpenStreamSync()
+	qstream, err := c.mpQuic.OpenStreamSync(context.TODO())
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
@@ -280,7 +279,7 @@ func (c *client) Close() error {
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		err = c.mpQuic.Close(err)
+		err = c.mpQuic.Close()
 	}
 	if c.mpQuic != nil {
 		err = c.mpQuic.CloseConn()
@@ -400,7 +399,7 @@ func (s server) run() {
 	}
 	log.Info("Listening", "local", qsock.Addr())
 	for {
-		qsess, err := qsock.Accept()
+		qsess, err := qsock.Accept(context.TODO())
 		if err != nil {
 			log.Error("Unable to accept quic session", "err", err)
 			// Accept failing means the socket is unusable.
@@ -416,8 +415,8 @@ func (s server) run() {
 
 func (s server) handleClient(qsess quic.Session) {
 	var err error
-	defer qsess.Close(err)
-	qstream, err := qsess.AcceptStream()
+	defer qsess.Close()
+	qstream, err := qsess.AcceptStream(context.TODO())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
 		return
@@ -429,13 +428,13 @@ func (s server) handleClient(qsess quic.Session) {
 		// Receive boing? message
 		msg, err := qs.ReadMsg()
 		if err != nil {
-			if qErr, ok := err.(*qerr.QuicError); ok {
+			/*if qErr, ok := err.(*qerr.QuicError); ok {
 				if qErr.ErrorCode == qerr.PeerGoingAway {
 					// Client went away
 					log.Debug("Client went away and closed the stream.", "err", err)
 					break
 				}
-			}
+			}*/
 			if err == io.EOF {
 				// Client went away
 				log.Debug("Client went away without closing the stream.", "err", err)
@@ -449,13 +448,13 @@ func (s server) handleClient(qsess quic.Session) {
 		replyMsg := replyMsg(msg)
 		err = qs.WriteMsg(replyMsg)
 		if err != nil {
-			if qErr, ok := err.(*qerr.QuicError); ok {
+			/*if qErr, ok := err.(*qerr.QuicError); ok {
 				if qErr.ErrorCode == qerr.PeerGoingAway {
 					// Client went away
 					log.Debug("Client went away and closed the stream.", "err", err)
 					break
 				}
-			}
+			}*/
 			log.Error("Unable to write", "err", err)
 			break
 		}

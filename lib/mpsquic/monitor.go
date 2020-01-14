@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -42,12 +41,15 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 			logger.Error("Stream timeout", "err", err)
 			return
 		}
-		if qErr, ok := err.(*qerr.QuicError); ok {
+		/*if qErr, ok := err.(*qerr.QuicError); ok {
 			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
 				// Remote went away
 				logger.Error("Stream error", "err", err)
 				return 0, qErr
 			}
+		}*/
+		if err != nil {
+			return 0, err
 		}
 		logger.Error("monitoredStream error", "err", err)
 	}
@@ -68,12 +70,15 @@ func (ms monitoredStream) Read(p []byte) (n int, err error) {
 			logger.Error("Stream timeout", "err", err)
 			return
 		}
-		if qErr, ok := err.(*qerr.QuicError); ok {
+		/*if qErr, ok := err.(*qerr.QuicError); ok {
 			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
 				// Remote went away
 				logger.Error("Stream error", "err", err)
 				return 0, qErr
 			}
+		}*/
+		if err != nil {
+			return 0, err
 		}
 		logger.Error("monitoredStream error", "err", err)
 	}
