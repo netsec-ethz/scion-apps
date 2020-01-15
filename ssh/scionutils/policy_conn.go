@@ -25,7 +25,7 @@ type PathSelector interface {
 	SelectPath(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error)
 }
 
-type pathConverter func (appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error)
+type pathConverter func(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error)
 
 var _ net.PacketConn = (*policyConn)(nil)
 
@@ -36,17 +36,17 @@ var _ net.PacketConn = (*policyConn)(nil)
 // policyConn is not thread safe
 type policyConn struct {
 	snet.Conn
-	conf             *PathAppConf
-	pathResolver     pathmgr.Resolver
-	localIA          addr.IA
-	pathSelector PathSelector
+	conf          *PathAppConf
+	pathResolver  pathmgr.Resolver
+	localIA       addr.IA
+	pathSelector  PathSelector
 	pathConverter pathConverter
 }
 
 func NewPolicyConn(c snet.Conn, conf *PathAppConf) *policyConn {
 	pc := &policyConn{
-		Conn:         c,
-		conf:         conf,}
+		Conn: c,
+		conf: conf}
 	pc.pathSelector = pc
 	pc.pathConverter = getSCIONPath
 	return pc
@@ -157,7 +157,6 @@ func (c *roundRobinPolicyConn) SelectPath(address snet.Addr) (*overlay.OverlayAd
 	return nextHop, path, nil
 
 }
-
 
 func getSCIONPath(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error) {
 	if appPath == nil {

@@ -43,7 +43,7 @@ func (pr MockPathResolver) QueryFilter(ctx context.Context, src, dst addr.IA, po
 
 	for i := 0; i < numPaths; i++ {
 		appPath := &spathmeta.AppPath{
-			Entry:&sciond.PathReplyEntry{
+			Entry: &sciond.PathReplyEntry{
 				Path: &sciond.FwdPathMeta{
 					FwdPath:    nil,
 					Mtu:        0,
@@ -58,7 +58,7 @@ func (pr MockPathResolver) QueryFilter(ctx context.Context, src, dst addr.IA, po
 			Path:        &spath.Path{},
 		}
 	}
-	fmt.Println( set[spathmeta.PathKey("1")] == set[spathmeta.PathKey("2")])
+	fmt.Println(set[spathmeta.PathKey("1")] == set[spathmeta.PathKey("2")])
 	return set
 }
 
@@ -79,8 +79,7 @@ func (MockPathResolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRe
 
 func (MockPathResolver) Sciond() sciond.Connector { return nil }
 
-
-func mockGetPath (appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error) {
+func mockGetPath(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error) {
 	entry := selectedPathMap[appPath]
 	return entry.OverlayAddr, entry.Path, nil
 }
@@ -90,14 +89,13 @@ func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 	pc.pathResolver = MockPathResolver{}
 	pc.conf = &PathAppConf{}
 	pc.pathConverter = mockGetPath
-	var paths [] selectedPath
-
+	var paths []selectedPath
 
 	ia, err := addr.IAFromString("1-ff00:0:1")
 	if err != nil {
 		t.Error(err)
 	}
-	for i := 0; i < numPaths * 10; i++ {
+	for i := 0; i < numPaths*10; i++ {
 		nextHop, path, err := pc.SelectPath(snet.Addr{IA: ia})
 		if err != nil {
 			// we don't care about path parsing errors
@@ -108,9 +106,9 @@ func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 		paths = append(paths, selectedPath{nextHop, path})
 	}
 
-	for i := 0; i < len(paths) - numPaths; i++ {
-		if paths[i].Path != paths[i + numPaths].Path {
-			t.Errorf("Paths indeces %d and %d, should be equal ", i, i + numPaths)
+	for i := 0; i < len(paths)-numPaths; i++ {
+		if paths[i].Path != paths[i+numPaths].Path {
+			t.Errorf("Paths indeces %d and %d, should be equal ", i, i+numPaths)
 		}
 	}
 }
