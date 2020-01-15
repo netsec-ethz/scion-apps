@@ -306,9 +306,7 @@ func main() {
 		Check(err)
 	}
 	if path != nil {
-		serverCCAddr.Path = path.Path()
-		serverCCAddr.Path.InitOffsets()
-		serverCCAddr.NextHop = path.OverlayNextHop()
+		appnet.SetPath(serverCCAddr, path)
 	}
 
 	CCConn, err = appnet.DialAddr(serverCCAddr)

@@ -96,7 +96,19 @@ func Dial(address string) (snet.Conn, error) {
 }
 
 // DialAddr connects to the address (on the SCION/UDP network).
+//
+// If no path is specified in raddr, DialAddr will choose the first available path.
+// This path is never updated during the lifetime of the conn. This does not
+// support long lived connections well, as the path *will* expire.
+// This is all that snet currently provides, we'll need to add a layer on top
+// that updates the paths in case they expire or are revoked.
 func DialAddr(raddr *snet.Addr) (snet.Conn, error) {
+	if raddr.Path == nil {
+		err := SetDefaultPath(raddr)
+		if err != nil {
+			return nil, err
+		}
+	}
 	laddr := &net.UDPAddr{IP: localIP(raddr)}
 	return DefNetwork().Dial(context.TODO(), "udp", laddr, ToSNetUDPAddr(raddr), addr.SvcNone)
 }

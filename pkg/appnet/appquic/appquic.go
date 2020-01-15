@@ -50,10 +50,26 @@ func (s *closerSession) Close() error {
 }
 
 // Dial establishes a new QUIC connection to a server at the remote address.
-func Dial(remote string, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Session, error) {
-	remoteAddr, err := appnet.ResolveUDPAddr(remote)
+// The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
+// or in the form of hostname:port.
+func Dial(remote string, tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, error) {
+	raddr, err := appnet.ResolveUDPAddr(remote)
 	if err != nil {
 		return nil, err
+	}
+	return DialAddr(raddr, tlsConf, quicConf)
+}
+
+// DialAddr establishes a new QUIC connection to a server at the remote address.
+//
+// If no path is specified in raddr, DialAddr will choose the first available path,
+// analogous to appnet.DialAddr.
+func DialAddr(raddr *snet.Addr, tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, error) {
+	if raddr.Path == nil {
+		err := appnet.SetDefaultPath(raddr)
+		if err != nil {
+			return nil, err
+		}
 	}
 	sconn, err := appnet.Listen(nil)
 	if err != nil {
@@ -62,7 +78,7 @@ func Dial(remote string, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Ses
 	if tlsConf == nil {
 		tlsConf = cliTLSCfg
 	}
-	session, err := quic.Dial(sconn, remoteAddr, "host:0", tlsConf, quicConfig)
+	session, err := quic.Dial(sconn, raddr, "host:0", tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
