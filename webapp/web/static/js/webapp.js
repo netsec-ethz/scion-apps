@@ -108,6 +108,7 @@ function initBwGraphs() {
     updateBwInterval();
 
     // charts update on tab switch
+    handleSwitchTabs(); // init
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
         var name = $(e.target).attr("name");
         if (name != "as-graphs" && name != "as-tab-pathtopo") {
