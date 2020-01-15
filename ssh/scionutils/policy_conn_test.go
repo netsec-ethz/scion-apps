@@ -1,14 +1,15 @@
 package scionutils
 
 import (
+	"bytes"
 	"context"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pathpol"
@@ -44,10 +45,20 @@ func (pr MockPathResolver) QueryFilter(ctx context.Context, src, dst addr.IA, po
 		appPath := &spathmeta.AppPath{
 			Entry: &sciond.PathReplyEntry{
 				Path: &sciond.FwdPathMeta{
-					FwdPath:    nil,
+					FwdPath:    common.RawBytes{byte(i), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 					Mtu:        0,
 					Interfaces: nil,
 					ExpTime:    0,
+				},
+				HostInfo: hostinfo.HostInfo{
+					Port: 1,
+					Addrs: struct {
+						Ipv4 []byte
+						Ipv6 []byte
+					}{
+						[]byte{1, 1, 1, 1},
+						[]byte{},
+					},
 				},
 			},
 		}
@@ -78,16 +89,10 @@ func (MockPathResolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRe
 
 func (MockPathResolver) Sciond() sciond.Connector { return nil }
 
-func mockGetPath(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error) {
-	entry := selectedPathMap[appPath]
-	return entry.OverlayAddr, entry.Path, nil
-}
-
 func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 	pc := roundRobinPolicyConn{}
 	pc.pathResolver = MockPathResolver{}
 	pc.conf = &PathAppConf{}
-	pc.pathConverter = mockGetPath
 	var paths []selectedPath
 
 	ia, err := addr.IAFromString("1-ff00:0:1")
@@ -97,16 +102,22 @@ func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 	for i := 0; i < numPaths*10; i++ {
 		nextHop, path, err := pc.SelectPath(snet.Addr{IA: ia})
 		if err != nil {
-			// we don't care about path parsing errors
-			if !strings.Contains(err.Error(), ErrBadOverlay) && !strings.Contains(err.Error(), ErrInitPath) {
-				t.Errorf("Error selecting path: %s", err)
-			}
+			t.Fatalf("Error selecting path: %s", err)
 		}
 		paths = append(paths, selectedPath{nextHop, path})
 	}
+	// the first numPaths paths must be different:
+	pathSet := map[string]struct{}{}
+	for _, p := range paths[:numPaths] {
+		pathSet[string(p.Path.Raw)] = struct{}{}
+	}
+	if len(pathSet) != numPaths {
+		t.Fatalf("Expected %d different paths; got only %d", numPaths, len(pathSet))
+	}
+	// check the sequence of paths in "paths" repeats (round robin):
 	for i := 0; i < len(paths)-numPaths; i++ {
-		if paths[i].Path != paths[i+numPaths].Path {
-			t.Errorf("Paths indices %d and %d, should be equal ", i, i+numPaths)
+		if bytes.Compare(paths[i].Path.Raw, paths[i+numPaths].Path.Raw) != 0 {
+			t.Fatalf("Paths indices %d and %d, should be equal ", i, i+numPaths)
 		}
 	}
 }

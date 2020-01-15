@@ -26,8 +26,6 @@ type PathSelector interface {
 	SelectPath(address snet.Addr) (*overlay.OverlayAddr, *spath.Path, error)
 }
 
-type pathConverter func(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path, error)
-
 var _ net.PacketConn = (*policyConn)(nil)
 
 // policyConn is a wrapper class around snet.SCIONConn
@@ -41,7 +39,6 @@ type policyConn struct {
 	pathResolver  pathmgr.Resolver
 	localIA       addr.IA
 	pathSelector  PathSelector
-	pathConverter pathConverter
 }
 
 func NewPolicyConn(c snet.Conn, conf *PathAppConf) *policyConn {
@@ -49,7 +46,6 @@ func NewPolicyConn(c snet.Conn, conf *PathAppConf) *policyConn {
 		Conn: c,
 		conf: conf}
 	pc.pathSelector = pc
-	pc.pathConverter = getSCIONPath
 	return pc
 }
 
@@ -150,7 +146,7 @@ func (c *roundRobinPolicyConn) SelectPath(address snet.Addr) (*overlay.OverlayAd
 	appPath := c.paths[c.nextKeyIndex]
 	log.Trace(fmt.Sprintf("SELECTED PATH # %d: %s\n", c.nextKeyIndex, appPath.Entry.Path))
 	c.nextKeyIndex = (c.nextKeyIndex + 1) % len(c.paths)
-	nextHop, path, err := c.pathConverter(appPath)
+	nextHop, path, err := getSCIONPath(appPath)
 	if err != nil {
 		return nil, nil, common.NewBasicError(fmt.Sprintf("roundRobinPolicyConn: error getting SCION path"+
 			" between client %s and server %s", c.localIA, address.IA), err)
