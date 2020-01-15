@@ -3,6 +3,9 @@ package scionutils
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"testing"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -13,9 +16,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
-	"strconv"
-	"strings"
-	"testing"
 )
 
 //All tests in this file test the correctness of the path selection modes (round-robin, static)

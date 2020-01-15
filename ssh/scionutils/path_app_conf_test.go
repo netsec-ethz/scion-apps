@@ -1,9 +1,10 @@
 package scionutils
 
 import (
-	"github.com/scionproto/scion/go/lib/snet"
 	"reflect"
 	"testing"
+
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func TestPathAppConf_PolicyConnFromConfig(t *testing.T) {

@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/bclicn/color v0.0.0-20180711051946-108f2023dc84
 	github.com/bgentry/speakeasy v0.1.0 // indirect
+	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
 	github.com/inconshreveable/log15 v0.0.0-20180818164646-67afb5ed74ec
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/kr/pty v1.1.8

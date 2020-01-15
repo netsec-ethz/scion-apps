@@ -1,10 +1,11 @@
 package scionutils
 
 import (
+	"net"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/snet"
-	"net"
 )
 
 // PathAppConf represents application paths configurations specified by the user using command-line arguments

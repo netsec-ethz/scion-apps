@@ -3,17 +3,16 @@ package scionutils
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"regexp"
 
 	"github.com/lucas-clemente/quic-go"
 
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
-
 	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 var addressPortSplitRegex, _ = regexp.Compile(`(.*,\[.*\]):(\d+)`)
