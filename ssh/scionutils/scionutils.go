@@ -108,7 +108,7 @@ func squicDialWithConf(conf *PathAppConf) squicDial {
 		if err != nil {
 			return nil, common.NewBasicError("ConnWrapper: error listening SCION", err)
 		}
-		wrappedConn, err := conf.ConnWrapperFromConfig(sconn) // policyConn takes a SCIONConn and an PathAppConf
+		wrappedConn, err := conf.PolicyConnFromConfig(sconn) // policyConn takes a SCIONConn and an PathAppConf
 		return quic.Dial(wrappedConn, raddr, "host:0", &tls.Config{InsecureSkipVerify: true}, quicConfig)
 	}
 }
