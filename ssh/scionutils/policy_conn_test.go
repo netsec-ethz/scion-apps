@@ -2,8 +2,8 @@ package scionutils
 
 import (
 	"context"
-	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -37,7 +37,6 @@ func (pr MockPathResolver) Query(ctx context.Context, src, dst addr.IA, flags sc
 }
 
 func (pr MockPathResolver) QueryFilter(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) spathmeta.AppPathSet {
-
 	set := spathmeta.AppPathSet{}
 	selectedPathMap = map[*spathmeta.AppPath]selectedPath{}
 
@@ -58,7 +57,6 @@ func (pr MockPathResolver) QueryFilter(ctx context.Context, src, dst addr.IA, po
 			Path:        &spath.Path{},
 		}
 	}
-	fmt.Println(set[spathmeta.PathKey("1")] == set[spathmeta.PathKey("2")])
 	return set
 }
 
@@ -73,6 +71,7 @@ func (pr MockPathResolver) WatchFilter(ctx context.Context, src, dst addr.IA, fi
 func (pr MockPathResolver) WatchCount() int {
 	return 0
 }
+
 func (MockPathResolver) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {}
 
 func (MockPathResolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {}
@@ -83,8 +82,8 @@ func mockGetPath(appPath *spathmeta.AppPath) (*overlay.OverlayAddr, *spath.Path,
 	entry := selectedPathMap[appPath]
 	return entry.OverlayAddr, entry.Path, nil
 }
-func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 
+func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 	pc := roundRobinPolicyConn{}
 	pc.pathResolver = MockPathResolver{}
 	pc.conf = &PathAppConf{}
@@ -105,10 +104,9 @@ func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 		}
 		paths = append(paths, selectedPath{nextHop, path})
 	}
-
 	for i := 0; i < len(paths)-numPaths; i++ {
 		if paths[i].Path != paths[i+numPaths].Path {
-			t.Errorf("Paths indeces %d and %d, should be equal ", i, i+numPaths)
+			t.Errorf("Paths indices %d and %d, should be equal ", i, i+numPaths)
 		}
 	}
 }
