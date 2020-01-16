@@ -105,9 +105,12 @@ func squicDialWithConf(conf *PathAppConf) squicDial {
 	return func(network *snet.SCIONNetwork, laddr, raddr *snet.Addr, quicConfig *quic.Config) (session quic.Session, e error) {
 		sconn, err := snet.DefNetwork.ListenSCIONWithBindSVC("udp4", laddr, nil, addr.SvcNone, 0)
 		if err != nil {
-			return nil, common.NewBasicError("ConnWrapper: error listening SCION", err)
+			return nil, common.NewBasicError("DialSCION: error listening SCION", err)
 		}
 		wrappedConn, err := conf.PolicyConnFromConfig(sconn) // policyConn takes a SCIONConn and an PathAppConf
+		if err != nil {
+			return nil, common.NewBasicError("DialSCION: error initializing PolicyConn From config", err)
+		}
 		return quic.Dial(wrappedConn, raddr, "host:0", &tls.Config{InsecureSkipVerify: true}, quicConfig)
 	}
 }
