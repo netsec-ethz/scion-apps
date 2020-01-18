@@ -1,6 +1,8 @@
 package scionutils
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -35,16 +37,14 @@ func (c *PathAppConf) Policy() *pathpol.Policy {
 	return c.policy
 }
 
-func (c *PathAppConf) PolicyConnFromConfig(conn snet.Conn) (net.PacketConn, error) {
-	connWrapper := NewPolicyConn(conn, c)
-
+func (c *PathAppConf) PolicyConnFromConfig(conn snet.Conn, resolver pathmgr.Resolver, localIA addr.IA) (net.PacketConn, error) {
 	switch c.pathSelection {
 	case Static:
-		return NewStaticPolicyConn(*connWrapper), nil
+		return NewStaticPolicyConn(conn, resolver, localIA, c), nil
 	case RoundRobin:
-		return NewRoundRobinPolicyConn(*connWrapper), nil
+		return NewRoundRobinPolicyConn(conn, resolver, localIA, c), nil
 	case Arbitrary:
-		return connWrapper, nil
+		return NewPolicyConn(conn, resolver, localIA), nil
 	default:
 		return nil, common.NewBasicError("PathAppConf: Unable to create ConnWrapper for given configuration", nil)
 	}
@@ -61,7 +61,6 @@ const (
 	Arbitrary  PathSelection = 0
 	Static     PathSelection = 1
 	RoundRobin PathSelection = 2
-	Random     PathSelection = 3
 )
 
 func PathSelectionFromString(s string) (PathSelection, error) {
@@ -69,7 +68,6 @@ func PathSelectionFromString(s string) (PathSelection, error) {
 		"arbitrary":   Arbitrary,
 		"static":      Static,
 		"round-robin": RoundRobin,
-		"random":      Random,
 	}
 	pathSelection, ok := selectionMap[s]
 	if !ok {

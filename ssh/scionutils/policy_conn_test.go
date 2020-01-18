@@ -90,60 +90,56 @@ func (MockPathResolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRe
 func (MockPathResolver) Sciond() sciond.Connector { return nil }
 
 func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
-	pc := roundRobinPolicyConn{}
-	pc.pathResolver = MockPathResolver{}
-	pc.conf = &PathAppConf{}
-	var paths []selectedPath
+	pc := NewRoundRobinPolicyConn(nil, MockPathResolver{}, addr.IA{}, &PathAppConf{})
+	var paths []*spathmeta.AppPath
 
 	ia, err := addr.IAFromString("1-ff00:0:1")
 	if err != nil {
 		t.Error(err)
 	}
 	for i := 0; i < numPaths*10; i++ {
-		nextHop, path, err := pc.SelectPath(snet.Addr{IA: ia})
+		appPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA: ia})
 		if err != nil {
 			t.Fatalf("Error selecting path: %s", err)
 		}
-		paths = append(paths, selectedPath{nextHop, path})
+		paths = append(paths, appPath)
 	}
 	// the first numPaths paths must be different:
 	pathSet := map[string]struct{}{}
 	for _, p := range paths[:numPaths] {
-		pathSet[string(p.Path.Raw)] = struct{}{}
+		pathSet[string(p.Entry.Path.FwdPath)] = struct{}{}
 	}
 	if len(pathSet) != numPaths {
 		t.Fatalf("Expected %d different paths; got only %d", numPaths, len(pathSet))
 	}
 	// check the sequence of paths in "paths" repeats (round robin):
 	for i := 0; i < len(paths)-numPaths; i++ {
-		if bytes.Compare(paths[i].Path.Raw, paths[i+numPaths].Path.Raw) != 0 {
+		if bytes.Compare(paths[i].Entry.Path.FwdPath, paths[i+numPaths].Entry.Path.FwdPath) != 0 {
 			t.Fatalf("Paths at indices %d and %d, should be equal ", i, i+numPaths)
 		}
 	}
 }
 
 func TestStaticPolicyConn_SelectPath(t *testing.T) {
-	pc := staticPolicyConn{}
-	pc.pathResolver = MockPathResolver{}
-	pc.conf = &PathAppConf{}
+	pc := NewStaticPolicyConn(nil, MockPathResolver{}, addr.IA{}, &PathAppConf{})
 	ia, err := addr.IAFromString("1-ff00:0:1")
 	if err != nil {
 		t.Error(err)
 	}
 
-	nextHop, path, err := pc.SelectPath(snet.Addr{IA:ia})
+	appPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA:ia})
 	if err != nil {
 		t.Fatalf("Error selecting path: %s", err)
 	}
 
 	for i := 0; i < numPaths*10; i++ {
-		newNextHop, newPath, err := pc.SelectPath(snet.Addr{IA:ia})
+		newAppPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA:ia})
 		if err != nil {
 			t.Fatalf("Error selecting path: %s", err)
 		}
 
-		if newNextHop != nextHop || newPath != path {
-			t.Fatalf("Static path selection: Expected static path %v, found path %v", path, newPath)
+		if newAppPath != appPath {
+			t.Fatalf("Static path selection: Expected static path %v, found path %v", appPath, newAppPath)
 		}
 	}
 

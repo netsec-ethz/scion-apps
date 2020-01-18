@@ -107,7 +107,7 @@ func squicDialWithConf(conf *PathAppConf) squicDial {
 		if err != nil {
 			return nil, common.NewBasicError("DialSCION: error listening SCION", err)
 		}
-		wrappedConn, err := conf.PolicyConnFromConfig(sconn) // policyConn takes a SCIONConn and an PathAppConf
+		wrappedConn, err := conf.PolicyConnFromConfig(sconn, snet.DefNetwork.PathResolver(), snet.DefNetwork.IA())
 		if err != nil {
 			return nil, common.NewBasicError("DialSCION: error initializing PolicyConn From config", err)
 		}
