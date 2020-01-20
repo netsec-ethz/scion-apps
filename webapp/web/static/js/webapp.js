@@ -74,6 +74,7 @@ var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
 var echoText = 'Execute echo to measure response time.';
+var sigText = 'Update addresses, then direction to send or recieve.';
 
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
@@ -97,6 +98,13 @@ function initBwGraphs() {
         var checked = $(this).prop('checked');
         handleSwitchContTest(checked);
     });
+    handleSwitchSigDirection();
+    $('#radio_sigSend').change(function() {
+        handleSwitchSigDirection();
+    });
+    $('#radio_sigRecv').change(function() {
+        handleSwitchSigDirection();
+    });
 
     var checked = $('#switch_utc').prop('checked');
     setChartUtc(checked);
@@ -117,8 +125,8 @@ function initBwGraphs() {
     // setup charts
     var csColAch = $('#svg-client circle').css("fill");
     var scColAch = $('#svg-server circle').css("fill");
-    var csColReq = $('#svg-cs line').css("stroke");
-    var scColReq = $('#svg-sc line').css("stroke");
+    var csColReq = $('.svg-cs line').css("stroke");
+    var scColReq = $('.svg-sc line').css("stroke");
     chartCS = drawBwtestSingleDir('cs', 'Upload (mbps)', false, csColReq,
             csColAch);
     chartSC = drawBwtestSingleDir('sc', 'Download (mbps)', true, scColReq,
@@ -137,7 +145,8 @@ function showOnlyConsoleGraphs(activeApp) {
     $('#echo-continuous').css("display",
             (activeApp == "echo") ? "block" : "none");
     var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
-            || activeApp == "sensorapp" || activeApp == "echo" || activeApp == "traceroute");
+            || activeApp == "sensorapp" || activeApp == "echo"
+            || activeApp == "traceroute" || activeApp == "sig");
     $('.stdout').css("display", isConsole ? "block" : "none");
 }
 
@@ -170,6 +179,13 @@ function handleSwitchContTest(checked) {
         releaseTabs();
         clearInterval(intervalGraphData);
     }
+}
+
+function handleSwitchSigDirection(sigSend, sigRecv) {
+    var sigSend = $('#radio_sigSend').prop('checked');
+    var sigRecv = $('#radio_sigRecv').prop('checked');
+    $('#svg-sigsend').css("display", sigSend ? "block" : "none");
+    $('#svg-sigrecv').css("display", sigRecv ? "block" : "none");
 }
 
 function setChartUtc(useUTC) {
@@ -750,6 +766,7 @@ function lockTab(href) {
     enableTab("sensorapp", "sensorapp" == href);
     enableTab("echo", "echo" == href);
     enableTab("traceroute", "traceroute" == href);
+    enableTab("sig", "sig" == href);
 }
 
 function releaseTabs() {
@@ -758,6 +775,7 @@ function releaseTabs() {
     enableTab("sensorapp", true);
     enableTab("echo", true);
     enableTab("traceroute", true);
+    enableTab("sig", true);
 }
 
 function enableTab(href, enable) {
@@ -922,6 +940,7 @@ function setDefaults() {
     $('#bwtest_text').text(bwText);
     $('#bwgraphs_text').text(bwgraphsText);
     $('#echo_text').text(echoText);
+    $('#sig_text').text(sigText);
 
     onchange_radio('cs', 'size');
     onchange_radio('sc', 'size');

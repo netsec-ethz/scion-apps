@@ -48,7 +48,7 @@ svg.svg-dials {
  fill: #6f6;
 }
 
-#svg-cs line {
+.svg-cs line {
  stroke: #afa;
 }
 
@@ -60,7 +60,7 @@ svg.svg-dials {
  fill: #3cf;
 }
 
-#svg-sc line {
+.svg-sc line {
  stroke: #6ef;
 }
 

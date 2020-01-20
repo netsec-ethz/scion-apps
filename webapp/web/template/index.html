@@ -70,6 +70,7 @@
       <li><a data-toggle="tab" name="sensorapp" href="#sensorapp">sensorapp</a></li>
       <li><a data-toggle="tab" name="echo" href="#echo">echo</a></li>
       <li><a data-toggle="tab" name="traceroute" href="#traceroute">traceroute</a></li>
+      <li><a data-toggle="tab" name="sig" href="#sig">sig</a></li>
      </ul>
      <div id="tab-content-apps" class="tab-content">
 
@@ -88,7 +89,7 @@
 
        <div id="bwtest-cs" class="bwtest-control">
 
-        <div id="svg-cs" class="bwtest-svg">
+        <div id="svg-cs" class="svg-cs bwtest-svg">
          <svg class="svg-dials" viewBox="0 0 300 150">
         <line x1="10" y1="42" x2="279" y2="42" stroke-width="70"
            marker-end="url(#cs-arrowhead)" />
@@ -149,7 +150,7 @@
 
        <div id="bwtest-sc" class="bwtest-control">
 
-        <div id="svg-sc" class="bwtest-svg">
+        <div id="svg-sc" class="svg-sc bwtest-svg">
          <svg class="svg-dials" viewBox="0 0 300 150">
         <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
            marker-end="url(#sc-arrowhead)" />
@@ -212,7 +213,7 @@
       <!-- CAMERA FETCHER APP CONTENT -->
       <div id="camerapp" class="tab-pane fade">
 
-       <div id="svg-sc" class="bwtest-svg">
+       <div id="svg-sc" class="svg-sc bwtest-svg">
         <svg class="svg-dials" viewBox="0 0 300 150">
         <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
           marker-end="url(#sc-arrowhead)" />
@@ -231,7 +232,7 @@
       <!-- SENSOR FETCHER APP CONTENT -->
       <div id="sensorapp" class="tab-pane fade">
 
-       <div id="svg-sc" class="bwtest-svg">
+       <div id="svg-sc" class="svg-sc bwtest-svg">
         <svg class="svg-dials" viewBox="0 0 300 150">
         <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
           marker-end="url(#sc-arrowhead)" />
@@ -250,7 +251,7 @@
       <!-- SCMP ECHO APP CONTENT -->
       <div id="echo" class="tab-pane fade">
 
-       <div id="svg-sc" class="bwtest-svg">
+       <div id="svg-sc" class="svg-sc bwtest-svg">
         <svg class="svg-dials" viewBox="0 0 300 150">
         <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
           marker-end="url(#sc-arrowhead)" />
@@ -270,7 +271,7 @@
       <!-- SCMP TRACEROUTE APP CONTENT -->
       <div id="traceroute" class="tab-pane fade">
 
-       <div id="svg-sc" class="bwtest-svg">
+       <div id="svg-sc" class="svg-sc bwtest-svg">
         <svg class="svg-dials" viewBox="0 0 300 150">
         <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
           marker-end="url(#sc-arrowhead)" />
@@ -283,6 +284,43 @@
        Additional Argument: <span
         tooltip="Use the equal sign, '=', between argument and parameter."><input
         type="text" id="addl_opttr" name="addl_opttr"
+        style="width: 200px;"> </span>
+
+      </div>
+
+
+      <!-- SIG (IP GATEWAY) APP CONTENT -->
+      <div id="sig" class="tab-pane fade">
+
+       <div id="svg-sigsend" class="bwtest-svg svg-cs">
+        <svg class="svg-dials" viewBox="0 0 300 150">
+        <line x1="10" y1="42" x2="279" y2="42" stroke-width="70"
+          marker-end="url(#cs-arrowhead)" />
+        </svg>
+       </div>
+       <div id="svg-sigrecv" class="bwtest-svg svg-sc">
+        <svg class="svg-dials" viewBox="0 0 300 150">
+        <line x1="290" y1="42" x2="21" y2="42" stroke-width="70"
+          marker-end="url(#sc-arrowhead)" />
+        </svg>
+       </div>
+
+       <span id="sig_text"></span><br>
+       <div class="pretty p-switch">
+        <input id="radio_sigSend" type="radio" name="radioSig">
+        <div class="state">
+         <label>Send</label>
+        </div>
+       </div>
+       <div class="pretty p-switch">
+        <input id="radio_sigRecv" type="radio" name="radioSig">
+        <div class="state">
+         <label>Receive</label>
+        </div>
+       </div>
+       Additional Argument: <span
+        tooltip="Use the equal sign, '=', between argument and parameter."><input
+        type="text" id="addl_optsig" name="addl_optsig"
         style="width: 200px;"> </span>
 
       </div>

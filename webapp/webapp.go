@@ -183,6 +183,7 @@ func main() {
 	appsBuildCheck("sensorapp")
 	appsBuildCheck("echo")
 	appsBuildCheck("traceroute")
+	appsBuildCheck("sig")
 
 	initServeHandlers()
 	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
@@ -429,9 +430,18 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			command = append(command, "-i")
 		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
+
+	case "sig":
+		command = append(command, installpath, "-help-config")
+
+		// TODO mwfarb, configure for sending/receiving
+
+	default:
+		log.Error("App cannot be found", "appSel", appSel)
+		return nil
 	}
 
-	if isdCli < 16 {
+	if isdCli < 16 && appSel != "sig" {
 		// -sciondFromIA is better for localhost testing, with test isds
 		command = append(command, "-sciondFromIA")
 	}
@@ -593,6 +603,8 @@ func getClientLocationBin(app string) string {
 		binname = path.Join(options.AppsRoot, "bwtestclient")
 	case "echo", "traceroute":
 		binname = path.Join(options.ScionBin, "scmp")
+	case "sig":
+		binname = path.Join(options.ScionBin, "sig")
 	}
 	return binname
 }
