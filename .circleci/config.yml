@@ -5,6 +5,10 @@ jobs:
       - image: circleci/golang:1.13
 
     steps:
+      - run:
+          name: Install libpam0g-dev
+          command:
+            sudo apt-get update && sudo apt-get install -y libpam0g-dev
       - checkout
       - restore_cache:
           keys:
