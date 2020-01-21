@@ -1,0 +1,27 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.13
+
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-pkg-cache-{{ checksum "go.sum" }}
+            - v1-pkg-cache
+      - run:
+          name: Run Linters
+          command: |
+            make setup_lint
+            make lint
+      - run:
+          name: Build
+          command: make all
+      - run:
+          name: Run unit tests
+          command: make test
+      - save_cache:
+          key: v1-pkg-cache-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg"

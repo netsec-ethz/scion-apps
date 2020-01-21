@@ -70,7 +70,6 @@ var scionLogs = flag.String("slogs", path.Join(*scionRoot, "logs"),
 
 var addr = flag.String("a", "127.0.0.1", "Address of server host.")
 var port = flag.Int("p", 8000, "Port of server host.")
-var cmdBufLen = 1024
 var browserAddr = "127.0.0.1"
 var settings lib.UserSetting
 var id = "webapp"

@@ -136,18 +136,18 @@ func copyDBToTemp(filename string) string {
 	copyOneFile := func(dstDir, srcFileName string) error {
 		src, err := os.Open(srcFileName)
 		if err != nil {
-			return fmt.Errorf("Cannot open %s: %v", srcFileName, err)
+			return fmt.Errorf("cannot open %s: %v", srcFileName, err)
 		}
 		defer src.Close()
 		dstFilename := filepath.Join(dstDir, filepath.Base(srcFileName))
 		dst, err := os.Create(dstFilename)
 		if err != nil {
-			return fmt.Errorf("Cannot open %s: %v", dstFilename, err)
+			return fmt.Errorf("cannot open %s: %v", dstFilename, err)
 		}
 		defer dst.Close()
 		_, err = io.Copy(dst, src)
 		if err != nil {
-			return fmt.Errorf("Cannot copy %s to %s: %v", srcFileName, dstFilename, err.Error())
+			return fmt.Errorf("cannot copy %s to %s: %v", srcFileName, dstFilename, err.Error())
 		}
 		return nil
 	}

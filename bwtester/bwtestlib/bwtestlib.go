@@ -257,7 +257,7 @@ func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *Bw
 		done.Unlock()
 	}
 	if time.Now().Before(eft) {
-		time.Sleep(eft.Sub(time.Now()))
+		time.Sleep(time.Until(eft))
 	}
 	_ = udpConnection.Close()
 }

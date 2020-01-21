@@ -63,6 +63,9 @@ func Serve(conn net.PacketConn, handler http.Handler) error {
 func (srv *Server) ListenAndServe() error {
 
 	laddr, err := net.ResolveUDPAddr("udp", srv.Addr)
+	if err != nil {
+		return err
+	}
 	sconn, err := appnet.Listen(laddr)
 	if err != nil {
 		return err

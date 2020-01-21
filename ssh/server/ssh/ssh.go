@@ -43,11 +43,11 @@ func Create(config *serverconfig.ServerConfig, version string) (*Server, error) 
 
 	privateBytes, err := ioutil.ReadFile(utils.ParsePath(config.HostKey))
 	if err != nil {
-		return nil, fmt.Errorf("Failed loading private key: %v", err)
+		return nil, fmt.Errorf("failed loading private key: %v", err)
 	}
 	private, err := ssh.ParsePrivateKey(privateBytes)
 	if err != nil {
-		return nil, fmt.Errorf("Failed parsing private key: %v", err)
+		return nil, fmt.Errorf("failed parsing private key: %v", err)
 	}
 	server.configuration.AddHostKey(private)
 

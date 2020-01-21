@@ -201,7 +201,7 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 					req.Reply(true, nil)
 				}
 			default:
-				log.Debug("Unkown session request type %s", req.Type)
+				log.Debug("Unknown session request type %s", req.Type)
 			}
 		}
 	}()
@@ -220,8 +220,6 @@ func parseDims(b []byte) (uint32, uint32) {
 type Winsize struct {
 	Height uint16
 	Width  uint16
-	x      uint16 // unused
-	y      uint16 // unused
 }
 
 // SetWinsize sets the size of the given pty.

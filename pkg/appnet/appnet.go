@@ -22,7 +22,7 @@ Dispatcher and SCION daemon sockets
 During the hidden initialisation of this package, the dispatcher and sciond sockets are
 opened. The sciond connection determines the local IA.
 The dispatcher and sciond sockets are assumed to be at default locations, but this can
-be overriden using environment variables:
+be overridden using environment variables:
 
 		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
 		SCION_DEAMON_SOCKET: /run/shm/sciond/default.sock
@@ -220,7 +220,7 @@ func findSciondSocket() (string, error) {
 	}
 	err := statSocket(path)
 	if err != nil {
-		return "", fmt.Errorf("Error looking for SCION dispatcher socket at %s (override with SCION_DAEMON_SOCKET): %v", path, err)
+		return "", fmt.Errorf("error looking for SCION dispatcher socket at %s (override with SCION_DAEMON_SOCKET): %v", path, err)
 	}
 	return path, nil
 
@@ -233,7 +233,7 @@ func findDispatcherSocket() (string, error) {
 	}
 	err := statSocket(path)
 	if err != nil {
-		return "", fmt.Errorf("Error looking for SCION dispatcher socket at %s (override with SCION_DISPATCHER_SOCKET): %v", path, err)
+		return "", fmt.Errorf("error looking for SCION dispatcher socket at %s (override with SCION_DISPATCHER_SOCKET): %v", path, err)
 	}
 	return path, nil
 }

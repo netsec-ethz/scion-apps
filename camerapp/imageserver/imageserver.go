@@ -149,9 +149,8 @@ func main() {
 			} else if receivePacketBuffer[0] == 'G' && n > 1 {
 				filenameLen := int(receivePacketBuffer[1])
 				if n >= (2 + filenameLen + 8) {
-					filename := string(receivePacketBuffer[2 : filenameLen+2])
 					currentFilesLock.Lock()
-					v, ok := currentFiles[filename]
+					v, ok := currentFiles[string(receivePacketBuffer[2:filenameLen+2])]
 					// We don't need to lock any more, since we now have a pointer to the image structure
 					// which does not get changed once set up.
 					currentFilesLock.Unlock()

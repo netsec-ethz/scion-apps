@@ -67,7 +67,7 @@ var (
 	method           = flag.String("method", "GET", "HTTP method")
 	URL              = flag.String("url", "", "HTTP request URL")
 	jsonmap          map[string]interface{}
-	contentJsonRegex = `application/(.*)json`
+	contentJsonRegex = `application/(.*)json` //nolint:stylecheck
 )
 
 func init() {
@@ -101,7 +101,7 @@ func init() {
 	defaultSetting.Transport = shttp.NewRoundTripper(nil, nil)
 
 	// redirect SCION log to a log file
-	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0, false)
+	_ = slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0, false)
 }
 
 func parsePrintOption(s string) {
@@ -122,7 +122,6 @@ func parsePrintOption(s string) {
 	if strings.ContainsRune(s, 'b') {
 		printOption |= printRespBody
 	}
-	return
 }
 
 func main() {
@@ -218,7 +217,7 @@ func main() {
 		if err != nil {
 			httpreq.Body(stdin)
 		} else {
-			httpreq.JsonBody(j)
+			httpreq.JsonBody(j) //nolint
 		}
 	}
 
@@ -242,7 +241,7 @@ func main() {
 				f = strings.TrimSpace(f)
 				if strings.HasPrefix(f, "filename=") {
 					// Remove 'filename='
-					f = strings.TrimLeft(f, "filename=")
+					f = strings.TrimLeft(f, "filename=") //nolint
 
 					// Remove quotes and spaces from either end
 					f = strings.TrimLeft(f, "\"' ")

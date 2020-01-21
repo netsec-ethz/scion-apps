@@ -58,7 +58,10 @@ func main() {
 
 	// Setup logging
 	if _, err := os.Stat(*logDir); os.IsNotExist(err) {
-		os.Mkdir(*logDir, 0744)
+		err := os.Mkdir(*logDir, 0744)
+		if err != nil {
+			LogFatal("Unable to create log dir", "err", err)
+		}
 	}
 	log.Root().SetHandler(log.MultiHandler(
 		log.LvlFilterHandler(log.LvlDebug,
@@ -188,7 +191,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 				// An error happened, ask the client to try again in 1 second
 				sendPacketBuffer[0] = 'N'
 				sendPacketBuffer[1] = byte(1)
-				CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
+				_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
 				// Ignore error
 				continue
 			}
@@ -223,7 +226,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 			// Send back success
 			sendPacketBuffer[0] = 'N'
 			sendPacketBuffer[1] = byte(0)
-			CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
+			_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
 			// Ignore error
 			// Everything succeeded, now set variable that bwtest is ongoing
 			currentBwtest = clientCCAddrStr

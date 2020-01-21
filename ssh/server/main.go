@@ -25,20 +25,11 @@ const (
 
 var (
 	// Connection
-	listenAddress = kingpin.Flag("address", "SCION address to listen on").Default("").String()
-	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
+	options = kingpin.Flag("option", "Set an option").Short('o').Strings()
 
 	// Configuration file
 	configurationFile = kingpin.Flag("config-file", "SSH server configuration file").Short('f').Default("/etc/ssh/sshd_config").ExistingFile()
 )
-
-func setConfIfNot(conf *serverconfig.ServerConfig, name string, value, not interface{}) bool {
-	res, err := config.SetIfNot(conf, name, value, not)
-	if err != nil {
-		golog.Panicf("Error setting option %s to %v: %v", name, value, err)
-	}
-	return res
-}
 
 func createConfig() *serverconfig.ServerConfig {
 	conf := serverconfig.Create()

@@ -30,9 +30,7 @@ var (
 	port          = kingpin.Flag("port", "The server's port").Default("0").Short('p').Uint16()
 	localForward  = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
 	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
-	verbose       = kingpin.Flag("verbose", "Be verbose").Short('v').Default("false").Bool()
 	configFiles   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
-	xDead         = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
 
 	// TODO: additional file paths
 	knownHostsFile = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()

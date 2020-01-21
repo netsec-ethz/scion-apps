@@ -12,12 +12,13 @@ clean:
 test: lint
 	go test ./...
 
+setup_lint:
+	@# Install golangci-lint (as dumb as this looks, this is the recommended way to install)
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $$(go env GOPATH)/bin v1.23.1
+
 lint:
-	go fmt ./...
-	go vet ./...
-	# golint ./... # XXX(matzf): too many issues in bat, bwtester and webapp to solve right now.
-	# Enable selectively to at least avoid regressions
-	golint ./pkg/... ./sensorapp/... ./sensorapp/... ./camerapp/... ./tools/... ./ssh/... ./netcat/... ./_examples/helloworld ./_examples/shttp
+	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make lint'."; exit 1 )
+	golangci-lint run
 
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)

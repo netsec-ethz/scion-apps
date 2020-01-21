@@ -129,7 +129,7 @@ func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 	}
 
 	if rainsServer == nil {
-		return snet.SCIONAddress{}, fmt.Errorf("Could not resolve %q, no RAINS server configured", hostname)
+		return snet.SCIONAddress{}, fmt.Errorf("could not resolve %q, no RAINS server configured", hostname)
 	}
 
 	// fall back to RAINS
@@ -138,11 +138,11 @@ func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 	// The timeout value has been decreased to counter this behavior until the problem is resolved.
 	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
 	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("Address for host %q not found: %v", hostname, err)
+		return snet.SCIONAddress{}, fmt.Errorf("address for host %q not found: %v", hostname, err)
 	}
 	scionAddr, err := addrFromString(reply[qType])
 	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("Address for host %q invalid: %v", hostname, err)
+		return snet.SCIONAddress{}, fmt.Errorf("address for host %q invalid: %v", hostname, err)
 	}
 
 	return scionAddr, nil
@@ -155,10 +155,10 @@ func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 func AddHost(hostname, address string) error {
 	addr, err := addrFromString(address)
 	if err != nil {
-		return fmt.Errorf("Cannot add host %q: %v", hostname, err)
+		return fmt.Errorf("cannot add host %q: %v", hostname, err)
 	}
 	if !hosts().add(hostname, addr) {
-		return fmt.Errorf("Host %q already exists", hostname)
+		return fmt.Errorf("host %q already exists", hostname)
 	}
 
 	return nil
@@ -170,7 +170,7 @@ func GetHostnamesByAddress(address snet.SCIONAddress) ([]string, error) {
 
 	host, ok := hosts().byAddr[addrToString(address)]
 	if !ok {
-		return []string{}, fmt.Errorf("Hostname for address %q not found", address)
+		return []string{}, fmt.Errorf("hostname for address %q not found", address)
 	}
 	return host, nil
 }
@@ -238,11 +238,11 @@ func readRainsConfig() *snet.Addr {
 func addrFromString(address string) (snet.SCIONAddress, error) {
 	parts := addrRegexp.FindStringSubmatch(address)
 	if parts == nil {
-		return snet.SCIONAddress{}, fmt.Errorf("No valid SCION address: %q", address)
+		return snet.SCIONAddress{}, fmt.Errorf("no valid SCION address: %q", address)
 	}
 	ia, err := addr.IAFromString(parts[iaIndex])
 	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("Invalid IA string: %v", parts[iaIndex])
+		return snet.SCIONAddress{}, fmt.Errorf("invalid IA string: %v", parts[iaIndex])
 	}
 	var l3 addr.HostAddr
 	if hostSVC := addr.HostSVCFromString(parts[l3Index]); hostSVC != addr.SvcNone {
@@ -250,7 +250,7 @@ func addrFromString(address string) (snet.SCIONAddress, error) {
 	} else {
 		l3 = addr.HostFromIPStr(parts[l3Index])
 		if l3 == nil {
-			return snet.SCIONAddress{}, fmt.Errorf("Invalid IP address string: %v", parts[l3Index])
+			return snet.SCIONAddress{}, fmt.Errorf("invalid IP address string: %v", parts[l3Index])
 		}
 	}
 	return snet.SCIONAddress{IA: ia, Host: l3}, nil

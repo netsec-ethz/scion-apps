@@ -86,7 +86,7 @@ func fetchFileInfo(udpConnection snet.Conn) (string, uint32, time.Duration, erro
 		check(err)
 		return fileName, fileSize, rttApprox, nil
 	}
-	return "", 0, 0, fmt.Errorf("Error: could not obtain file information")
+	return "", 0, 0, fmt.Errorf("could not obtain file information")
 }
 
 func blockFetcher(fetchBlockChan chan uint32, udpConnection snet.Conn, fileName string, fileSize uint32) {
@@ -223,7 +223,7 @@ func main() {
 			numTimeouts++
 			if numTimeouts > maxRetries {
 				fmt.Println(requestedBlockMap)
-				check(fmt.Errorf("Too many missing packets, aborting"))
+				check(fmt.Errorf("too many missing packets, aborting"))
 			}
 		}
 	}
@@ -234,5 +234,5 @@ func main() {
 	}
 	err = ioutil.WriteFile(*outputFilePath, fileBuffer, 0600)
 	check(err)
-	fmt.Println("\nDone, exiting. Total duration", time.Now().Sub(startTime))
+	fmt.Println("\nDone, exiting. Total duration", time.Since(startTime))
 }

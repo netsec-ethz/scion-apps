@@ -168,7 +168,7 @@ func unmangleSCIONAddr(host string) (string, error) {
 	l3Str := strings.Replace(parts[2], "~", ":", -1)
 	l3 := addr.HostFromIPStr(l3Str)
 	if l3 == nil {
-		return "", errors.New("Could not parse IP in SCION-address")
+		return "", errors.New("could not parse IP in SCION-address")
 	}
 	return fmt.Sprintf("%s,[%v]", ia, l3), nil
 }

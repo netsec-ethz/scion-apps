@@ -27,7 +27,6 @@ import (
 type udpListenConn struct {
 	requests  chan<- []byte
 	responses <-chan int
-	available <-chan bool
 	isClosed  bool
 	write     func(b []byte) (int, error)
 	close     func() error

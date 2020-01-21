@@ -25,13 +25,12 @@ import (
 )
 
 const (
-	DefaultBwtestParameters               = "3,1000,30,80kbps"
-	DefaultDuration                       = 3
-	DefaultPktSize                        = 1000
-	DefaultPktCount                       = 30
-	DefaultBW                             = 3000
-	WildcardChar                          = "?"
-	GracePeriodSync         time.Duration = time.Millisecond * 10
+	DefaultBwtestParameters = "3,1000,30,80kbps"
+	DefaultDuration         = 3
+	DefaultPktSize          = 1000
+	DefaultPktCount         = 30
+	DefaultBW               = 3000
+	WildcardChar            = "?"
 )
 
 var (
@@ -177,16 +176,12 @@ func parseBandwidth(bw string) int64 {
 	switch suffix {
 	case "k":
 		m = 1e3
-		break
 	case "M":
 		m = 1e6
-		break
 	case "G":
 		m = 1e9
-		break
 	case "T":
 		m = 1e12
-		break
 	default:
 		m = 1
 		val = rawBw[0]
@@ -286,6 +281,7 @@ func main() {
 
 	if len(serverCCAddrStr) > 0 {
 		serverCCAddr, err = appnet.ResolveUDPAddr(serverCCAddrStr)
+		Check(err)
 	} else {
 		printUsage()
 		Check(fmt.Errorf("Error, server address needs to be specified with -s"))
@@ -306,7 +302,8 @@ func main() {
 		Check(err)
 	}
 	if path != nil {
-		appnet.SetPath(serverCCAddr, path)
+		err = appnet.SetPath(serverCCAddr, path)
+		Check(err)
 	}
 
 	CCConn, err = appnet.DialAddr(serverCCAddr)

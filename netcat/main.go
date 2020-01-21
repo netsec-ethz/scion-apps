@@ -85,11 +85,11 @@ func main() {
 	flag.Parse()
 
 	if veryVerboseMode {
-		scionlog.SetupLogConsole("debug")
+		_ = scionlog.SetupLogConsole("debug")
 	} else if verboseMode {
-		scionlog.SetupLogConsole("info")
+		_ = scionlog.SetupLogConsole("info")
 	} else {
-		scionlog.SetupLogConsole("error")
+		_ = scionlog.SetupLogConsole("error")
 	}
 
 	tail := flag.Args()
@@ -204,7 +204,7 @@ func pipeConn(conn io.ReadWriteCloser) {
 			return
 		}
 		go func() {
-			io.Copy(os.Stderr, errreader)
+			io.Copy(os.Stderr, errreader) //nolint:errcheck // XXX(matzf): should an error here be handled?
 		}()
 		err = cmd.Start()
 		if err != nil {
