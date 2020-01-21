@@ -122,5 +122,13 @@
    "addr": "203.230.60.98",
    "port": 40002
   }
+ ],
+ "sig": [
+  {
+   "name": "SIG Manual",
+   "isdas": "",
+   "addr": "",
+   "port": 0
+  }
  ]
 }

@@ -1,0 +1,24 @@
+{
+ "tests": [
+  {
+   "label": "set_interface",
+   "script": "set_interface.sh",
+   "desc": "set_interface"
+  },
+  {
+   "label": "write_sig_config",
+   "script": "write_sig_config.sh",
+   "desc": "write_sig_config"
+  },
+  {
+   "label": "write_sig_json",
+   "script": "write_sig_json.sh",
+   "desc": "write_sig_json"
+  },
+  {
+   "label": "serve_http",
+   "script": "serve_http.sh",
+   "desc": "serve_http"
+  }
+ ]
+}
