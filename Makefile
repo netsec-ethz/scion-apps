@@ -17,7 +17,7 @@ setup_lint:
 	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $$(go env GOPATH)/bin v1.23.1
 
 lint:
-	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make lint'."; exit 1 )
+	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
 	golangci-lint run
 
 install: all
