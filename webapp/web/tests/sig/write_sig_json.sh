@@ -1,20 +1,25 @@
 #!/bin/bash
 exit
 
+file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.json
+cat > file <<EOF
 {
     "ASes": {
-        "17-ffaa:1:XXX": {
+        "${IAdRemote}": {
             "Nets": [
-                "172.16.11.0/24"
+                "172.16.${IdRemote}.0/24"
             ],
             "Sigs": {
                 "remote-1": {
-                    "Addr": "10.0.8.XXX",
-                    "CtrlPort": 10084,
-                    "EncapPort": 10083
+                    "Addr": "${IpRemote}",
+                    "CtrlPort": ${CtrlPortRemote},
+                    "EncapPort": ${EncapPortRemote}
                 }
             }
         }
     },
     "ConfigVersion": 9001
 }
+EOF
+
+cat $file

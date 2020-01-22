@@ -35,7 +35,7 @@ import (
 var sendFileSigConfig = "tests/sig/sig_send.json"
 var recvFileSigConfig = "tests/sig/sig_recv.json"
 var resFileSigConfig = "data/sig-result.json"
-var sigConfigTimeout = time.Duration(60) * time.Second
+var sigConfigTimeout = time.Duration(5) * time.Minute
 
 // DefSigTests holds the JSON array for all sig configs.
 type DefSigTests struct {
@@ -62,6 +62,43 @@ type ResSigConfig struct {
 // SigConfigHandler handles calling the default sig-config scripts and
 // returning the json-formatted results of each script.
 func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, ia string, sendDirection bool) {
+
+	cIA, _ := addr.IAFromString(ia)
+	envvars := []string{
+		"IA=" + cIA.FileFmt(false), // local
+		"IAd=" + cIA.String(),      // local
+		"ISD=" + string(cIA.I),     // local
+		"AS=" + string(cIA.A),      // local
+
+		"ServePort=" + "8088",    // unused?, fixed
+		"IpLocal=" + "10.0.8.A",  // TODO mwfarb get form
+		"IpRemote=" + "10.0.8.A", // TODO mwfarb get form
+
+		"SCION_BIN=" + path.Clean(options.ScionBin),
+		"SCION_GEN=" + path.Clean(options.ScionGen),
+		"SCION_LOGS=" + path.Clean(options.ScionLogs),
+		"APPS_ROOT=" + path.Clean(options.AppsRoot),
+		"STATIC_ROOT=" + path.Clean(options.StaticRoot),
+	}
+
+	IdA := "11"
+	IdB := "12"
+	CtrlPortA := "80081"
+	CtrlPortB := "80083"
+	EncapPortA := "80082"
+	EncapPortB := "80084"
+	if sendDirection {
+		envvars = append(envvars, []string{
+			"IdLocal=" + IdA,
+			"IdRemote=" + IdB,
+			"CtrlPortLocal=" + CtrlPortA,
+			"CtrlPortRemote=" + CtrlPortB,
+			"EncapPortLocal=" + EncapPortA,
+			"EncapPortRemote=" + EncapPortB,
+		}...)
+	} else {
+	}
+
 	hcResFp := path.Join(options.StaticRoot, resFileSigConfig)
 	// read specified tests from json definition
 	var fp string
@@ -76,18 +113,6 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 		return
 	}
 	log.Debug("SigConfigHandler", "resFileSigConfig", string(raw))
-
-	cIA, _ := addr.IAFromString(ia)
-	envvars := []string{
-		"IA=" + cIA.FileFmt(false),
-		"IAd=" + cIA.String(),
-		"ISD=" + string(cIA.I),
-		"AS=" + string(cIA.A),
-		"SCION_BIN=" + path.Clean(options.ScionBin),
-		"SCION_GEN=" + path.Clean(options.ScionGen),
-		"SCION_LOGS=" + path.Clean(options.ScionLogs),
-		"APPS_ROOT=" + path.Clean(options.AppsRoot),
-	}
 
 	var tests DefSigTests
 	err = json.Unmarshal([]byte(raw), &tests)

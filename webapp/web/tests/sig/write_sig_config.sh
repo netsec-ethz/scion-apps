@@ -1,33 +1,35 @@
 #!/bin/bash
 exit
 
+file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.config
+cat > file <<EOF
 [sig]
   # ID of the SIG (required)
-  ID = "sigA"
+  ID = "sig${IA}"
 
   # The SIG config json file. (required)
-  SIGConfig = "/home/ubuntu/go/src/github.com/scionproto/scion/gen/ISD${ISD}/AS${AS}/sig${IA}-1/sigA.json"
+  SIGConfig = "${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.json"
 
   # The local IA (required)
   IA = "${IAd}"
 
   # The bind IP address (required)
-  IP = "10.0.8.A"
+  IP = "172.16.0.${IdLocal}"
 
   # Control data port, e.g. keepalives. (default 10081)
-  CtrlPort = 10081
+  CtrlPort = ${CtrlPortLocal}
 
   # Encapsulation data port. (default 10080)
-  EncapPort = 10080
+  EncapPort = ${EncapPortLocal}
 
   # SCION dispatcher path. (default "")
   Dispatcher = ""
 
   # Name of TUN device to create. (default DefaultTunName)
-  Tun = "sigA"
+  Tun = "sig${IA}"
 
   # Id of the routing table (default 11)
-  TunRTableId = 11
+  TunRTableId = ${IdLocal}
 
 [sd_client]
   # Sciond path. It defaults to sciond.DefaultSCIONDPath.
@@ -39,7 +41,7 @@ exit
 [logging]
 [logging.file]
   # Location of the logging file.
-  Path = "/home/ubuntu/go/src/github.com/scionproto/scion/logs/sig${IA}-1.log"
+  Path = "${SCION_LOGS}/sig${IA}-1.log"
 
   # File logging level (trace|debug|info|warn|error|crit) (default debug)
   Level = "debug"
@@ -61,3 +63,6 @@ exit
 [metrics]
 # The address to export prometheus metrics on. (default 127.0.0.1:1281)
   Prometheus = "127.0.0.1:1282"
+EOF
+
+cat $file
