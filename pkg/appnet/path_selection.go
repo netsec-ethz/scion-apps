@@ -87,36 +87,27 @@ func ChoosePathByMetric(pathAlgo int, remote *snet.Addr) (snet.Path, error) {
 }
 
 // SetPath is a helper function to set the path on an snet.Addr
-func SetPath(addr *snet.Addr, path snet.Path) error {
+func SetPath(addr *snet.Addr, path snet.Path) {
 	if path == nil {
 		addr.Path = nil
 		addr.NextHop = nil
 	} else {
-		p := path.Path()
-		err := p.InitOffsets()
-		if err != nil {
-			return err
-		}
-		addr.Path = p
+		addr.Path = path.Path()
 		addr.NextHop = path.OverlayNextHop()
 	}
-	return nil
 }
 
 // SetDefaultPath sets the first path returned by a query to sciond.
 // This is a no-op if if remote is in the local AS.
 func SetDefaultPath(addr *snet.Addr) error {
 	if addr.IA == DefNetwork().IA {
-		_ = SetPath(addr, nil)
+		SetPath(addr, nil)
 	} else {
 		paths, err := DefNetwork().PathQuerier.Query(context.Background(), addr.IA)
 		if err != nil || len(paths) == 0 {
 			return err
 		}
-		err = SetPath(addr, paths[0])
-		if err != nil {
-			return err
-		}
+		SetPath(addr, paths[0])
 	}
 	return nil
 }

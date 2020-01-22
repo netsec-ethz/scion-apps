@@ -302,8 +302,7 @@ func main() {
 		Check(err)
 	}
 	if path != nil {
-		err = appnet.SetPath(serverCCAddr, path)
-		Check(err)
+		appnet.SetPath(serverCCAddr, path)
 	}
 
 	CCConn, err = appnet.DialAddr(serverCCAddr)
