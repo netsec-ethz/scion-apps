@@ -93,7 +93,8 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 
 	for {
 		// Handle client requests
-		n, clientCCAddr, err := CCConn.ReadFrom(receivePacketBuffer)
+		n, fromAddr, err := CCConn.ReadFrom(receivePacketBuffer)
+		clientCCAddr := fromAddr.(*snet.UDPAddr)
 		if err != nil {
 			// Todo: check error in detail, but for now simply continue
 			continue
@@ -177,7 +178,7 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 			}
 
 			// Address of client Data Connection (DC)
-			clientDCAddr := appnet.ToSNetUDPAddr(clientCCAddr.(*snet.Addr))
+			clientDCAddr := copySnetUDPAddr(clientCCAddr)
 			clientDCAddr.Host.Port = int(clientBwp.Port)
 
 			// Address of server Data Connection (DC)
@@ -270,4 +271,9 @@ func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffe
 			_, _ = CCConn.WriteTo(sendPacketBuffer[:n+2], clientCCAddr)
 		}
 	}
+}
+
+// XXX(matzf) I assume a Copy() function will be added to snet.UDPAddr
+func copySnetUDPAddr(addr *snet.UDPAddr) *snet.UDPAddr {
+	return snet.NewUDPAddr(addr.IA, addr.Path, addr.NextHop, &net.UDPAddr{IP: addr.Host.IP, Port: int(addr.Host.Port)})
 }
