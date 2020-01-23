@@ -89,8 +89,33 @@ func (MockPathResolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRe
 
 func (MockPathResolver) Sciond() sciond.Connector { return nil }
 
+func TestStaticPolicyConn_SelectPath(t *testing.T) {
+	pc := NewPolicyConn(&PathAppConf{pathSelection: Static}, nil, MockPathResolver{}, addr.IA{})
+	ia, err := addr.IAFromString("1-ff00:0:1")
+	if err != nil {
+		t.Error(err)
+	}
+
+	appPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA: ia})
+	if err != nil {
+		t.Fatalf("Error selecting path: %s", err)
+	}
+
+	for i := 0; i < numPaths*10; i++ {
+		newAppPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA: ia})
+		if err != nil {
+			t.Fatalf("Error selecting path: %s", err)
+		}
+
+		if newAppPath != appPath {
+			t.Fatalf("Static path selection: Expected static path %v, found path %v", appPath, newAppPath)
+		}
+	}
+
+}
+
 func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
-	pc := NewRoundRobinPolicyConn(nil, MockPathResolver{}, addr.IA{}, &PathAppConf{})
+	pc := NewPolicyConn(&PathAppConf{pathSelection: RoundRobin}, nil, MockPathResolver{}, addr.IA{})
 	var paths []*spathmeta.AppPath
 
 	ia, err := addr.IAFromString("1-ff00:0:1")
@@ -118,29 +143,4 @@ func TestRoundRobinPolicyConn_SelectPath(t *testing.T) {
 			t.Fatalf("Paths at indices %d and %d, should be equal ", i, i+numPaths)
 		}
 	}
-}
-
-func TestStaticPolicyConn_SelectPath(t *testing.T) {
-	pc := NewStaticPolicyConn(nil, MockPathResolver{}, addr.IA{}, &PathAppConf{})
-	ia, err := addr.IAFromString("1-ff00:0:1")
-	if err != nil {
-		t.Error(err)
-	}
-
-	appPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA: ia})
-	if err != nil {
-		t.Fatalf("Error selecting path: %s", err)
-	}
-
-	for i := 0; i < numPaths*10; i++ {
-		newAppPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA: ia})
-		if err != nil {
-			t.Fatalf("Error selecting path: %s", err)
-		}
-
-		if newAppPath != appPath {
-			t.Fatalf("Static path selection: Expected static path %v, found path %v", appPath, newAppPath)
-		}
-	}
-
 }

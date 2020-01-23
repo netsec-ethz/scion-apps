@@ -10,6 +10,33 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+// PathSelection is an enum-like struct which serves as a convenient representation for user-specified path selection mode
+// Arbitrary: arbitrary path selection
+// Static: use the first selected path for the whole connection
+// RoundRobin: iterate through available paths in a circular fashion
+// Random: randomized path selection, currently not supported
+type PathSelection int
+
+// Valid PathSelection values:
+const (
+	Arbitrary PathSelection = iota
+	Static
+	RoundRobin
+)
+
+func PathSelectionFromString(s string) (PathSelection, error) {
+	switch s {
+	case "arbitrary":
+		return Arbitrary, nil
+	case "static":
+		return Static, nil
+	case "round-robin":
+		return RoundRobin, nil
+	default:
+		return 0, common.NewBasicError("Unknown path selection option", nil)
+	}
+}
+
 // PathAppConf represents application paths configurations specified by the user using command-line arguments
 // policy: SCION path policy
 // pathSelection: path selection mode
@@ -38,40 +65,5 @@ func (c *PathAppConf) Policy() *pathpol.Policy {
 }
 
 func (c *PathAppConf) PolicyConnFromConfig(conn snet.Conn, resolver pathmgr.Resolver, localIA addr.IA) (net.PacketConn, error) {
-	switch c.pathSelection {
-	case Static:
-		return NewStaticPolicyConn(conn, resolver, localIA, c), nil
-	case RoundRobin:
-		return NewRoundRobinPolicyConn(conn, resolver, localIA, c), nil
-	case Arbitrary:
-		return NewPolicyConn(conn, resolver, localIA), nil
-	default:
-		return nil, common.NewBasicError("PathAppConf: Unable to create ConnWrapper for given configuration", nil)
-	}
-}
-
-// PathSelection is an enum-like struct which serves as a convenient representation for user-specified path selection mode
-// Arbitrary: arbitrary path selection
-// Static: use the first selected path for the whole connection
-// RoundRobin: iterate through available paths in a circular fashion
-// Random: randomized path selection, currently not supported
-type PathSelection int
-
-const (
-	Arbitrary  PathSelection = 0
-	Static     PathSelection = 1
-	RoundRobin PathSelection = 2
-)
-
-func PathSelectionFromString(s string) (PathSelection, error) {
-	selectionMap := map[string]PathSelection{
-		"arbitrary":   Arbitrary,
-		"static":      Static,
-		"round-robin": RoundRobin,
-	}
-	pathSelection, ok := selectionMap[s]
-	if !ok {
-		return 0, common.NewBasicError("Unknown path selection option", nil)
-	}
-	return pathSelection, nil
+	return NewPolicyConn(c, conn, resolver, localIA), nil
 }
