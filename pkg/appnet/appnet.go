@@ -220,7 +220,7 @@ func findSciondSocket() (string, error) {
 	}
 	err := statSocket(path)
 	if err != nil {
-		return "", fmt.Errorf("error looking for SCION dispatcher socket at %s (override with SCION_DAEMON_SOCKET): %v", path, err)
+		return "", fmt.Errorf("error looking for SCION daemon socket at %s (override with SCION_DAEMON_SOCKET): %v", path, err)
 	}
 	return path, nil
 
