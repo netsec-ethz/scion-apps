@@ -133,7 +133,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 			pass = false
 		}
 		end := time.Now().UnixNano() / 1e6
-		outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
+		outStr, errStr := stdout.String(), stderr.String()
 		if len(outStr) > 0 {
 			log.Info(outStr)
 		}

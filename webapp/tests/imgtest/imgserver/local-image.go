@@ -134,7 +134,7 @@ func getCPUSample() (idle, total uint64) {
 // Configures font to render label at x, y on the img.
 func addImgLabel(img *image.RGBA, x, y int, label string) {
 	col := color.RGBA{0, 0, 0, 255}
-	point := fixed.Point26_6{fixed.Int26_6(x * 64), fixed.Int26_6(y * 64)}
+	point := fixed.Point26_6{X: fixed.Int26_6(x * 64), Y: fixed.Int26_6(y * 64)}
 	d := &font.Drawer{
 		Dst:  img,
 		Src:  image.NewUniform(col),

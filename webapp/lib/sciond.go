@@ -32,15 +32,11 @@ import (
 	"strings"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -71,26 +67,21 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 	fmt.Fprintf(w, buffer.String())
 }
 
-func getNetworkByIA(iaCli string) (*snet.SCIONNetwork, error) {
-	ia, err := addr.IAFromString(iaCli)
+func getSciondByIA(ia addr.IA) (sciond.Connector, error) {
+	sciondPath := findSCIONDSocket(ia)
+	sciondConn, err := sciond.NewService(sciondPath).Connect(context.Background())
 	if CheckError(err) {
 		return nil, err
 	}
-	dispatcherPath := "/run/shm/dispatcher/default.sock"
-	sciondPath := scionutil.GetSCIONDPath(&ia)
-	if snet.DefNetwork == nil {
-		err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcherPath))
-		if CheckError(err) {
-			return nil, err
-		}
-	}
-	network, err := snet.NewNetwork(ia, sciondPath,
-		reliable.NewDispatcherService(dispatcherPath))
+	return sciondConn, nil
+}
 
-	if CheckError(err) {
-		return nil, err
+func findSCIONDSocket(ia addr.IA) string {
+	sciondPath := sciond.GetDefaultSCIONDPath(&ia)
+	if _, err := os.Stat(sciondPath); err == nil {
+		return sciondPath
 	}
-	return network, nil
+	return sciond.DefaultSCIONDPath
 }
 
 // sciond data sources and calls
@@ -100,28 +91,31 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 	r.ParseForm()
 	SIa := r.PostFormValue("ia_ser")
 	CIa := r.PostFormValue("ia_cli")
-	SAddr := r.PostFormValue("addr_ser")
-	CAddr := r.PostFormValue("addr_cli")
-	SPort, _ := strconv.Atoi(r.PostFormValue("port_ser"))
-	CPort, _ := strconv.Atoi(r.PostFormValue("port_cli"))
 
 	// src and dst must be different
 	if SIa == CIa {
 		returnError(w, errors.New("Source IA and destination IA are the same."))
 		return
 	}
-	optClient := fmt.Sprintf("%s,[%s]:%d", CIa, CAddr, CPort)
-	optServer := fmt.Sprintf("%s,[%s]:%d", SIa, SAddr, SPort)
-	clientCCAddr, _ := snet.AddrFromString(optClient)
-	serverCCAddr, _ := snet.AddrFromString(optServer)
-
-	network, err := getNetworkByIA(CIa)
+	localIA, err := addr.IAFromString(CIa)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	remoteIA, err := addr.IAFromString(SIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
 
-	paths, err := getPathsJSON(*clientCCAddr, *serverCCAddr, *network)
+	sciondConn, err := getSciondByIA(localIA)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	pathQuerier := &sciond.Querier{Connector: sciondConn, IA: localIA}
+
+	paths, err := getPathsJSON(pathQuerier, remoteIA)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -130,7 +124,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 
 	// Since segments data is supplimentary to paths data, if segments data
 	// fails, provide the error, but we must still allow paths data to return.
-	segments, err := getSegmentsJSON(*clientCCAddr, options)
+	segments, err := getSegmentsJSON(localIA, options)
 	if CheckError(err) {
 		returnPathHandler(w, paths, nil, err)
 		return
@@ -140,9 +134,9 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 	returnPathHandler(w, paths, segments, err)
 }
 
-func getSegmentsJSON(local snet.Addr, options *CmdOptions) ([]byte, error) {
+func getSegmentsJSON(localIA addr.IA, options *CmdOptions) ([]byte, error) {
 	// load segments from paths database
-	var dbSrcFile = findDBFilename(local.IA, options)
+	var dbSrcFile = findDBFilename(localIA, options)
 	dbTmpFile, err := copyDBToTemp(dbSrcFile)
 	if err != nil {
 		return nil, err
@@ -232,27 +226,22 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPathsJSON(local snet.Addr, remote snet.Addr, network snet.SCIONNetwork) ([]byte, error) {
-	pathMgr := network.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sciond.PathReqFlags{})
-	if len(pathSet) == 0 {
-		return nil, fmt.Errorf("No paths from %s to %s", local.IA, remote.IA)
+func getPathsJSON(pathQuerier *sciond.Querier, remoteIA addr.IA) ([]byte, error) {
+	paths, err := pathQuerier.Query(context.Background(), remoteIA)
+	if err != nil || len(paths) == 0 {
+		return nil, fmt.Errorf("No paths from %s to %s", pathQuerier.IA, remoteIA)
 	}
-	var appPaths []*spathmeta.AppPath
-	for _, path := range pathSet {
-		appPaths = append(appPaths, path)
-	}
-	sort.Slice(appPaths, func(i, j int) bool {
+	sort.Slice(paths, func(i, j int) bool {
 		// sort by shortest # hops, then by IA/interface
-		if len(appPaths[i].Entry.Path.Interfaces) < len(appPaths[j].Entry.Path.Interfaces) {
+		if len(paths[i].Interfaces()) < len(paths[j].Interfaces()) {
 			return true
 		}
-		if len(appPaths[i].Entry.Path.Interfaces) > len(appPaths[j].Entry.Path.Interfaces) {
+		if len(paths[i].Interfaces()) > len(paths[j].Interfaces()) {
 			return false
 		}
-		return appPaths[i].Entry.String() < appPaths[j].Entry.String()
+		return fmt.Sprintf("%s", paths[i]) < fmt.Sprintf("%s", paths[j])
 	})
-	jsonPathInfo, err := json.Marshal(appPaths)
+	jsonPathInfo, err := json.Marshal(paths)
 	if err != nil {
 		return nil, err
 	}
@@ -264,12 +253,16 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	network, err := getNetworkByIA(CIa)
+	localIA, err := addr.IAFromString(CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	c := network.Sciond()
+	c, err := getSciondByIA(localIA)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
 
 	asir, err := c.ASInfo(context.Background(), addr.IA{})
 	if CheckError(err) {

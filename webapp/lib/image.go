@@ -28,7 +28,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"strconv"
 
 	log "github.com/inconshreveable/log15"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
@@ -39,17 +38,6 @@ var regexImageFiles = `([^\s]+(\.(?i)(jp?g|png|gif))$)`
 var imgTemplate = `<!doctype html><html lang="en"><head></head><body>
 <a href="{{.ImgUrl}}" target="_blank"><img src="data:image/jpg;base64,{{.JpegB64}}">
 </a></body>`
-
-// Handles writing jpeg image to http response writer by content-type.
-func writeJpegContentType(w http.ResponseWriter, img *image.Image) {
-	buf := new(bytes.Buffer)
-	err := jpeg.Encode(buf, *img, nil)
-	CheckError(err)
-	w.Header().Set("Content-Type", "image/jpeg")
-	w.Header().Set("Content-Length", strconv.Itoa(len(buf.Bytes())))
-	_, werr := w.Write(buf.Bytes())
-	CheckError(werr)
-}
 
 // Handles writing jpeg image to http response writer by image template.
 func writeJpegTemplate(w http.ResponseWriter, img *image.Image, url string) {

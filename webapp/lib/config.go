@@ -32,11 +32,8 @@ import (
 )
 
 // default params for localhost testing
-var serIaDef = "1-ff00:0:112"
 var cliPortDef = "30001"
 var serPortDefBwt = "30100"
-var serPortDefImg = "42002"
-var serPortDefSen = "42003"
 var serDefAddr = "127.0.0.2"
 
 var cfgFileCliUser = "config/clients_user.json"
