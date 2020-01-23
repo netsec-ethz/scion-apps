@@ -127,13 +127,13 @@ func TestStaticPolicyConn_SelectPath(t *testing.T) {
 		t.Error(err)
 	}
 
-	appPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA:ia})
+	appPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA: ia})
 	if err != nil {
 		t.Fatalf("Error selecting path: %s", err)
 	}
 
 	for i := 0; i < numPaths*10; i++ {
-		newAppPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA:ia})
+		newAppPath := pc.(*policyConn).pathSelector.SelectPath(snet.Addr{IA: ia})
 		if err != nil {
 			t.Fatalf("Error selecting path: %s", err)
 		}

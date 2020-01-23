@@ -24,7 +24,7 @@ const (
 )
 
 type PathSelector interface {
-	SelectPath(address snet.Addr) (*spathmeta.AppPath)
+	SelectPath(address snet.Addr) *spathmeta.AppPath
 }
 
 var _ net.PacketConn = (*policyConn)(nil)
@@ -36,12 +36,12 @@ var _ net.PacketConn = (*policyConn)(nil)
 // policyConn is not thread safe
 type policyConn struct {
 	snet.Conn
-	conf          *PathAppConf
-	pathSelector  PathSelector
+	conf         *PathAppConf
+	pathSelector PathSelector
 }
 type defaultPathSelector struct {
 	pathResolver pathmgr.Resolver
-	localIA addr.IA
+	localIA      addr.IA
 }
 
 func NewPolicyConn(c snet.Conn, resolver pathmgr.Resolver, localIA addr.IA) net.PacketConn {
@@ -51,7 +51,7 @@ func NewPolicyConn(c snet.Conn, resolver pathmgr.Resolver, localIA addr.IA) net.
 			pathResolver: resolver,
 			localIA:      localIA,
 		},
-	  }
+	}
 	return pc
 }
 
@@ -71,8 +71,6 @@ func (c *policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	return c.WriteToSCION(b, remoteAddr)
 }
 
-
-
 // SelectPath implements the path selection logic specified in PathAppConf
 // Default behavior is arbitrary path selection
 // Subclasses that wish to specialize path selection modes should override this function
@@ -91,8 +89,8 @@ type staticPathSelector struct {
 	*defaultPathSelector
 	staticPath *spathmeta.AppPath
 	pathPolicy *pathpol.Policy
-
 }
+
 func NewStaticPolicyConn(c snet.Conn, resolver pathmgr.Resolver, localIA addr.IA, conf *PathAppConf) net.PacketConn {
 	pc := &policyConn{Conn: c,
 		pathSelector: &staticPathSelector{
@@ -100,7 +98,7 @@ func NewStaticPolicyConn(c snet.Conn, resolver pathmgr.Resolver, localIA addr.IA
 				pathResolver: resolver,
 				localIA:      localIA,
 			},
-			pathPolicy:          conf.Policy(),
+			pathPolicy: conf.Policy(),
 		}}
 	return pc
 }
@@ -122,21 +120,21 @@ type roundRobinPathSelector struct {
 	*defaultPathSelector
 	paths        []*spathmeta.AppPath
 	nextKeyIndex int
-	pathPolicy *pathpol.Policy
+	pathPolicy   *pathpol.Policy
 }
 
 // roundrobinConnWraper is a subclass of policyConn which implements round-robin path selection
 // For N arbitrarily ordered paths, the ith call for WriteTo uses the (i % N)th path
 
-func NewRoundRobinPolicyConn (c snet.Conn, resolver pathmgr.Resolver, localIA addr.IA, conf *PathAppConf) net.PacketConn {
+func NewRoundRobinPolicyConn(c snet.Conn, resolver pathmgr.Resolver, localIA addr.IA, conf *PathAppConf) net.PacketConn {
 	pc := &policyConn{Conn: c,
 		pathSelector: &roundRobinPathSelector{
 			defaultPathSelector: &defaultPathSelector{
 				pathResolver: resolver,
 				localIA:      localIA,
 			},
-			nextKeyIndex:        0,
-			pathPolicy: conf.Policy(),
+			nextKeyIndex: 0,
+			pathPolicy:   conf.Policy(),
 		}}
 	return pc
 }
