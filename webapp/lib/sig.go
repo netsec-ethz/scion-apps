@@ -64,11 +64,12 @@ type ResSigConfig struct {
 func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, ia string, sendDirection bool) {
 
 	cIA, _ := addr.IAFromString(ia)
+	strIA := strings.Split(cIA.FileFmt(false), "-")
 	envvars := []string{
 		"IA=" + cIA.FileFmt(false), // local
 		"IAd=" + cIA.String(),      // local
-		"ISD=" + string(cIA.I),     // local
-		"AS=" + string(cIA.A),      // local
+		"ISD=" + strIA[0],          // local
+		"AS=" + strIA[1],           // local
 
 		"ServePort=" + "8088",    // unused?, fixed
 		"IpLocal=" + "10.0.8.A",  // TODO mwfarb get form
@@ -97,6 +98,14 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 			"EncapPortRemote=" + EncapPortB,
 		}...)
 	} else {
+		envvars = append(envvars, []string{
+			"IdLocal=" + IdB,
+			"IdRemote=" + IdA,
+			"CtrlPortLocal=" + CtrlPortB,
+			"CtrlPortRemote=" + CtrlPortA,
+			"EncapPortLocal=" + EncapPortB,
+			"EncapPortRemote=" + EncapPortA,
+		}...)
 	}
 
 	hcResFp := path.Join(options.StaticRoot, resFileSigConfig)

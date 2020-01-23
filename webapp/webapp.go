@@ -233,6 +233,7 @@ func initServeHandlers() {
 	http.HandleFunc("/getnodes", getNodesHandler)
 	http.HandleFunc("/getbwbytime", getBwByTimeHandler)
 	http.HandleFunc("/healthcheck", healthCheckHandler)
+	http.HandleFunc("/sigconfig", sigConfigHandler)
 	http.HandleFunc("/dirview", dirViewHandler)
 	http.HandleFunc("/getechobytime", getEchoByTimeHandler)
 	http.HandleFunc("/gettraceroutebytime", getTracerouteByTimeHandler)
@@ -733,6 +734,10 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	lib.HealthCheckHandler(w, r, &options, settings.MyIA)
+}
+
+func sigConfigHandler(w http.ResponseWriter, r *http.Request) {
+	lib.SigConfigHandler(w, r, &options, settings.MyIA, true) // TODO remove debug
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {

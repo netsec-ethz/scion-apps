@@ -1,6 +1,7 @@
 #!/bin/bash
-exit
 
+mkdir ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
+touch ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.json
 file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.json
 cat > file <<EOF
 {

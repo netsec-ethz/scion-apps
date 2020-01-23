@@ -323,6 +323,7 @@
         type="text" id="addl_optsig" name="addl_optsig"
         style="width: 200px;"> </span>
 
+       <button onclick="sigConfig()">SIG Config</button>
       </div>
 
 
@@ -476,6 +477,19 @@
         initBwGraphs();
         setDefaults();
     });
+
+    // TODO remove debug
+    function sigConfig() {
+        $.post("/sigconfig", null, function(data) {
+            d = JSON.parse(data);
+            console.info('resp:', JSON.stringify(d));
+            if (d.err) {
+                showError(d.err);
+            }
+        }).fail(function(error) {
+            showError(error.responseJSON);
+        });
+    }
 </script>
 
 {{template "footer" .}} {{end}}

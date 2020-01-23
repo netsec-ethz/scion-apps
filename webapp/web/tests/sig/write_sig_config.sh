@@ -1,5 +1,4 @@
 #!/bin/bash
-exit
 
 file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.config
 cat > file <<EOF
