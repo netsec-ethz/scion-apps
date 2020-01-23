@@ -24,6 +24,7 @@ const (
 	RoundRobin
 )
 
+// PathSelectionFromString parses a string into a PathSelection.
 func PathSelectionFromString(s string) (PathSelection, error) {
 	switch s {
 	case "arbitrary":
@@ -45,6 +46,7 @@ type PathAppConf struct {
 	pathSelection PathSelection
 }
 
+// NewPathAppConf constructs a PathAppConf.
 func NewPathAppConf(policy *pathpol.Policy, pathSelection string) (*PathAppConf, error) {
 	ps, err := PathSelectionFromString(pathSelection)
 	if err != nil {
@@ -56,14 +58,17 @@ func NewPathAppConf(policy *pathpol.Policy, pathSelection string) (*PathAppConf,
 	}, nil
 }
 
+// PathSelection returns the PathSelection in the configuration.
 func (c *PathAppConf) PathSelection() PathSelection {
 	return c.pathSelection
 }
 
+// Policy returns the pathpol.Policy in the configuration.
 func (c *PathAppConf) Policy() *pathpol.Policy {
 	return c.policy
 }
 
+// PolicyConnFromConfig constructs a new policyConn from this configuration.
 func (c *PathAppConf) PolicyConnFromConfig(conn snet.Conn, resolver pathmgr.Resolver, localIA addr.IA) (net.PacketConn, error) {
 	return NewPolicyConn(c, conn, resolver, localIA), nil
 }

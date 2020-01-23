@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
+// error strings
 const (
 	ErrNoPath     = "path not found"
 	ErrInitPath   = "raw forwarding path offsets could not be initialized"
@@ -41,7 +42,8 @@ type defaultPathSelector struct {
 // Subclasses that wish to specialize path selection modes should override this function
 func (s *defaultPathSelector) SelectPath(address snet.Addr) *spathmeta.AppPath {
 	log.Trace("default policyConn.. arbitrary path selection")
-	pathSet := s.pathResolver.Query(context.Background(), s.localIA, address.IA, sciond.PathReqFlags{})
+	pathSet := s.pathResolver.Query(context.Background(), s.localIA, address.IA,
+		sciond.PathReqFlags{})
 	appPath := pathSet.GetAppPath("")
 	log.Trace(fmt.Sprintf("SELECTED PATH %s\n", appPath.Entry.Path))
 	return appPath
@@ -60,7 +62,8 @@ func (s *staticPathSelector) SelectPath(address snet.Addr) *spathmeta.AppPath {
 	log.Trace("staticPolicyConn.. selecting path")
 	s.initOnce.Do(func() {
 		log.Trace("staticPathSelector, initializing paths")
-		pathSet := s.pathResolver.QueryFilter(context.Background(), s.localIA, address.IA, s.pathPolicy)
+		pathSet := s.pathResolver.QueryFilter(context.Background(), s.localIA, address.IA,
+			s.pathPolicy)
 		s.staticPath = pathSet.GetAppPath("")
 	})
 	log.Trace(fmt.Sprintf("Path exists: %s", s.staticPath))
@@ -81,7 +84,8 @@ type roundRobinPathSelector struct {
 func (s *roundRobinPathSelector) SelectPath(address snet.Addr) *spathmeta.AppPath {
 	log.Trace("roundRobinPolicyConn.. slecting path")
 	s.initOnce.Do(func() {
-		pathMap := s.pathResolver.QueryFilter(context.Background(), s.localIA, address.IA, s.pathPolicy)
+		pathMap := s.pathResolver.QueryFilter(context.Background(), s.localIA, address.IA,
+			s.pathPolicy)
 		for _, v := range pathMap {
 			s.paths = append(s.paths, v)
 		}
@@ -102,7 +106,10 @@ type policyConn struct {
 
 var _ net.PacketConn = (*policyConn)(nil)
 
-func NewPolicyConn(conf *PathAppConf, c snet.Conn, resolver pathmgr.Resolver, localIA addr.IA) net.PacketConn {
+// NewPolicyConn constructs a PolicyConn specified in the PathAppConf argument.
+func NewPolicyConn(conf *PathAppConf, c snet.Conn, resolver pathmgr.Resolver,
+	localIA addr.IA) net.PacketConn {
+
 	var pathSel PathSelector
 	pathSel = &defaultPathSelector{
 		pathResolver: resolver,
