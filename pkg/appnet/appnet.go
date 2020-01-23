@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ import (
 
 // Network extends the snet.Network interface by making the local IA and common
 // sciond connections public.
-// The default singleton instance of this type is obtained by the DefNetork
+// The default singleton instance of this type is obtained by the DefNetwork
 // function.
 type Network struct {
 	snet.Network
