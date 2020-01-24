@@ -9,6 +9,11 @@
    "label": "write_sig_config",
    "script": "write_sig_config.sh",
    "desc": "write_sig_config"
+  },
+  {
+   "label": "get_http",
+   "script": "get_http.sh",
+   "desc": "get_http"
   }
  ]
 }

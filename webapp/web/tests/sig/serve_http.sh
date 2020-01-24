@@ -1,5 +1,9 @@
 #!/bin/bash
-exit
+
+mkdir ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
+file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.sh
+cat >$file <<EOL
+#!/bin/bash
 
 # Create the configuration directories for the SIGs,
 mkdir -p ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/
@@ -36,8 +40,9 @@ sudo ip route show table ${IdRemote}
 sudo ip link add server type dummy
 sudo ip addr add 172.16.${IdLocal}.1/24 brd + dev server label server:0
 
-now=$(date)
-SIG_SERVE=${STATIC_ROOT}/data/www/sig${IA}
-mkdir ${SIG_SERVE}
-echo "Hello World from ${IAd} at ${now}!" > ${SIG_SERVE}/sighello.html
-cd ${SIG_SERVE} && python3 -m http.server --bind 172.16.${IdLocal}.1 ${ServePort} &
+mkdir ${STATIC_ROOT}/data/www/sig${IA}
+cd ${STATIC_ROOT}/data/www/sig${IA}
+echo "Hello World from ${IAd}!" > ${STATIC_ROOT}/data/www/sig${IA}/sighello.html
+python3 -m http.server --bind 172.16.${IdLocal}.1 ${ServePort} &
+EOL
+cat $file

@@ -1,5 +1,9 @@
 #!/bin/bash
-exit
+
+mkdir ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
+file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.sh
+cat >$file <<EOL
+#!/bin/bash
 
 # Create the configuration directories for the SIGs,
 mkdir -p ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/
@@ -40,3 +44,5 @@ sudo ip addr add 172.16.${IdLocal}.1/24 brd + dev client label client:0
 curl --interface 172.16.${IdLocal}.1 172.16.${IdRemote}.1:${ServePort}/sighello.html
 
 # You should see the “Hello World!” message as output from the last command.
+EOL
+cat $file
