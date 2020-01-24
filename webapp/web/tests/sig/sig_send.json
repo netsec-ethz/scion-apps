@@ -4,6 +4,11 @@
    "label": "write_sig_json",
    "script": "write_sig_json.sh",
    "desc": "write_sig_json"
+  },
+  {
+   "label": "write_sig_config",
+   "script": "write_sig_config.sh",
+   "desc": "write_sig_config"
   }
  ]
 }

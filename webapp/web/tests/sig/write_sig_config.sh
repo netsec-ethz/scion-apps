@@ -1,7 +1,8 @@
 #!/bin/bash
 
+mkdir ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
 file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.config
-cat > file <<EOF
+cat >$file <<EOL
 [sig]
   # ID of the SIG (required)
   ID = "sig${IA}"
@@ -62,6 +63,5 @@ cat > file <<EOF
 [metrics]
 # The address to export prometheus metrics on. (default 127.0.0.1:1281)
   Prometheus = "127.0.0.1:1282"
-EOF
-
+EOL
 cat $file

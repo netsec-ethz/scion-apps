@@ -323,7 +323,7 @@
         type="text" id="addl_optsig" name="addl_optsig"
         style="width: 200px;"> </span>
 
-       <button onclick="sigConfig()">SIG Config</button>
+       <button onclick="sigConfig()">Update SIG Config</button>
       </div>
 
 
@@ -480,7 +480,8 @@
 
     // TODO remove debug
     function sigConfig() {
-        $.post("/sigconfig", null, function(data) {
+        var form_data = $('#command-form').serializeArray();
+        $.post("/sigconfig", form_data, function(data) {
             d = JSON.parse(data);
             console.info('resp:', JSON.stringify(d));
             if (d.err) {

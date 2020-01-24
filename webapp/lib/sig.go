@@ -62,6 +62,10 @@ type ResSigConfig struct {
 // SigConfigHandler handles calling the default sig-config scripts and
 // returning the json-formatted results of each script.
 func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, ia string, sendDirection bool) {
+	r.ParseForm()
+	SIa := r.PostFormValue("ia_ser")
+	SAddr := r.PostFormValue("addr_ser")
+	//radioSig := r.PostFormValue("radioSig")
 
 	cIA, _ := addr.IAFromString(ia)
 	strIA := strings.Split(cIA.FileFmt(false), "-")
@@ -71,9 +75,9 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 		"ISD=" + strIA[0],          // local
 		"AS=" + strIA[1],           // local
 
-		"ServePort=" + "8088",    // unused?, fixed
-		"IpLocal=" + "10.0.8.A",  // TODO mwfarb get form
-		"IpRemote=" + "10.0.8.A", // TODO mwfarb get form
+		"ServePort=" + "8088", // unused?, fixed
+		"IaRemote=" + SIa,     // remote
+		"IpRemote=" + SAddr,   // remote
 
 		"SCION_BIN=" + path.Clean(options.ScionBin),
 		"SCION_GEN=" + path.Clean(options.ScionGen),
@@ -84,10 +88,10 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 
 	IdA := "11"
 	IdB := "12"
-	CtrlPortA := "80081"
-	CtrlPortB := "80083"
-	EncapPortA := "80082"
-	EncapPortB := "80084"
+	CtrlPortA := "10081"
+	CtrlPortB := "10083"
+	EncapPortA := "10082"
+	EncapPortB := "10084"
 	if sendDirection {
 		envvars = append(envvars, []string{
 			"IdLocal=" + IdA,
@@ -107,6 +111,7 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 			"EncapPortRemote=" + EncapPortA,
 		}...)
 	}
+	log.Debug("SigConfigHandler", "envvars", envvars)
 
 	hcResFp := path.Join(options.StaticRoot, resFileSigConfig)
 	// read specified tests from json definition

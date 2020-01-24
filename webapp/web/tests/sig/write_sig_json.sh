@@ -1,12 +1,11 @@
 #!/bin/bash
 
 mkdir ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
-touch ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.json
 file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.json
-cat > file <<EOF
+cat >$file <<EOL
 {
     "ASes": {
-        "${IAdRemote}": {
+        "${IaRemote}": {
             "Nets": [
                 "172.16.${IdRemote}.0/24"
             ],
@@ -21,6 +20,5 @@ cat > file <<EOF
     },
     "ConfigVersion": 9001
 }
-EOF
-
+EOL
 cat $file
