@@ -186,6 +186,8 @@ function handleSwitchSigDirection(sigSend, sigRecv) {
     var sigRecv = $('#radio_sigRecv').prop('checked');
     $('#svg-sigsend').css("display", sigSend ? "block" : "none");
     $('#svg-sigrecv').css("display", sigRecv ? "block" : "none");
+
+    $('#button_sigconfig').prop('disabled', (!sigSend && !sigRecv));
 }
 
 function setChartUtc(useUTC) {
