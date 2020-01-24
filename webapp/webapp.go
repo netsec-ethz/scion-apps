@@ -605,7 +605,8 @@ func getClientLocationBin(app string) string {
 	case "echo", "traceroute":
 		binname = path.Join(options.ScionBin, "scmp")
 	case "sig":
-		binname = path.Join(options.ScionBin, "sig")
+		// TODO change sig to ScionBin post-package install
+		binname = path.Join(options.AppsRoot, "sig")
 	}
 	return binname
 }

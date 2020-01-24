@@ -3,7 +3,8 @@
 
 # check for required binaries which may not have been built and installed
 missingbin=false
-declare -a apps=("$SCION_BIN/scmp" "$SCION_BIN/sig" "$APPS_ROOT/bwtestclient" "$APPS_ROOT/imagefetcher" "$APPS_ROOT/sensorfetcher" )
+# TODO change sig to ScionBin post-package install
+declare -a apps=("$SCION_BIN/scmp" "$APPS_ROOT/sig" "$APPS_ROOT/bwtestclient" "$APPS_ROOT/imagefetcher" "$APPS_ROOT/sensorfetcher" )
 for fbin in "${apps[@]}"; do
     if [ -f "$fbin" ]; then
         echo "$fbin exists"
