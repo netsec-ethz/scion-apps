@@ -61,13 +61,23 @@ type ResSigConfig struct {
 
 // SigConfigHandler handles calling the default sig-config scripts and
 // returning the json-formatted results of each script.
-func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, ia string, sendDirection bool) {
+func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
+	CIa := r.PostFormValue("ia_cli")
 	SIa := r.PostFormValue("ia_ser")
 	SAddr := r.PostFormValue("addr_ser")
-	//radioSig := r.PostFormValue("radioSig")
+	radioSig := r.PostFormValue("radioSig")
+	var sendDirection bool
+	if radioSig == "send" {
+		sendDirection = true
+	} else if radioSig == "recv" {
+		sendDirection = false
+	} else {
+		fmt.Fprintf(w, `{ "err": %s }`, "Please choose SIG send or receive.")
+		return
+	}
 
-	cIA, _ := addr.IAFromString(ia)
+	cIA, _ := addr.IAFromString(CIa)
 	strIA := strings.Split(cIA.FileFmt(false), "-")
 	envvars := []string{
 		"IA=" + cIA.FileFmt(false), // local
@@ -151,7 +161,7 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 		pass := true
 		log.Info(test.Script + ": " + test.Desc)
 		// execute script
-		cmd := exec.Command("bash", test.Script, ia)
+		cmd := exec.Command("bash", test.Script, CIa)
 		cmd.Dir = filepath.Dir(fp)
 		cmd.Env = append(os.Environ(), envvars...)
 		var stdout, stderr bytes.Buffer

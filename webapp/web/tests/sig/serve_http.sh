@@ -1,9 +1,10 @@
 #!/bin/bash
 
-mkdir ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
+cfgdir=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
+mkdir ${cfgdir}
 
 # Create script to set interfaces and run the SIG
-file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/run_sig${IA}.sh
+file=${cfgdir}/run_sig${IA}.sh
 cat >$file <<EOL
 #!/bin/bash
 
@@ -14,10 +15,7 @@ cat >$file <<EOL
 # WARNING: the SIG binary must be built beforehand to this location:
 # ${SCION_BIN}/sig
 
-# Create the configuration directories for the SIGs,
-mkdir -p ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/
-
-# set the linux capabilities on the binary:
+# Set the linux capabilities on the binary:
 sudo setcap cap_net_admin+eip ${SCION_BIN}/sig
 
 # Enable routing:
@@ -25,27 +23,28 @@ sudo sysctl net.ipv4.conf.default.rp_filter=0
 sudo sysctl net.ipv4.conf.all.rp_filter=0
 sudo sysctl net.ipv4.ip_forward=1
 
-#create two dummy interfaces:
+# Create a dummy interface:
 sudo modprobe dummy
 
 sudo ip link add dummy${IdRemote} type dummy
 sudo ip addr add 172.16.0.${IdRemote}/32 brd + dev dummy${IdRemote} label dummy${IdRemote}:0
 
-# Now we need to add the routing rules for the two SIGs:
+# Add the routing rules for the SIG:
 sudo ip rule add to 172.16.${IdLocal}.0/24 lookup ${IdRemote} prio ${IdRemote}
 
-# Now start the two SIGs with the following commands:
-${SCION_BIN}/sig -config=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.config > ${SCION_LOGS}/sig${IA}-1.log 2>&1 &
+# Start the SIG with the following command:
+${SCION_BIN}/sig -config=${cfgdir}/sig${IA}.config > ${SCION_LOGS}/sig${IA}-1.log 2>&1 &
 
-# To show the ip rules and routes
+# Show the ip rules and routes
 sudo ip rule show
 sudo ip route show table ${IdLocal}
 sudo ip route show table ${IdRemote}
 
-# Add some server on host Local:
+# Add a server on host Local:
 sudo ip link add server type dummy
 sudo ip addr add 172.16.${IdLocal}.1/24 brd + dev server label server:0
 
+# Create a simple html page to serve:
 mkdir ${STATIC_ROOT}/data/www/sig${IA}
 cd ${STATIC_ROOT}/data/www/sig${IA}
 echo "Hello World from ${IAd}!" > ${STATIC_ROOT}/data/www/sig${IA}/sighello.html
@@ -55,7 +54,7 @@ EOL
 cat $file
 
 # Create script to test the running SIG
-file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/test_sig${IA}.sh
+file=${cfgdir}/test_sig${IA}.sh
 cat >$file <<EOL
 #!/bin/bash
 python3 -m http.server --bind 172.16.${IdLocal}.1 ${ServePort}

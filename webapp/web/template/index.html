@@ -304,29 +304,35 @@
           marker-end="url(#sc-arrowhead)" />
         </svg>
        </div>
-
-       <span id="sig_text"></span><br>
-       <div class="pretty p-switch">
-        <input id="radio_sigSend" type="radio" name="radioSig">
-        <div class="state">
-         <label>Send</label>
-        </div>
-       </div>
-       <div class="pretty p-switch">
-        <input id="radio_sigRecv" type="radio" name="radioSig">
-        <div class="state">
-         <label>Receive</label>
-        </div>
-       </div>
-       Additional Argument: <span
-        tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_optsig" name="addl_optsig"
-        style="width: 200px;"> </span>
-
-       <button id="button_sigconfig" onclick="sigConfig()" disabled>Update
-        SIG Config</button>
+       <span id="sig_text"></span>
+       <ol>
+        <li>Update remote destination addresses.</li>
+        <li>Choose to
+         <div class="pretty p-switch">
+          <input id="radio_sigSend" value="send" type="radio"
+           name="radioSig">
+          <div class="state">
+           <label>Send</label>
+          </div>
+         </div> or
+         <div class="pretty p-switch">
+          <input id="radio_sigRecv" value="recv" type="radio"
+           name="radioSig">
+          <div class="state">
+           <label>Receive</label>
+          </div>
+         </div>
+        </li>
+        <li>
+         <button id="button_sigconfig" onclick="sigConfig()" disabled>Generate
+          SIG Config</button>
+        </li>
+        <li><span id="sig_run_text">Setup and run SIG with
+          run_sig.sh.</span></li>
+        <li><span id="sig_test_text">Click 'Run Once' first
+          from Sender, then from Receiver, to test.</span></li>
+       </ol>
       </div>
-
 
      </div>
 

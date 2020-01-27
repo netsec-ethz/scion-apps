@@ -74,7 +74,7 @@ var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
 var echoText = 'Execute echo to measure response time.';
-var sigText = 'Update addresses, then direction to send or recieve.';
+var sigText = 'SCION IP Gateway (SIG) depends on two endhosts.';
 
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any

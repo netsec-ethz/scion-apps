@@ -434,13 +434,12 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
 	case "sig":
-		d, _ := dOrinial.(model.EchoItem) // TODO use more permanant type
-		cIA, _ := addria.IAFromString(d.CIa)
+		cIA, _ := addria.IAFromString(dOrinial.(model.BwTestItem).CIa)
 		strIA := strings.Split(cIA.FileFmt(false), "-")
 		// run simple bash commmand, to serve or get http depending on setup
 		sigRunPath := path.Join(options.ScionGen, "ISD"+strIA[0],
 			"AS"+strIA[1], "sig"+cIA.FileFmt(false)+"-1",
-			"sig"+cIA.FileFmt(false)+".sh")
+			"test_sig"+cIA.FileFmt(false)+".sh")
 		command = append(command, "bash", sigRunPath)
 
 	default:
@@ -744,7 +743,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func sigConfigHandler(w http.ResponseWriter, r *http.Request) {
-	lib.SigConfigHandler(w, r, &options, settings.MyIA, true) // TODO remove debug
+	lib.SigConfigHandler(w, r, &options, settings.MyIA)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
