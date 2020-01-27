@@ -32,7 +32,7 @@ sudo ip addr add 172.16.0.${IdRemote}/32 brd + dev dummy${IdRemote} label dummy$
 sudo ip rule add to 172.16.${IdLocal}.0/24 lookup ${IdRemote} prio ${IdRemote}
 
 # Start the SIG with the following command:
-${APPS_ROOT}/sig -config=${cfgdir}/sig${IA}.config > ${SCION_LOGS}/sig${IA}-1.log 2>&1 &
+${APPS_ROOT}/sig -config=${cfgdir}/sig${IA}.config > ${cfgdir}/sig${IA}-1.log 2>&1 &
 
 # Show the ip rules and routes
 sudo ip rule show

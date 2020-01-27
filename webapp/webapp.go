@@ -444,11 +444,8 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 
 	case "sig":
 		cIA, _ := addria.IAFromString(dOrinial.(model.BwTestItem).CIa)
-		strIA := strings.Split(cIA.FileFmt(false), "-")
 		// run simple bash commmand, to serve or get http depending on setup
-		sigRunPath := path.Join(options.ScionGen, "ISD"+strIA[0],
-			"AS"+strIA[1], "sig"+cIA.FileFmt(false)+"-1",
-			"test_sig"+cIA.FileFmt(false)+".sh")
+		sigRunPath := path.Join(options.StaticRoot, "data/sig", "sig"+cIA.FileFmt(false), "test_sig"+cIA.FileFmt(false)+".sh")
 		command = append(command, "bash", sigRunPath)
 
 	default:

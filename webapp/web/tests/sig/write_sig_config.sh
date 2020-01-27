@@ -44,7 +44,7 @@ cat >$file <<EOL
 [logging]
 [logging.file]
   # Location of the logging file.
-  Path = "${SCION_LOGS}/sig${IA}-1.log"
+  Path = "${cfgdir}/sig${IA}-1.log"
 
   # File logging level (trace|debug|info|warn|error|crit) (default debug)
   Level = "debug"
