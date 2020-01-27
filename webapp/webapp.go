@@ -39,6 +39,7 @@ import (
 	lib "github.com/netsec-ethz/scion-apps/webapp/lib"
 	model "github.com/netsec-ethz/scion-apps/webapp/models"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
+	addria "github.com/scionproto/scion/go/lib/addr"
 )
 
 // GOPATH is the root of the GOPATH environment (in development).
@@ -433,9 +434,14 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
 	case "sig":
-		command = append(command, installpath, "-help-config")
-
-		// TODO mwfarb, configure for sending/receiving
+		d, _ := dOrinial.(model.EchoItem) // TODO use more permanant type
+		cIA, _ := addria.IAFromString(d.CIa)
+		strIA := strings.Split(cIA.FileFmt(false), "-")
+		// run simple bash commmand, to serve or get http depending on setup
+		sigRunPath := path.Join(options.ScionGen, "ISD"+strIA[0],
+			"AS"+strIA[1], "sig"+cIA.FileFmt(false)+"-1",
+			"sig"+cIA.FileFmt(false)+".sh")
+		command = append(command, "bash", sigRunPath)
 
 	default:
 		log.Error("App cannot be found", "appSel", appSel)
