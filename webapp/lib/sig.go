@@ -89,6 +89,7 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 		"IaRemote=" + SIa,     // remote
 		"IpRemote=" + SAddr,   // remote
 
+		"cfgdir=" + path.Join(options.StaticRoot, "data/sig", "sig"+cIA.FileFmt(false)),
 		"SCION_BIN=" + path.Clean(options.ScionBin),
 		"SCION_GEN=" + path.Clean(options.ScionGen),
 		"SCION_LOGS=" + path.Clean(options.ScionLogs),

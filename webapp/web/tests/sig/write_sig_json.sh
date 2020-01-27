@@ -1,7 +1,6 @@
 #!/bin/bash
 
-cfgdir=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
-mkdir ${cfgdir}
+mkdir -p ${cfgdir}
 
 file=${cfgdir}/sig${IA}.json
 cat >$file <<EOL
