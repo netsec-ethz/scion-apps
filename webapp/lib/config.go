@@ -53,6 +53,17 @@ type CmdOptions struct {
 	StaticRoot, BrowseRoot, AppsRoot, ScionRoot, ScionBin, ScionGen, ScionGenCache, ScionLogs string
 }
 
+func (o *CmdOptions) AbsPathCmdOptions(StaticRoot, BrowseRoot, AppsRoot, ScionRoot, ScionBin, ScionGen, ScionGenCache, ScionLogs string) {
+	o.StaticRoot, _ = filepath.Abs(StaticRoot)
+	o.BrowseRoot, _ = filepath.Abs(BrowseRoot)
+	o.AppsRoot, _ = filepath.Abs(AppsRoot)
+	o.ScionRoot, _ = filepath.Abs(ScionRoot)
+	o.ScionBin, _ = filepath.Abs(ScionBin)
+	o.ScionGen, _ = filepath.Abs(ScionGen)
+	o.ScionGenCache, _ = filepath.Abs(ScionGenCache)
+	o.ScionLogs, _ = filepath.Abs(ScionLogs)
+}
+
 // WriteUserSetting writes the settings to disk.
 func WriteUserSetting(options *CmdOptions, settings UserSetting) {
 	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
