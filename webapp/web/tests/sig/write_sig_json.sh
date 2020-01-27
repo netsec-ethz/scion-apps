@@ -1,7 +1,9 @@
 #!/bin/bash
 
-mkdir ${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
-file=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1/sig${IA}.json
+cfgdir=${SCION_GEN}/ISD${ISD}/AS${AS}/sig${IA}-1
+mkdir ${cfgdir}
+
+file=${cfgdir}/sig${IA}.json
 cat >$file <<EOL
 {
     "ASes": {

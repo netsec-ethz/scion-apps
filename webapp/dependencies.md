@@ -26,11 +26,11 @@ webapp -h
 - sleep
 - cat
 - systemctl
-- ip
 
 ## SCION Binaries Used/Checked
 - $sbin/scmp
 - $sbin/sig
+- $sabin/sig (deprecate)
 - $sabin/bwtestclient
 - $sabin/imagefetcher
 - $sabin/sensorfetcher

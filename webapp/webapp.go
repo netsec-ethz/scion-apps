@@ -743,7 +743,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func sigConfigHandler(w http.ResponseWriter, r *http.Request) {
-	lib.SigConfigHandler(w, r, &options, settings.MyIA)
+	lib.SigConfigHandler(w, r, &options)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {

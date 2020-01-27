@@ -45,7 +45,7 @@ sudo ip link add server type dummy
 sudo ip addr add 172.16.${IdLocal}.1/24 brd + dev server label server:0
 
 # Create a simple html page to serve:
-mkdir ${STATIC_ROOT}/data/www/sig${IA}
+mkdir -p ${STATIC_ROOT}/data/www/sig${IA}
 cd ${STATIC_ROOT}/data/www/sig${IA}
 echo "Hello World from ${IAd}!" > ${STATIC_ROOT}/data/www/sig${IA}/sighello.html
 
