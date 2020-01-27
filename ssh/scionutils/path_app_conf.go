@@ -10,11 +10,10 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-// PathSelection is an enum-like struct which serves as a convenient representation for user-specified path selection mode
+// PathSelection represents a user-specified path selection mode.
 // Arbitrary: arbitrary path selection
 // Static: use the first selected path for the whole connection
 // RoundRobin: iterate through available paths in a circular fashion
-// Random: randomized path selection, currently not supported
 type PathSelection int
 
 // Valid PathSelection values:
