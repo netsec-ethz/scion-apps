@@ -678,8 +678,12 @@ function get_nonseg_links(paths, lType) {
 
 function requestPaths() {
     // make sure to get path topo after IAs are loaded
-    var form_data = $('#command-form').serializeArray();
     $("#as-error").empty();
+    if ($('#ia_cli').val().len == 0 || $('#ia_ser').val() == 0) {
+        showError("Both Source and Destination IAs are required.");
+        return;
+    }
+    var form_data = $('#command-form').serializeArray();
     $.ajax({
         url : 'getpathtopo',
         type : 'post',
