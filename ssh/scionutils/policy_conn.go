@@ -170,7 +170,7 @@ func queryPathsFiltered(ia addr.IA, policy *pathpol.Policy) ([]snet.Path, error)
 
 	pathSet := make(pathpol.PathSet)
 	for _, path := range paths {
-		pathSet[path.Fingerprint()] = &pathpolSnetPath{path}
+		pathSet[path.Fingerprint()] = path
 	}
 	policy.Filter(pathSet)
 	filterPathSlice(&paths, pathSet)
@@ -189,23 +189,4 @@ func filterPathSlice(paths *[]snet.Path, pathSet pathpol.PathSet) {
 		}
 	}
 	*paths = filtered
-}
-
-// pathpolSnetPath wraps an snet.Path and exposes a pathpol.Path interface.
-// XXX(matzf): fix pathpol to remove this
-type pathpolSnetPath struct {
-	snet.Path
-}
-
-func (p *pathpolSnetPath) Key() snet.PathFingerprint {
-	return p.Path.Fingerprint()
-}
-
-func (p *pathpolSnetPath) Interfaces() []pathpol.PathInterface {
-	ifaces := p.Path.Interfaces()
-	mapped := make([]pathpol.PathInterface, len(ifaces))
-	for i, iface := range ifaces {
-		mapped[i] = iface
-	}
-	return mapped
 }
