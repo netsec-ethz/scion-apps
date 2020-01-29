@@ -32,11 +32,8 @@ import (
 )
 
 // default params for localhost testing
-var serIaDef = "1-ff00:0:112"
 var cliPortDef = "30001"
 var serPortDefBwt = "30100"
-var serPortDefImg = "42002"
-var serPortDefSen = "42003"
 var serDefAddr = "127.0.0.2"
 
 var cfgFileCliUser = "config/clients_user.json"
@@ -112,8 +109,8 @@ func StringInSlice(arr []string, i string) bool {
 // Makes interfaces sortable, by preferred name
 type byPrefInterface []net.Interface
 
-func isInterfaceEnp(c net.Interface) bool {
-	return strings.HasPrefix(c.Name, "enp")
+func isInterfaceEn(c net.Interface) bool {
+	return strings.HasPrefix(c.Name, "en")
 }
 
 func isInterfaceLocal(c net.Interface) bool {
@@ -129,11 +126,11 @@ func (c byPrefInterface) Swap(i, j int) {
 }
 
 func (c byPrefInterface) Less(i, j int) bool {
-	// sort "enp" interfaces first, then "lo", then alphabetically
-	if isInterfaceEnp(c[i]) && !isInterfaceEnp(c[j]) {
+	// sort "en*" interfaces first, then "lo", then alphabetically
+	if isInterfaceEn(c[i]) && !isInterfaceEn(c[j]) {
 		return true
 	}
-	if !isInterfaceEnp(c[i]) && isInterfaceEnp(c[j]) {
+	if !isInterfaceEn(c[i]) && isInterfaceEn(c[j]) {
 		return false
 	}
 	if isInterfaceLocal(c[i]) && !isInterfaceLocal(c[j]) {

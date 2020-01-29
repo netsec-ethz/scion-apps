@@ -5,16 +5,13 @@ import (
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/gob"
-	"fmt"
 	"os"
-	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -68,15 +65,6 @@ func Check(e error) {
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
 	os.Exit(1)
-}
-
-// TODO: make it more generic: func LogPanicAndRestart(f func(a ...interface{}), a ...interface{}) {
-func LogPanicAndRestart(f func(a snet.Conn, b string, c []byte, d []byte), CCConn snet.Conn, serverISDASIP string, receivePacketBuffer []byte, sendPacketBuffer []byte) {
-	if msg := recover(); msg != nil {
-		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
-		log.Debug("Recovering from panic.")
-		f(CCConn, serverISDASIP, receivePacketBuffer, sendPacketBuffer)
-	}
 }
 
 // Fill buffer with AES PRG in counter mode
@@ -183,17 +171,8 @@ func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
 		PrgFill(bwp.PrgKey, int(i*bwp.PacketSize), sb)
 		// Place packet number at the beginning of the packet, overwriting some PRG data
 		binary.LittleEndian.PutUint32(sb, uint32(i*bwp.PacketSize))
-		n, err := udpConnection.Write(sb)
-		if err != nil {
-			if common.GetErrorMsg(err) == "Path not found" { // TODO: add const error string to snet/conn and use that
-				// Do not handle "Path not found" as fatal, log and skip
-				log.Debug("No path to remote found", "err", common.FmtError(err))
-			} else {
-				Check(err)
-			}
-		} else if int64(n) < bwp.PacketSize {
-			Check(fmt.Errorf("Insufficient number of bytes written: %d instead of %d", n, bwp.PacketSize))
-		}
+		_, err := udpConnection.Write(sb)
+		Check(err)
 		i++
 	}
 }
@@ -278,7 +257,7 @@ func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *Bw
 		done.Unlock()
 	}
 	if time.Now().Before(eft) {
-		time.Sleep(eft.Sub(time.Now()))
+		time.Sleep(time.Until(eft))
 	}
 	_ = udpConnection.Close()
 }

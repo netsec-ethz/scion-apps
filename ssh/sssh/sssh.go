@@ -2,24 +2,52 @@ package sssh
 
 import (
 	"errors"
-	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"net"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 )
 
 // DialSCION starts a client connection to the given SSH server over SCION using QUIC.
-func DialSCION(clientAddr string, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
-	return dialSCION(clientAddr, addr, config, scionutils.DialSCION)
+func DialSCION(addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	transportStream, err := quicconn.Dial(addr)
+	if err != nil {
+		return nil, err
+	}
+	return newSSHClient(transportStream, config)
 }
 
 // DialSCION starts a client connection to the given SSH server over SCION using QUIC
 // Passes an instance of PathAppConf to the connection to make it aware of user-defined path configurations
-func DialSCIONWithConf(clientAddr string, addr string, config *ssh.ClientConfig, appConf *scionutils.PathAppConf) (*ssh.Client, error) {
-	return dialSCION(clientAddr, addr, config, dialCSCIONWithConf(appConf))
+func DialSCIONWithConf(addr string, config *ssh.ClientConfig, appConf *scionutils.PathAppConf) (*ssh.Client, error) {
+	raddr, err := appnet.ResolveUDPAddr(addr)
+	if err != nil {
+		return nil, err
+	}
+	sconn, err := appnet.Listen(nil)
+	if err != nil {
+		return nil, err
+	}
+	policyConn := scionutils.NewPolicyConn(sconn, appConf)
+	transportStream, err := quicconn.New(policyConn, raddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSSHClient(transportStream, config)
+}
+
+// newSSHClient creates a new ssh ClientConn and with that a new ssh.Client
+func newSSHClient(transportStream net.Conn, config *ssh.ClientConfig) (*ssh.Client, error) {
+	conn, nc, rc, err := ssh.NewClientConn(transportStream, transportStream.RemoteAddr().String(), config)
+	if err != nil {
+		return nil, err
+	}
+	return ssh.NewClient(conn, nc, rc), nil
 }
 
 // TunnelDialSCION creates a tunnel using the given SSH client.
@@ -83,24 +111,4 @@ func (t *chanConn) SetReadDeadline(deadline time.Time) error {
 // but is not implemented by this type.  It always returns an error.
 func (t *chanConn) SetWriteDeadline(deadline time.Time) error {
 	return errors.New("scion-ssh: deadline not supported")
-}
-
-type dial func(localAddress string, remoteAddress string) (*quicconn.QuicConn, error)
-
-func dialSCION(clientAddr string, addr string, config *ssh.ClientConfig, dialFunc dial) (*ssh.Client, error) {
-	transportStream, err := dialFunc(clientAddr, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	conn, nc, rc, err := ssh.NewClientConn(transportStream, transportStream.RemoteAddr().String(), config)
-	if err != nil {
-		return nil, err
-	}
-	return ssh.NewClient(conn, nc, rc), nil
-}
-func dialCSCIONWithConf(conf *scionutils.PathAppConf) dial {
-	return func(localAddress string, remoteAddress string) (conn *quicconn.QuicConn, e error) {
-		return scionutils.DialSCIONWithConf(localAddress, remoteAddress, conf)
-	}
 }

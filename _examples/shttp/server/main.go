@@ -22,21 +22,34 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
 func main() {
 
-	var local = flag.String("local", "", "The address on which the server will be listening")
-	var tlsCert = flag.String("cert", "tls.pem", "Path to TLS pemfile")
-	var tlsKey = flag.String("key", "tls.key", "Path to TLS keyfile")
-
+	port := flag.Uint("p", 443, "port the server listens on")
 	flag.Parse()
 
-	/*** start of public routes ***/
+	m := http.NewServeMux()
 
-	// GET handler that responds with a JSON response
-	http.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
+	// handler that responds with a friendly greeting
+	m.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		// Status 200 OK will be set implicitly
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(`Oh, hello!`))
+	})
+
+	// handler that responds with an image file
+	m.HandleFunc("/image", func(w http.ResponseWriter, r *http.Request) {
+		// serve the sample JPG file
+		// Status 200 OK will be set implicitly
+		// Content-Length will be inferred by server
+		// Content-Type will be detected by server
+		http.ServeFile(w, r, "dog.jpg")
+	})
+
+	// GET handler that responds with some json data
+	m.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			data := struct {
 				Time    string
@@ -58,7 +71,7 @@ func main() {
 	})
 
 	// POST handler that responds by parsing form values and returns them as string
-	http.HandleFunc("/form", func(w http.ResponseWriter, r *http.Request) {
+	m.HandleFunc("/form", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			r.ParseForm()
 			w.Header().Set("Content-Type", "text/plain")
@@ -71,10 +84,5 @@ func main() {
 		}
 	})
 
-	/*** end of public routes ***/
-
-	err := shttp.ListenAndServeSCION(*local, *tlsCert, *tlsKey, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(shttp.ListenAndServe(fmt.Sprintf(":%d", *port), m))
 }

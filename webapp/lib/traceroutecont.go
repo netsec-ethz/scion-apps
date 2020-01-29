@@ -35,7 +35,7 @@ var reINTF = `(?i:ifid=)(\d+)`
 // ExtractTracerouteRespData will parse cmd line output from scmp traceroute for adding TracerouteItem fields.
 func ExtractTracerouteRespData(resp string, d *model.TracerouteItem, start time.Time) {
 	// store duration in ms
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 	d.ActualDuration = int(diff.Nanoseconds() / 1e6)
 
 	// store current epoch in ms

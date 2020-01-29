@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/binary"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,20 +14,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 const (
+	// MaxFileNameLength is the max acceptable length for file names of served images
 	MaxFileNameLength int = 255
 
-	// After an image was stored for this amount of time, it will be deleted
+	// MaxFileAge defines that after an image was stored for this amount of time,
+	// it will be deleted
 	MaxFileAge time.Duration = time.Minute * 10
 
-	// Duration after which an image is still available for download, but it will not be listed any more in new requests
+	// MaxFileAgeGracePeriod defines the duration after which an image is still
+	// available for download, but it will not be listed any more in new requests
 	MaxFileAgeGracePeriod time.Duration = time.Minute * 1
 
 	// Interval after which the file system is read to check for new images
@@ -54,7 +52,7 @@ var (
 	currentFilesLock sync.Mutex
 )
 
-func HandleImageFiles() {
+func handleImageFiles() {
 	for {
 		// Read the directory and look for new .jpg images
 		direntries, err := ioutil.ReadDir(".")
@@ -100,77 +98,17 @@ func HandleImageFiles() {
 	}
 }
 
-func printUsage() {
-	fmt.Println("imageserver -s ServerSCIONAddress")
-	fmt.Println("The SCION address is specified as ISD-AS,[IP Address]:Port")
-	fmt.Println("Example SCION address 1-1,[127.0.0.1]:42002")
-}
-
 func main() {
 	currentFiles = make(map[string]*imageFileType)
 
-	go HandleImageFiles()
-
-	var (
-		serverAddress  string
-		serverPort     uint
-		sciondPath     string
-		sciondFromIA   bool
-		dispatcherPath string
-
-		err    error
-		server *snet.Addr
-
-		udpConnection snet.Conn
-	)
-
 	// Fetch arguments from command line
-	flag.StringVar(&serverAddress, "s", "", "Server SCION Address")
-	flag.UintVar(&serverPort, "p", 40002, "Server Port (only used when Server Address not set)")
-	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
-	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
-		"Path to dispatcher socket")
+	port := flag.Uint("p", 40002, "Server Port")
 	flag.Parse()
 
-	var pflag bool
-	var sflag bool
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "s" {
-			sflag = true
-		}
-		if f.Name == "p" {
-			pflag = true
-		}
-	})
-	if sflag && pflag {
-		log.Println("Warning: flags '-s' and '-p' provided. '-p' has no effect")
-	}
-
-	// Create the SCION UDP socket
-	if len(serverAddress) > 0 {
-		server, err = snet.AddrFromString(serverAddress)
-		check(err)
-		if server.Host.L4 == nil {
-			log.Fatal("Port in server address is missing")
-		}
-	} else {
-		server, err = scionutil.GetLocalhost()
-		check(err)
-		server.Host.L4 = addr.NewL4UDPInfo(uint16(serverPort))
-	}
-
-	if sciondFromIA {
-		if sciondPath != "" {
-			log.Fatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		sciondPath = sciond.GetDefaultSCIONDPath(&server.IA)
-	} else if sciondPath == "" {
-		sciondPath = sciond.GetDefaultSCIONDPath(nil)
-	}
-	snet.Init(server.IA, sciondPath, reliable.NewDispatcherService(dispatcherPath))
-	udpConnection, err = snet.ListenSCION("udp4", server)
+	udpConnection, err := appnet.ListenPort(uint16(*port))
 	check(err)
+
+	go handleImageFiles()
 
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)
@@ -211,9 +149,8 @@ func main() {
 			} else if receivePacketBuffer[0] == 'G' && n > 1 {
 				filenameLen := int(receivePacketBuffer[1])
 				if n >= (2 + filenameLen + 8) {
-					filename := string(receivePacketBuffer[2 : filenameLen+2])
 					currentFilesLock.Lock()
-					v, ok := currentFiles[filename]
+					v, ok := currentFiles[string(receivePacketBuffer[2:filenameLen+2])]
 					// We don't need to lock any more, since we now have a pointer to the image structure
 					// which does not get changed once set up.
 					currentFilesLock.Unlock()

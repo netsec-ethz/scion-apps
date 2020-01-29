@@ -18,7 +18,7 @@ import (
 	"io"
 	golog "log"
 
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 
 	log "github.com/inconshreveable/log15"
 )
@@ -27,7 +27,6 @@ import (
 type udpListenConn struct {
 	requests  chan<- []byte
 	responses <-chan int
-	available <-chan bool
 	isClosed  bool
 	write     func(b []byte) (int, error)
 	close     func() error
@@ -47,8 +46,8 @@ func (conn *udpListenConn) Close() error {
 }
 
 // DoDialUDP dials with a UDP socket
-func DoDialUDP(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
-	conn, err := snet.DialSCION("udp4", localAddr, remoteAddr)
+func DoDialUDP(remoteAddr string) io.ReadWriteCloser {
+	conn, err := appnet.Dial(remoteAddr)
 	if err != nil {
 		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)
 	}
@@ -59,10 +58,10 @@ func DoDialUDP(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
 }
 
 // DoListenUDP listens on a UDP socket
-func DoListenUDP(localAddr *snet.Addr) chan io.ReadWriteCloser {
-	conn, err := snet.ListenSCION("udp4", localAddr)
+func DoListenUDP(port uint16) chan io.ReadWriteCloser {
+	conn, err := appnet.ListenPort(port)
 	if err != nil {
-		golog.Panicf("Can't listen on address %v: %v", localAddr, err)
+		golog.Panicf("Can't listen on port %d: %v", port, err)
 	}
 
 	readRequests := make(map[string](chan []byte))
@@ -73,7 +72,7 @@ func DoListenUDP(localAddr *snet.Addr) chan io.ReadWriteCloser {
 	go func() {
 		buf := make([]byte, 65536)
 		for {
-			n, addr, err := conn.ReadFromSCION(buf)
+			n, addr, err := conn.ReadFrom(buf)
 			if err != nil {
 				golog.Panicf("Error reading from UDP socket: %v", err)
 			}
@@ -95,7 +94,7 @@ func DoListenUDP(localAddr *snet.Addr) chan io.ReadWriteCloser {
 					responses: nrespChan,
 					isClosed:  false,
 					write: func(b []byte) (n int, err error) {
-						return conn.WriteToSCION(b, addr)
+						return conn.WriteTo(b, addr)
 					},
 					close: func() (err error) {
 						close(nbufChan)

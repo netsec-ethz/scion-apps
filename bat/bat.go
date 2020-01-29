@@ -36,10 +36,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
-	"github.com/netsec-ethz/scion-apps/lib/shttp"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	slog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -57,7 +55,6 @@ var (
 	pretty           bool
 	download         bool
 	insecureSSL      bool
-	local            string // TODO: remove as soon as dispatcher supports nil local address
 	auth             string
 	proxy            string
 	printV           string
@@ -70,7 +67,7 @@ var (
 	method           = flag.String("method", "GET", "HTTP method")
 	URL              = flag.String("url", "", "HTTP request URL")
 	jsonmap          map[string]interface{}
-	contentJsonRegex = `application/(.*)json`
+	contentJsonRegex = `application/(.*)json` //nolint:stylecheck
 )
 
 func init() {
@@ -86,7 +83,6 @@ func init() {
 	flag.BoolVar(&download, "d", false, "Download the url content as file")
 	flag.BoolVar(&insecureSSL, "insecure", false, "Allow connections to SSL sites without certs")
 	flag.BoolVar(&insecureSSL, "i", false, "Allow connections to SSL sites without certs")
-	flag.StringVar(&local, "l", "", "local SCION address")
 	flag.StringVar(&auth, "auth", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&auth, "a", "", "HTTP authentication username:password, USER[:PASS]")
 	flag.StringVar(&proxy, "proxy", "", "Proxy host and port, PROXY_URL")
@@ -102,26 +98,10 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	// SCION: add shttp Transport to defaultSetting
-	var laddr *snet.Addr
-	var err error
-	if local == "" {
-		laddr, err = scionutil.GetLocalhost()
-	} else {
-		laddr, err = snet.AddrFromString(local)
-	}
-
-	if err != nil {
-		log.Fatal("Could get local address: ", err)
-		usage()
-	}
-
-	defaultSetting.Transport = &shttp.Transport{
-		LAddr: laddr,
-	}
+	defaultSetting.Transport = shttp.NewRoundTripper(nil, nil)
 
 	// redirect SCION log to a log file
-	slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0)
+	_ = slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0, false)
 }
 
 func parsePrintOption(s string) {
@@ -142,7 +122,6 @@ func parsePrintOption(s string) {
 	if strings.ContainsRune(s, 'b') {
 		printOption |= printRespBody
 	}
-	return
 }
 
 func main() {
@@ -191,7 +170,7 @@ func main() {
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
 		*URL = "https://" + *URL
 	}
-	u, err := url.Parse(*URL)
+	u, err := url.Parse(shttp.MangleSCIONAddrURL(*URL))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -238,7 +217,7 @@ func main() {
 		if err != nil {
 			httpreq.Body(stdin)
 		} else {
-			httpreq.JsonBody(j)
+			httpreq.JsonBody(j) //nolint
 		}
 	}
 
@@ -262,7 +241,7 @@ func main() {
 				f = strings.TrimSpace(f)
 				if strings.HasPrefix(f, "filename=") {
 					// Remove 'filename='
-					f = strings.TrimLeft(f, "filename=")
+					f = strings.TrimLeft(f, "filename=") //nolint
 
 					// Remove quotes and spaces from either end
 					f = strings.TrimLeft(f, "\"' ")

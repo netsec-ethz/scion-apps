@@ -7,8 +7,6 @@ type ServerConfig struct {
 	PasswordAuthentication string `regex:"(yes|no)"`
 	PubkeyAuthentication   string `regex:"(yes|no)"`
 	HostKey                string `regex:".*"`
-	QUICCertificatePath    string `regex:".*"`
-	QUICKeyPath            string `regex:".*"`
 	MaxAuthTries           string `regex:"[1-9]\\d*"`
 }
 
@@ -20,7 +18,5 @@ func Create() *ServerConfig {
 		PasswordAuthentication: "yes",
 		PubkeyAuthentication:   "yes",
 		HostKey:                "/etc/ssh/ssh_host_key",
-		QUICCertificatePath:    "/etc/ssh/quic-conn-certificate.pem",
-		QUICKeyPath:            "/etc/ssh/quic-conn-key.pem",
 	}
 }

@@ -33,6 +33,9 @@ brs = json.load(sys.stdin)['BorderRouters']
 interfaces=next(iter(brs.values()))['Interfaces']
 inter=next(iter(interfaces.values()))
 print(inter['BindOverlay'] if 'BindOverlay' in inter.keys() else inter['PublicOverlay']['Addr'])")
+if [ -z "$ipTopology" ]; then
+    error_exit "No interface addresses in $topologyFile."
+fi
 
 # 2.check if the ip address from the tun0 interface is consistent with the one from the topology.
 if [[ $ipAddress != $ipTopology ]]; then

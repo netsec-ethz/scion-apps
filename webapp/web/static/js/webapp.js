@@ -127,7 +127,7 @@ function initBwGraphs() {
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
     manageTickData();
-    manageTestData();
+    // avoid manageTestData on startup before tests
 }
 
 function showOnlyConsoleGraphs(activeApp) {

@@ -31,8 +31,6 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-var logBufLen = 1024
-
 // results data extraction regex
 var reSCHdr = `(?i:s->c results)`
 var reCSHdr = `(?i:c->s results)`
@@ -53,7 +51,7 @@ var reSPath = `(?i:path=*)"(.*?)"`
 // ExtractBwtestRespData will parse cmd line output from bwtester for adding BwTestItem fields.
 func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 	// store duration in ms
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 	d.ActualDuration = int(diff.Nanoseconds() / 1e6)
 
 	// store current epoch in ms
@@ -189,15 +187,6 @@ func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 
 	// ensure % if any, is escaped correctly before writing to printf formatter
 	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
-}
-
-func removeOuterQuotes(s string) string {
-	if len(s) >= 2 {
-		if c := s[len(s)-1]; s[0] == c && (c == '"' || c == '\'') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
 }
 
 // WriteCmdCsv appends the cmd data (bwtest or echo) in csv-format to srcpath.

@@ -1,7 +1,6 @@
 package scionutils
 
 import (
-	"github.com/scionproto/scion/go/lib/addr"
 	"reflect"
 	"testing"
 
@@ -19,10 +18,7 @@ func TestPathAppConf_PolicyConnFromConfig(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		conn, err := table.pathConf.PolicyConnFromConfig(snet.Conn(nil), nil, addr.IA{})
-		if err != nil {
-			t.Errorf("PolicyConnFromConfig returned an error: %s", err)
-		}
+		conn := NewPolicyConn(snet.Conn(nil), &table.pathConf)
 
 		resultType := reflect.TypeOf(conn.(*policyConn).pathSelector)
 		expectedType := reflect.TypeOf(table.policyConn)

@@ -6,9 +6,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -17,28 +19,22 @@ import (
 	"unicode"
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 const (
-	DefaultBwtestParameters               = "3,1000,30,80kbps"
-	DefaultDuration                       = 3
-	DefaultPktSize                        = 1000
-	DefaultPktCount                       = 30
-	DefaultBW                             = 3000
-	WildcardChar                          = "?"
-	GracePeriodSync         time.Duration = time.Millisecond * 10
+	DefaultBwtestParameters = "3,1000,30,80kbps"
+	DefaultDuration         = 3
+	DefaultPktSize          = 1000
+	DefaultPktCount         = 30
+	DefaultBW               = 3000
+	WildcardChar            = "?"
 )
 
 var (
 	InferedPktSize int64
-	sciondAddr     *string
-	sciondFromIA   *bool
-	overlayType    string
 )
 
 func prepareAESKey() []byte {
@@ -158,7 +154,13 @@ func parseBwtestParameters(s string) BwtestParameters {
 		}
 	}
 	key := prepareAESKey()
-	return BwtestParameters{time.Second * time.Duration(a1), a2, a3, key, 0}
+	return BwtestParameters{
+		BwtestDuration: time.Second * time.Duration(a1),
+		PacketSize:     a2,
+		NumPackets:     a3,
+		PrgKey:         key,
+		Port:           0,
+	}
 }
 
 func parseBandwidth(bw string) int64 {
@@ -174,16 +176,12 @@ func parseBandwidth(bw string) int64 {
 	switch suffix {
 	case "k":
 		m = 1e3
-		break
 	case "M":
 		m = 1e6
-		break
 	case "G":
 		m = 1e9
-		break
 	case "T":
 		m = 1e12
-		break
 	default:
 		m = 1
 		val = rawBw[0]
@@ -244,24 +242,10 @@ func getPacketCount(count string) int64 {
 
 func main() {
 	var (
-		sciondPath      string
-		sciondFromIA    bool
-		dispatcherPath  string
-		clientCCAddrStr string
 		serverCCAddrStr string
-		clientPort      uint
-		serverPort      uint16
-		// Address of client control channel (CC)
-		clientCCAddr *snet.Addr
-		// Address of server control channel (CC)
-		serverCCAddr *snet.Addr
+		serverCCAddr    *snet.Addr
 		// Control channel connection
 		CCConn snet.Conn
-
-		// Address of client data channel (DC)
-		clientDCAddr *snet.Addr
-		// Address of server data channel (DC)
-		serverDCAddr *snet.Addr
 		// Data channel connection
 		DCConn snet.Conn
 
@@ -271,7 +255,6 @@ func main() {
 		serverBwp    BwtestParameters
 		interactive  bool
 		pathAlgo     string
-		useIPv6      bool
 
 		err   error
 		tzero time.Time // initialized to "zero" time
@@ -279,18 +262,11 @@ func main() {
 		receiveDone sync.Mutex // used to signal when the HandleDCConnReceive goroutine has completed
 	)
 
-	flag.StringVar(&sciondPath, "sciond", "", "Path to sciond socket")
-	flag.BoolVar(&sciondFromIA, "sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	flag.StringVar(&dispatcherPath, "dispatcher", "/run/shm/dispatcher/default.sock",
-		"Path to dispatcher socket")
-	flag.StringVar(&clientCCAddrStr, "c", "", "Client SCION Address")
-	flag.UintVar(&clientPort, "p", 0, "Client Port (only used when Client Address not set)")
 	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
 	flag.StringVar(&serverBwpStr, "sc", DefaultBwtestParameters, "Server->Client test parameter")
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
 	flag.BoolVar(&interactive, "i", false, "Interactive mode")
 	flag.StringVar(&pathAlgo, "pathAlgo", "", "Path selection algorithm / metric (\"shortest\", \"mtu\")")
-	flag.BoolVar(&useIPv6, "6", false, "Use IPv6")
 
 	flag.Parse()
 	flagset := make(map[string]bool)
@@ -303,91 +279,51 @@ func main() {
 		os.Exit(0)
 	}
 
-	if useIPv6 {
-		overlayType = "udp6"
-	} else {
-		overlayType = "udp4"
-	}
-	// Create SCION UDP socket
-	if len(clientCCAddrStr) == 0 {
-		clientCCAddrStr, err = scionutil.GetLocalhostString()
-		clientCCAddrStr = fmt.Sprintf("%s:%d", clientCCAddrStr, clientPort)
-	}
-	Check(err)
-
-	clientCCAddr, err = snet.AddrFromString(clientCCAddrStr)
-	Check(err)
-
 	if len(serverCCAddrStr) > 0 {
-		serverCCAddr, err = snet.AddrFromString(serverCCAddrStr)
+		serverCCAddr, err = appnet.ResolveUDPAddr(serverCCAddrStr)
 		Check(err)
 	} else {
 		printUsage()
 		Check(fmt.Errorf("Error, server address needs to be specified with -s"))
 	}
 
-	if sciondFromIA {
-		if sciondPath != "" {
-			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		sciondPath = sciond.GetDefaultSCIONDPath(&clientCCAddr.IA)
-	} else if sciondPath == "" {
-		sciondPath = sciond.GetDefaultSCIONDPath(nil)
-	}
-
-	var pathEntry *sciond.PathReplyEntry
-	if !serverCCAddr.IA.Equal(clientCCAddr.IA) {
-		if interactive {
-			pathEntry = scionutil.ChoosePathInteractive(clientCCAddr, serverCCAddr)
-		} else {
-			var metric int
-			if pathAlgo == "mtu" {
-				metric = scionutil.MTU
-			} else if pathAlgo == "shortest" {
-				metric = scionutil.Shortest
-			}
-			pathEntry = scionutil.ChoosePathByMetric(metric, clientCCAddr, serverCCAddr)
-		}
-		if pathEntry == nil {
-			LogFatal("No paths available to remote destination")
-		}
-		serverCCAddr.Path = spath.New(pathEntry.Path.FwdPath)
-		serverCCAddr.Path.InitOffsets()
-		serverCCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
+	var path snet.Path
+	if interactive {
+		path, err = appnet.ChoosePathInteractive(serverCCAddr)
+		Check(err)
 	} else {
-		scionutil.InitSCION(clientCCAddr)
+		var metric int
+		if pathAlgo == "mtu" {
+			metric = appnet.MTU
+		} else if pathAlgo == "shortest" {
+			metric = appnet.Shortest
+		}
+		path, err = appnet.ChoosePathByMetric(metric, serverCCAddr)
+		Check(err)
+	}
+	if path != nil {
+		appnet.SetPath(serverCCAddr, path)
 	}
 
-	CCConn, err = snet.DialSCION(overlayType, clientCCAddr, serverCCAddr)
+	CCConn, err = appnet.DialAddr(serverCCAddr)
 	Check(err)
 
 	// get the port used by clientCC after it bound to the dispatcher (because it might be 0)
-	clientPort = uint((CCConn.LocalAddr()).(*snet.Addr).Host.L4.Port())
-	serverPort = serverCCAddr.Host.L4.Port()
-
+	clientCCAddr := CCConn.LocalAddr().(*net.UDPAddr)
 	// Address of client data channel (DC)
-	clientDCAddr = &snet.Addr{IA: clientCCAddr.IA, Host: &addr.AppAddr{
-		L3: clientCCAddr.Host.L3, L4: addr.NewL4UDPInfo(uint16(clientPort) + 1)}}
+	clientDCAddr := &net.UDPAddr{IP: clientCCAddr.IP, Port: clientCCAddr.Port + 1}
 	// Address of server data channel (DC)
-	serverDCAddr = &snet.Addr{IA: serverCCAddr.IA, Host: &addr.AppAddr{
-		L3: serverCCAddr.Host.L3, L4: addr.NewL4UDPInfo(uint16(serverPort) + 1)}}
-
-	// Set path on data connection
-	if !serverDCAddr.IA.Equal(clientDCAddr.IA) {
-		serverDCAddr.Path = spath.New(pathEntry.Path.FwdPath)
-		serverDCAddr.Path.InitOffsets()
-		serverDCAddr.NextHop, _ = pathEntry.HostInfo.Overlay()
-		fmt.Printf("Client DC \tNext Hop %v\tServer Host %v\n",
-			serverDCAddr.NextHop, serverDCAddr.Host)
-	}
+	serverDCAddr := serverCCAddr.Copy()
+	serverDCAddr.Host.L4 = serverCCAddr.Host.L4 + 1
 
 	// Data channel connection
-	DCConn, err = snet.DialSCION(overlayType, clientDCAddr, serverDCAddr)
+	DCConn, err = appnet.DefNetwork().Dial(
+		context.TODO(), "udp", clientDCAddr, appnet.ToSNetUDPAddr(serverDCAddr), addr.SvcNone)
 	Check(err)
 
 	// update default packet size to max MTU on the selected path
-	if pathEntry != nil {
-		InferedPktSize = int64(pathEntry.Path.Mtu)
+	if path != nil {
+		InferedPktSize = int64(path.MTU())
 	} else {
 		// use default packet size when within same AS and pathEntry is not set
 		InferedPktSize = DefaultPktSize
@@ -397,13 +333,13 @@ func main() {
 		fmt.Println("Only sc parameter set, using same values for cs")
 	}
 	clientBwp = parseBwtestParameters(clientBwpStr)
-	clientBwp.Port = uint16(clientPort + 1)
+	clientBwp.Port = uint16(clientDCAddr.Port)
 	if !flagset["sc"] && flagset["cs"] { // Only one direction set, used same for reverse
 		serverBwpStr = clientBwpStr
 		fmt.Println("Only cs parameter set, using same values for sc")
 	}
 	serverBwp = parseBwtestParameters(serverBwpStr)
-	serverBwp.Port = uint16(serverPort + 1)
+	serverBwp.Port = serverDCAddr.Host.L4
 	fmt.Println("\nTest parameters:")
 	fmt.Println("clientDCAddr -> serverDCAddr", clientDCAddr, "->", serverDCAddr)
 	fmt.Printf("client->server: %d seconds, %d bytes, %d packets\n",
@@ -414,7 +350,16 @@ func main() {
 	t := time.Now()
 	expFinishTimeSend := t.Add(serverBwp.BwtestDuration + MaxRTT + GracePeriodSend)
 	expFinishTimeReceive := t.Add(clientBwp.BwtestDuration + MaxRTT + StragglerWaitPeriod)
-	res := BwtestResult{-1, -1, -1, -1, -1, -1, clientBwp.PrgKey, expFinishTimeReceive}
+	res := BwtestResult{
+		NumPacketsReceived: -1,
+		CorrectlyReceived:  -1,
+		IPAvar:             -1,
+		IPAmin:             -1,
+		IPAavg:             -1,
+		IPAmax:             -1,
+		PrgKey:             clientBwp.PrgKey,
+		ExpectedFinishTime: expFinishTimeReceive,
+	}
 	var resLock sync.Mutex
 	if expFinishTimeReceive.Before(expFinishTimeSend) {
 		// The receiver will close the DC connection, so it will wait long enough until the

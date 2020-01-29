@@ -9,7 +9,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
+	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -67,7 +67,7 @@ func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 
 	go ssh.DiscardRequests(requests)
 
-	remoteConnection, err := scionutils.DialSCION("", address)
+	remoteConnection, err := quicconn.Dial(address)
 	if err != nil {
 		log.Debug("Could not open remote connection (%s)", err)
 		return

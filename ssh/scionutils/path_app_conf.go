@@ -1,13 +1,8 @@
 package scionutils
 
 import (
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"net"
-
-	"github.com/scionproto/scion/go/lib/common"
+	"errors"
 	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // PathSelection represents a user-specified path selection mode.
@@ -33,7 +28,7 @@ func PathSelectionFromString(s string) (PathSelection, error) {
 	case "round-robin":
 		return RoundRobin, nil
 	default:
-		return 0, common.NewBasicError("Unknown path selection option", nil)
+		return 0, errors.New("unknown path selection option")
 	}
 }
 
@@ -65,9 +60,4 @@ func (c *PathAppConf) PathSelection() PathSelection {
 // Policy returns the pathpol.Policy in the configuration.
 func (c *PathAppConf) Policy() *pathpol.Policy {
 	return c.policy
-}
-
-// PolicyConnFromConfig constructs a new policyConn from this configuration.
-func (c *PathAppConf) PolicyConnFromConfig(conn snet.Conn, resolver pathmgr.Resolver, localIA addr.IA) (net.PacketConn, error) {
-	return NewPolicyConn(c, conn, resolver, localIA), nil
 }

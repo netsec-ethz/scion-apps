@@ -1,166 +1,127 @@
+// Copyright 2020 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package scionutils
 
 import (
-	"context"
-	"fmt"
+	"errors"
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/pathpol"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // error strings
 const (
-	ErrNoPath     = "path not found"
-	ErrInitPath   = "raw forwarding path offsets could not be initialized"
-	ErrBadOverlay = "unable to extract next hop from sciond path entry"
+	ErrNoPath = "path not found"
 )
 
 // PathSelector selects a path for a given address.
 type PathSelector interface {
-	SelectPath(address snet.Addr) *spathmeta.AppPath
+	// SelectPath implements the path selection logic specified in PathAppConf
+	SelectPath(address *snet.Addr) (snet.Path, error)
 }
 
-var _ PathSelector = (*defaultPathSelector)(nil)
+type defaultPathSelector struct{}
 
-type defaultPathSelector struct {
-	pathResolver pathmgr.Resolver
-	localIA      addr.IA
-}
-
-// SelectPath implements the path selection logic specified in PathAppConf
 // Default behavior is arbitrary path selection
-// Subclasses that wish to specialize path selection modes should override this function
-func (s *defaultPathSelector) SelectPath(address snet.Addr) *spathmeta.AppPath {
-	log.Trace("default policyConn.. arbitrary path selection")
-	pathSet := s.pathResolver.Query(context.Background(), s.localIA, address.IA,
-		sciond.PathReqFlags{})
-	appPath := pathSet.GetAppPath("")
-	log.Trace(fmt.Sprintf("SELECTED PATH %s\n", appPath.Entry.Path))
-	return appPath
+func (s *defaultPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) {
+	paths, err := appnet.QueryPaths(address.IA)
+	if err != nil || len(paths) == 0 {
+		return nil, err
+	}
+	return paths[0], nil
 }
 
-// staticPathSelector is a subclass of policyConn which implements static path selection
-// The connection uses the same path used in the first call to WriteTo for all subsequenet packets
+// staticPathSelector implements static path selection
+// The connection uses the same path used in the first call to WriteTo for all
+// subsequenet packets
 type staticPathSelector struct {
-	defaultPathSelector
-	staticPath *spathmeta.AppPath
-	pathPolicy *pathpol.Policy
+	staticPath snet.Path
 	initOnce   sync.Once
 }
 
-func (s *staticPathSelector) SelectPath(address snet.Addr) *spathmeta.AppPath {
-	log.Trace("staticPolicyConn.. selecting path")
+func (s *staticPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) {
+	// TODO(matzf): separate initialization to simplify proper error handling
+	// TODO(matzf): query filter (using pathpol.Policy.Filter)
 	s.initOnce.Do(func() {
-		log.Trace("staticPathSelector, initializing paths")
-		pathSet := s.pathResolver.QueryFilter(context.Background(), s.localIA, address.IA,
-			s.pathPolicy)
-		s.staticPath = pathSet.GetAppPath("")
-	})
-	log.Trace(fmt.Sprintf("Path exists: %s", s.staticPath))
-
-	return s.staticPath
-}
-
-// roundrobinPathSelector is a subclass of policyConn which implements round-robin path selection
-// For N arbitrarily ordered paths, the ith call for WriteTo uses the (i % N)th path
-type roundRobinPathSelector struct {
-	defaultPathSelector
-	paths        []*spathmeta.AppPath
-	nextKeyIndex int
-	pathPolicy   *pathpol.Policy
-	initOnce     sync.Once
-}
-
-func (s *roundRobinPathSelector) SelectPath(address snet.Addr) *spathmeta.AppPath {
-	log.Trace("roundRobinPolicyConn.. slecting path")
-	s.initOnce.Do(func() {
-		pathMap := s.pathResolver.QueryFilter(context.Background(), s.localIA, address.IA,
-			s.pathPolicy)
-		for _, v := range pathMap {
-			s.paths = append(s.paths, v)
+		paths, _ := appnet.QueryPaths(address.IA)
+		if len(paths) > 0 {
+			s.staticPath = paths[0]
 		}
 	})
 
-	appPath := s.paths[s.nextKeyIndex]
-	log.Trace(fmt.Sprintf("SELECTED PATH # %d: %s\n", s.nextKeyIndex, appPath.Entry.Path))
+	return s.staticPath, nil
+}
+
+// roundrobinPathSelector implements round-robin path selection For N
+// arbitrarily ordered paths, the ith call for WriteTo uses the (i % N)th path
+type roundRobinPathSelector struct {
+	paths        []snet.Path
+	nextKeyIndex int
+	initOnce     sync.Once
+}
+
+func (s *roundRobinPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) {
+	s.initOnce.Do(func() {
+		s.paths, _ = appnet.QueryPaths(address.IA)
+	})
+
+	path := s.paths[s.nextKeyIndex]
 	s.nextKeyIndex = (s.nextKeyIndex + 1) % len(s.paths)
-	return appPath
+	return path, nil
 }
 
 // policyConn is a wrapper class around snet.SCIONConn that overrides its WriteTo function,
 // so that it chooses the path on which the packet is written.
 type policyConn struct {
-	snet.Conn
+	net.PacketConn
 	pathSelector PathSelector
 }
 
 var _ net.PacketConn = (*policyConn)(nil)
 
-// NewPolicyConn constructs a PolicyConn specified in the PathAppConf argument.
-func NewPolicyConn(conf *PathAppConf, c snet.Conn, resolver pathmgr.Resolver,
-	localIA addr.IA) net.PacketConn {
-
-	var pathSel PathSelector
-	pathSel = &defaultPathSelector{
-		pathResolver: resolver,
-		localIA:      localIA,
-	}
-	switch conf.PathSelection() {
-	case Static:
-		pathSel = &staticPathSelector{
-			defaultPathSelector: *pathSel.(*defaultPathSelector),
-			pathPolicy:          conf.Policy(),
-		}
-	case RoundRobin:
-		pathSel = &roundRobinPathSelector{
-			defaultPathSelector: *pathSel.(*defaultPathSelector),
-			pathPolicy:          conf.Policy(),
-		}
-	}
-	return &policyConn{
-		Conn:         c,
-		pathSelector: pathSel,
-	}
-}
-
-// WriteTo overrides snet.SCIONConn.WriteTo
-// If the application calls Write instead of WriteTo, the logic defined here will be bypassed
+// WriteTo wraps snet.SCIONConn.WriteTo
 func (c *policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	address, ok := raddr.(*snet.Addr)
 	if !ok {
-		return 0, common.NewBasicError("Unable to write to non-SCION address", nil, "addr", raddr)
+		return 0, errors.New("unable to write to non-SCION address")
 	}
-	remoteAddr, err := prepareSCIONAddress(address, c.pathSelector.SelectPath(*address))
+	path, err := c.pathSelector.SelectPath(address)
 	if err != nil {
-		return 0, common.NewBasicError("ConnWrapper: Path slection error: ", err)
+		return 0, err
 	}
-	return c.WriteToSCION(b, remoteAddr)
+	appnet.SetPath(address, path)
+	return c.PacketConn.WriteTo(b, address)
 }
 
-func prepareSCIONAddress(address *snet.Addr, appPath *spathmeta.AppPath) (*snet.Addr, error) {
-	if appPath == nil {
-		return nil, common.NewBasicError(ErrNoPath, nil)
+// NewPolicyConn constructs a PolicyConn specified in the PathAppConf argument.
+func NewPolicyConn(c snet.Conn, conf *PathAppConf) net.PacketConn {
+
+	var pathSel PathSelector
+	switch conf.PathSelection() {
+	case Static:
+		pathSel = &staticPathSelector{}
+	case RoundRobin:
+		pathSel = &roundRobinPathSelector{}
+	default:
+		pathSel = &defaultPathSelector{}
 	}
-	path := &spath.Path{Raw: appPath.Entry.Path.FwdPath}
-	if err := path.InitOffsets(); err != nil {
-		return nil, common.NewBasicError(ErrInitPath, err)
+	return &policyConn{
+		PacketConn:   c,
+		pathSelector: pathSel,
 	}
-	overlayAddr, err := appPath.Entry.HostInfo.Overlay()
-	if err != nil {
-		return nil, common.NewBasicError(ErrBadOverlay, err)
-	}
-	readyAddress := address.Copy()
-	readyAddress.Path = path
-	readyAddress.NextHop = overlayAddr
-	return readyAddress, nil
 }
