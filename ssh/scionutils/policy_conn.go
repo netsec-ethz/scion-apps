@@ -19,31 +19,24 @@ import (
 	"net"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/snet"
+
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 // error strings
 const (
-	ErrNoPath = "path not found"
+	errNoPath = "path not found"
 )
 
 // PathSelector selects a path for a given address.
 type PathSelector interface {
-	// SelectPath implements the path selection logic specified in PathAppConf
-	SelectPath(address *snet.Addr) (snet.Path, error)
-}
-
-type defaultPathSelector struct{}
-
-// Default behavior is arbitrary path selection
-func (s *defaultPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) {
-	paths, err := appnet.QueryPaths(address.IA)
-	if err != nil || len(paths) == 0 {
-		return nil, err
-	}
-	return paths[0], nil
+	// Reset initializes this path selector
+	Reset([]snet.Path) error
+	// Get implements the path selection logic specified in PathAppConf
+	Next() snet.Path
 }
 
 // staticPathSelector implements static path selection
@@ -51,20 +44,15 @@ func (s *defaultPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) 
 // subsequenet packets
 type staticPathSelector struct {
 	staticPath snet.Path
-	initOnce   sync.Once
 }
 
-func (s *staticPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) {
-	// TODO(matzf): separate initialization to simplify proper error handling
-	// TODO(matzf): query filter (using pathpol.Policy.Filter)
-	s.initOnce.Do(func() {
-		paths, _ := appnet.QueryPaths(address.IA)
-		if len(paths) > 0 {
-			s.staticPath = paths[0]
-		}
-	})
+func (s *staticPathSelector) Reset(paths []snet.Path) error {
+	s.staticPath = paths[0]
+	return nil
+}
 
-	return s.staticPath, nil
+func (s *staticPathSelector) Next() snet.Path {
+	return s.staticPath
 }
 
 // roundrobinPathSelector implements round-robin path selection For N
@@ -72,27 +60,38 @@ func (s *staticPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) {
 type roundRobinPathSelector struct {
 	paths        []snet.Path
 	nextKeyIndex int
-	initOnce     sync.Once
 }
 
-func (s *roundRobinPathSelector) SelectPath(address *snet.Addr) (snet.Path, error) {
-	s.initOnce.Do(func() {
-		s.paths, _ = appnet.QueryPaths(address.IA)
-	})
+func (s *roundRobinPathSelector) Reset(paths []snet.Path) error {
+	s.paths = paths
+	s.nextKeyIndex = s.nextKeyIndex % len(paths)
+	return nil
+}
 
+func (s *roundRobinPathSelector) Next() snet.Path {
 	path := s.paths[s.nextKeyIndex]
 	s.nextKeyIndex = (s.nextKeyIndex + 1) % len(s.paths)
-	return path, nil
+	return path
 }
 
 // policyConn is a wrapper class around snet.SCIONConn that overrides its WriteTo function,
 // so that it chooses the path on which the packet is written.
 type policyConn struct {
 	net.PacketConn
-	pathSelector PathSelector
+	conf      *PathAppConf
+	mutex     sync.Mutex
+	selectors map[addr.IA]PathSelector
 }
 
-var _ net.PacketConn = (*policyConn)(nil)
+// NewPolicyConn constructs a PolicyConn specified in the PathAppConf argument.
+func NewPolicyConn(c snet.Conn, conf *PathAppConf) net.PacketConn {
+
+	return &policyConn{
+		PacketConn: c,
+		conf:       conf,
+		selectors:  make(map[addr.IA]PathSelector),
+	}
+}
 
 // WriteTo wraps snet.SCIONConn.WriteTo
 func (c *policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
@@ -100,28 +99,113 @@ func (c *policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	if !ok {
 		return 0, errors.New("unable to write to non-SCION address")
 	}
-	path, err := c.pathSelector.SelectPath(address)
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	selector, err := c.getSelector(address.IA)
 	if err != nil {
 		return 0, err
+	}
+	var path snet.Path
+	if selector != nil { // nil for local IA
+		path = selector.Next()
 	}
 	appnet.SetPath(address, path)
 	return c.PacketConn.WriteTo(b, address)
 }
 
-// NewPolicyConn constructs a PolicyConn specified in the PathAppConf argument.
-func NewPolicyConn(c snet.Conn, conf *PathAppConf) net.PacketConn {
+func (c *policyConn) getSelector(ia addr.IA) (PathSelector, error) {
 
-	var pathSel PathSelector
-	switch conf.PathSelection() {
-	case Static:
-		pathSel = &staticPathSelector{}
+	if selector, ok := c.selectors[ia]; ok {
+		return selector, nil
+	}
+	if ia == appnet.DefNetwork().IA {
+		return nil, nil
+	}
+	selector, err := c.initSelector(ia)
+	if err != nil {
+		return nil, err
+	}
+	c.selectors[ia] = selector
+	return selector, nil
+}
+
+func (c *policyConn) initSelector(ia addr.IA) (PathSelector, error) {
+
+	selector := newSelector(c.conf.PathSelection())
+	paths, err := queryPathsFiltered(ia, c.conf.Policy())
+	if err != nil {
+		return nil, err
+	}
+	if len(paths) == 0 {
+		return nil, errors.New(errNoPath)
+	}
+	err = selector.Reset(paths)
+	if err != nil {
+		return nil, err
+	}
+	return selector, nil
+}
+
+func newSelector(selection PathSelection) PathSelector {
+	switch selection {
 	case RoundRobin:
-		pathSel = &roundRobinPathSelector{}
+		return &roundRobinPathSelector{}
 	default:
-		pathSel = &defaultPathSelector{}
+		// Static or Arbitrary
+		// XXX(matzf): remove Arbitrary and make Static the default?
+		return &staticPathSelector{}
 	}
-	return &policyConn{
-		PacketConn:   c,
-		pathSelector: pathSel,
+}
+
+func queryPathsFiltered(ia addr.IA, policy *pathpol.Policy) ([]snet.Path, error) {
+	paths, err := appnet.QueryPaths(ia)
+	if err != nil {
+		return nil, err
 	}
+	if policy == nil {
+		return paths, nil
+	}
+
+	pathSet := make(pathpol.PathSet)
+	for _, path := range paths {
+		pathSet[path.Fingerprint()] = &pathpolSnetPath{path}
+	}
+	policy.Filter(pathSet)
+	filterPathSlice(&paths, pathSet)
+	return paths, nil
+}
+
+// filterPathSlice keeps only paths that are in pathSet, leaving the order of the slice intact
+func filterPathSlice(paths *[]snet.Path, pathSet pathpol.PathSet) {
+
+	// Nasty "idiomatic" slice filtering: https://stackoverflow.com/a/50183212
+	in := *paths
+	filtered := in[:0]
+	for i := 0; i < len(in); i++ {
+		if _, ok := pathSet[in[i].Fingerprint()]; ok {
+			filtered = append(filtered, in[i])
+		}
+	}
+	*paths = filtered
+}
+
+// pathpolSnetPath wraps an snet.Path and exposes a pathpol.Path interface.
+// XXX(matzf): fix pathpol to remove this
+type pathpolSnetPath struct {
+	snet.Path
+}
+
+func (p *pathpolSnetPath) Key() snet.PathFingerprint {
+	return p.Path.Fingerprint()
+}
+
+func (p *pathpolSnetPath) Interfaces() []pathpol.PathInterface {
+	ifaces := p.Path.Interfaces()
+	mapped := make([]pathpol.PathInterface, len(ifaces))
+	for i, iface := range ifaces {
+		mapped[i] = iface
+	}
+	return mapped
 }
