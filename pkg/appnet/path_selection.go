@@ -39,14 +39,14 @@ const (
 
 // ChoosePathInteractive presents the user a selection of paths to choose from.
 // If the remote address is in the local IA, return (nil, nil), without prompting the user.
-func ChoosePathInteractive(remote *snet.Addr) (snet.Path, error) {
+func ChoosePathInteractive(dst addr.IA) (snet.Path, error) {
 
-	paths, err := QueryPaths(remote.IA)
+	paths, err := QueryPaths(dst)
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
 
-	fmt.Printf("Available paths to %v\n", remote.IA)
+	fmt.Printf("Available paths to %v\n", dst)
 	for i, path := range paths {
 		fmt.Printf("[%2d] %s\n", i, fmt.Sprintf("%s", path))
 	}
@@ -71,17 +71,17 @@ func ChoosePathInteractive(remote *snet.Addr) (snet.Path, error) {
 
 // ChoosePathByMetric chooses the best path based on the metric pathAlgo
 // If the remote address is in the local IA, return (nil, nil).
-func ChoosePathByMetric(pathAlgo int, remote *snet.Addr) (snet.Path, error) {
+func ChoosePathByMetric(pathAlgo int, dst addr.IA) (snet.Path, error) {
 
-	paths, err := QueryPaths(remote.IA)
+	paths, err := QueryPaths(dst)
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
 	return pathSelection(paths, pathAlgo), nil
 }
 
-// SetPath is a helper function to set the path on an snet.Addr
-func SetPath(addr *snet.Addr, path snet.Path) {
+// SetPath is a helper function to set the path on an snet.UDPAddr
+func SetPath(addr *snet.UDPAddr, path snet.Path) {
 	if path == nil {
 		addr.Path = nil
 		addr.NextHop = nil
@@ -93,7 +93,7 @@ func SetPath(addr *snet.Addr, path snet.Path) {
 
 // SetDefaultPath sets the first path returned by a query to sciond.
 // This is a no-op if if remote is in the local AS.
-func SetDefaultPath(addr *snet.Addr) error {
+func SetDefaultPath(addr *snet.UDPAddr) error {
 	paths, err := QueryPaths(addr.IA)
 	if err != nil || len(paths) == 0 {
 		return err

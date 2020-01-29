@@ -95,7 +95,7 @@ func NewPolicyConn(c snet.Conn, conf *PathAppConf) net.PacketConn {
 
 // WriteTo wraps snet.SCIONConn.WriteTo
 func (c *policyConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
-	address, ok := raddr.(*snet.Addr)
+	address, ok := raddr.(*snet.UDPAddr)
 	if !ok {
 		return 0, errors.New("unable to write to non-SCION address")
 	}

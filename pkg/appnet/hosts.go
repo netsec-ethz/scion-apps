@@ -23,15 +23,18 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/netsec-ethz/rains/pkg/rains"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),\[([^\]]+)\]$`)
 var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,\[[^\]]+\])):(\d+)$`)
+
+const (
+	iaIndex = iota + 1
+	l3Index
+)
 
 // hosts file
 const hostFilePath = "/etc/hosts"
@@ -61,27 +64,6 @@ func (h hostsTable) add(name string, addr snet.SCIONAddress) bool {
 var loadHostsOnce sync.Once
 var hostsTableInstance hostsTable
 
-// RAINS
-var (
-	rainsConfigPath = "/etc/scion/rains.cfg"
-	ctx             = "."                    // use global context
-	qType           = rains.OTScionAddr4     // request SCION IPv4 addresses
-	qOpts           = []rains.Option{}       // no options
-	expire          = 5 * time.Minute        // sensible expiry date?
-	timeout         = 500 * time.Millisecond // timeout for query
-	rainsServer     *snet.Addr               // resolver address
-)
-
-const (
-	iaIndex = iota + 1
-	l3Index
-)
-
-func init() {
-	// read RAINS server address
-	rainsServer = readRainsConfig()
-}
-
 // SplitHostPort splits a host:port string into host and port variables.
 // This is analogous to net.SplitHostPort, which however refuses to handle SCION addresses.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
@@ -97,8 +79,8 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
-func ResolveUDPAddr(address string) (*snet.Addr, error) {
-	raddr, err := snet.AddrFromString(address)
+func ResolveUDPAddr(address string) (*snet.UDPAddr, error) {
+	raddr, err := snet.UDPAddrFromString(address)
 	if err == nil {
 		return raddr, nil
 	}
@@ -115,8 +97,7 @@ func ResolveUDPAddr(address string) (*snet.Addr, error) {
 		return nil, err
 	}
 	ia := host.IA
-	udp := addr.AppAddrFromUDP(&net.UDPAddr{IP: host.Host.IP(), Port: port})
-	return &snet.Addr{IA: ia, Host: udp}, nil
+	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: host.Host.IP(), Port: port}}, nil
 }
 
 // GetHostByName returns the IA and HostAddr corresponding to hostname
@@ -128,24 +109,8 @@ func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 		return addr, nil
 	}
 
-	if rainsServer == nil {
-		return snet.SCIONAddress{}, fmt.Errorf("could not resolve %q, no RAINS server configured", hostname)
-	}
-
 	// fall back to RAINS
-
-	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
-	// The timeout value has been decreased to counter this behavior until the problem is resolved.
-	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
-	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("address for host %q not found: %v", hostname, err)
-	}
-	scionAddr, err := addrFromString(reply[qType])
-	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("address for host %q invalid: %v", hostname, err)
-	}
-
-	return scionAddr, nil
+	return rainsQuery(hostname)
 }
 
 // AddHost adds a host to the map of known hosts
@@ -219,18 +184,6 @@ func parseHostsFile(hostsFile []byte) hostsTable {
 		}
 	}
 	return hosts
-}
-
-func readRainsConfig() *snet.Addr {
-	bs, err := ioutil.ReadFile(rainsConfigPath)
-	if err != nil {
-		return nil
-	}
-	address, err := snet.AddrFromString(strings.TrimSpace(string(bs)))
-	if err != nil {
-		return nil
-	}
-	return address
 }
 
 // addrFromString parses a string to a snet.SCIONAddress

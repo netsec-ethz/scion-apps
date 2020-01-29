@@ -131,19 +131,19 @@ func MangleSCIONAddrURL(url string) string {
 // safely used in the host part of a URL.
 func mangleSCIONAddr(address string) string {
 
-	raddr, err := snet.AddrFromString(address)
+	raddr, err := snet.UDPAddrFromString(address)
 	if err != nil {
 		return address
 	}
-	// The HostAddr will be either IPv4 or IPv6 (not a HostSVC-addr).
+	// The Host will be either IPv4 or IPv6.
 	// To make this a valid host string for a URL, replace : for IPv6 addresses by ~. There will
 	// not be any other tildes, so no need to escape them.
-	l3 := raddr.Host.L3.String()
-	l3Mangled := strings.Replace(l3, ":", "~", -1)
+	host := raddr.Host.String()
+	hostMangled := strings.Replace(host, ":", "~", -1)
 
-	mangledAddr := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), l3Mangled)
-	if raddr.Host.L4 != 0 {
-		mangledAddr += fmt.Sprintf(":%d", raddr.Host.L4)
+	mangledAddr := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), hostMangled)
+	if raddr.Host.Port != 0 {
+		mangledAddr += fmt.Sprintf(":%d", raddr.Host.Port)
 	}
 	return mangledAddr
 }
@@ -165,10 +165,10 @@ func unmangleSCIONAddr(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	l3Str := strings.Replace(parts[2], "~", ":", -1)
-	l3 := addr.HostFromIPStr(l3Str)
-	if l3 == nil {
+	ipStr := strings.Replace(parts[2], "~", ":", -1)
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
 		return "", errors.New("could not parse IP in SCION-address")
 	}
-	return fmt.Sprintf("%s,[%v]", ia, l3), nil
+	return fmt.Sprintf("%s,[%v]", ia, ip), nil
 }
