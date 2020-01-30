@@ -109,7 +109,9 @@ func Init(ia addr.IA, sciondPath, dispatcher, keyPath, pemPath string) error {
 			return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
 		}
 	*/
-	revocationQ = make(chan keyedRevocation, 50) // Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
+	if revocationQ == nil {
+		revocationQ = make(chan keyedRevocation, 50) // Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
+	}
 	if err := initNetworkWithPRCustomSCMPHandler(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
 		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
 	}

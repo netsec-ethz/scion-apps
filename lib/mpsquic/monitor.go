@@ -41,16 +41,6 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 			logger.Error("Stream timeout", "err", err)
 			return
 		}
-		/*if qErr, ok := err.(*qerr.QuicError); ok {
-			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
-				// Remote went away
-				logger.Error("Stream error", "err", err)
-				return 0, qErr
-			}
-		}*/
-		if err != nil {
-			return 0, err
-		}
 		logger.Error("monitoredStream error", "err", err)
 	}
 	elapsed := time.Now().Sub(start)
@@ -69,16 +59,6 @@ func (ms monitoredStream) Read(p []byte) (n int, err error) {
 		if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 			logger.Error("Stream timeout", "err", err)
 			return
-		}
-		/*if qErr, ok := err.(*qerr.QuicError); ok {
-			if qErr.ErrorCode == qerr.NetworkIdleTimeout || qErr.ErrorCode == qerr.PeerGoingAway {
-				// Remote went away
-				logger.Error("Stream error", "err", err)
-				return 0, qErr
-			}
-		}*/
-		if err != nil {
-			return 0, err
 		}
 		logger.Error("monitoredStream error", "err", err)
 	}
@@ -397,7 +377,7 @@ func (mpq *MPQuic) managePaths() {
 		}
 
 		sinceLastUpdate := time.Now().Sub(lastUpdate)
-		time.Sleep(maxFlap - sinceLastUpdate) // Failing paths are handled separately / faster
+		time.Sleep(maxFlap - sinceLastUpdate) // Failing paths are handled separately / faster by handleSCMPRevocation
 		err := mpq.switchMPConn(false, true)
 		if err != nil {
 			logger.Error("Failed to switch path.", "err", err)
