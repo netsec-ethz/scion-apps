@@ -17,14 +17,36 @@ sudo apt install scion-apps-*
 
 ### Build:
 
-Building the `SSH` tool requires `libpam0g-dev`:
+1. Install go 1.13
 
-```shell
-sudo apt-get install -y libpam0g-dev
-```
+    See e.g. https://github.com/golang/go/wiki/Ubuntu
 
-Run `make` to build all projects.
-Run `make install` to build all projects and install into `$GOPATH/bin`
+1. Install dependencies
+
+    Building the SSH tool requires `libpam0g-dev`:
+
+    ```shell
+    sudo apt-get install -y libpam0g-dev
+    ```
+    
+1. Clone this repository
+
+   ```shell
+   git clone https://github.com/netsec-ethz/scion-apps.git
+   ```
+   _Note: because this is using go modules, there is no need to put this under `$GOPATH`_
+
+1. Install `golangci-lint`, which is used to run format checks and various linter steps
+
+    ```shell
+    make setup_lint
+    ```
+    
+1. Run `make` build all projects (and run linters). Run `make -j` to use multiple jobs to build.
+   
+1. Run `make test` to 
+
+1. Run `make install` to build all projects and install into `$GOPATH/bin`
 
 
 ### Running:
