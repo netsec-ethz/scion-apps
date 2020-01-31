@@ -26,6 +26,7 @@ import (
 	"github.com/bclicn/color"
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -40,11 +41,7 @@ const (
 // If the remote address is in the local IA, return (nil, nil), without prompting the user.
 func ChoosePathInteractive(remote *snet.Addr) (snet.Path, error) {
 
-	if remote.IA == DefNetwork().IA {
-		return nil, nil
-	}
-
-	paths, err := DefNetwork().PathQuerier.Query(context.Background(), remote.IA)
+	paths, err := QueryPaths(remote.IA)
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
@@ -76,10 +73,7 @@ func ChoosePathInteractive(remote *snet.Addr) (snet.Path, error) {
 // If the remote address is in the local IA, return (nil, nil).
 func ChoosePathByMetric(pathAlgo int, remote *snet.Addr) (snet.Path, error) {
 
-	if remote.IA == DefNetwork().IA {
-		return nil, nil
-	}
-	paths, err := DefNetwork().PathQuerier.Query(context.Background(), remote.IA)
+	paths, err := QueryPaths(remote.IA)
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
@@ -100,16 +94,26 @@ func SetPath(addr *snet.Addr, path snet.Path) {
 // SetDefaultPath sets the first path returned by a query to sciond.
 // This is a no-op if if remote is in the local AS.
 func SetDefaultPath(addr *snet.Addr) error {
-	if addr.IA == DefNetwork().IA {
-		SetPath(addr, nil)
-	} else {
-		paths, err := DefNetwork().PathQuerier.Query(context.Background(), addr.IA)
-		if err != nil || len(paths) == 0 {
-			return err
-		}
-		SetPath(addr, paths[0])
+	paths, err := QueryPaths(addr.IA)
+	if err != nil || len(paths) == 0 {
+		return err
 	}
+	SetPath(addr, paths[0])
 	return nil
+}
+
+// QueryPaths queries the DefNetwork's sciond PathQuerier connection for paths to addr
+// If addr is in the local IA, an empty slice and no error is returned.
+func QueryPaths(ia addr.IA) ([]snet.Path, error) {
+	if ia == DefNetwork().IA {
+		return nil, nil
+	} else {
+		paths, err := DefNetwork().PathQuerier.Query(context.Background(), ia)
+		if err != nil || len(paths) == 0 {
+			return nil, err
+		}
+		return paths, nil
+	}
 }
 
 func pathSelection(paths []snet.Path, pathAlgo int) snet.Path {

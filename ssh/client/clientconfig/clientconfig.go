@@ -3,7 +3,7 @@ package clientconfig
 // ClientConfig is a struct containing configuration for the client.
 type ClientConfig struct {
 	User                   string   `regex:".*"`
-	HostAddress            string   `regex:"(?P<ia>\\d+-[\\d:A-Fa-f]+),\\[(?P<host>[^\\]]+)\\]"`
+	HostAddress            string   `regex:"([-.\\da-zA-Z]+)|(\\d+-[\\d:A-Fa-f]+,\\[[^\\]]+\\])"`
 	Port                   string   `regex:"0*([0-5]?\\d{0,4}|6([0-4]\\d{3}|5([0-4]\\d{2}|5([0-2]\\d|3[0-5]))))"`
 	PasswordAuthentication string   `regex:"(yes|no)"`
 	PubkeyAuthentication   string   `regex:"(yes|no)"`

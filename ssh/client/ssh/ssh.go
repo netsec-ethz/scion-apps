@@ -19,6 +19,7 @@ import (
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh/knownhosts"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
+	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/sssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 )
@@ -38,14 +39,17 @@ type Client struct {
 
 	client  *ssh.Client
 	session *ssh.Session
+	appConf *scionutils.PathAppConf
 }
 
 // Create creates a new unconnected Client.
-func Create(username string, config *clientconfig.ClientConfig, passAuthHandler AuthenticationHandler, verifyNewKeyHandler VerifyHostKeyHandler) (*Client, error) {
+func Create(username string, config *clientconfig.ClientConfig, passAuthHandler AuthenticationHandler,
+	verifyNewKeyHandler VerifyHostKeyHandler, appConf *scionutils.PathAppConf) (*Client, error) {
 	client := &Client{
 		config: &ssh.ClientConfig{
 			User: username,
 		},
+		appConf: appConf,
 	}
 
 	var authMethods []ssh.AuthMethod
@@ -99,7 +103,7 @@ func Create(username string, config *clientconfig.ClientConfig, passAuthHandler 
 
 // Connect connects the Client to the given address.
 func (client *Client) Connect(addr string) error {
-	goClient, err := sssh.DialSCION(addr, client.config)
+	goClient, err := sssh.DialSCIONWithConf(addr, client.config, client.appConf)
 	if err != nil {
 		return err
 	}

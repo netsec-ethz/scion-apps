@@ -7,7 +7,9 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
+	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 )
 
 // DialSCION starts a client connection to the given SSH server over SCION using QUIC.
@@ -16,12 +18,35 @@ func DialSCION(addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newSSHClient(transportStream, config)
+}
 
-	conn, nc, rc, err := ssh.NewClientConn(transportStream, transportStream.RemoteAddr().String(), config)
+// DialSCION starts a client connection to the given SSH server over SCION using QUIC
+// Passes an instance of PathAppConf to the connection to make it aware of user-defined path configurations
+func DialSCIONWithConf(addr string, config *ssh.ClientConfig, appConf *scionutils.PathAppConf) (*ssh.Client, error) {
+	raddr, err := appnet.ResolveUDPAddr(addr)
+	if err != nil {
+		return nil, err
+	}
+	sconn, err := appnet.Listen(nil)
+	if err != nil {
+		return nil, err
+	}
+	policyConn := scionutils.NewPolicyConn(sconn, appConf)
+	transportStream, err := quicconn.New(policyConn, raddr)
 	if err != nil {
 		return nil, err
 	}
 
+	return newSSHClient(transportStream, config)
+}
+
+// newSSHClient creates a new ssh ClientConn and with that a new ssh.Client
+func newSSHClient(transportStream net.Conn, config *ssh.ClientConfig) (*ssh.Client, error) {
+	conn, nc, rc, err := ssh.NewClientConn(transportStream, transportStream.RemoteAddr().String(), config)
+	if err != nil {
+		return nil, err
+	}
 	return ssh.NewClient(conn, nc, rc), nil
 }
 

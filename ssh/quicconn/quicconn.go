@@ -1,6 +1,7 @@
 package quicconn
 
 import (
+	"crypto/tls"
 	"net"
 	"time"
 
@@ -15,6 +16,20 @@ func Dial(addr string) (*QuicConn, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newQuicConn(session)
+}
+
+// New dials a new Quic session on an established socket, opens a new stream
+// in this session and returns this session/stream pair as a QuicConn
+func New(conn net.PacketConn, raddr net.Addr) (*QuicConn, error) {
+	session, err := quic.Dial(conn, raddr, "host:0", &tls.Config{InsecureSkipVerify: true}, nil)
+	if err != nil {
+		return nil, err
+	}
+	return newQuicConn(session)
+}
+
+func newQuicConn(session quic.Session) (*QuicConn, error) {
 	stream, err := session.OpenStreamSync()
 	if err != nil {
 		return nil, err

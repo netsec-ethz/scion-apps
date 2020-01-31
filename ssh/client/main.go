@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	golog "log"
 	"net"
 	"os"
@@ -9,18 +11,18 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/inconshreveable/log15"
 	"golang.org/x/crypto/ssh/terminal"
-
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	scionlog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathpol"
 
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
+	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
-
-	log "github.com/inconshreveable/log15"
 )
 
 var (
@@ -31,6 +33,9 @@ var (
 	localForward  = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
 	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
 	configFiles   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
+	policyFile    = kingpin.Flag("policy-file", "Path to the JSON policy file").Default("").String()
+	policyName    = kingpin.Flag("policy-name", "Name of policy to be applied.").Default("").String()
+	pathSelection = kingpin.Flag("selection", "Path selection mode").Default("arbitrary").Enum("static", "arbitrary", "random", "round-robin")
 
 	// TODO: additional file paths
 	knownHostsFile = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
@@ -108,7 +113,8 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
-	scionlog.SetupLogConsole("debug")
+	dir, _ := os.Getwd()
+	scionlog.SetupLogFile("ssh-client", dir, "trace", 10, 10, 100, 0, false)
 
 	conf := createConfig()
 
@@ -128,8 +134,30 @@ func main() {
 	if remoteUsername == "" {
 		remoteUsername = localUser.Username
 	}
+	var policyMap pathpol.PolicyMap
+	var policy *pathpol.Policy
+	if *policyFile != "" {
+		file, err := ioutil.ReadFile(*policyFile)
+		if err != nil {
+			golog.Panicf("Cannot read policy file: %v", err)
+		}
+		err = json.Unmarshal(file, &policyMap)
+		if err != nil {
+			golog.Panicf("Cannot unmarshal policy form file: %v", err)
+		}
+		extPolicy, policyExists := policyMap[*policyName]
 
-	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler)
+		if !policyExists {
+			golog.Panicf("No policy with name %s exists", *policyName)
+		}
+		policy = extPolicy.Policy
+	}
+	appConf, err := scionutils.NewPathAppConf(policy, *pathSelection)
+	if err != nil {
+		golog.Panicf("Invalid application config: %v", err)
+	}
+
+	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler, appConf)
 	if err != nil {
 		golog.Panicf("Error creating ssh client: %v", err)
 	}
