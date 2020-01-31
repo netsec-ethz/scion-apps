@@ -123,7 +123,7 @@ func (c *policyConn) getSelector(ia addr.IA) (PathSelector, error) {
 	if ia == appnet.DefNetwork().IA {
 		return nil, nil
 	}
-	selector, err := c.initSelector(ia)
+	selector, err := c.constructSelector(ia)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (c *policyConn) getSelector(ia addr.IA) (PathSelector, error) {
 	return selector, nil
 }
 
-func (c *policyConn) initSelector(ia addr.IA) (PathSelector, error) {
+func (c *policyConn) constructSelector(ia addr.IA) (PathSelector, error) {
 
 	selector := newSelector(c.conf.PathSelection())
 	paths, err := queryPathsFiltered(ia, c.conf.Policy())
