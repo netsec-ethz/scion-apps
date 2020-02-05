@@ -398,13 +398,15 @@ function updateNodeSelected(isSelected, selected) {
 }
 
 var svc_pre = {
-    0 : "unset",
-    1 : "bs",
-    2 : "ps",
-    3 : "cs",
-    4 : "sb",
-    5 : "sig",
-    6 : "ds",
+    0 : "unset", // Not set
+    1 : "bs", // Beacon service
+    2 : "ps", // Path service
+    3 : "cs", // Certificate service
+    4 : "sb", // SIBRA service
+    5 : "ds", // Discovery service
+    6 : "br", // Border router
+    7 : "sig", // SCION-IP gateway
+    8 : "hps", // Hidden Path service
 };
 
 var svc_service = {
@@ -415,6 +417,8 @@ var svc_service = {
     4 : "SIBRA",
     5 : "GATEWAY",
     6 : "DISCOVERY",
+    7 : "SIG",
+    8 : "HIDDEN PATH",
 };
 
 function get_json_as_topo(data, width, height) {

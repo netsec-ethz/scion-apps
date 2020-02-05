@@ -65,7 +65,7 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 	r.ParseForm()
 	CIa := r.PostFormValue("ia_cli")
 	SIa := r.PostFormValue("ia_ser")
-	SAddr := r.PostFormValue("addr_ser")
+	//SAddr := r.PostFormValue("addr_ser")
 	radioSig := r.PostFormValue("radioSig")
 	var sendDirection bool
 	if radioSig == "send" {
@@ -87,7 +87,7 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 
 		"ServePort=" + "8088", // unused?, fixed
 		"IaRemote=" + SIa,     // remote
-		"IpRemote=" + SAddr,   // remote
+		//"IpRemote=" + SAddr,   // remote
 
 		"cfgdir=" + path.Join(options.StaticRoot, "data/sig", "sig"+cIA.FileFmt(false)),
 		"SCION_BIN=" + path.Clean(options.ScionBin),
@@ -97,22 +97,15 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 		"STATIC_ROOT=" + path.Clean(options.StaticRoot),
 	}
 
+	var fp string
 	IdA := "11"
 	IdB := "12"
-	CtrlPortA := "10081"
-	CtrlPortB := "10083"
-	EncapPortA := "10082"
-	EncapPortB := "10084"
+	CtrlPortA := "10083"
+	CtrlPortB := "10080"
+	EncapPortA := "10084"
+	EncapPortB := "10081"
 	if sendDirection {
-		envvars = append(envvars, []string{
-			"IdLocal=" + IdA,
-			"IdRemote=" + IdB,
-			"CtrlPortLocal=" + CtrlPortA,
-			"CtrlPortRemote=" + CtrlPortB,
-			"EncapPortLocal=" + EncapPortA,
-			"EncapPortRemote=" + EncapPortB,
-		}...)
-	} else {
+		fp = path.Join(options.StaticRoot, sendFileSigConfig)
 		envvars = append(envvars, []string{
 			"IdLocal=" + IdB,
 			"IdRemote=" + IdA,
@@ -121,17 +114,21 @@ func SigConfigHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 			"EncapPortLocal=" + EncapPortB,
 			"EncapPortRemote=" + EncapPortA,
 		}...)
+	} else {
+		fp = path.Join(options.StaticRoot, recvFileSigConfig)
+		envvars = append(envvars, []string{
+			"IdLocal=" + IdA,
+			"IdRemote=" + IdB,
+			"CtrlPortLocal=" + CtrlPortA,
+			"CtrlPortRemote=" + CtrlPortB,
+			"EncapPortLocal=" + EncapPortA,
+			"EncapPortRemote=" + EncapPortB,
+		}...)
 	}
 	log.Debug("SigConfigHandler", "envvars", envvars)
 
 	hcResFp := path.Join(options.StaticRoot, resFileSigConfig)
 	// read specified tests from json definition
-	var fp string
-	if sendDirection {
-		fp = path.Join(options.StaticRoot, sendFileSigConfig)
-	} else {
-		fp = path.Join(options.StaticRoot, recvFileSigConfig)
-	}
 	raw, err := ioutil.ReadFile(fp)
 	if CheckError(err) {
 		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)

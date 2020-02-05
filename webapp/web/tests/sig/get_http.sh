@@ -25,11 +25,11 @@ sudo sysctl net.ipv4.ip_forward=1
 # Create a dummy interface:
 sudo modprobe dummy
 
-sudo ip link add dummy${IdRemote} type dummy
-sudo ip addr add 172.16.0.${IdRemote}/32 brd + dev dummy${IdRemote} label dummy${IdRemote}:0
+sudo ip link add dummy${IdLocal} type dummy
+sudo ip addr add 172.16.0.${IdLocal}/32 brd + dev dummy${IdLocal} label dummy${IdLocal}:0
 
 # Add the routing rules for the SIG:
-sudo ip rule add to 172.16.${IdLocal}.0/24 lookup ${IdRemote} prio ${IdRemote}
+sudo ip rule add to 172.16.${IdLocal}.0/24 lookup ${IdLocal} prio ${IdLocal}
 
 # Start the SIG with the following command:
 ${APPS_ROOT}/sig -config=${cfgdir}/sig${IA}.config > ${cfgdir}/sig${IA}-1.log 2>&1 &
@@ -37,11 +37,10 @@ ${APPS_ROOT}/sig -config=${cfgdir}/sig${IA}.config > ${cfgdir}/sig${IA}-1.log 2>
 # Show the ip rules and routes
 sudo ip rule show
 sudo ip route show table ${IdLocal}
-sudo ip route show table ${IdRemote}
 
 # Add a client on host Local:
 sudo ip link add client type dummy
-sudo ip addr add 172.16.${IdLocal}.1/24 brd + dev client label client:0
+sudo ip addr add 172.16.${IdRemote}.1/24 brd + dev client label client:0
 
 # The 'curl --interface' command will be run by webapp...
 EOL
@@ -51,6 +50,6 @@ cat $file
 file=${cfgdir}/test_sig${IA}.sh
 cat >$file <<EOL
 #!/bin/bash
-curl --interface 172.16.${IdLocal}.1 172.16.${IdRemote}.1:${ServePort}/sighello.html
+curl --interface 172.16.${IdRemote}.1 172.16.${IdLocal}.1:${ServePort}/sighello.html
 EOL
 cat $file

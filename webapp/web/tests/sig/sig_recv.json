@@ -11,9 +11,9 @@
    "desc": "write_sig_config"
   },
   {
-   "label": "get_http",
-   "script": "get_http.sh",
-   "desc": "get_http"
+   "label": "serve_http",
+   "script": "serve_http.sh",
+   "desc": "serve_http"
   }
  ]
 }

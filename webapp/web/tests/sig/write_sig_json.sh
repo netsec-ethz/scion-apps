@@ -8,7 +8,7 @@ cat >$file <<EOL
     "ASes": {
         "${IaRemote}": {
             "Nets": [
-                "172.16.${IdRemote}.0/24"
+                "172.16.${IdLocal}.0/24"
             ],
             "Sigs": {
                 "remote-1": {
