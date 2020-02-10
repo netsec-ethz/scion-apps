@@ -18,9 +18,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
-	"time"
 
-	"github.com/netsec-ethz/rains/pkg/rains"
+	_ "github.com/netsec-ethz/rains/pkg/rains"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -47,27 +46,29 @@ func readRainsConfig() *snet.UDPAddr {
 
 func rainsQuery(hostname string) (snet.SCIONAddress, error) {
 
-	const (
-		ctx     = "."                    // use global context
-		qType   = rains.OTScionAddr      // request SCION addresses
-		expire  = 5 * time.Minute        // sensible expiry date?
-		timeout = 500 * time.Millisecond // timeout for query
-	)
-	qOpts := []rains.Option{} // no options
+	return snet.SCIONAddress{}, fmt.Errorf("could not resolve %q, no RAINS not built, %s", hostname, rainsServer)
+	/*
+		const (
+			ctx     = "."                    // use global context
+			qType   = rains.OTScionAddr      // request SCION addresses
+			expire  = 5 * time.Minute        // sensible expiry date?
+			timeout = 500 * time.Millisecond // timeout for query
+		)
+		qOpts := []rains.Option{} // no options
 
-	if rainsServer == nil {
-		return snet.SCIONAddress{}, fmt.Errorf("could not resolve %q, no RAINS server configured", hostname)
-	}
-
-	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
-	// The timeout value has been decreased to counter this behavior until the problem is resolved.
-	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
-	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("address for host %q not found: %v", hostname, err)
-	}
-	addr, err := addrFromString(reply[qType])
-	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("address for host %q invalid: %v", hostname, err)
-	}
-	return addr, nil
+		if rainsServer == nil {
+			return snet.SCIONAddress{}, fmt.Errorf("could not resolve %q, no RAINS server configured", hostname)
+		}
+			// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
+			// The timeout value has been decreased to counter this behavior until the problem is resolved.
+			reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
+			if err != nil {
+				return snet.SCIONAddress{}, fmt.Errorf("address for host %q not found: %v", hostname, err)
+			}
+			addr, err := addrFromString(reply[qType])
+			if err != nil {
+				return snet.SCIONAddress{}, fmt.Errorf("address for host %q invalid: %v", hostname, err)
+			}
+			return addr, nil
+	*/
 }
