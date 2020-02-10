@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.package main
 
-// +build rains
-
 package appnet
 
 import (
@@ -26,15 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-var (
-	rainsConfigPath = "/etc/scion/rains.cfg"
-	ctx             = "."                    // use global context
-	qType           = rains.OTScionAddr4     // request SCION IPv4 addresses
-	qOpts           = []rains.Option{}       // no options
-	expire          = 5 * time.Minute        // sensible expiry date?
-	timeout         = 500 * time.Millisecond // timeout for query
-	rainsServer     *snet.UDPAddr            // resolver address
-)
+const rainsConfigPath = "/etc/scion/rains.cfg"
+
+var rainsServer *snet.UDPAddr // resolver address
 
 func init() {
 	// read RAINS server address
@@ -54,6 +46,14 @@ func readRainsConfig() *snet.UDPAddr {
 }
 
 func rainsQuery(hostname string) (snet.SCIONAddress, error) {
+
+	const (
+		ctx     = "."                    // use global context
+		qType   = rains.OTScionAddr      // request SCION addresses
+		expire  = 5 * time.Minute        // sensible expiry date?
+		timeout = 500 * time.Millisecond // timeout for query
+	)
+	qOpts := []rains.Option{} // no options
 
 	if rainsServer == nil {
 		return snet.SCIONAddress{}, fmt.Errorf("could not resolve %q, no RAINS server configured", hostname)
