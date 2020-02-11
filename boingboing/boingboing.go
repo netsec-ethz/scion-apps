@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/quictrace"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -74,6 +75,7 @@ var (
 		"Timeout for the boing response")
 	interval     = flag.Duration("intervalbb", DefaultInterval, "time between boings")
 	verbose      = flag.Bool("v", false, "sets verbose output")
+	trace        = flag.Bool("t", false, "enables tracing of the QUIC connection")
 	quiet        = flag.Bool("q", false, "sets quiet output, only show control output. Suppresses verbose.")
 	sciondFromIA = flag.Bool("sciondFromIA", false,
 		"SCIOND socket path from IA address:ISD-AS")
@@ -245,11 +247,17 @@ func (c *client) run() {
 	c.setupPaths()
 	defer c.Close()
 
+	var quicConfig *quic.Config
+	if *trace {
+		// Only capture the QUIC connection trace when tracing is enabled
+		quicConfig = &quic.Config{QuicTracer: quictrace.NewTracer()}
+	}
+
 	// Connect to remote addresses. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	mpQuic, err := mpsquic.DialMP(nil, &local, &remote, paths, nil)
+	mpQuic, err := mpsquic.DialMP(nil, &local, &remote, paths, quicConfig)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -266,6 +274,7 @@ func (c *client) run() {
 		c.send()
 	}()
 	c.read()
+	log.Info("Client run completed")
 }
 
 func (c *client) Close() error {
@@ -341,6 +350,7 @@ func (c client) send() {
 	fmt.Println("-----------------------------Client done sending.-----------------------------")
 	// After sending the last boing?, set a ReadDeadline on the stream
 	err := c.qstream.SetReadDeadline(time.Now().Add(*timeout))
+	log.Debug("Set read deadline on stream", "timeout", timeout)
 	if err != nil {
 		LogFatal("SetReadDeadline failed", "err", err)
 	}
@@ -356,7 +366,6 @@ func (c client) read() {
 				log.Debug("ReadDeadline missed", "err", err)
 				// ReadDeadline is only set after we are done writing
 				// and we don't want to wait indefinitely for the remaining responses
-				fmt.Println("-----------------------------Client done receiving.-----------------------------")
 				break
 			}
 			log.Error("Unable to read", "err", err)
@@ -384,6 +393,7 @@ func (c client) read() {
 				msg.len(), &remote, i, elapsed)
 		}
 	}
+	fmt.Println("-----------------------------Client done receiving.-----------------------------")
 }
 
 type server struct {
@@ -536,7 +546,10 @@ func choosePaths(interactive bool) []*sd.PathReplyEntry {
 			break
 		}
 	} else {
-		pathIndices = append(pathIndices, 0)
+		// select all paths
+		for i := range paths {
+			pathIndices = append(pathIndices, uint64(i))
+		}
 	}
 
 	for i := range pathIndices {

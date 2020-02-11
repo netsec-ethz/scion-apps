@@ -222,7 +222,7 @@ func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, er
 		}
 	}
 	laddrMonitor := laddr.Copy()
-	laddrMonitor.Host.L4 = addr.NewL4UDPInfo(laddr.Host.L4.Port() + 1)
+	laddrMonitor.Host.L4 = addr.NewL4UDPInfo(0) // Use any free port
 	dispConn, _, err = reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
 		overlayBindAddr, addr.SvcNone)
 	if err != nil {
@@ -338,13 +338,10 @@ func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, qu
 	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
 	mpQuic.scionFlexConnection = flexConn
 
-	if tracer == nil {
-		tracer = quictrace.NewTracer()
-		if quicConfig == nil {
-			quicConfig = &quic.Config{}
-		}
-		quicConfig.QuicTracer = tracer
+	if quicConfig != nil {
+		tracer = quicConfig.QuicTracer
 	}
+
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
 	qsession, err := quic.Dial(flexConn, flexConn.raddr, "host:0", cliTlsCfg, quicConfig)
 	if err != nil {
@@ -357,9 +354,9 @@ func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, qu
 // displayStats logs the collected metrics for all monitored paths.
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
-		logger.Trace(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiration))
-		logger.Trace(fmt.Sprintf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i))
-		logger.Trace(fmt.Sprintf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i))
+		logger.Debug(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiration))
+		logger.Debug(fmt.Sprintf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i))
+		logger.Debug(fmt.Sprintf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i))
 	}
 }
 
@@ -392,12 +389,12 @@ func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 			logger.Trace("New path", "path", mpq.paths[i].raddr.Path)
 			if !filter {
 				mpq.updateActivePath(i)
-				logger.Trace("Updating to path", "index", i)
+				logger.Debug("Updating to path", "index", i, "path", mpq.paths[i].path.Entry.Path.Interfaces)
 				return nil
 			}
 			if mpq.policyLowerRTTMatch(i) {
 				mpq.updateActivePath(i)
-				logger.Trace("Updating to better path", "index", i)
+				logger.Debug("Updating to better path", "index", i, "path", mpq.paths[i].path.Entry.Path.Interfaces)
 				return nil
 			}
 		}
@@ -405,7 +402,7 @@ func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 	if !force {
 		return nil
 	}
-	logger.Trace("No path available now", "now", time.Now())
+	logger.Debug("No path available now", "now", time.Now())
 	mpq.displayStats()
 
 	return common.NewBasicError("mpsquic: No fallback connection available.", nil)

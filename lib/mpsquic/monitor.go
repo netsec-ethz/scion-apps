@@ -74,8 +74,9 @@ func (mpq *MPQuic) monitor() {
 		cmn.Stats = &cmn.ScmpStats{}
 	}
 
-	go mpq.sendSCMP()
-	go mpq.rcvSCMP()
+	var appID uint64 = rand.Uint64()
+	go mpq.sendSCMP(appID)
+	go mpq.rcvSCMP(appID)
 
 	go mpq.processRevocations()
 
@@ -83,7 +84,7 @@ func (mpq *MPQuic) monitor() {
 }
 
 // sendSCMP sends SCMP messages on all paths in mpq.
-func (mpq *MPQuic) sendSCMP() {
+func (mpq *MPQuic) sendSCMP(appID uint64) {
 	var seq uint16
 	for {
 		if mpq.dispConn == nil {
@@ -92,8 +93,8 @@ func (mpq *MPQuic) sendSCMP() {
 
 		for i := range mpq.paths {
 			cmn.Remote = *mpq.paths[i].raddr
-			id := uint64(i + 1)
-			info := &scmp.InfoEcho{Id: id, Seq: seq}
+			pathID := appID + uint64(i)
+			info := &scmp.InfoEcho{Id: pathID, Seq: seq}
 			pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
 			b := make(common.RawBytes, mpq.paths[i].path.Entry.Path.Mtu)
 			nhAddr := cmn.NextHopAddr()
@@ -126,7 +127,7 @@ func (mpq *MPQuic) sendSCMP() {
 }
 
 // rcvSCMP receives SCMP messages and records the RTT for each path in mpq.
-func (mpq *MPQuic) rcvSCMP() {
+func (mpq *MPQuic) rcvSCMP(appID uint64) {
 	for {
 		if mpq.dispConn == nil {
 			break
@@ -184,11 +185,11 @@ func (mpq *MPQuic) rcvSCMP() {
 			// Calculate RTT
 			rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
 			scmpId := scmpPld.Info.(*scmp.InfoEcho).Id
-			if scmpId-1 < uint64(len(mpq.paths)) {
-				logger.Trace("Received SCMP packet", "len", pktLen, "ID", scmpId)
-				mpq.paths[scmpId-1].rtt = rtt
+			if scmpId - appID >= 0 && scmpId - appID < uint64(len(mpq.paths)) {
+				logger.Trace("Received SCMP packet", "len", pktLen, "ID", scmpId - appID)
+				mpq.paths[scmpId - appID].rtt = rtt
 			} else {
-				logger.Error("Wrong InfoEcho Id.",  "id", scmpId)
+				logger.Error("Wrong InfoEcho Id.",  "id", scmpId - appID, "appID", appID)
 			}
 		default:
 			logger.Error("Not an Info Echo.", "type", common.TypeOf(scmpPld.Info))
