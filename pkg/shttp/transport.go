@@ -140,7 +140,7 @@ func mangleSCIONAddr(address string) string {
 // roundtripper code)
 func unmangleSCIONAddr(address string) string {
 	host, port, err := net.SplitHostPort(address)
-	if err != nil {
+	if err != nil || port == "" {
 		panic(fmt.Sprintf("unmangleSCIONAddr assumes that address is of the form host:port %s", err))
 	}
 	// brackets are removed from [I-A,IP] part by SplitHostPort, so this can be
