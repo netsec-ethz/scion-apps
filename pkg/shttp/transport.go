@@ -19,7 +19,6 @@ package shttp
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -27,12 +26,10 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/h2quic"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -88,27 +85,12 @@ func (t *roundTripper) Close() (err error) {
 }
 
 // dial is the Dial function used in RoundTripper
-func dial(network, addrStr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
-
-	host, port, err := net.SplitHostPort(addrStr)
-	if err != nil {
-		return nil, err
-	}
-	if isMangledSCIONAddr(host) {
-		host, err = unmangleSCIONAddr(host)
-		if err != nil {
-			return nil, err
-		}
-	}
-	p, err := strconv.ParseUint(port, 10, 16)
-	if err != nil {
-		p = 443
-	}
-	return appquic.Dial(fmt.Sprintf("%s:%d", host, p), tlsCfg, cfg)
+func dial(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
+	return appquic.Dial(unmangleSCIONAddr(address), tlsCfg, cfg)
 }
 
 var scionAddrURLRegexp = regexp.MustCompile(
-	`^(\w*://)?(\w+@)?(\d+-[\d:A-Fa-f]+,\[[^\]]+\])(.*)$`)
+	`^(\w*://)?(\w+@)?([^/?]*)(.*)$`)
 
 // MangleSCIONAddrURL mangles a SCION address in the host part of a URL-ish
 // string so that it can be safely used as a URL, i.e. it can be parsed by
@@ -122,9 +104,9 @@ func MangleSCIONAddrURL(url string) string {
 
 	schemePart := match[1]
 	userInfoPart := match[2]
-	scionAddrPart := match[3]
+	hostPart := match[3]
 	tail := match[4]
-	return schemePart + userInfoPart + mangleSCIONAddr(scionAddrPart) + tail
+	return schemePart + userInfoPart + mangleSCIONAddr(hostPart) + tail
 }
 
 // mangleSCIONAddr mangles a SCION address string (if it is one) so it can be
@@ -135,40 +117,42 @@ func mangleSCIONAddr(address string) string {
 	if err != nil {
 		return address
 	}
-	// The Host will be either IPv4 or IPv6.
-	// To make this a valid host string for a URL, replace : for IPv6 addresses by ~. There will
-	// not be any other tildes, so no need to escape them.
-	host := raddr.Host.String()
-	hostMangled := strings.Replace(host, ":", "~", -1)
 
-	mangledAddr := fmt.Sprintf("__%s__%s__", raddr.IA.FileFmt(false), hostMangled)
+	// Turn this into [IA,IP]:port format. This is a valid host in a URI, as per
+	// the "IP-literal" case in RFC 3986, §3.2.2.
+	// Unfortunately, this is not currently compatible with snet.UDPAddrFromString,
+	// so this will have to be _unmangled_ before use.
+	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
 	if raddr.Host.Port != 0 {
 		mangledAddr += fmt.Sprintf(":%d", raddr.Host.Port)
 	}
 	return mangledAddr
 }
 
-// isMangledSCIONAddr checks if this is an address previously encoded with mangleSCIONAddr
-// without port, *after* SplitHostPort has been applied.
-func isMangledSCIONAddr(host string) bool {
-
-	parts := strings.Split(host, "__")
-	return len(parts) == 4 && len(parts[0]) == 0 && len(parts[3]) == 0
-}
-
-// unmangleSCIONAddr decodes and parses a SCION-address previously encoded with mangleSCIONAddr
-// without port, i.e. *after* SplitHostPort has been applied.
-func unmangleSCIONAddr(host string) (string, error) {
-
-	parts := strings.Split(host, "__")
-	ia, err := addr.IAFromFileFmt(parts[1], false)
+// unmangleSCIONAddr returns a SCION address that can be parsed with
+// with snet.UDPAddrFromString.
+// If the input is not a SCION address (e.g. a hostname), the address is
+// returned unchanged.
+// This parses the address, so that it can safely join host and port, with the
+// brackets in the right place. Yes, this means this will be parsed twice.
+//
+// Assumes that address always has a port (this is enforced by the h2quic
+// roundtripper code)
+func unmangleSCIONAddr(address string) string {
+	host, port, err := net.SplitHostPort(address)
 	if err != nil {
-		return "", err
+		panic(fmt.Sprintf("unmangleSCIONAddr assumes that address is of the form host:port %s", err))
 	}
-	ipStr := strings.Replace(parts[2], "~", ":", -1)
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return "", errors.New("could not parse IP in SCION-address")
+	// brackets are removed from [I-A,IP] part by SplitHostPort, so this can be
+	// parsed with UDPAddrFromString:
+	udpAddr, err := snet.UDPAddrFromString(host)
+	if err != nil {
+		return address
 	}
-	return fmt.Sprintf("%s,[%v]", ia, ip), nil
+	p, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		return address
+	}
+	udpAddr.Host.Port = int(p)
+	return udpAddr.String()
 }
