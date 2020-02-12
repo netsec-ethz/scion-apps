@@ -127,7 +127,7 @@ func TestRoundTripper(t *testing.T) {
 	}
 }
 
-// hostURLPatterns returns a some of URL patterns in which a host can be inserted
+// hostURLPatterns returns a slice of URL patterns in which a host can be inserted
 func hostURLPatterns() []string {
 	return []string{
 		"https://%s",
