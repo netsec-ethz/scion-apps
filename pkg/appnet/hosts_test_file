@@ -9,6 +9,6 @@ fe80:cd00:0:cde:1257:0:211e:729c                        dummy2
 # SCION hosts
 #17-ffaa:0:0,[10.0.8.15]                                commented
 17-ffaa:0:1,[192.168.1.1]                               host1.1 host1.2
-18-ffaa:1:2,[10.0.8.10]	                                host2 
+18-ffaa:1:2,[10.0.8.10]	                                host2
 17-ffaa:0:1,[192.168.1.1]                               host3
 20-ffaa:c0ff:ee12,[0:0:0ff1:ce00:dead:10cc:baad:f00d]   host4

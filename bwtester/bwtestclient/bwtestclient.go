@@ -243,7 +243,7 @@ func getPacketCount(count string) int64 {
 func main() {
 	var (
 		serverCCAddrStr string
-		serverCCAddr    *snet.Addr
+		serverCCAddr    *snet.UDPAddr
 		// Control channel connection
 		CCConn snet.Conn
 		// Data channel connection
@@ -289,7 +289,7 @@ func main() {
 
 	var path snet.Path
 	if interactive {
-		path, err = appnet.ChoosePathInteractive(serverCCAddr)
+		path, err = appnet.ChoosePathInteractive(serverCCAddr.IA)
 		Check(err)
 	} else {
 		var metric int
@@ -298,7 +298,7 @@ func main() {
 		} else if pathAlgo == "shortest" {
 			metric = appnet.Shortest
 		}
-		path, err = appnet.ChoosePathByMetric(metric, serverCCAddr)
+		path, err = appnet.ChoosePathByMetric(metric, serverCCAddr.IA)
 		Check(err)
 	}
 	if path != nil {
@@ -314,11 +314,11 @@ func main() {
 	clientDCAddr := &net.UDPAddr{IP: clientCCAddr.IP, Port: clientCCAddr.Port + 1}
 	// Address of server data channel (DC)
 	serverDCAddr := serverCCAddr.Copy()
-	serverDCAddr.Host.L4 = serverCCAddr.Host.L4 + 1
+	serverDCAddr.Host.Port = serverCCAddr.Host.Port + 1
 
 	// Data channel connection
 	DCConn, err = appnet.DefNetwork().Dial(
-		context.TODO(), "udp", clientDCAddr, appnet.ToSNetUDPAddr(serverDCAddr), addr.SvcNone)
+		context.TODO(), "udp", clientDCAddr, serverDCAddr, addr.SvcNone)
 	Check(err)
 
 	// update default packet size to max MTU on the selected path
@@ -339,7 +339,7 @@ func main() {
 		fmt.Println("Only cs parameter set, using same values for sc")
 	}
 	serverBwp = parseBwtestParameters(serverBwpStr)
-	serverBwp.Port = serverDCAddr.Host.L4
+	serverBwp.Port = uint16(serverDCAddr.Host.Port)
 	fmt.Println("\nTest parameters:")
 	fmt.Println("clientDCAddr -> serverDCAddr", clientDCAddr, "->", serverDCAddr)
 	fmt.Printf("client->server: %d seconds, %d bytes, %d packets\n",

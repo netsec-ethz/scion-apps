@@ -15,9 +15,11 @@
 package appnet
 
 import (
+	"fmt"
+	"sort"
 	"testing"
 
-	libaddr "github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -65,74 +67,86 @@ func TestAddingHost(t *testing.T) {
 }
 
 func TestReadHosts(t *testing.T) {
-	host, err := GetHostByName("host1.2")
-	if err != nil {
-		t.Error(err)
-	}
-	addr := &snet.Addr{IA: host.IA, Host: &libaddr.AppAddr{L3: host.Host, L4: 0}}
-
-	expected, err := snet.AddrFromString("17-ffaa:0:1,[192.168.1.1]:0")
-	if err != nil {
-		panic("This should always work")
-	}
-	if !addr.EqualAddr(expected) {
-		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "17-ffaa:0:1,[192.168.1.1]:0", addr)
-	}
-
-	// works with IPv6 SCION hosts
-	host, err = GetHostByName("host4")
-	if err != nil {
-		t.Error(err)
-	}
-	addr = &snet.Addr{IA: host.IA, Host: &libaddr.AppAddr{L3: host.Host, L4: 0}}
-
-	expected, _ = snet.AddrFromString("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0")
-	if !addr.EqualAddr(expected) {
-		t.Errorf("host resolved to wrong address, expected: %q, received: %q", "20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]:0", addr)
+	cases := []struct {
+		name     string
+		expected snet.SCIONAddress
+	}{
+		{"host1.1", mustParse("17-ffaa:0:1,[192.168.1.1]")},
+		{"host1.2", mustParse("17-ffaa:0:1,[192.168.1.1]")},
+		{"host2", mustParse("18-ffaa:1:2,[10.0.8.10]")},
+		{"host3", mustParse("17-ffaa:0:1,[192.168.1.1]")},
+		{"host4", mustParse("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]")},
+		{"commented", snet.SCIONAddress{}},
+		{"dummy1", snet.SCIONAddress{}},
+		{"dummy2", snet.SCIONAddress{}},
 	}
 
-	// does not parse commented hosts
-	_, err = GetHostByName("commented")
-	if err == nil {
-		t.Error("read commented host")
+	for _, c := range cases {
+		actual, err := GetHostByName(c.name)
+		if c.expected.Host == nil {
+			if err == nil {
+				t.Errorf("no result expected for '%s', got %v", c.name, actual)
+			}
+		} else {
+			if err != nil {
+				t.Error(err)
+			}
+			if c.expected.IA != actual.IA || !c.expected.Host.Equal(actual.Host) {
+				t.Errorf("wrong result for '%s', expected %v, got %v", c.name, c.expected, actual)
+			}
+		}
 	}
 }
 
 func TestReadAddresses(t *testing.T) {
 
-	mustParse := func(address string) snet.SCIONAddress {
-		addr, err := addrFromString(address)
-		if err != nil {
-			panic(err)
+	equalSet := func(a, b []string) bool {
+		sort.Strings(a)
+		sort.Strings(b)
+		if len(a) != len(b) {
+			return false
 		}
-		return addr
+		for i := range a {
+			if a[i] != b[i] {
+				return false
+			}
+		}
+		return true
 	}
 
-	addrs, err := GetHostnamesByAddress(mustParse("18-ffaa:1:2,[10.0.8.10]"))
-	if err != nil {
-		t.Error(err)
-	}
-	if len(addrs) != 1 || addrs[0] != "host2" {
-		t.Errorf("address resolved to wrong hostnames, expected: %v, received: %v", []string{"host2"}, addrs)
-	}
-
-	// pass address with port
-	addrs, err = GetHostnamesByAddress(mustParse("17-ffaa:0:1,[192.168.1.1]"))
-	if err != nil {
-		t.Error(err)
-	}
-	if len(addrs) != 3 || addrs[0] != "host1.1" || addrs[1] != "host1.2" || addrs[2] != "host3" {
-		t.Errorf("address resolved to wrong hostnames, expected: %v, received: %v", []string{"host1.1", "host1.2", "host3"}, addrs)
+	cases := []struct {
+		addr     snet.SCIONAddress
+		expected []string
+	}{
+		{mustParse("18-ffaa:1:2,[10.0.8.10]"), []string{"host2"}},
+		{mustParse("17-ffaa:0:1,[192.168.1.1]"), []string{"host1.1", "host1.2", "host3"}},
+		{mustParse("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]"), []string{"host4"}},
+		{mustParse("1-ff00:0:1,[1.0.0.1]"), nil},
 	}
 
-	// pass address with IPv6
-	addrs, err = GetHostnamesByAddress(mustParse("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]"))
+	for _, c := range cases {
+		names, err := GetHostnamesByAddress(c.addr)
+		if c.expected == nil {
+			if err == nil {
+				t.Errorf("no result expected for %v, got %v", c.addr, names)
+			}
+		} else {
+			if err != nil {
+				t.Error(err)
+			}
+			if !equalSet(names, c.expected) {
+				t.Errorf("wrong result for %v, expected %v, got %v", c.addr, c.expected, names)
+			}
+		}
+	}
+}
+
+func mustParse(address string) snet.SCIONAddress {
+	a, err := snet.UDPAddrFromString(address)
 	if err != nil {
-		t.Error(err)
+		panic(fmt.Sprintf("test input must parse %s", err))
 	}
-	if len(addrs) != 1 || addrs[0] != "host4" {
-		t.Errorf("address resolved to wrong hostnames, expected: %v, received: %v", []string{"host4"}, addrs)
-	}
+	return snet.SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)}
 }
 
 func TestSplitHostPort(t *testing.T) {

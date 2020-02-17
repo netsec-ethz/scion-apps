@@ -64,7 +64,7 @@ func Dial(remote string, tlsConf *tls.Config, quicConf *quic.Config) (quic.Sessi
 //
 // If no path is specified in raddr, DialAddr will choose the first available path,
 // analogous to appnet.DialAddr.
-func DialAddr(raddr *snet.Addr, tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, error) {
+func DialAddr(raddr *snet.UDPAddr, tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, error) {
 	if raddr.Path == nil {
 		err := appnet.SetDefaultPath(raddr)
 		if err != nil {
