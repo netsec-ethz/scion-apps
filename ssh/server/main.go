@@ -29,8 +29,6 @@ import (
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 
 	log "github.com/inconshreveable/log15"
-
-	scionlog "github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -74,8 +72,6 @@ func updateConfigFromFile(conf *serverconfig.ServerConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
-	scionlog.SetupLogConsole("debug")
-
 	log.Debug("Starting SCION SSH server...")
 
 	conf := createConfig()

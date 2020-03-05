@@ -29,7 +29,6 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	scionlog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
@@ -127,8 +126,6 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
-	dir, _ := os.Getwd()
-	scionlog.SetupLogFile("ssh-client", dir, "trace", 10, 10, 100, 0, false)
 
 	conf := createConfig()
 
