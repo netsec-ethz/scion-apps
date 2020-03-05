@@ -96,8 +96,8 @@ github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3Rllmb
 github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9 h1:ZivaaKmjs9q90zi6I4gTLW6tbVGtlBjellr3hMYaly0=
 github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9/go.mod h1:np1wUFZ6tyoke22qDJZY40URn9Ae51gX7ljIWXN5TJs=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
-github.com/netsec-ethz/rains v0.0.0-20200304211316-78d2550f9d8b h1:nIOLiAd7XSXL4rLLz6cjp+Bujcq1ihAyF3vhrXuwyfA=
-github.com/netsec-ethz/rains v0.0.0-20200304211316-78d2550f9d8b/go.mod h1:M0seLcpjvJ9XrAgx4vnkFseaoottkErWIrVBF+le3P0=
+github.com/netsec-ethz/rains v0.0.0-20200305191422-58aacbeca9a9 h1:TMOZXc9IvUtyu1NydhN3PofWQGWeLKMeSId/73ZbLqU=
+github.com/netsec-ethz/rains v0.0.0-20200305191422-58aacbeca9a9/go.mod h1:M0seLcpjvJ9XrAgx4vnkFseaoottkErWIrVBF+le3P0=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.10.3 h1:OoxbjfXVZyod1fmWYhI7SEyaD8B00ynP3T+D5GiyHOY=
 github.com/onsi/ginkgo v1.10.3/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
