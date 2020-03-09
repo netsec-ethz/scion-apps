@@ -17,20 +17,20 @@ Package appnet provides a simplified and functionally extended wrapper interface
 scionproto/scion package snet.
 
 
-Dispatcher and SCION daemon sockets
+Dispatcher and SCION daemon connections
 
-During the hidden initialisation of this package, the dispatcher and sciond sockets are
-opened. The sciond connection determines the local IA.
+During the hidden initialisation of this package, the dispatcher and sciond
+connections are opened. The sciond connection determines the local IA.
 The dispatcher and sciond sockets are assumed to be at default locations, but this can
 be overridden using environment variables:
 
 		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
-		SCION_DAEMON_SOCKET: /run/shm/sciond/default.sock
+		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
 This is convenient for the normal use case of running a the endhost stack for
 a single SCION AS. When running multiple local ASes, e.g. during development, the path
 to the sciond corresponding to the desired AS needs to be specified in the
-SCION_DAEMON_SOCKET environment variable.
+SCION_DAEMON_ADDRESS environment variable.
 
 
 Wildcard IP Addresses
@@ -169,17 +169,11 @@ func mustInitDefNetwork() {
 }
 
 func initDefNetwork() error {
-	dispatcherPath, err := findDispatcherSocket()
+	dispatcher, err := findDispatcher()
 	if err != nil {
 		return err
 	}
-	dispatcher := reliable.NewDispatcher(dispatcherPath)
-
-	sciondPath, err := findSciondSocket()
-	if err != nil {
-		return err
-	}
-	sciondConn, err := sciond.NewService(sciondPath).Connect(context.Background())
+	sciondConn, err := findSciond()
 	if err != nil {
 		return err
 	}
@@ -202,17 +196,25 @@ func initDefNetwork() error {
 	return nil
 }
 
-func findSciondSocket() (string, error) {
-	path, ok := os.LookupEnv("SCION_DAEMON_SOCKET")
+func findSciond() (sciond.Connector, error) {
+	address, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
 	if !ok {
-		path = sciond.DefaultSCIONDPath
+		address = sciond.DefaultSCIONDAddress
 	}
-	err := statSocket(path)
+	sciondConn, err := sciond.NewService(address).Connect(context.Background())
 	if err != nil {
-		return "", fmt.Errorf("error looking for SCION daemon socket at %s (override with SCION_DAEMON_SOCKET): %v", path, err)
+		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", address, err)
 	}
-	return path, nil
+	return sciondConn, nil
+}
 
+func findDispatcher() (reliable.Dispatcher, error) {
+	path, err := findDispatcherSocket()
+	if err != nil {
+		return nil, err
+	}
+	dispatcher := reliable.NewDispatcher(path)
+	return dispatcher, nil
 }
 
 func findDispatcherSocket() (string, error) {
@@ -222,7 +224,7 @@ func findDispatcherSocket() (string, error) {
 	}
 	err := statSocket(path)
 	if err != nil {
-		return "", fmt.Errorf("error looking for SCION dispatcher socket at %s (override with SCION_DISPATCHER_SOCKET): %v", path, err)
+		return "", fmt.Errorf("error looking for SCION dispatcher socket at %s (override with SCION_DISPATCHER_SOCKET): %w", path, err)
 	}
 	return path, nil
 }

@@ -37,7 +37,6 @@ import (
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
-	slog "github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -99,9 +98,6 @@ func init() {
 	flag.Parse()
 
 	defaultSetting.Transport = shttp.NewRoundTripper(nil, nil)
-
-	// redirect SCION log to a log file
-	_ = slog.SetupLogFile("scion", "log", "debug", 10, 10, 0, 0, false)
 }
 
 func parsePrintOption(s string) {

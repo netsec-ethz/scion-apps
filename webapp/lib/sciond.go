@@ -36,6 +36,7 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -68,20 +69,19 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 }
 
 func getSciondByIA(ia addr.IA) (sciond.Connector, error) {
-	sciondPath := findSCIONDSocket(ia)
-	sciondConn, err := sciond.NewService(sciondPath).Connect(context.Background())
+	// XXX(matzf): use the functionality from scions integration tests to keep
+	// the "find SCIOND by IA" functionality, at least in the development setup.
+	// This parses the sciond_addresses.json file created by the scion.sh topo
+	// generator and extracts the matching entry. Quite. Ugly.
+	sciondAddress, err := integration.GetSCIONDAddress(integration.SCIONDAddressesFile, ia)
+	if err != nil {
+		sciondAddress = sciond.DefaultSCIONDAddress
+	}
+	sciondConn, err := sciond.NewService(sciondAddress).Connect(context.Background())
 	if CheckError(err) {
 		return nil, err
 	}
 	return sciondConn, nil
-}
-
-func findSCIONDSocket(ia addr.IA) string {
-	sciondPath := sciond.GetDefaultSCIONDPath(&ia)
-	if _, err := os.Stat(sciondPath); err == nil {
-		return sciondPath
-	}
-	return sciond.DefaultSCIONDPath
 }
 
 // sciond data sources and calls

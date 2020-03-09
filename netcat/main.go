@@ -85,11 +85,11 @@ func main() {
 	flag.Parse()
 
 	if veryVerboseMode {
-		_ = scionlog.SetupLogConsole("debug")
+		_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "debug"}})
 	} else if verboseMode {
-		_ = scionlog.SetupLogConsole("info")
+		_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "info"}})
 	} else {
-		_ = scionlog.SetupLogConsole("error")
+		_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "error"}})
 	}
 
 	tail := flag.Args()
