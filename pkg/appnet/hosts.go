@@ -113,10 +113,6 @@ func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 	return rainsQuery(hostname)
 }
 
-func rainsQuery(hostname string) (snet.SCIONAddress, error) {
-	panic("foo")
-}
-
 // AddHost adds a host to the map of known hosts
 // An error is returned if the address has a wrong format or
 // the hostname already exists
