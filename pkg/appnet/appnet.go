@@ -27,10 +27,10 @@ be overridden using environment variables:
 		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
 		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
-This is convenient for the normal use case of running a the endhost stack for
-a single SCION AS. When running multiple local ASes, e.g. during development, the path
-to the sciond corresponding to the desired AS needs to be specified in the
-SCION_DAEMON_ADDRESS environment variable.
+This is convenient for the normal use case of running a the endhost stack for a
+single SCION AS. When running multiple local ASes, e.g. during development, the
+address of the sciond corresponding to the desired AS needs to be specified in
+the SCION_DAEMON_ADDRESS environment variable.
 
 
 Wildcard IP Addresses
