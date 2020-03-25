@@ -113,14 +113,14 @@ func MangleSCIONAddrURL(url string) string {
 // safely used in the host part of a URL.
 func mangleSCIONAddr(address string) string {
 
-	raddr, err := snet.UDPAddrFromString(address)
+	raddr, err := snet.ParseUDPAddr(address)
 	if err != nil {
 		return address
 	}
 
 	// Turn this into [IA,IP]:port format. This is a valid host in a URI, as per
 	// the "IP-literal" case in RFC 3986, §3.2.2.
-	// Unfortunately, this is not currently compatible with snet.UDPAddrFromString,
+	// Unfortunately, this is not currently compatible with snet.ParseUDPAddr,
 	// so this will have to be _unmangled_ before use.
 	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
 	if raddr.Host.Port != 0 {
@@ -130,7 +130,7 @@ func mangleSCIONAddr(address string) string {
 }
 
 // unmangleSCIONAddr returns a SCION address that can be parsed with
-// with snet.UDPAddrFromString.
+// with snet.ParseUDPAddr.
 // If the input is not a SCION address (e.g. a hostname), the address is
 // returned unchanged.
 // This parses the address, so that it can safely join host and port, with the
@@ -144,8 +144,8 @@ func unmangleSCIONAddr(address string) string {
 		panic(fmt.Sprintf("unmangleSCIONAddr assumes that address is of the form host:port %s", err))
 	}
 	// brackets are removed from [I-A,IP] part by SplitHostPort, so this can be
-	// parsed with UDPAddrFromString:
-	udpAddr, err := snet.UDPAddrFromString(host)
+	// parsed with ParseUDPAddr:
+	udpAddr, err := snet.ParseUDPAddr(host)
 	if err != nil {
 		return address
 	}

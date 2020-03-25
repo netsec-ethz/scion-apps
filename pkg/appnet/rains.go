@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//+build rains
+
 package appnet
 
 import (
@@ -38,7 +40,7 @@ func readRainsConfig() *snet.UDPAddr {
 	if err != nil {
 		return nil
 	}
-	address, err := snet.UDPAddrFromString(strings.TrimSpace(string(bs)))
+	address, err := snet.ParseUDPAddr(strings.TrimSpace(string(bs)))
 	if err != nil {
 		return nil
 	}

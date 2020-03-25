@@ -84,7 +84,7 @@ type policyConn struct {
 }
 
 // NewPolicyConn constructs a PolicyConn specified in the PathAppConf argument.
-func NewPolicyConn(c snet.Conn, conf *PathAppConf) net.PacketConn {
+func NewPolicyConn(c *snet.Conn, conf *PathAppConf) net.PacketConn {
 
 	return &policyConn{
 		PacketConn: c,

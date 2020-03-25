@@ -55,10 +55,12 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -72,6 +74,10 @@ type Network struct {
 	PathQuerier   snet.PathQuerier
 	hostInLocalAS net.IP
 }
+
+const (
+	initTimeout = 1 * time.Second
+)
 
 var defNetwork Network
 var initOnce sync.Once
@@ -87,7 +93,7 @@ func DefNetwork() *Network {
 // Dial connects to the address (on the SCION/UDP network).
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of hostname:port.
-func Dial(address string) (snet.Conn, error) {
+func Dial(address string) (*snet.Conn, error) {
 	raddr, err := ResolveUDPAddr(address)
 	if err != nil {
 		return nil, err
@@ -102,15 +108,19 @@ func Dial(address string) (snet.Conn, error) {
 // support long lived connections well, as the path *will* expire.
 // This is all that snet currently provides, we'll need to add a layer on top
 // that updates the paths in case they expire or are revoked.
-func DialAddr(raddr *snet.UDPAddr) (snet.Conn, error) {
+func DialAddr(raddr *snet.UDPAddr) (*snet.Conn, error) {
 	if raddr.Path == nil {
 		err := SetDefaultPath(raddr)
 		if err != nil {
 			return nil, err
 		}
 	}
-	laddr := &net.UDPAddr{IP: localIP(raddr)}
-	return DefNetwork().Dial(context.TODO(), "udp", laddr, raddr, addr.SvcNone)
+	localIP, err := resolveLocal(raddr)
+	if err != nil {
+		return nil, err
+	}
+	laddr := &net.UDPAddr{IP: localIP}
+	return DefNetwork().Dial(context.Background(), "udp", laddr, raddr, addr.SvcNone)
 }
 
 // Listen acts like net.ListenUDP in a SCION network.
@@ -118,35 +128,38 @@ func DialAddr(raddr *snet.UDPAddr) (snet.Conn, error) {
 // listen on a wildcard address.
 //
 // See note on wildcard addresses in the package documentation.
-func Listen(listen *net.UDPAddr) (snet.Conn, error) {
+func Listen(listen *net.UDPAddr) (*snet.Conn, error) {
 	if listen == nil {
 		listen = &net.UDPAddr{}
 	}
 	if listen.IP == nil || listen.IP.IsUnspecified() {
-		listen = &net.UDPAddr{IP: defaultLocalIP(), Port: listen.Port, Zone: listen.Zone}
+		localIP, err := defaultLocalIP()
+		if err != nil {
+			return nil, err
+		}
+		listen = &net.UDPAddr{IP: localIP, Port: listen.Port, Zone: listen.Zone}
 	}
-	return DefNetwork().Listen(context.TODO(), "udp", listen, addr.SvcNone)
+	return DefNetwork().Listen(context.Background(), "udp", listen, addr.SvcNone)
 }
 
 // ListenPort is a shortcut to Listen on a specific port with a wildcard IP address.
 //
 // See note on wildcard addresses in the package documentation.
-func ListenPort(port uint16) (snet.Conn, error) {
-	listen := &net.UDPAddr{IP: defaultLocalIP(), Port: int(port)}
-	return DefNetwork().Listen(context.TODO(), "udp", listen, addr.SvcNone)
+func ListenPort(port uint16) (*snet.Conn, error) {
+	return Listen(&net.UDPAddr{Port: int(port)})
 }
 
-// localAddr returns the source IP address for traffic to raddr. If
+// resolveLocal returns the source IP address for traffic to raddr. If
 // raddr.NextHop is set, it's used to determine the local IP address.
 // Otherwise, the default local IP address is returned.
 //
 // The purpose of this function is to workaround not being able to bind to
 // wildcard addresses in snet.
 // See note on wildcard addresses in the package documentation.
-func localIP(raddr *snet.UDPAddr) net.IP {
+func resolveLocal(raddr *snet.UDPAddr) (net.IP, error) {
 	if raddr.NextHop != nil {
 		nextHop := raddr.NextHop.IP
-		return findSrcIP(nextHop)
+		return addrutil.ResolveLocal(nextHop)
 	}
 	return defaultLocalIP()
 }
@@ -156,8 +169,8 @@ func localIP(raddr *snet.UDPAddr) net.IP {
 // The purpose of this function is to workaround not being able to bind to
 // wildcard addresses in snet.
 // See note on wildcard addresses in the package documentation.
-func defaultLocalIP() net.IP {
-	return findSrcIP(DefNetwork().hostInLocalAS)
+func defaultLocalIP() (net.IP, error) {
+	return addrutil.ResolveLocal(DefNetwork().hostInLocalAS)
 }
 
 func mustInitDefNetwork() {
@@ -169,19 +182,21 @@ func mustInitDefNetwork() {
 }
 
 func initDefNetwork() error {
+	ctx, cancel := context.WithTimeout(context.Background(), initTimeout)
+	defer cancel()
 	dispatcher, err := findDispatcher()
 	if err != nil {
 		return err
 	}
-	sciondConn, err := findSciond()
+	sciondConn, err := findSciond(ctx)
 	if err != nil {
 		return err
 	}
-	localIA, err := findLocalIA(sciondConn)
+	localIA, err := sciondConn.LocalIA(ctx)
 	if err != nil {
 		return err
 	}
-	hostInLocalAS, err := findAnyHostInLocalAS(sciondConn)
+	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
 	if err != nil {
 		return err
 	}
@@ -196,12 +211,12 @@ func initDefNetwork() error {
 	return nil
 }
 
-func findSciond() (sciond.Connector, error) {
+func findSciond(ctx context.Context) (sciond.Connector, error) {
 	address, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
 	if !ok {
 		address = sciond.DefaultSCIONDAddress
 	}
-	sciondConn, err := sciond.NewService(address).Connect(context.Background())
+	sciondConn, err := sciond.NewService(address).Connect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", address, err)
 	}
@@ -244,28 +259,9 @@ func isSocket(mode os.FileMode) bool {
 	return mode&os.ModeSocket != 0
 }
 
-func findLocalIA(sciondConn sciond.Connector) (addr.IA, error) {
-	asInfo, err := sciondConn.ASInfo(context.TODO(), addr.IA{})
-	if err != nil {
-		return addr.IA{}, err
-	}
-	ia := asInfo.Entries[0].RawIsdas.IA()
-	return ia, nil
-}
-
-// findSrcIP returns the src IP used for traffic destined to dst
-func findSrcIP(dst net.IP) net.IP {
-	// Use net.Dial to lookup source address. Alternatively, could use netlink.
-	udpAddr := net.UDPAddr{IP: dst, Port: 1}
-	udpConn, _ := net.DialUDP(udpAddr.Network(), nil, &udpAddr)
-	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
-	udpConn.Close()
-	return srcIP
-}
-
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
-func findAnyHostInLocalAS(sciondConn sciond.Connector) (net.IP, error) {
-	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(context.Background(), addr.SvcBS)
+func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
 	if err != nil {
 		return nil, err
 	}

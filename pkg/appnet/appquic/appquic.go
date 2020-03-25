@@ -41,7 +41,7 @@ var (
 // the close-the-socket behaviour of quic.DialAddr.
 type closerSession struct {
 	quic.Session
-	conn snet.Conn
+	conn *snet.Conn
 }
 
 func (s *closerSession) Close() error {

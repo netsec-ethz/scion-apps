@@ -80,7 +80,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
 func ResolveUDPAddr(address string) (*snet.UDPAddr, error) {
-	raddr, err := snet.UDPAddrFromString(address)
+	raddr, err := snet.ParseUDPAddr(address)
 	if err == nil {
 		return raddr, nil
 	}
@@ -111,6 +111,10 @@ func GetHostByName(hostname string) (snet.SCIONAddress, error) {
 
 	// fall back to RAINS
 	return rainsQuery(hostname)
+}
+
+func rainsQuery(hostname string) (snet.SCIONAddress, error) {
+	panic("foo")
 }
 
 // AddHost adds a host to the map of known hosts
