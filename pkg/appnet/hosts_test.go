@@ -142,7 +142,7 @@ func TestReadAddresses(t *testing.T) {
 }
 
 func mustParse(address string) snet.SCIONAddress {
-	a, err := snet.UDPAddrFromString(address)
+	a, err := snet.ParseUDPAddr(address)
 	if err != nil {
 		panic(fmt.Sprintf("test input must parse %s", err))
 	}

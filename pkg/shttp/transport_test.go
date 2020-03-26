@@ -57,7 +57,7 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 				t.Fatalf("MangleSCIONAddrURL returned URL that cannot be parsed: %s", err)
 			}
 
-			// Check that unmangling the address can be parsed by UDPAddrFromString
+			// Check that unmangling the address can be parsed by ParseUDPAddr
 			// Only for testcases that have a port set:
 			if _, _, err := net.SplitHostPort(u.Host); err != nil {
 				continue

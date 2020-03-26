@@ -259,9 +259,9 @@ func main() {
 		serverCCAddrStr string
 		serverCCAddr    *snet.UDPAddr
 		// Control channel connection
-		CCConn snet.Conn
+		CCConn *snet.Conn
 		// Data channel connection
-		DCConn snet.Conn
+		DCConn *snet.Conn
 
 		clientBwpStr string
 		clientBwp    BwtestParameters

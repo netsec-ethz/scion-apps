@@ -103,7 +103,7 @@ func runServer(port uint16) error {
 	return nil
 }
 
-func handleClients(CCConn snet.Conn, receivePacketBuffer []byte, sendPacketBuffer []byte) {
+func handleClients(CCConn *snet.Conn, receivePacketBuffer []byte, sendPacketBuffer []byte) {
 
 	for {
 		// Handle client requests

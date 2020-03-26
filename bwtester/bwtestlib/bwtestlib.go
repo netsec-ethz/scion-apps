@@ -159,7 +159,7 @@ func DecodeBwtestParameters(buf []byte) (*BwtestParameters, int, error) {
 	return &v, is - bb.Len(), err
 }
 
-func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
+func HandleDCConnSend(bwp *BwtestParameters, udpConnection *snet.Conn) {
 	sb := make([]byte, bwp.PacketSize)
 	var i int64 = 0
 	t0 := time.Now()
@@ -191,7 +191,7 @@ func HandleDCConnSend(bwp *BwtestParameters, udpConnection snet.Conn) {
 	}
 }
 
-func HandleDCConnReceive(bwp *BwtestParameters, udpConnection snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
+func HandleDCConnReceive(bwp *BwtestParameters, udpConnection *snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
 	resLock.Lock()
 	finish := res.ExpectedFinishTime
 	resLock.Unlock()
