@@ -13,7 +13,7 @@ require (
 	github.com/lucas-clemente/quic-go v0.7.1-0.20190212114006-fd7246d7ed6e
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
-	github.com/netsec-ethz/rains v0.0.0-20200325064853-1bca99474a8a
+	github.com/netsec-ethz/rains v0.0.0-20200326150705-3eb858e82188
 	github.com/scionproto/scion v0.4.1-0.20200324160848-64e5ff95eec1
 	github.com/smartystreets/goconvey v1.6.4
 	golang.org/x/crypto v0.0.0-20190909091759-094676da4a83
