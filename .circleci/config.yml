@@ -90,6 +90,12 @@ jobs:
               as1-ff00_0_110:cs1-ff00_0_110-1 \
               as1-ff00_0_110:sd1-ff00_0_110
       - run:
+          name: Prepare integration test
+          command: |
+            # Handle the two special ones
+            make setup_lint
+            sudo apt-get update && sudo apt-get install -y libpam0g-dev
+      - run:
           name: Integration tests
           command: |
             export SCION_DAEMON_ADDRESS="127.0.0.12:30255"

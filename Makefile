@@ -24,7 +24,7 @@ lint:
 build: $(BUILD_TARGETS)
 
 install: all
-	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) ~/go/bin;)
+	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) /go/bin;)
 
 integration: install $(INTEGRATION_TARGETS)
 
