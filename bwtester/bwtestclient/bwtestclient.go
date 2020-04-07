@@ -67,7 +67,7 @@ func printUsage() {
 
 	fmt.Println("")
 	fmt.Println("Test parameters:")
-	fmt.Println("\t-cs and -sc specifiy time duration (seconds), packet size (bytes), number of packets, and target bandwidth.")
+	fmt.Println("\t-cs and -sc specify time duration (seconds), packet size (bytes), number of packets, and target bandwidth.")
 	fmt.Println("\tThe question mark character ? can be used as wildcard when setting the test parameters " +
 		"and its value is computed according to the other parameters. When more than one wilcard is used, " +
 		"all but the last one are set to the default values, e.g. ?,1000,?,5Mbps will run the test for the " +
