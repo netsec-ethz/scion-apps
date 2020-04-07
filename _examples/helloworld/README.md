@@ -1,15 +1,18 @@
 # Hello World
 
-A simple application using SCION that sends one packet.
+A simple application using SCION that sends one packet from a client to a server.
 
-You must call it with a local AS address, and a remote one. For instance:
-
+Server:
 ```
-go run helloworld.go -local 17-ffaa:1:a,[127.0.0.1] -remote 17-ffaa:1:a,[127.0.0.1]:1234
+go run helloworld.go -port 1234
 ```
 
-Replace `17-ffaa:1:a` with your local AS address. You can use `17-ffaa:1:a` or
-replace it with any existing AS address, including your local one's.
+Client:
+```
+go run helloworld.go -remote 17-ffaa:1:a,[127.0.0.1]:1234
+```
+
+Replace `17-ffaa:1:a` with your local AS address printed by the server.
 
 ## Walkthrough:
 
