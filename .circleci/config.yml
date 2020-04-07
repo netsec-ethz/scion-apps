@@ -46,7 +46,7 @@ jobs:
             scion_repo=https://${scion_mod_version% *}.git
             # Extract the commit hash, which is the last part of the go modules version
             scion_commit=${scion_mod_version##*-}
-            git clone -b master --single-branch ${scion_repo} ~/scion
+            git clone ${scion_repo} ~/scion
             #git clone ${scion_repo} ~/scion
             cd ~/scion
             git checkout --quiet ${scion_commit}
