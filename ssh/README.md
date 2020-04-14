@@ -2,6 +2,15 @@
 
 SSH client and server running over SCION network.
 
+### Dependencies
+
+Building the SSH client and server applications requires `libpam0g-dev`:
+
+```shell
+sudo apt-get install -y libpam0g-dev
+```
+
+
 ### Usage
 
 SCION infrastructure has to be installed and running. Instructions can be found [here](https://netsec-ethz.github.io/scion-tutorials/)
