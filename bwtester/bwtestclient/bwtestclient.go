@@ -62,12 +62,12 @@ func prepareAESKey() []byte {
 }
 
 func printUsage() {
-	fmt.Println("bwtestclient -c ClientSCIONAddress -s ServerSCIONAddress -cs t,size,num,bw -sc t,size,num,bw -i")
-	fmt.Println("A SCION address is specified as ISD-AS,[IP Address]:Port")
-	fmt.Println("Example SCION address 1-1011,[192.33.93.166]:42002")
-	fmt.Println("ClientSCIONAddress can be omitted, the application then binds to localhost")
-	fmt.Println("-cs specifies time duration (seconds), packet size (bytes), number of packets, target bandwidth " +
-		"of client->server test")
+	fmt.Println("Usage of bwtestclient:")
+	flag.PrintDefaults()
+
+	fmt.Println("")
+	fmt.Println("Test parameters:")
+	fmt.Println("\t-cs and -sc specify time duration (seconds), packet size (bytes), number of packets, and target bandwidth.")
 	fmt.Println("\tThe question mark character ? can be used as wildcard when setting the test parameters " +
 		"and its value is computed according to the other parameters. When more than one wilcard is used, " +
 		"all but the last one are set to the default values, e.g. ?,1000,?,5Mbps will run the test for the " +
@@ -75,13 +75,7 @@ func printUsage() {
 		"packet size.")
 	fmt.Println("\tSupported bandwidth unit prefixes are: none (e.g. 1500bps for 1.5kbps), k, M, G, T.")
 	fmt.Println("\tYou can also only set the target bandwidth, e.g. -cs 1Mbps")
-	fmt.Println("-sc specifies time duration, packet size, number of packets, target bandwidth of server->client " +
-		"test")
-	fmt.Println("\tYou can also only set the target bandwidth, e.g. -sc 1500kbps")
 	fmt.Println("\tWhen only the cs or sc flag is set, the other flag is set to the same value.")
-	fmt.Println("-i specifies if the client is used in interactive mode, " +
-		"when true the user is prompted for a path choice")
-	fmt.Println("Default test parameters are: ", DefaultBwtestParameters)
 }
 
 // Input format (time duration,packet size,number of packets,target bandwidth), no spaces, question mark ? is wildcard
@@ -276,10 +270,11 @@ func main() {
 		receiveDone sync.Mutex // used to signal when the HandleDCConnReceive goroutine has completed
 	)
 
+	flag.Usage = printUsage
 	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
 	flag.StringVar(&serverBwpStr, "sc", DefaultBwtestParameters, "Server->Client test parameter")
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
-	flag.BoolVar(&interactive, "i", false, "Interactive mode")
+	flag.BoolVar(&interactive, "i", false, "Interactive path selection, prompt to choose path")
 	flag.StringVar(&pathAlgo, "pathAlgo", "", "Path selection algorithm / metric (\"shortest\", \"mtu\")")
 
 	flag.Parse()

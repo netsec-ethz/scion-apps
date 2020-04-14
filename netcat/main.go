@@ -31,9 +31,6 @@ import (
 )
 
 var (
-	quicTLSKeyPath         string
-	quicTLSCertificatePath string
-
 	extraByte bool
 	listen    bool
 
@@ -51,9 +48,11 @@ var (
 func printUsage() {
 	fmt.Println("netcat [flags] host-address:port")
 	fmt.Println("netcat [flags] -l port")
+	fmt.Println("")
 	fmt.Println("The host address is specified as ISD-AS,[IP Address]")
 	fmt.Println("Example SCION address: 17-ffaa:1:bfd,[127.0.0.1]")
 	fmt.Println("Note that due to the nature of the UDP/QUIC protocols, the server will only notice incoming clients once data has been sent. You can use the -b argument (on both sides) to force clients to send an extra byte which will then be ignored by the server")
+	fmt.Println("")
 	fmt.Println("Available flags:")
 	fmt.Println("  -h: Show help")
 	fmt.Println("  -l: Listen mode")
@@ -61,10 +60,7 @@ func printUsage() {
 	fmt.Println("  -K: After the connection has been established, accept new connections. Requires -l and -c flags. Incompatible with -k flag")
 	fmt.Println("  -c: Instead of piping the connection to stdin/stdout, run the given command using /bin/sh")
 	fmt.Println("  -u: UDP mode")
-	fmt.Println("  -local: Local SCION address (default localhost)")
 	fmt.Println("  -b: Send or expect an extra (throw-away) byte before the actual data")
-	fmt.Println("  -tlsKey: TLS key path. Requires -l flag (default: ./key.pem)")
-	fmt.Println("  -tlsCert: TLS certificate path. Requires -l flag (default: ./certificate.pem)")
 	fmt.Println("  -v: Enable verbose mode")
 	fmt.Println("  -vv: Enable very verbose mode")
 }
@@ -72,8 +68,6 @@ func printUsage() {
 func main() {
 
 	flag.Usage = printUsage
-	flag.StringVar(&quicTLSKeyPath, "tlsKey", "./key.pem", "TLS key path")
-	flag.StringVar(&quicTLSCertificatePath, "tlsCert", "./certificate.pem", "TLS certificate path")
 	flag.BoolVar(&extraByte, "b", false, "Expect extra byte")
 	flag.BoolVar(&listen, "l", false, "Listen mode")
 	flag.BoolVar(&udpMode, "u", false, "UDP mode")
