@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package main
 
@@ -134,7 +134,7 @@ func getCPUSample() (idle, total uint64) {
 // Configures font to render label at x, y on the img.
 func addImgLabel(img *image.RGBA, x, y int, label string) {
 	col := color.RGBA{0, 0, 0, 255}
-	point := fixed.Point26_6{fixed.Int26_6(x * 64), fixed.Int26_6(y * 64)}
+	point := fixed.Point26_6{X: fixed.Int26_6(x * 64), Y: fixed.Int26_6(y * 64)}
 	d := &font.Drawer{
 		Dst:  img,
 		Src:  image.NewUniform(col),

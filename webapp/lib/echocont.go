@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package lib
 
@@ -36,7 +36,7 @@ var rePktLoss = `(\d+)(% packet loss,)`
 // ExtractEchoRespData will parse cmd line output from scmp echo for adding EchoItem fields.
 func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 	// store duration in ms
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 	d.ActualDuration = int(diff.Nanoseconds() / 1e6)
 
 	// store current epoch in ms
@@ -112,8 +112,8 @@ func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 	}
 	log.Info("app response", "data", data)
 
-	d.RunTime, _ = data["run_time"]
-	d.ResponseTime, _ = data["response_time"]
+	d.RunTime = data["run_time"]
+	d.ResponseTime = data["response_time"]
 	d.PktLoss = int(data["packet_loss"])
 	d.Error = err
 	d.Path = path

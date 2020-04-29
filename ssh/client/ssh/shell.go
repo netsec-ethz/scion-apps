@@ -1,3 +1,17 @@
+// Copyright 2020 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package ssh
 
 import (
@@ -8,7 +22,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/docker/docker/pkg/term"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // Shell opens a new Shell session on the server this Client is connected to.
@@ -25,20 +39,20 @@ func (client *Client) Shell() error {
 		ssh.ECHO: 1,
 	}
 
-	fd := os.Stdin.Fd()
+	fd := int(os.Stdin.Fd())
 
-	if term.IsTerminal(fd) {
-		oldState, err := term.MakeRaw(fd)
+	if terminal.IsTerminal(fd) {
+		oldState, err := terminal.MakeRaw(fd)
 		if err != nil {
 			return err
 		}
 
-		defer term.RestoreTerminal(fd, oldState)
+		defer terminal.Restore(fd, oldState)
 
-		winsize, err := term.GetWinsize(fd)
+		w, h, err := terminal.GetSize(fd)
 		if err == nil {
-			termWidth = int(winsize.Width)
-			termHeight = int(winsize.Height)
+			termWidth = w
+			termHeight = h
 		}
 	}
 
@@ -76,15 +90,15 @@ func monWinCh(session *ssh.Session, fd uintptr) {
 func termSize(fd uintptr) []byte {
 	size := make([]byte, 16)
 
-	winsize, err := term.GetWinsize(fd)
+	width, height, err := terminal.GetSize(int(fd))
 	if err != nil {
 		binary.BigEndian.PutUint32(size, uint32(80))
 		binary.BigEndian.PutUint32(size[4:], uint32(24))
 		return size
 	}
 
-	binary.BigEndian.PutUint32(size, uint32(winsize.Width))
-	binary.BigEndian.PutUint32(size[4:], uint32(winsize.Height))
+	binary.BigEndian.PutUint32(size, uint32(width))
+	binary.BigEndian.PutUint32(size[4:], uint32(height))
 
 	return size
 }

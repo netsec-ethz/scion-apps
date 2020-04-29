@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package lib
 
@@ -70,25 +70,12 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	}
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
 
-	err = os.Setenv("SCION_ROOT", path.Clean(options.ScionRoot))
-	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
-		return
-	}
-	err = os.Setenv("SCION_BIN", path.Clean(options.ScionBin))
-	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
-		return
-	}
-	err = os.Setenv("SCION_GEN", path.Clean(options.ScionGen))
-	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
-		return
-	}
-	err = os.Setenv("SCION_LOGS", path.Clean(options.ScionLogs))
-	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
-		return
+	envvars := []string{
+		"SCION_ROOT=" + path.Clean(options.ScionRoot),
+		"SCION_BIN=" + path.Clean(options.ScionBin),
+		"SCION_GEN=" + path.Clean(options.ScionGen),
+		"SCION_LOGS=" + path.Clean(options.ScionLogs),
+		"APPS_ROOT=" + path.Clean(options.AppsRoot),
 	}
 
 	var tests DefTests
@@ -116,6 +103,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		// execute script
 		cmd := exec.Command("bash", test.Script, ia)
 		cmd.Dir = filepath.Dir(fp)
+		cmd.Env = append(os.Environ(), envvars...)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -145,7 +133,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 			pass = false
 		}
 		end := time.Now().UnixNano() / 1e6
-		outStr, errStr := string(stdout.Bytes()), string(stderr.Bytes())
+		outStr, errStr := stdout.String(), stderr.String()
 		if len(outStr) > 0 {
 			log.Info(outStr)
 		}

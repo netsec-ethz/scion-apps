@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 // https://github.com/jquery/jquery
 // https://github.com/d3/d3
@@ -127,7 +127,7 @@ function initBwGraphs() {
     // setup interval to manage smooth ticking
     lastTime = (new Date()).getTime() - (ticks * tickMs) + xLeftTrimMs;
     manageTickData();
-    manageTestData();
+    // avoid manageTestData on startup before tests
 }
 
 function showOnlyConsoleGraphs(activeApp) {

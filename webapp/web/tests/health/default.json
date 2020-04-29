@@ -31,6 +31,11 @@
    "desc": "SCION running test"
   },
   {
+   "label": "bincheck",
+   "script": "bincheck.sh",
+   "desc": "SCION apps test"
+  },
+  {
    "label": "scmpcheck",
    "script": "scmpcheck.sh",
    "desc": "Border router SCMP test"

@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package lib
 
@@ -35,7 +35,7 @@ var reINTF = `(?i:ifid=)(\d+)`
 // ExtractTracerouteRespData will parse cmd line output from scmp traceroute for adding TracerouteItem fields.
 func ExtractTracerouteRespData(resp string, d *model.TracerouteItem, start time.Time) {
 	// store duration in ms
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 	d.ActualDuration = int(diff.Nanoseconds() / 1e6)
 
 	// store current epoch in ms

@@ -43,7 +43,7 @@ systemctl cat scion-webapp
 
 
 ## Development Setup/Run
-For running `webapp` in a development environment for the SCION Infrastructure, follow the SCIONLab development install and run process at [https://github.com/netsec-ethz/netsec-scion](https://github.com/netsec-ethz/netsec-scion).
+For running `webapp` in a development environment for the SCION Infrastructure, follow the SCIONLab development install and run process at [https://github.com/netsec-ethz/scion](https://github.com/netsec-ethz/netsec-scion).
 
 Then, follow these steps to install SCIONLab Apps to run `webapp` in development.
 

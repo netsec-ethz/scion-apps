@@ -1,11 +1,57 @@
+// Copyright 2020 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package quicconn
 
 import (
+	"crypto/tls"
 	"net"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
+
+// Dial dials a new Quic session, opens a new stream in this session and
+// returns this session/stream pair as a QuicConn
+func Dial(addr string) (*QuicConn, error) {
+	session, err := appquic.Dial(addr, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return newQuicConn(session)
+}
+
+// New dials a new Quic session on an established socket, opens a new stream
+// in this session and returns this session/stream pair as a QuicConn
+func New(conn net.PacketConn, raddr net.Addr) (*QuicConn, error) {
+	session, err := quic.Dial(conn, raddr, "host:0", &tls.Config{InsecureSkipVerify: true}, nil)
+	if err != nil {
+		return nil, err
+	}
+	return newQuicConn(session)
+}
+
+func newQuicConn(session quic.Session) (*QuicConn, error) {
+	stream, err := session.OpenStreamSync()
+	if err != nil {
+		return nil, err
+	}
+	return &QuicConn{Session: session, Stream: stream}, nil
+}
+
+var _ net.Conn = (*QuicConn)(nil)
 
 // QuicConn is a struct wrapping a single QUIC stream into a net.Conn connection.
 type QuicConn struct {
