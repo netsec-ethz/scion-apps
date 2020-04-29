@@ -158,6 +158,7 @@ func TestSplitHostPort(t *testing.T) {
 	}
 	cases := []testCase{
 		{"1-ff00:0:0,[1.1.1.1]:80", "1-ff00:0:0,[1.1.1.1]", "80", false},
+		{"1-ff00:0:0,1.1.1.1:80", "1-ff00:0:0,1.1.1.1", "80", false},
 		{"1-ff00:0:0,[::]:80", "1-ff00:0:0,[::]", "80", false},
 		{"foo:80", "foo", "80", false},
 		{"www.example.com:666", "www.example.com", "666", false},
