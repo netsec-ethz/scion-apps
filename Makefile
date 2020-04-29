@@ -1,7 +1,7 @@
 .PHONY: all clean test lint install
 
 ROOT_DIR=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-SRCDIRS= sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient bat tools/pathdb_dump ssh/client ssh/server netcat webapp _examples/helloworld _examples/shttp/client _examples/shttp/server
+SRCDIRS= sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient bat tools/pathdb_dump ssh/client ssh/server netcat webapp _examples/helloworld _examples/shttp/client _examples/shttp/server _examples/boingboing
 TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
 all: lint $(TARGETS)

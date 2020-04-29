@@ -35,7 +35,7 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/quictrace"
+	//"github.com/lucas-clemente/quic-go/quictrace"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -44,7 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/lib/mpsquic"
+	"github.com/netsec-ethz/scion-apps/pkg/mpsquic"
 )
 
 const (
@@ -161,11 +161,11 @@ func LogFatal(msg string, a ...interface{}) {
 
 func initNetwork() {
 	/*
-	// Initialize default SCION networking context
-	if err := snet.Init(local.IA, *sciond, reliable.NewDispatcherService(*dispatcher)); err != nil {
-		LogFatal("Unable to initialize SCION network", "err", err)
-	}
-	log.Debug("SCION network successfully initialized")
+		// Initialize default SCION networking context
+		if err := snet.Init(local.IA, *sciond, reliable.NewDispatcherService(*dispatcher)); err != nil {
+			LogFatal("Unable to initialize SCION network", "err", err)
+		}
+		log.Debug("SCION network successfully initialized")
 	*/
 	// We let mpsquic initialize the SCION networking context with a custom SCMP handler
 	if err := mpsquic.Init(local.IA, *sciond, *dispatcher, "", ""); err != nil {
@@ -248,10 +248,10 @@ func (c *client) run() {
 	defer c.Close()
 
 	var quicConfig *quic.Config
-	if *trace {
+	/*if *trace {
 		// Only capture the QUIC connection trace when tracing is enabled
 		quicConfig = &quic.Config{QuicTracer: quictrace.NewTracer()}
-	}
+	}*/
 
 	// Connect to remote addresses. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
@@ -327,9 +327,9 @@ func (c client) send() {
 		reqMsg := requestMsg()
 
 		/*
-		// Send different payload size to correlate iterations in network capture
-		infoString := fmt.Sprintf("This is the %vth message sent on this stream", i)
-		fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString)-(100*(9-i)), len(infoString))))
+			// Send different payload size to correlate iterations in network capture
+			infoString := fmt.Sprintf("This is the %vth message sent on this stream", i)
+			fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString)-(100*(9-i)), len(infoString))))
 		*/
 
 		reqMsg = &message{

@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/quictrace"
+	//"github.com/lucas-clemente/quic-go/quictrace"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -88,7 +88,7 @@ var (
 
 	revocationQ chan keyedRevocation
 
-	tracer quictrace.Tracer
+	//tracer quictrace.Tracer
 	// Don't verify the server's cert, as we are not using the TLS PKI.
 	cliTlsCfg = &tls.Config{
 		InsecureSkipVerify: true,
@@ -338,9 +338,9 @@ func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, qu
 	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
 	mpQuic.scionFlexConnection = flexConn
 
-	if quicConfig != nil {
+	/*if quicConfig != nil {
 		tracer = quicConfig.QuicTracer
-	}
+	}*/
 
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
 	qsession, err := quic.Dial(flexConn, flexConn.raddr, "host:0", cliTlsCfg, quicConfig)
