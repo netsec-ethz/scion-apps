@@ -15,6 +15,8 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	golog "log"
 	"os"
 	"strconv"
@@ -87,7 +89,13 @@ func main() {
 	}
 
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
-	listener, err := appquic.ListenPort(uint16(port), nil, nil)
+	listener, err := appquic.ListenPort(
+		uint16(port),
+		&tls.Config{
+			Certificates: appquic.GetDummyTLSCerts(),
+			NextProtos:   []string{quicconn.ProtoSSH},
+		},
+		nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
@@ -95,12 +103,12 @@ func main() {
 	log.Debug("Starting to wait for connections")
 	for {
 		//TODO: Check when to close the connections
-		sess, err := listener.Accept()
+		sess, err := listener.Accept(context.Background())
 		if err != nil {
 			log.Debug("Failed to accept session: %v", err)
 			continue
 		}
-		stream, err := sess.AcceptStream()
+		stream, err := sess.AcceptStream(context.Background())
 		if err != nil {
 			log.Debug("Failed to accept incoming connection (%v)", err)
 			continue

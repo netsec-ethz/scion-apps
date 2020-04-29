@@ -97,7 +97,7 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	defaultSetting.Transport = shttp.NewRoundTripper(nil, nil)
+	defaultSetting.Transport = shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
 }
 
 func parsePrintOption(s string) {

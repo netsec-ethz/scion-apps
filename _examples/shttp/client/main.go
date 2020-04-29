@@ -15,6 +15,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -38,7 +39,7 @@ func main() {
 
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
-		Transport: shttp.NewRoundTripper(nil, nil),
+		Transport: shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil),
 	}
 	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
 	defer c.Transport.(shttp.RoundTripper).Close()
