@@ -29,7 +29,7 @@ import (
 )
 
 var addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),\[([^\]]+)\]$`)
-var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(\[[^\]]+\]|[^\]]+))):(\d+)$`)
+var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(\[[^\]]+\]|[^\]:]+))):(\d+)$`)
 
 const (
 	iaIndex = iota + 1

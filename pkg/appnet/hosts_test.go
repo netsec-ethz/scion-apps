@@ -162,6 +162,7 @@ func TestSplitHostPort(t *testing.T) {
 		{"1-ff00:0:0,[::]:80", "1-ff00:0:0,[::]", "80", false},
 		{"foo:80", "foo", "80", false},
 		{"www.example.com:666", "www.example.com", "666", false},
+		{"1-ff00:0:0,0:0:0:80", "", "", true},
 		{":foo:666", "", "", true},
 		{"1-ff00:0:0,[1.1.1.1]", "", "", true},
 		{"1-ff00:0:0,[::]", "", "", true},
