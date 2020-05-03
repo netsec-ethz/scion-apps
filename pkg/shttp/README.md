@@ -57,7 +57,7 @@ http.Handle("/download", handler)
 
 Finally, start the server:
 ```Go
-err := shttp.ListenAndServe(local, mux)
+err := shttp.ListenAndServe(local, mux, nil)
 if err != nil {
 	log.Fatal(err)
 }
