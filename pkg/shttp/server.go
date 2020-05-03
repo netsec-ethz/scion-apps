@@ -15,6 +15,7 @@
 package shttp
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http"
 
@@ -30,7 +31,7 @@ type Server struct {
 
 // ListenAndServe listens for HTTPS connections on the SCION address addr and calls Serve
 // with handler to handle requests
-func ListenAndServe(addr string, handler http.Handler) error {
+func ListenAndServe(addr string, handler http.Handler, tlsConfig *tls.Config) error {
 
 	scionServer := &Server{
 		Server: &h2quic.Server{
@@ -40,6 +41,7 @@ func ListenAndServe(addr string, handler http.Handler) error {
 			},
 		},
 	}
+	scionServer.TLSConfig = tlsConfig
 	return scionServer.ListenAndServe()
 }
 
