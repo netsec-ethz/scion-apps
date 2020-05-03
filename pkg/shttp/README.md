@@ -1,6 +1,6 @@
 # HTTP over SCION/QUIC
 
-This package contains a client/server implementation of HTTP/2 over SCION/QUIC as well as a proxy implementation to proxy HTTP/2 requests over SCION to HTTP/1.1 and vice verse.
+This package contains a client/server implementation of HTTP/2 over SCION/QUIC as well as a proxy implementation to proxy HTTP/2 requests over SCION to HTTP/1.1 and vice versa.
 
 ### The Client is a standard net/http client with a custom RoundTripper implementation.
 
@@ -92,3 +92,9 @@ if err != nil {
 scionProxy.Start()
 
 ```
+
+To proxy from SCION to HTTP/1.1, use
+`./scionhttpproxy --local=":42424" --remote="http://192.168.0.1:8090" --direction=fromScion --cert cert.pem --key key.pem`
+
+and to proxy to SCION from HTTP/1.1, use
+`./scionhttpproxy --remote="19-ffcc:1:aaa,[127.0.0.1]:42425" --local="192.168.0.1:8091" --direction=toScion --cert cert.pem --key key.pem`
