@@ -3,7 +3,6 @@ package shttp
 import (
 	"crypto/tls"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +10,7 @@ import (
 	"strings"
 )
 
+// Args to create proxy instance
 type ProxyArgs struct {
 	Direction string
 	Local     string
@@ -35,6 +35,7 @@ type SCIONHTTPProxy struct {
 	srvTLSCfg *tls.Config
 }
 
+// Start listen according to the passed direction
 func (s SCIONHTTPProxy) Start() {
 	if s.direction == "toScion" {
 		s.client = &http.Client{
@@ -42,16 +43,18 @@ func (s SCIONHTTPProxy) Start() {
 		}
 
 		http.HandleFunc("/__api/setconfig", s.setProxyConfig)
-		http.HandleFunc("/", s.ProxyToScion)
+		http.HandleFunc("/", s.proxyToScion)
 		log.Fatal(http.ListenAndServe(s.local, nil))
 	} else {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/__api/setconfig", s.setProxyConfig)
-		mux.HandleFunc("/", s.ProxyFromScion)
+		mux.HandleFunc("/", s.proxyFromScion)
 		log.Fatal(ListenAndServe(s.local, mux, s.srvTLSCfg))
 	}
 }
 
+// Create new SCION HTTP Proxy instance
+// TLS cert/key can be passed optionally
 func NewSCIONHTTPProxy(args ProxyArgs) (*SCIONHTTPProxy, error) {
 
 	config := &ProxyConfig{
@@ -80,6 +83,8 @@ func NewSCIONHTTPProxy(args ProxyArgs) (*SCIONHTTPProxy, error) {
 	return proxy, nil
 }
 
+// API Endpoint, updates the proxy config to set new values
+// Currently, only changing the remote is possible
 func (s SCIONHTTPProxy) setProxyConfig(wr http.ResponseWriter, r *http.Request) {
 	var newConfig ProxyConfig
 
@@ -95,7 +100,9 @@ func (s SCIONHTTPProxy) setProxyConfig(wr http.ResponseWriter, r *http.Request) 
 	s.config = &newConfig
 }
 
-func (s SCIONHTTPProxy) ProxyToScion(wr http.ResponseWriter, r *http.Request) {
+// Proxies the incoming HTTP/1.1 request to the configured remote
+// creating a new SCION HTTP/3 request
+func (s SCIONHTTPProxy) proxyToScion(wr http.ResponseWriter, r *http.Request) {
 
 	// Enforce HTTPS
 	baseStr := "%s%s"
@@ -133,7 +140,9 @@ func (s SCIONHTTPProxy) ProxyToScion(wr http.ResponseWriter, r *http.Request) {
 	io.Copy(wr, resp.Body)
 }
 
-func (s SCIONHTTPProxy) ProxyFromScion(wr http.ResponseWriter, r *http.Request) {
+// Proxies the incoming SCION HTTP/3 request to the configured remote
+// creating a new HTTP/1.1 request
+func (s SCIONHTTPProxy) proxyFromScion(wr http.ResponseWriter, r *http.Request) {
 	var resp *http.Response
 	var err error
 	var req *http.Request
@@ -156,13 +165,14 @@ func (s SCIONHTTPProxy) ProxyFromScion(wr http.ResponseWriter, r *http.Request) 
 	}
 
 	resp, err = client.Do(req)
-	defer resp.Body.Close()
 
 	if err != nil {
 		log.Println("request failed: ", err)
 		http.Error(wr, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	defer resp.Body.Close()
 	for k, v := range resp.Header {
 		wr.Header().Set(k, v[0])
 	}
