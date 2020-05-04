@@ -29,10 +29,8 @@ import (
 )
 
 var (
-	// Don't verify the server's cert, as we are not using the TLS PKI.
-	cliTLSCfg     = &tls.Config{InsecureSkipVerify: true}
-	srvTLSCfg     *tls.Config
-	srvTLSCfgInit sync.Once
+	srvTLSDummyCerts     []tls.Certificate
+	srvTLSDummyCertsInit sync.Once
 )
 
 // closerSession is a wrapper around quic.Session that always closes the
@@ -44,9 +42,20 @@ type closerSession struct {
 	conn *snet.Conn
 }
 
-func (s *closerSession) Close() error {
+func (s *closerSession) CloseWithError(code quic.ErrorCode, desc string) error {
 	s.conn.Close()
-	return s.Session.Close()
+	return s.Session.CloseWithError(code, desc)
+}
+
+// closerEarlySession is a wrapper around quic.EarlySession, analogous to closerSession
+type closerEarlySession struct {
+	quic.EarlySession
+	conn *snet.Conn
+}
+
+func (s *closerEarlySession) CloseWithError(code quic.ErrorCode, desc string) error {
+	s.conn.Close()
+	return s.EarlySession.CloseWithError(code, desc)
 }
 
 // Dial establishes a new QUIC connection to a server at the remote address.
@@ -57,32 +66,63 @@ func Dial(remote string, tlsConf *tls.Config, quicConf *quic.Config) (quic.Sessi
 	if err != nil {
 		return nil, err
 	}
-	return DialAddr(raddr, tlsConf, quicConf)
+	return DialAddr(raddr, remote, tlsConf, quicConf)
 }
 
 // DialAddr establishes a new QUIC connection to a server at the remote address.
 //
 // If no path is specified in raddr, DialAddr will choose the first available path,
 // analogous to appnet.DialAddr.
-func DialAddr(raddr *snet.UDPAddr, tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, error) {
-	if raddr.Path == nil {
-		err := appnet.SetDefaultPath(raddr)
-		if err != nil {
-			return nil, err
-		}
+// The host parameter is used for SNI.
+// The tls.Config must define an application protocol (using NextProtos).
+func DialAddr(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, error) {
+	err := ensurePathDefined(raddr)
+	if err != nil {
+		return nil, err
 	}
 	sconn, err := appnet.Listen(nil)
 	if err != nil {
 		return nil, err
 	}
-	if tlsConf == nil {
-		tlsConf = cliTLSCfg
-	}
-	session, err := quic.Dial(sconn, raddr, "host:0", tlsConf, quicConf)
+	session, err := quic.Dial(sconn, raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
 	return &closerSession{session, sconn}, nil
+}
+
+// DialEarly establishes a new 0-RTT QUIC connection to a server. Analogous to Dial.
+func DialEarly(remote string, tlsConf *tls.Config, quicConf *quic.Config) (quic.EarlySession, error) {
+	raddr, err := appnet.ResolveUDPAddr(remote)
+	if err != nil {
+		return nil, err
+	}
+	return DialAddrEarly(raddr, remote, tlsConf, quicConf)
+}
+
+// DialAddrEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialAddr.
+func DialAddrEarly(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicConf *quic.Config) (quic.EarlySession, error) {
+	err := ensurePathDefined(raddr)
+	if err != nil {
+		return nil, err
+	}
+	sconn, err := appnet.Listen(nil)
+	if err != nil {
+		return nil, err
+	}
+	session, err := quic.DialEarly(sconn, raddr, host, tlsConf, quicConf)
+	if err != nil {
+		return nil, err
+	}
+	// XXX(matzf): quic.DialEarly seems to have the wrong return type declared (quic.DialAddrEarly returns EarlySession)
+	return &closerEarlySession{session.(quic.EarlySession), sconn}, nil
+}
+
+func ensurePathDefined(raddr *snet.UDPAddr) error {
+	if raddr.Path == nil {
+		return appnet.SetDefaultPath(raddr)
+	}
+	return nil
 }
 
 // ListenPort listens for QUIC connections on a SCION/UDP port.
@@ -93,25 +133,22 @@ func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic
 	if err != nil {
 		return nil, err
 	}
-	if tlsConf == nil {
-		tlsConf, err = GetDummyTLSConfig()
-		if err != nil {
-			return nil, err
-		}
-	}
 	return quic.Listen(sconn, tlsConf, quicConfig)
 }
 
-// GetDummyTLSConfig returns the (singleton) default server TLS config with a fresh
+// GetDummyTLSCert returns the singleton TLS certificate with a fresh
 // private key and a dummy certificate.
-func GetDummyTLSConfig() (*tls.Config, error) {
+func GetDummyTLSCerts() []tls.Certificate {
 	var initErr error
-	srvTLSCfgInit.Do(func() {
+	srvTLSDummyCertsInit.Do(func() {
 		cert, err := generateKeyAndCert()
 		if err != nil {
 			initErr = fmt.Errorf("appquic: Unable to generate dummy TLS cert/key: %v", err)
 		}
-		srvTLSCfg = &tls.Config{Certificates: []tls.Certificate{*cert}}
+		srvTLSDummyCerts = []tls.Certificate{*cert}
 	})
-	return srvTLSCfg, initErr
+	if initErr != nil {
+		panic(initErr)
+	}
+	return srvTLSDummyCerts
 }

@@ -28,7 +28,7 @@ import (
 	"strconv"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/h2quic"
+	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -43,7 +43,7 @@ type RoundTripper interface {
 // of an http.Client.
 func NewRoundTripper(tlsClientCfg *tls.Config, quicCfg *quic.Config) RoundTripper {
 	return &roundTripper{
-		&h2quic.RoundTripper{
+		&http3.RoundTripper{
 			Dial:            dial,
 			QuicConfig:      quicCfg,
 			TLSClientConfig: tlsClientCfg,
@@ -54,16 +54,16 @@ func NewRoundTripper(tlsClientCfg *tls.Config, quicCfg *quic.Config) RoundTrippe
 var _ RoundTripper = (*roundTripper)(nil)
 
 // roundTripper implements the RoundTripper interface. It wraps a
-// h2quic.RoundTripper, making it compatible with SCION
+// http3.RoundTripper, making it compatible with SCION
 type roundTripper struct {
-	rt *h2quic.RoundTripper
+	rt *http3.RoundTripper
 }
 
 // RoundTrip does a single round trip; retreiving a response for a given request
 func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// If req.URL.Host is a SCION address, we need to mangle it so it passes through
-	// h2quic without tripping up.
+	// http3 without tripping up.
 	// Note: when using the http.Client, the URL must already arrive mangled
 	// here, otherwise it would not have parsed.
 	cpy := *req
@@ -85,8 +85,8 @@ func (t *roundTripper) Close() (err error) {
 }
 
 // dial is the Dial function used in RoundTripper
-func dial(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
-	return appquic.Dial(unmangleSCIONAddr(address), tlsCfg, cfg)
+func dial(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
+	return appquic.DialEarly(unmangleSCIONAddr(address), tlsCfg, cfg)
 }
 
 var scionAddrURLRegexp = regexp.MustCompile(
@@ -136,7 +136,7 @@ func mangleSCIONAddr(address string) string {
 // This parses the address, so that it can safely join host and port, with the
 // brackets in the right place. Yes, this means this will be parsed twice.
 //
-// Assumes that address always has a port (this is enforced by the h2quic
+// Assumes that address always has a port (this is enforced by the http3
 // roundtripper code)
 func unmangleSCIONAddr(address string) string {
 	host, port, err := net.SplitHostPort(address)

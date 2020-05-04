@@ -95,7 +95,7 @@ func TestRoundTripper(t *testing.T) {
 	// checks wether the address can be successfully unmangled and resolved.
 	// expected will be set in the test loop, below
 	var expected string
-	testDial := func(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.Session, error) {
+	testDial := func(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
 		unmangled := unmangleSCIONAddr(address)
 		resolvedAddr, err := appnet.ResolveUDPAddr(unmangled)
 		if err != nil {
