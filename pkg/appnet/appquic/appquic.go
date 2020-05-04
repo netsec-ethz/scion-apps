@@ -47,7 +47,7 @@ func (s *closerSession) CloseWithError(code quic.ErrorCode, desc string) error {
 	return s.Session.CloseWithError(code, desc)
 }
 
-// closerEarlySession is a wrapper around quic.EarlySession, analogoues to closerSession
+// closerEarlySession is a wrapper around quic.EarlySession, analogous to closerSession
 type closerEarlySession struct {
 	quic.EarlySession
 	conn *snet.Conn
