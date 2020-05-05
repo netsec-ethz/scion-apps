@@ -18,7 +18,6 @@ package main
 
 import (
 	"testing"
-	"time"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration"
 )
@@ -32,17 +31,26 @@ func TestHelloworldSample(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
 	}
+	// Common arguments
 	cmnArgs := []string{}
+	// Client
 	clientArgs := []string{
 		"-remote", integration.DstAddrPattern + ":" + "12345"}
 	clientArgs = append(clientArgs, cmnArgs...)
+	// Server
 	serverArgs := []string{"-port", "12345"}
 	serverArgs = append(serverArgs, cmnArgs...)
 
 	in := integration.NewAppsIntegration(name, cmd, clientArgs, serverArgs, "")
-	IAPairs := integration.IAPairs(integration.DispAddr)
-	clientTimeout := 10*time.Second
-	if err := integration.RunTests(in, IAPairs, clientTimeout); err != nil {
+	// Host address pattern
+	hostAddr := integration.HostAddr
+	// Cartesian product of src and dst IAs, is a random permutation
+	// can be restricted to a subset to reduce the number of tests to run without significant
+	// loss of coverage
+	IAPairs := integration.IAPairs(hostAddr)[:5]
+	// Run the tests to completion or until a test fails,
+	// increase the client timeout if clients need more time to start
+	if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
 		t.Fatalf("Error during tests err: %v", err)
 	}
 }

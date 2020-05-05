@@ -17,9 +17,12 @@ package integration
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -28,7 +31,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	sintegration "github.com/scionproto/scion/go/lib/integration"
 )
 
@@ -62,6 +67,9 @@ const (
 	portString = "Port="
 	// WrapperCmd is the command used to run non-test binaries
 	WrapperCmd = "./integration/bin_wrapper.sh"
+
+	// Default client startup timeout
+	DefaultClientTimeout = 10 * time.Second
 )
 
 var (
@@ -85,7 +93,7 @@ type scionAppsIntegration struct {
 }
 
 // NewAppsIntegration returns an implementation of the Integration interface.
-// Start* will run the binary programm with name and use the given arguments for the client/server.
+// Start* will run the binary program with name and use the given arguments for the client/server.
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
@@ -125,6 +133,7 @@ func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 
 	r := &appsWaiter{
 		exec.CommandContext(ctx, sai.cmd, args...),
+		ctx,
 	}
 	log.Info(fmt.Sprintf("%v %v\n", sai.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
@@ -162,6 +171,14 @@ func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 				close(ready)
 				init = false
 			}
+			if strings.Contains(line, "hello") {
+				// Test
+				if v := ctx.Value(outOKContextKey("stdout")); v != nil {
+					fmt.Println("found value:", v)
+					r.Context = context.WithValue(ctx, outOKContextKey("stdout"),true)
+					fmt.Println("YYYYYYYYYYYYYY Updated outOKContextKey YYYYYYYY")
+				}
+			}
 			log.Info("Server stdout", "log line", fmt.Sprintf("%s", line))
 		}
 	}()
@@ -175,6 +192,29 @@ func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 	case <-time.After(sintegration.StartServerTimeout):
 		return nil, common.NewBasicError("Start server timed out", nil, "dst", dst.IA)
 	}
+}
+
+type outOKContextKey string
+
+// StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
+// We are using a custom context to inspect the result of the output check.
+func StartServer(in sintegration.Integration, dst *snet.UDPAddr) (io.Closer, error) {
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	stdKey := outOKContextKey("stdout")
+	serverCtx = context.WithValue(serverCtx, stdKey, false)
+	s, err := in.StartServer(serverCtx, dst)
+	if err != nil {
+		serverCancel()
+		return nil, err
+	}
+	switch a := s.(type) {
+	case *appsWaiter:
+		return &serverStop{serverCancel, *a}, nil
+	default:
+		return  nil, errors.New("XXXXXX")
+	}
+
+	//return &serverStop{serverCancel, s}, nil
 }
 
 func (sai *scionAppsIntegration) StartClient(ctx context.Context,
@@ -194,11 +234,13 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 
 	r := &appsWaiter{
 		exec.CommandContext(ctx, sai.cmd, args...),
+		ctx,
 	}
 	log.Info(fmt.Sprintf("%v %v\n", sai.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	r.Env = append(r.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciond))
+	log.Info("Client info", "sciond", sciond)
 	/*ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
@@ -225,6 +267,21 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 	return r, r.Start()
 }
 
+// RunClient runs a client on the given IAPair.
+// If the client does not finish until timeout it is killed.
+func RunClient(in sintegration.Integration, pair sintegration.IAPair, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
+	if err != nil {
+		return err
+	}
+	if err = c.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // RunTests runs the client and server for each IAPair.
 // In case of an error the function is terminated immediately.
 func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTimeout time.Duration) error {
@@ -233,26 +290,61 @@ func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTi
 	return sintegration.ExecuteTimed(in.Name(), func() error {
 		// First run all servers
 		dsts := sintegration.ExtractUniqueDsts(pairs)
+		var serverCloser []io.Closer
+		defer func(*[]io.Closer) {
+			for _, c := range serverCloser {
+			c.Close()}
+		}(&serverCloser)
 		for _, dst := range dsts {
-			c, err := sintegration.StartServer(in, dst)
+			c, err := StartServer(in, dst)
 			if err != nil {
 				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
 				return err
-			} else {
-				defer c.Close()
 			}
+			serverCloser = append(serverCloser, c)
 		}
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
 			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
 			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
-			if err := sintegration.RunClient(in, conn, clientTimeout); err != nil {
+			if err := RunClient(in, conn, clientTimeout); err != nil {
 				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
 				return err
 			}
 		}
 		return nil
 	})
+}
+
+func findSciond(ctx context.Context, sciondAddress string) (sciond.Connector, error) {
+	sciondConn, err := sciond.NewService(sciondAddress).Connect(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", sciondAddress, err)
+	}
+	return sciondConn, nil
+}
+
+// findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
+func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	if err != nil {
+		return nil, err
+	}
+	return addr.IP, nil
+}
+
+func DefaultLocalIPAddress(sciondAddress string) (net.IP, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	sciondConn, err := findSciond(ctx, sciondAddress)
+	if err != nil {
+		return nil, err
+	}
+	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
+	if err != nil {
+		return nil, err
+	}
+	return addrutil.ResolveLocal(hostInLocalAS)
 }
 
 func replacePattern(pattern string, replacement string, args []string) []string {
@@ -274,8 +366,25 @@ var _ sintegration.Waiter = (*appsWaiter)(nil)
 
 type appsWaiter struct {
 	*exec.Cmd
+	context.Context
 }
 
+type serverStop struct {
+	cancel context.CancelFunc
+	wait   appsWaiter
+}
+
+func (s *serverStop) Close() error {
+	s.cancel()
+	err := s.wait.Wait()
+	// Test
+	t := s.wait
+	if v := t.Context.Value(outOKContextKey("stdout")); v != nil {
+		fmt.Println("found value:", v)
+		fmt.Println("XXXXXXXXXXXXXX TEST XXXXXXXXXXXXX", v)
+	}
+	return err
+}
 
 // Init initializes the integration test, it adds and validates the command line flags,
 // and initializes logging.
@@ -283,8 +392,17 @@ func Init(name string) error {
 	return sintegration.Init(name)
 }
 
+func getSCIONDAddress(ia addr.IA) (string, error) {
+	networksFile := sintegration.SCIONDAddressesFile
+	return sintegration.GetSCIONDAddress(networksFile, ia)
+}
+
 // IAPairs returns all IAPairs that should be tested.
 func IAPairs(hostAddr sintegration.HostAddr) []sintegration.IAPair {
+	if hostAddr == nil {
+		log.Error("Failed to get IAPairs", "err", "hostAddr is nil")
+		return []sintegration.IAPair{}
+	}
 	return sintegration.IAPairs(hostAddr)
 }
 
@@ -294,4 +412,15 @@ func IAPairs(hostAddr sintegration.HostAddr) []sintegration.IAPair {
 // The host IP is used as client or server address in the tests because the testing container is
 // connecting to the dispatcher of the services.
 var DispAddr sintegration.HostAddr = sintegration.DispAddr
+
+// HostAddr gets _a_ host address, the same way appnet does, for a given IA
+var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
+	sciond, err := getSCIONDAddress(ia)
+	hostIP, err := DefaultLocalIPAddress(sciond)
+	if err != nil {
+		log.Error("Failed to get valid host IP", "err", err)
+		return nil
+	}
+	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: hostIP, Port: 0}}
+}
 
