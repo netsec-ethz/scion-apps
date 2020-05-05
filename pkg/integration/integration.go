@@ -75,11 +75,13 @@ var (
 var _ sintegration.Integration = (*scionAppsIntegration)(nil)
 
 type scionAppsIntegration struct {
-	name       string
-	cmd        string
-	clientArgs []string
-	serverArgs []string
-	logDir     string
+	name        string
+	cmd         string
+	clientArgs  []string
+	serverArgs  []string
+	logDir      string
+	outMatchFun func(stdout string) bool
+	errMatchFun func(stdstderrr string) bool
 }
 
 // NewAppsIntegration returns an implementation of the Integration interface.
@@ -128,7 +130,6 @@ func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	r.Env = append(r.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciond))
-	log.Info("Server info", "sciond", sciond)
 	/*ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
@@ -198,7 +199,6 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	r.Env = append(r.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciond))
-	log.Info("Client info", "sciond", sciond)
 	/*ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
@@ -218,7 +218,7 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 				log.Error("Error during reading of stdout", "err", scanner.Err())
 			}
 			line := scanner.Text()
-			log.Info("Server stdout", "msg", line)
+			log.Info("Client stdout", "msg", line)
 		}
 	}()
 
