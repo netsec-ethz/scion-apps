@@ -52,7 +52,8 @@ const (
 	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
 	// The message should always be `Listening ia=<IA>`
 	// where <IA> is the IA the server is listening on.
-	ReadySignal = "Listening ia="
+	//ReadySignal = "Listening ia="
+	ReadySignal = "Registered with dispatcher\" addr="
 	// GoIntegrationEnv is an environment variable that is set for the binary under test.
 	// It can be used to guard certain statements, like printing the ReadySignal,
 	// in a program under test.
@@ -81,17 +82,19 @@ type scionAppsIntegration struct {
 	logDir     string
 }
 
-// NewBinaryIntegration returns an implementation of the Integration interface.
+// NewAppsIntegration returns an implementation of the Integration interface.
 // Start* will run the binary programm with name and use the given arguments for the client/server.
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
-func NewAppsIntegration(name string, cmd string, clientArgs, serverArgs []string) sintegration.Integration {
-	logDir := fmt.Sprintf("logs/%s", name)
-	err := os.Mkdir(logDir, os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
-		return nil
+func NewAppsIntegration(name string, cmd string, clientArgs, serverArgs []string, logDir string) sintegration.Integration {
+	if logDir != "" {
+		logDir = fmt.Sprintf("%s/%s", logDir, name)
+		err := os.Mkdir(logDir, os.ModePerm)
+		if err != nil && !os.IsExist(err) {
+			log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
+			return nil
+		}
 	}
 	sai := &scionAppsIntegration{
 		name:       name,
@@ -154,11 +157,11 @@ func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 				serverPorts[dst.IA] = strings.TrimPrefix(line, portString)
 				serverPortsMtx.Unlock()
 			}
-			if init && (signal == line || line == "") {
+			if init && strings.Contains(line, signal) {
 				close(ready)
 				init = false
 			}
-			log.Info("Server stdout", "msg", line)
+			log.Info("Server stdout", "log line", fmt.Sprintf("%s", line))
 		}
 	}()
 
@@ -204,9 +207,8 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	if v := ctx.Value(toFile); v != nil {
-		fmt.Println("Log directory:", v)
-		return
+	if sai.logDir != "" {
+		fmt.Println("Log directory:", sai.logDir)
 	}
 
 	go func() {
@@ -221,6 +223,36 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 	}()
 
 	return r, r.Start()
+}
+
+// RunTests runs the client and server for each IAPair.
+// In case of an error the function is terminated immediately.
+func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTimeout time.Duration) error {
+	defer log.HandlePanic()
+	defer log.Flush()
+	return sintegration.ExecuteTimed(in.Name(), func() error {
+		// First run all servers
+		dsts := sintegration.ExtractUniqueDsts(pairs)
+		for _, dst := range dsts {
+			c, err := sintegration.StartServer(in, dst)
+			if err != nil {
+				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
+				return err
+			} else {
+				defer c.Close()
+			}
+		}
+		// Now start the clients for srcDest pair
+		for i, conn := range pairs {
+			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
+			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
+			if err := sintegration.RunClient(in, conn, clientTimeout); err != nil {
+				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func replacePattern(pattern string, replacement string, args []string) []string {
@@ -243,3 +275,23 @@ var _ sintegration.Waiter = (*appsWaiter)(nil)
 type appsWaiter struct {
 	*exec.Cmd
 }
+
+
+// Init initializes the integration test, it adds and validates the command line flags,
+// and initializes logging.
+func Init(name string) error {
+	return sintegration.Init(name)
+}
+
+// IAPairs returns all IAPairs that should be tested.
+func IAPairs(hostAddr sintegration.HostAddr) []sintegration.IAPair {
+	return sintegration.IAPairs(hostAddr)
+}
+
+// DispAddr reads the CS host Addr from the topology for the specified IA. In general this
+// could be the IP of any service (PS/BS/CS) in that IA because they share the same dispatcher in
+// the dockerized topology.
+// The host IP is used as client or server address in the tests because the testing container is
+// connecting to the dispatcher of the services.
+var DispAddr sintegration.HostAddr = sintegration.DispAddr
+
