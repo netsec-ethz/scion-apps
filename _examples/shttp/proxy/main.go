@@ -2,32 +2,47 @@ package main
 
 import (
 	"flag"
-	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func main() {
 
 	local := flag.String("local", "", "The local HTTP or SCION address on which the server will be listening")
-	remote := flag.String("remote", "", "The SCION address on which the server will be requested")
-	direction := flag.String("direction", "", "From normal to scion or from scion to normal")
-	tlsCert := flag.String("cert", "tls.pem", "Path to TLS pemfile")
-	tlsKey := flag.String("key", "tls.key", "Path to TLS keyfile")
+	remote := flag.String("remote", "", "The SCION or HTTP address on which the server will be requested")
 
 	flag.Parse()
 
-	scionProxy, err := shttp.NewSCIONHTTPProxy(shttp.ProxyArgs{
-		Direction: *direction,
-		Remote:    *remote,
-		Local:     *local,
-		TlsCert:   tlsCert,
-		TlsKey:    tlsKey,
-	})
+	mux := http.NewServeMux()
 
-	if err != nil {
-		log.Fatal("Failed to setup SCION HTTP Proxy")
+	// parseUDPAddr validates if the address is a SCION address
+	// which we can use to proxy to SCION
+	if _, err := snet.ParseUDPAddr(*remote); err == nil {
+		mux.Handle("/", shttp.NewSingleSCIONHostReverseProxy(*remote, nil))
+		log.Printf("Proxy to SCION remote %s\n", *remote)
+	} else {
+		u, err := url.Parse(*remote)
+		if err != nil {
+			log.Fatal(fmt.Sprintf("Failed parse remote %s, %s", *remote, err))
+		}
+		log.Printf("Proxy to HTTP remote %s\n", *remote)
+		mux.Handle("/", httputil.NewSingleHostReverseProxy(u))
 	}
 
-	scionProxy.Start()
+	if lAddr, err := snet.ParseUDPAddr(*local); err == nil {
+		log.Printf("Listen on SCION %s\n", *local)
+		// ListenAndServe does not support listening on a complete SCION Address,
+		// Consequently, we only use the port (as seen in the server example)
+		log.Fatalf("%s", shttp.ListenAndServe(fmt.Sprintf(":%d", lAddr.Host.Port), mux, nil))
+	} else {
+		log.Printf("Listen on HTTP %s\n", *local)
+		log.Fatalf("%s", http.ListenAndServe(*local, mux))
+	}
 
 }
