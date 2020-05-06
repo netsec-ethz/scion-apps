@@ -80,16 +80,16 @@ var (
 	serverPorts    = make(map[addr.IA]string)
 )
 
-var _ sintegration.Integration = (*scionAppsIntegration)(nil)
+var _ sintegration.Integration = (*ScionAppsIntegration)(nil)
 
-type scionAppsIntegration struct {
+type ScionAppsIntegration struct {
 	name        string
 	cmd         string
 	clientArgs  []string
 	serverArgs  []string
 	logDir      string
-	outMatchFun func(stdout string) bool
-	errMatchFun func(stdstderrr string) bool
+	outMatchFun func(previous bool, stdout string) bool
+	errMatchFun func(previous bool, stdstderrr string) bool
 }
 
 // NewAppsIntegration returns an implementation of the Integration interface.
@@ -106,7 +106,7 @@ func NewAppsIntegration(name string, cmd string, clientArgs, serverArgs []string
 			return nil
 		}
 	}
-	sai := &scionAppsIntegration{
+	sai := &ScionAppsIntegration{
 		name:       name,
 		cmd:        cmd,
 		clientArgs: clientArgs,
@@ -116,29 +116,38 @@ func NewAppsIntegration(name string, cmd string, clientArgs, serverArgs []string
 	return sai
 }
 
-func (sai *scionAppsIntegration) Name() string {
+func (sai *ScionAppsIntegration) SetStdoutMatchFunction(outMatchFun func(bool, string) bool) {
+	sai.outMatchFun = outMatchFun
+}
+
+func (sai *ScionAppsIntegration) SetStderrMatchFunction(errMatchFun func(bool, string) bool) {
+	sai.errMatchFun = errMatchFun
+}
+
+func (sai *ScionAppsIntegration) Name() string {
 	return sai.name
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (sintegration.Waiter, error) {
+func (sai *ScionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (sintegration.Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.IA.String(), sai.serverArgs)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 
-	sciond, err := sintegration.GetSCIONDAddress(sintegration.SCIONDAddressesFile, dst.IA)
+	sciondAddr, err := sintegration.GetSCIONDAddress(sintegration.SCIONDAddressesFile, dst.IA)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to determine SCIOND address", err)
 	}
-	args = replacePattern(SCIOND, sciond, args)
+	args = replacePattern(SCIOND, sciondAddr, args)
 
 	r := &appsWaiter{
 		exec.CommandContext(ctx, sai.cmd, args...),
-		ctx,
+		make(chan bool, 1),
+		make(chan bool, 1),
 	}
-	log.Info(fmt.Sprintf("%v %v\n", sai.cmd, strings.Join(args, " ")))
+	log.Debug(fmt.Sprintf("Running server command: %v %v\n", sai.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
-	r.Env = append(r.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciond))
+	r.Env = append(r.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciondAddr))
 	/*ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
@@ -154,6 +163,7 @@ func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 		defer log.HandlePanic()
 		defer sp.Close()
 		signal := fmt.Sprintf("%s%s", ReadySignal, dst.IA)
+		var stdoutMatch, stderrMatch bool
 		init := true
 		scanner := bufio.NewScanner(sp)
 		for scanner.Scan() {
@@ -171,15 +181,23 @@ func (sai *scionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 				close(ready)
 				init = false
 			}
-			if strings.Contains(line, "hello") {
-				// Test
-				if v := ctx.Value(outOKContextKey("stdout")); v != nil {
-					fmt.Println("found value:", v)
-					r.Context = context.WithValue(ctx, outOKContextKey("stdout"),true)
-					fmt.Println("YYYYYYYYYYYYYY Updated outOKContextKey YYYYYYYY")
-				}
+			if sai.outMatchFun != nil {
+				stdoutMatch = sai.outMatchFun(stdoutMatch, line)
 			}
-			log.Info("Server stdout", "log line", fmt.Sprintf("%s", line))
+			if sai.errMatchFun != nil {
+				stderrMatch = sai.errMatchFun(stderrMatch, line)
+			}
+			log.Debug("Server stdout", "log line", fmt.Sprintf("%s", line))
+		}
+		if sai.outMatchFun != nil {
+			r.stdoutMatch <- stdoutMatch
+		} else {
+			r.stdoutMatch <- true
+		}
+		if sai.errMatchFun != nil {
+			r.stderrMatch <- stderrMatch
+		} else {
+			r.stderrMatch <- true
 		}
 	}()
 
@@ -211,13 +229,13 @@ func StartServer(in sintegration.Integration, dst *snet.UDPAddr) (io.Closer, err
 	case *appsWaiter:
 		return &serverStop{serverCancel, *a}, nil
 	default:
-		return  nil, errors.New("XXXXXX")
+		return  nil, errors.New("ERROR ERROR") // TODO: FIXME
 	}
 
 	//return &serverStop{serverCancel, s}, nil
 }
 
-func (sai *scionAppsIntegration) StartClient(ctx context.Context,
+func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 	src, dst *snet.UDPAddr) (sintegration.Waiter, error) {
 
 	args := replacePattern(SrcIAReplace, src.IA.String(), sai.clientArgs)
@@ -234,13 +252,13 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 
 	r := &appsWaiter{
 		exec.CommandContext(ctx, sai.cmd, args...),
-		ctx,
+		make(chan bool, 1),
+		make(chan bool, 1),
 	}
-	log.Info(fmt.Sprintf("%v %v\n", sai.cmd, strings.Join(args, " ")))
+	log.Debug(fmt.Sprintf("Running client command: %v %v\n", sai.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	r.Env = append(r.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciond))
-	log.Info("Client info", "sciond", sciond)
 	/*ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
@@ -260,7 +278,7 @@ func (sai *scionAppsIntegration) StartClient(ctx context.Context,
 				log.Error("Error during reading of stdout", "err", scanner.Err())
 			}
 			line := scanner.Text()
-			log.Info("Client stdout", "msg", line)
+			log.Debug("Client stdout", "msg", line)
 		}
 	}()
 
@@ -287,13 +305,22 @@ func RunClient(in sintegration.Integration, pair sintegration.IAPair, timeout ti
 func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTimeout time.Duration) error {
 	defer log.HandlePanic()
 	defer log.Flush()
-	return sintegration.ExecuteTimed(in.Name(), func() error {
+	return sintegration.ExecuteTimed(in.Name(), func() (clossingErr error) {
 		// First run all servers
 		dsts := sintegration.ExtractUniqueDsts(pairs)
 		var serverCloser []io.Closer
 		defer func(*[]io.Closer) {
+			initialClosingErr := clossingErr
+			var firstError error
 			for _, c := range serverCloser {
-			c.Close()}
+				closerError := c.Close()
+				if firstError == nil && closerError != nil {
+					firstError = closerError
+				}
+			}
+			if initialClosingErr == nil {
+				clossingErr = firstError
+			}
 		}(&serverCloser)
 		for _, dst := range dsts {
 			c, err := StartServer(in, dst)
@@ -366,7 +393,8 @@ var _ sintegration.Waiter = (*appsWaiter)(nil)
 
 type appsWaiter struct {
 	*exec.Cmd
-	context.Context
+	stdoutMatch chan bool
+	stderrMatch chan bool
 }
 
 type serverStop struct {
@@ -374,16 +402,32 @@ type serverStop struct {
 	wait   appsWaiter
 }
 
+func checkOutputMatches(stdoutRes chan bool, stderrRes chan bool) error {
+	result, ok := <- stdoutRes
+	if ok {
+		if !result {
+			return errors.New("the program under test did not produce the expected standard output")
+		}
+	}
+	result, ok = <- stderrRes
+	if ok {
+		if !result {
+			return errors.New("command did not produce the expected error output")
+		}
+	}
+	return nil
+}
+
 func (s *serverStop) Close() error {
 	s.cancel()
-	err := s.wait.Wait()
-	// Test
-	t := s.wait
-	if v := t.Context.Value(outOKContextKey("stdout")); v != nil {
-		fmt.Println("found value:", v)
-		fmt.Println("XXXXXXXXXXXXXX TEST XXXXXXXXXXXXX", v)
+	s.wait.Process.Wait()
+	err := checkOutputMatches(s.wait.stdoutMatch, s.wait.stderrMatch)
+	if err != nil {
+		return err
 	}
-	return err
+	err = s.wait.Wait()
+	_ = err
+	return nil
 }
 
 // Init initializes the integration test, it adds and validates the command line flags,

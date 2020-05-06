@@ -17,6 +17,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration"
@@ -42,6 +43,15 @@ func TestHelloworldSample(t *testing.T) {
 	serverArgs = append(serverArgs, cmnArgs...)
 
 	in := integration.NewAppsIntegration(name, cmd, clientArgs, serverArgs, "")
+	switch a := in.(type) {
+	case *integration.ScionAppsIntegration:
+		a.SetStdoutMatchFunction(
+			func (prev bool, line string) bool {
+				res := strings.Contains(line, "hello world")
+				return prev || res
+			})
+	default:
+	}
 	// Host address pattern
 	hostAddr := integration.HostAddr
 	// Cartesian product of src and dst IAs, is a random permutation
