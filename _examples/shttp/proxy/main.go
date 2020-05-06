@@ -50,4 +50,8 @@ func main() {
 		log.Printf("Listen on HTTP %s\n", *local)
 		log.Fatalf("%s", http.ListenAndServe(*local, mux))
 	}
+<<<<<<< HEAD
+=======
+
+>>>>>>> 402c729... Apply implementation feedback
 }
