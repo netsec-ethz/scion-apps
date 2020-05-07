@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	name = "helloworld_integration"
+	name = "helloworld"
 	cmd  = "helloworld"
 )
 
@@ -34,34 +34,61 @@ func TestHelloworldSample(t *testing.T) {
 	}
 	// Common arguments
 	cmnArgs := []string{}
-	// Client
-	clientArgs := []string{
-		"-remote", integration.DstAddrPattern + ":" + "12345"}
-	clientArgs = append(clientArgs, cmnArgs...)
 	// Server
-	serverArgs := []string{"-port", "12345"}
+	serverPort := "12345"
+	serverArgs := []string{"-port", serverPort}
 	serverArgs = append(serverArgs, cmnArgs...)
 
-	in := integration.NewAppsIntegration(name, cmd, clientArgs, serverArgs, "")
-	switch a := in.(type) {
-	case *integration.ScionAppsIntegration:
-		a.SetStdoutMatchFunction(
+	testCases := []struct {
+		Name string
+		Args []string
+		ServerOutMatchFun func(bool, string) bool
+		ServerErrMatchFun func(bool, string) bool
+		ClientOutMatchFun func(bool, string) bool
+		ClientErrMatchFun func(bool, string) bool
+	}{
+		{
+			"client_hello",
+			append([]string{"-remote", integration.DstAddrPattern + ":" + serverPort}, cmnArgs...),
 			func (prev bool, line string) bool {
-				res := strings.Contains(line, "hello world")
-				return prev || res
-			})
-	default:
+				res := strings.Contains(line, "hello world") //
+				return prev || res // return true if any output line contains the string
+			},
+			nil,
+			func (prev bool, line string) bool {
+				res := strings.Contains(line, "Done. Wrote 11 bytes.")
+				return prev || res // return true if any output line contains the string
+			},
+			nil,
+		},
+		{
+			"client_error",
+			append([]string{"-remote", "1-ff00:0:bad,[127.0.0.1]:" + serverPort}, cmnArgs...),
+			nil,
+			nil,
+			nil,
+			func (prev bool, line string) bool {
+				res := strings.Contains(line, "No paths available")
+				return prev || res // return true if any error line contains the string
+			},
+		},
 	}
-	// Host address pattern
-	hostAddr := integration.HostAddr
-	// Cartesian product of src and dst IAs, is a random permutation
-	// can be restricted to a subset to reduce the number of tests to run without significant
-	// loss of coverage
-	IAPairs := integration.IAPairs(hostAddr)[:5]
-	// Run the tests to completion or until a test fails,
-	// increase the client timeout if clients need more time to start
-	if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
-		t.Fatalf("Error during tests err: %v", err)
+
+	for _, tc := range testCases {
+		in := integration.NewAppsIntegration(name, tc.Name, cmd, tc.Args, serverArgs, true)
+		in.ServerStdout(tc.ServerOutMatchFun)
+		in.ClientStdout(tc.ClientOutMatchFun)
+		// Host address pattern
+		hostAddr := integration.HostAddr
+		// Cartesian product of src and dst IAs, is a random permutation
+		// can be restricted to a subset to reduce the number of tests to run without significant
+		// loss of coverage
+		IAPairs := integration.IAPairs(hostAddr)[:5]
+		// Run the tests to completion or until a test fails,
+		// increase the client timeout if clients need more time to start
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
+			t.Fatalf("Error during tests err: %v", err)
+		}
 	}
 }
 
