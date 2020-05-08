@@ -55,10 +55,7 @@ func TestHelloworldSample(t *testing.T) {
 				return prev || res // return true if any output line contains the string
 			},
 			nil,
-			func(prev bool, line string) bool {
-				res := strings.Contains(line, "Done. Wrote 11 bytes.")
-				return prev || res // return true if any output line contains the string
-			},
+			integration.Contains("Done. Wrote 11 bytes."),
 			nil,
 		},
 		{
@@ -67,10 +64,7 @@ func TestHelloworldSample(t *testing.T) {
 			nil,
 			nil,
 			nil,
-			func(prev bool, line string) bool {
-				res := strings.Contains(line, "No paths available")
-				return prev || res // return true if any error line contains the string
-			},
+			integration.RegExp("^Fatal error.*err_code=\"No paths available\"$"),
 		},
 	}
 
@@ -85,7 +79,8 @@ func TestHelloworldSample(t *testing.T) {
 		// Cartesian product of src and dst IAs, is a random permutation
 		// can be restricted to a subset to reduce the number of tests to run without significant
 		// loss of coverage
-		IAPairs := integration.IAPairs(hostAddr)[:5]
+		IAPairs := integration.IAPairs(hostAddr)
+		IAPairs = IAPairs[:len(IAPairs)/2]
 		// Run the tests to completion or until a test fails,
 		// increase the client timeout if clients need more time to start
 		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
