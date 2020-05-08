@@ -38,7 +38,8 @@ var _ sintegration.Integration = (*ScionAppsIntegration)(nil)
 
 type ScionAppsIntegration struct {
 	name              string
-	cmd               string
+	clientCmd         string
+	serverCmd         string
 	clientArgs        []string
 	serverArgs        []string
 	logDir            string
@@ -54,11 +55,12 @@ type ScionAppsIntegration struct {
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
 // If keepLog is true, also store client and server error logs.
-func NewAppsIntegration(name string, test string, cmd string, clientArgs, serverArgs []string, keepLogs bool) *ScionAppsIntegration {
+func NewAppsIntegration(name string, test string, clientCmd string, serverCmd string, clientArgs, serverArgs []string, keepLogs bool) *ScionAppsIntegration {
 	log.Info(fmt.Sprintf("Run %s-%s-tests:", name, test))
 	sai := &ScionAppsIntegration{
 		name:       test,
-		cmd:        cmd,
+		clientCmd:  clientCmd,
+		serverCmd:  serverCmd,
 		clientArgs: clientArgs,
 		serverArgs: serverArgs,
 		logDir:     "",
@@ -84,10 +86,10 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 	args := replacePattern(SCIOND, sciondAddr, sai.serverArgs)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
-	log.Debug(fmt.Sprintf("Running server command: %v %v\n", sai.cmd, strings.Join(args, " ")))
+	log.Debug(fmt.Sprintf("Running server command: %v %v\n", sai.serverCmd, strings.Join(args, " ")))
 
 	r := &appsWaiter{
-		exec.CommandContext(ctx, sai.cmd, args...),
+		exec.CommandContext(ctx, sai.serverCmd, args...),
 		make(chan bool, 1),
 		make(chan bool, 1),
 	}
@@ -106,13 +108,13 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 	}
 
 	ready := make(chan struct{})
+	signal := ReadySignal
+	init := true
 	// parse stdout until we have the ready signal
 	// and check the output with serverOutMatchFun.
 	go func() {
 		defer log.HandlePanic()
 		defer sp.Close()
-		signal := fmt.Sprintf("%s%s", ReadySignal, dst.IA)
-		init := true
 
 		var stdoutMatch bool
 		scanner := bufio.NewScanner(sp)
@@ -165,6 +167,10 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 				return
 			}
 			line := scanner.Text()
+			if init && strings.Contains(line, signal) {
+				close(ready)
+				init = false
+			}
 			if sai.serverErrMatchFun != nil {
 				stderrMatch = sai.serverErrMatchFun(stderrMatch, line)
 			}
@@ -204,10 +210,10 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 	args = replacePattern(SrcHostReplace, src.Host.IP.String(), args)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
-	log.Debug(fmt.Sprintf("Running client command: %v %v\n", sai.cmd, strings.Join(args, " ")))
+	log.Debug(fmt.Sprintf("Running client command: %v %v\n", sai.clientCmd, strings.Join(args, " ")))
 
 	r := &appsWaiter{
-		exec.CommandContext(ctx, sai.cmd, args...),
+		exec.CommandContext(ctx, sai.clientCmd, args...),
 		make(chan bool, 1),
 		make(chan bool, 1),
 	}
@@ -383,14 +389,14 @@ func checkOutputMatches(stdoutRes chan bool, stderrRes chan bool) error {
 
 // Sample match functions
 
-func Contains(expected string) (func(prev bool, line string) bool) {
+func Contains(expected string) func(prev bool, line string) bool {
 	return func(prev bool, line string) bool {
 		res := strings.Contains(line, expected)
 		return prev || res // return true if any output line contains the string
 	}
 }
 
-func RegExp(regularExpression string) (func(prev bool, line string) bool) {
+func RegExp(regularExpression string) func(prev bool, line string) bool {
 	return func(prev bool, line string) bool {
 		matched, err := regexp.MatchString(regularExpression, line)
 		if err != nil {

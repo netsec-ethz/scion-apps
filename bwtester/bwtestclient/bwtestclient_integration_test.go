@@ -17,78 +17,63 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"io/ioutil"
-	"os/exec"
+	"github.com/netsec-ethz/scion-apps/pkg/integration"
 	"strings"
 	"testing"
-	"time"
+)
 
-	log "github.com/inconshreveable/log15"
+const (
+	name = "bwtester"
+	clientCmd  = "bwtestclient"
+	serverCmd  = "bwtestserver"
 )
 
 func TestIntegrationBwtestclient(t *testing.T) {
-	// Start a bwtestserver and query it with the bwtestclient
-	var commands []*exec.Cmd
-	defer func() {
-		// cleanup after test
-		for _, cmd := range commands {
-			if err := cmd.Process.Kill(); err != nil {
-				fmt.Printf("Failed to kill process: %v", err)
-			}
+	if err := integration.Init(name); err != nil {
+		t.Fatalf("Failed to init: %s\n", err)
+	}
+	// Common arguments
+	cmnArgs := []string{}
+	// Server
+	serverPort := "40002"
+	serverArgs := []string{"-p", serverPort}
+	serverArgs = append(serverArgs, cmnArgs...)
+
+	testCases := []struct {
+		Name              string
+		Args              []string
+		ServerOutMatchFun func(bool, string) bool
+		ServerErrMatchFun func(bool, string) bool
+		ClientOutMatchFun func(bool, string) bool
+		ClientErrMatchFun func(bool, string) bool
+	}{
+		{
+			"bandwidth_client",
+			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-cs", "1Mbps"}, cmnArgs...),
+			func(prev bool, line string) bool {
+				res := strings.Contains(line, "Received request")
+				return prev || res // return true if any output line contains the string
+			},
+			nil,
+			integration.RegExp("^Achieved bandwidth: \\d+ bps / \\d+.\\d+ [Mk]bps$"),
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		in := integration.NewAppsIntegration(name, tc.Name, clientCmd, serverCmd, tc.Args, serverArgs, true)
+		in.ServerStdout(tc.ServerOutMatchFun)
+		in.ServerStderr(tc.ServerErrMatchFun)
+		in.ClientStdout(tc.ClientOutMatchFun)
+		in.ClientStderr(tc.ClientErrMatchFun)
+
+		hostAddr := integration.HostAddr
+
+		IAPairs := integration.IAPairs(hostAddr)
+		IAPairs = IAPairs[:1]
+
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
+			t.Fatalf("Error during tests err: %v", err)
 		}
-	}()
-
-	// Server command
-	cmd := exec.Command("bwtestserver")
-	serverOut, _ := cmd.StdoutPipe()
-	serverStdoutScanner := bufio.NewScanner(serverOut)
-	log.Info("Start server", "cmd", fmt.Sprintf("%s %s", cmd.Path, cmd.Args))
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("Error during server startup %v: %v", "bwtestserver", err)
-	}
-	commands = append(commands, cmd)
-	time.Sleep(250 * time.Millisecond)
-
-	// Client command
-	cmd = exec.Command("bwtestclient",
-		"-s",
-		"1-ff00:0:110,[127.0.0.1]:40002",
-		"-cs",
-		"1Mbps",
-	)
-	clientStdout, _ := cmd.StdoutPipe()
-	log.Info("Run client", "cmd", fmt.Sprintf("%s %s", cmd.Path, cmd.Args))
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("Error during client query %v: %v", "bwtestclient", err)
-	}
-	// commands = append(commands, cmd)
-	// client exits after a single query, no need to terminate it
-	clientOut, _ := ioutil.ReadAll(clientStdout)
-	cmd.Wait()
-
-	// Check client output
-	// We expect a 0% loss rate and reaching the full bandwidth
-	if strings.Contains(string(clientOut), "Loss rate: 0 %") &&
-	   strings.Contains(string(clientOut), "Achieved bandwidth: 1000000 bps / 1.00 Mbps") {
-		fmt.Println("Client succeeded.")
-	} else {
-		t.Fatalf("Client failed. Output=%s", clientOut)
-	}
-
-	// Check server output
-	fullServerOutput := ""
-	for serverStdoutScanner.Scan() {
-		serverOutput := serverStdoutScanner.Text()
-		fullServerOutput += fmt.Sprintln(serverOutput)
-		if strings.Contains(serverOutput, "Received request") {
-			fmt.Println("Server received client request.")
-			break
-		}
-	}
-	if err := serverStdoutScanner.Err(); err != nil {
-		t.Fatalf("Server failed to start bandwidth test. Output=%s", fullServerOutput)
 	}
 }
-

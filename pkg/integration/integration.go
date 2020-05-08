@@ -54,7 +54,7 @@ const (
 	// The message should always be `Listening ia=<IA>`
 	// where <IA> is the IA the server is listening on.
 	//ReadySignal = "Listening ia="
-	ReadySignal = "Registered with dispatcher\" addr="
+	ReadySignal = "Registered with dispatcher"
 	// GoIntegrationEnv is an environment variable that is set for the binary under test.
 	// It can be used to guard certain statements, like printing the ReadySignal,
 	// in a program under test.
