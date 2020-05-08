@@ -66,7 +66,7 @@ func NewAppsIntegration(name string, test string, clientCmd string, serverCmd st
 		logDir:     "",
 	}
 	if keepLogs {
-		sai.initLogDir(name)
+		_ = sai.initLogDir(name)
 	}
 	return sai
 }
@@ -131,7 +131,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 			if sai.serverOutMatchFun != nil {
 				stdoutMatch = sai.serverOutMatchFun(stdoutMatch, line)
 			}
-			log.Debug("Server stdout", "log line", fmt.Sprintf("%s", line))
+			log.Debug("Server stdout", "log line", line)
 		}
 		if sai.serverOutMatchFun != nil {
 			r.stdoutMatch <- stdoutMatch
@@ -156,7 +156,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 		defer ep.Close()
 		defer func() {
 			if logPipeW != nil {
-				logPipeW.Close()
+				_ = logPipeW.Close()
 			}
 		}()
 		var stderrMatch bool
@@ -174,10 +174,10 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 			if sai.serverErrMatchFun != nil {
 				stderrMatch = sai.serverErrMatchFun(stderrMatch, line)
 			}
-			log.Debug("Server stderr", "log line", fmt.Sprintf("%s", line))
+			log.Debug("Server stderr", "log line", line)
 			if logPipeW != nil {
 				// Propagate to file logger
-				fmt.Fprint(logPipeW, fmt.Sprintf("%s\n", line))
+				_, _ = fmt.Fprint(logPipeW, fmt.Sprintf("%s\n", line))
 			}
 		}
 		if sai.serverErrMatchFun != nil {
@@ -257,7 +257,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 		// log stderr to file
 		logPipeR, logPipeW = io.Pipe()
 		go func() {
-			sai.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), logPipeR)
+			sai.writeLog("client", clientID(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), logPipeR)
 		}()
 	}
 
@@ -265,7 +265,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 	go func() {
 		defer func() {
 			if logPipeW != nil {
-				logPipeW.Close()
+				_ = logPipeW.Close()
 			}
 		}()
 		var stderrMatch bool
@@ -281,7 +281,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 			log.Debug("Client stderr", "msg", line)
 			if logPipeW != nil {
 				// Propagate to file logger
-				fmt.Fprint(logPipeW, fmt.Sprintf("%s\n", line))
+				_, _ = fmt.Fprint(logPipeW, fmt.Sprintf("%s\n", line))
 			}
 		}
 		if sai.clientErrMatchFun != nil {
@@ -339,17 +339,17 @@ func (sai *ScionAppsIntegration) writeLog(name, id, startInfo string, ep io.Read
 	}
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-	w.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Starting %s %s\n", name, startInfo)))
+	_, _ = w.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Starting %s %s\n", name, startInfo)))
 	defer func() {
-		w.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Finished %s %s\n", name, startInfo)))
+		_, _ = w.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Finished %s %s\n", name, startInfo)))
 	}()
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
-		w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
+		_, _ = w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
 	}
 }
 
-func clientId(src, dst *snet.UDPAddr) string {
+func clientID(src, dst *snet.UDPAddr) string {
 	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
 }
 
@@ -362,12 +362,12 @@ type appsWaiter struct {
 }
 
 func (aw *appsWaiter) Wait() (err error) {
-	aw.Process.Wait()
+	_, _ = aw.Process.Wait()
 	err = checkOutputMatches(aw.stdoutMatch, aw.stderrMatch)
 	if err != nil {
 		return err
 	}
-	aw.Cmd.Wait()
+	_ = aw.Cmd.Wait()
 	return
 }
 

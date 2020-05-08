@@ -59,8 +59,6 @@ const (
 	// It can be used to guard certain statements, like printing the ReadySignal,
 	// in a program under test.
 	GoIntegrationEnv = "SCION_GO_INTEGRATION"
-	// portString is the string a server prints to specify the port it's listening on.
-	portString = "Port="
 
 	// Default client startup timeout
 	DefaultClientTimeout = 10 * time.Second
@@ -68,7 +66,7 @@ const (
 
 var (
 	projectRoot string
-	pwd string
+	pwd         string
 )
 
 // Init initializes the integration test, it adds and validates the command line flags,
@@ -82,22 +80,22 @@ func Init(name string) (err error) {
 	// to not rely on hardcoded paths, accept environment variable for gen location
 	if SC, ok := os.LookupEnv("SC"); ok {
 		if _, err := os.Stat(path.Join(projectRoot, "gen")); os.IsNotExist(err) {
-			os.Symlink(path.Join(SC, "gen"), path.Join(projectRoot, "gen"))
+			_ = os.Symlink(path.Join(SC, "gen"), path.Join(projectRoot, "gen"))
 		}
 	}
 	_, file, _, _ := runtime.Caller(0)
 	projectRoot = path.Join(path.Dir(file), "../..")
 	if _, err := os.Stat("/etc/scion/gen"); err == nil {
 		if _, err := os.Stat(path.Join(projectRoot, "gen")); os.IsNotExist(err) {
-			os.Symlink("/etc/scion/gen", path.Join(projectRoot, "gen"))
+			_ = os.Symlink("/etc/scion/gen", path.Join(projectRoot, "gen"))
 		}
 	}
 
 	// Wrap call
-	os.Chdir(projectRoot)
+	_ = os.Chdir(projectRoot)
 	err = sintegration.Init(name)
 	// restore pwd
-	os.Chdir(pwd)
+	_ = os.Chdir(pwd)
 
 	return err
 }
@@ -176,6 +174,10 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 // HostAddr gets _a_ host address, the same way appnet does, for a given IA
 var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	sciond, err := getSCIONDAddress(ia)
+	if err != nil {
+		log.Error("Failed to get sciond address", "err", err)
+		return nil
+	}
 	hostIP, err := DefaultLocalIPAddress(sciond)
 	if err != nil {
 		log.Error("Failed to get valid host IP", "err", err)
@@ -186,10 +188,10 @@ var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
 
 func getSCIONDAddress(ia addr.IA) (addr string, err error) {
 	// Wrap library call
-	os.Chdir(projectRoot)
+	_ = os.Chdir(projectRoot)
 	addr, err = sintegration.GetSCIONDAddress(sintegration.SCIONDAddressesFile, ia)
 	// restore pwd
-	os.Chdir(pwd)
+	_ = os.Chdir(pwd)
 
 	return
 }

@@ -75,10 +75,10 @@ jobs:
             # Generate Tiny.topo
             printf '#!/bin/bash\necho "0.0.0.0"' > tools/docker-ip # Some hackery to make topo scripts run
             # Use IPv4 addresses for this test
-            sed -i 's/IPv6/IPv6/g' ./topology/Tiny.topo
+            sed -i 's/IPv6/IPv4/g' ./topology/Tiny.topo
             python/topology/generator.py -c ./topology/Tiny.topo
             # Link the gen directory containing sciond_addresses.json and as_list.json
-            ln -s ~/scion/gen /go/scion-apps/gen
+            ln -s ~/scion/gen /home/circleci/project/gen
             # Generate gen-certs
             mkdir gen-certs gen-cache
             openssl genrsa -out "gen-certs/tls.key" 2048

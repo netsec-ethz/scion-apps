@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration
+// +build old_integration
 
 package main
 
@@ -50,7 +50,7 @@ func TestSCIONNetcat(t *testing.T) {
 		t.Fatalf("Error during help %v: %v", "netcat", err)
 	}
 	ncStdOutput, _ := ioutil.ReadAll(ncOut)
-	cmd.Wait()
+	_ = cmd.Wait()
 
 	// Check help output
 	if strings.Contains(string(ncStdOutput), "SCION") {
@@ -112,4 +112,3 @@ func TestSCIONNetcat(t *testing.T) {
 		t.Fatalf("Server failed to receive `%s`. Output=%s", testMessage, fullServerOutput)
 	}
 }
-
