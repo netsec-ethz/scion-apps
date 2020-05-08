@@ -17,77 +17,74 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"io/ioutil"
-	"os/exec"
 	"strings"
 	"testing"
-	"time"
 
-	log "github.com/inconshreveable/log15"
+	"github.com/netsec-ethz/scion-apps/pkg/integration"
+)
+
+const (
+	name = "helloworld"
+	cmd  = "helloworld"
 )
 
 func TestHelloworldSample(t *testing.T) {
-	// Start a helloworld server and query it with the client
-	var commands []*exec.Cmd
-	defer func() {
-		// cleanup after test
-		for _, cmd := range commands {
-			if err := cmd.Process.Kill(); err != nil {
-				fmt.Printf("Failed to kill process: %v", err)
-			}
+	if err := integration.Init(name); err != nil {
+		t.Fatalf("Failed to init: %s\n", err)
+	}
+	// Common arguments
+	cmnArgs := []string{}
+	// Server
+	serverPort := "12345"
+	serverArgs := []string{"-port", serverPort}
+	serverArgs = append(serverArgs, cmnArgs...)
+
+	testCases := []struct {
+		Name              string
+		Args              []string
+		ServerOutMatchFun func(bool, string) bool
+		ServerErrMatchFun func(bool, string) bool
+		ClientOutMatchFun func(bool, string) bool
+		ClientErrMatchFun func(bool, string) bool
+	}{
+		{
+			"client_hello",
+			append([]string{"-remote", integration.DstAddrPattern + ":" + serverPort}, cmnArgs...),
+			func(prev bool, line string) bool {
+				res := strings.Contains(line, "hello world")
+				return prev || res // return true if any output line contains the string
+			},
+			nil,
+			integration.Contains("Done. Wrote 11 bytes."),
+			nil,
+		},
+		{
+			"client_error",
+			append([]string{"-remote", "1-ff00:0:bad,[127.0.0.1]:" + serverPort}, cmnArgs...),
+			nil,
+			nil,
+			nil,
+			integration.RegExp("^Fatal error.*err_code=\"No paths available\"$"),
+		},
+	}
+
+	for _, tc := range testCases {
+		in := integration.NewAppsIntegration(name, tc.Name, cmd, cmd, tc.Args, serverArgs, true)
+		in.ServerStdout(tc.ServerOutMatchFun)
+		in.ServerStderr(tc.ServerErrMatchFun)
+		in.ClientStdout(tc.ClientOutMatchFun)
+		in.ClientStderr(tc.ClientErrMatchFun)
+		// Host address pattern
+		hostAddr := integration.HostAddr
+		// Cartesian product of src and dst IAs, is a random permutation
+		// can be restricted to a subset to reduce the number of tests to run without significant
+		// loss of coverage
+		IAPairs := integration.IAPairs(hostAddr)
+		IAPairs = IAPairs[:len(IAPairs)/2]
+		// Run the tests to completion or until a test fails,
+		// increase the client timeout if clients need more time to start
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
+			t.Fatalf("Error during tests err: %v", err)
 		}
-	}()
-
-	// Server command
-	cmd := exec.Command("helloworld",
-		"-port",
-		"12345",
-	)
-	serverOut, _ := cmd.StdoutPipe()
-	serverStdoutScanner := bufio.NewScanner(serverOut)
-	log.Info("Start server", "cmd", fmt.Sprintf("%s %s", cmd.Path, cmd.Args))
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("Error during server startup %v: %v", "helloworld", err)
-	}
-	commands = append(commands, cmd)
-	time.Sleep(250 * time.Millisecond)
-
-	// Client command
-	cmd = exec.Command("helloworld",
-		"-remote",
-		"1-ff00:0:110,[127.0.0.1]:12345",
-	)
-	clientOut, _ := cmd.StdoutPipe()
-	log.Info("Run client", "cmd", fmt.Sprintf("%s %s", cmd.Path, cmd.Args))
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("Error during client query %v: %v", "helloworld", err)
-	}
-	// commands = append(commands, cmd)
-	// client exits after a single query, no need to terminate it
-	clientStdOutput, _ := ioutil.ReadAll(clientOut)
-	cmd.Wait()
-
-	// Check client output
-	if strings.Contains(string(clientStdOutput), "Done.") {
-		fmt.Println("Client succeeded.")
-	} else {
-		t.Fatalf("Client failed. Output=%s", clientStdOutput)
-	}
-
-	// Check server output
-	fullServerOutput := ""
-	for serverStdoutScanner.Scan() {
-		serverOutput := serverStdoutScanner.Text()
-		fullServerOutput += fmt.Sprintln(serverOutput)
-		if strings.Contains(serverOutput, "hello world") {
-			fmt.Println("Server received client query.")
-			break
-		}
-	}
-	if err := serverStdoutScanner.Err(); err != nil {
-		t.Fatalf("Server failed to receive `hello world`. Output=%s", fullServerOutput)
 	}
 }
-
