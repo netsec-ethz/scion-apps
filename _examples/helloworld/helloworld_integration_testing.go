@@ -40,8 +40,8 @@ func TestHelloworldSample(t *testing.T) {
 	serverArgs = append(serverArgs, cmnArgs...)
 
 	testCases := []struct {
-		Name string
-		Args []string
+		Name              string
+		Args              []string
 		ServerOutMatchFun func(bool, string) bool
 		ServerErrMatchFun func(bool, string) bool
 		ClientOutMatchFun func(bool, string) bool
@@ -50,12 +50,12 @@ func TestHelloworldSample(t *testing.T) {
 		{
 			"client_hello",
 			append([]string{"-remote", integration.DstAddrPattern + ":" + serverPort}, cmnArgs...),
-			func (prev bool, line string) bool {
-				res := strings.Contains(line, "hello world") //
+			func(prev bool, line string) bool {
+				res := strings.Contains(line, "hello world")
 				return prev || res // return true if any output line contains the string
 			},
 			nil,
-			func (prev bool, line string) bool {
+			func(prev bool, line string) bool {
 				res := strings.Contains(line, "Done. Wrote 11 bytes.")
 				return prev || res // return true if any output line contains the string
 			},
@@ -67,7 +67,7 @@ func TestHelloworldSample(t *testing.T) {
 			nil,
 			nil,
 			nil,
-			func (prev bool, line string) bool {
+			func(prev bool, line string) bool {
 				res := strings.Contains(line, "No paths available")
 				return prev || res // return true if any error line contains the string
 			},
@@ -77,7 +77,9 @@ func TestHelloworldSample(t *testing.T) {
 	for _, tc := range testCases {
 		in := integration.NewAppsIntegration(name, tc.Name, cmd, tc.Args, serverArgs, true)
 		in.ServerStdout(tc.ServerOutMatchFun)
+		in.ServerStderr(tc.ServerErrMatchFun)
 		in.ClientStdout(tc.ClientOutMatchFun)
+		in.ClientStderr(tc.ClientErrMatchFun)
 		// Host address pattern
 		hostAddr := integration.HostAddr
 		// Cartesian product of src and dst IAs, is a random permutation
@@ -91,4 +93,3 @@ func TestHelloworldSample(t *testing.T) {
 		}
 	}
 }
-

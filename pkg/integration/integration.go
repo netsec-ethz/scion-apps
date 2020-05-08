@@ -283,7 +283,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 		make(chan bool, 1),
 		make(chan bool, 1),
 	}
-	log.Info(fmt.Sprintf("Running client command: %v %v\n", sai.cmd, strings.Join(args, " ")))
+	log.Debug(fmt.Sprintf("Running client command: %v %v\n", sai.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	r.Env = append(r.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciondAddr))
@@ -309,7 +309,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 			if sai.clientOutMatchFun != nil {
 				stdoutMatch = sai.clientOutMatchFun(stdoutMatch, line)
 			}
-			log.Info("Client stdout", "msg", line)
+			log.Debug("Client stdout", "msg", line)
 		}
 		if sai.clientOutMatchFun != nil {
 			r.stdoutMatch <- stdoutMatch
@@ -344,7 +344,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 			if sai.clientErrMatchFun != nil {
 				stderrMatch = sai.clientErrMatchFun(stderrMatch, line)
 			}
-			log.Info("Client stderr", "msg", line)
+			log.Debug("Client stderr", "msg", line)
 			if logPipeW != nil {
 				// Propagate to file logger
 				fmt.Fprint(logPipeW, fmt.Sprintf("%s\n", line))
