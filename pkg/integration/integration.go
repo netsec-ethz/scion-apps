@@ -92,22 +92,15 @@ type ScionAppsIntegration struct {
 // If keepLog is true, also store client and server error logs.
 func NewAppsIntegration(name string, test string, cmd string, clientArgs, serverArgs []string, keepLogs bool) *ScionAppsIntegration {
 	log.Info(fmt.Sprintf("Run %s-%s-tests:", name, test))
-	var logDir string
-	if keepLogs {
-			var err error
-			logDir, err = ioutil.TempDir("", name)
-			if err != nil {
-				log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
-				return nil
-			}
-			log.Info("Log directory:", "path", logDir)
-	}
 	sai := &ScionAppsIntegration{
 		name:       test,
 		cmd:        cmd,
 		clientArgs: clientArgs,
 		serverArgs: serverArgs,
-		logDir:     logDir,
+		logDir:     "",
+	}
+	if keepLogs {
+		sai.initLogDir(name)
 	}
 	return sai
 }
@@ -248,14 +241,21 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context, dst *snet.UDPA
 	}
 }
 
-type outOKContextKey string
+func (sai *ScionAppsIntegration) initLogDir(name string) error {
+	logDir, err := ioutil.TempDir("", name)
+	if err != nil {
+		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
+		return err
+	}
+	sai.logDir = logDir
+	log.Info("Log directory:", "path", sai.logDir)
+	return nil
+}
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
 // We are using a custom context to inspect the result of the output check.
 func StartServer(in sintegration.Integration, dst *snet.UDPAddr) (io.Closer, error) {
 	serverCtx, serverCancel := context.WithCancel(context.Background())
-	stdKey := outOKContextKey("stdout")
-	serverCtx = context.WithValue(serverCtx, stdKey, false)
 	s, err := in.StartServer(serverCtx, dst)
 	if err != nil {
 		serverCancel()
