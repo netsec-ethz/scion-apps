@@ -188,6 +188,7 @@ func initServeHandlers() {
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/about", aboutHandler)
 	http.HandleFunc("/apps", appsHandler)
+	http.HandleFunc("/webview", webviewHandler)
 	http.HandleFunc("/astopo", astopoHandler)
 	http.HandleFunc("/trc", trcHandler)
 	fsStatic := http.FileServer(http.Dir(path.Join(options.StaticRoot, "static")))
@@ -237,6 +238,7 @@ func prepareTemplates(srcpath string) *template.Template {
 		path.Join(srcpath, "template/about.html"),
 		path.Join(srcpath, "template/astopo.html"),
 		path.Join(srcpath, "template/trc.html"),
+		path.Join(srcpath, "template/webview.html"),
 	))
 }
 
@@ -273,6 +275,10 @@ func aboutHandler(w http.ResponseWriter, r *http.Request) {
 
 func appsHandler(w http.ResponseWriter, r *http.Request) {
 	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: settings.MyIA})
+}
+
+func webviewHandler(w http.ResponseWriter, r *http.Request) {
+	display(w, "webview", &Page{Title: "SCION WebView", MyIA: settings.MyIA})
 }
 
 func astopoHandler(w http.ResponseWriter, r *http.Request) {

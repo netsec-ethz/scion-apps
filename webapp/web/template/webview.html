@@ -1,0 +1,49 @@
+{{define "webview"}} {{template "header" .}}
+
+<div class="content">
+
+ <h2>SCION Webview</h2>
+This page provides a searchbar for SCION HTTP URLs, which are accessed via a SCION HTTP proxy and the result is
+ isplayed in an iFrame on this page.
+ <br />
+ <br />
+<input id="webviewinput" placeholder="https://19:1:ffaa[127.0.0.1]:8000" style="width: 800px">
+<button id="webviewload" onclick="loadSCIONUrl()">GO</button>
+</div>
+
+<iframe id="webview" src="about:blank" width="1600" height="900" frameborder="0" ></iframe>
+
+<script>
+
+function getPosition(string, subString, index) {
+  return string.split(subString, index).join(subString).length;
+}
+	
+	
+function loadSCIONUrl() {
+    var remote = $('#webviewinput').val();
+
+var sRemotesIndex = getPosition(remote, '/', 3);
+	var sRemote = remote.substring(0, sRemotesIndex);
+	var sContext = remote.substring(sRemotesIndex, remote.length);
+	console.log(sRemote);
+	console.log(sContext);
+    $.ajax({
+        url : 'http://localhost:9001/__api/setconfig',
+        type : 'post',
+        dataType : "text",
+        data : JSON.stringify({
+            "remote" : sRemote
+        }),
+        timeout : 10000,
+        success : function(data, textStatus, jqXHR) {
+          document.getElementById('webview').src = 'http://localhost:9001/' + sContext; //remote;
+        },
+        error : function(jqXHR, textStatus, errorThrown) {
+            console.error(this.url + ' ' + textStatus + ': ' + errorThrown);
+        },
+    });
+  }
+  </script>
+
+{{template "footer" .}} {{end}}
