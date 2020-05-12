@@ -3,7 +3,6 @@
 ROOT_DIR=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 SRCDIRS= sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient bat ssh/client ssh/server netcat webapp _examples/helloworld _examples/shttp/client _examples/shttp/server
 BUILD_TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
-INTEGRATION_TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D))_integration)
 
 all: lint $(BUILD_TARGETS)
 
@@ -11,7 +10,7 @@ clean:
 	go clean ./...
 
 test: lint
-	go test -tags=!integration ./...
+	go test -v ./...
 
 setup_lint:
 	@# Install golangci-lint (as dumb as this looks, this is the recommended way to install)
@@ -26,7 +25,8 @@ build: $(BUILD_TARGETS)
 install: all
 	@$(foreach d,$(SRCDIRS), cd $(ROOT_DIR)/$(d); cp $(shell basename $(d)) /go/bin;)
 
-integration: install $(INTEGRATION_TARGETS)
+integration: install
+	go test -v -tags=integration ./...
 
 # using eval to create as many rules as we have $BUILD_TARGETS
 # each target corresponds to the binary file name (e.g. sensorapp/sensorserver/sensorserver)
@@ -36,12 +36,3 @@ $(1): go.mod $(2)
 	go build -o $$(dir $$@) ./$$(dir $$@)
 endef
 $(foreach D,$(BUILD_TARGETS),$(eval $(call gobuild_tmpl, $(D), $(shell find $(dir $(D)) -name '*.go') )))
-
-# using eval to create as many rules as we have $INTEGRATION_TARGETS
-# each target corresponds to the binary file name, appended with `_integration`(e.g. sensorapp/sensorserver/sensorserver_integration)
-define gotest_tmpl =
-.PHONY: $(1)
-$(1): go.mod $(2)
-	go test -v -tags=integration ./$$(dir $$@)
-endef
-$(foreach D,$(INTEGRATION_TARGETS),$(eval $(call gotest_tmpl, $(D), $(shell find $(dir $(D)) -name '*.go') )))
