@@ -11,7 +11,7 @@ build: scion-bat \
 	scion-imagefetcher scion-imageserver \
 	scion-netcat \
 	scion-sensorfetcher scion-sensorserver \
-	scion-sshd scion-sshd \
+	scion-ssh scion-sshd \
 	example-helloworld \
 	example-shttp-client example-shttp-server
 
