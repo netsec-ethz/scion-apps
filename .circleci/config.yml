@@ -45,9 +45,8 @@ jobs:
             scion_mod_version=$(go list -m github.com/scionproto/scion | sed -s 's/.*\s*=>\s*//')
             scion_repo=https://${scion_mod_version% *}.git
             # Extract the commit hash, which is the last part of the go modules version
-            scion_commit=${scion_mod_version##*-}
+            scion_commit=${scion_mod_version##*[ -]}
             git clone ${scion_repo} ~/scion
-            #git clone ${scion_repo} ~/scion
             cd ~/scion
             git checkout --quiet ${scion_commit}
       - restore_cache:
