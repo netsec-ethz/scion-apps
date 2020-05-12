@@ -4,7 +4,7 @@ ROOT_DIR=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 SRCDIRS= sensorapp/sensorserver sensorapp/sensorfetcher camerapp/imageserver camerapp/imagefetcher bwtester/bwtestserver bwtester/bwtestclient bat ssh/client ssh/server netcat webapp _examples/helloworld _examples/shttp/client _examples/shttp/server
 BUILD_TARGETS = $(foreach D,$(SRCDIRS),$(D)/$(notdir $(D)))
 
-all: lint $(BUILD_TARGETS)
+all: lint build
 
 clean:
 	go clean ./...
