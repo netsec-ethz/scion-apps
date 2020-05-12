@@ -30,14 +30,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/BurntSushi/toml"
 	log "github.com/inconshreveable/log15"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -68,13 +70,31 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 	fmt.Fprintf(w, buffer.String())
 }
 
-func getSciondByIA(ia addr.IA) (sciond.Connector, error) {
-	// XXX(matzf): use the functionality from scions integration tests to keep
-	// the "find SCIOND by IA" functionality, at least in the development setup.
-	// This parses the sciond_addresses.json file created by the scion.sh topo
-	// generator and extracts the matching entry. Quite. Ugly.
-	sciondAddress, err := integration.GetSCIONDAddress(integration.SCIONDAddressesFile, ia)
-	if err != nil {
+type sdInfo struct {
+	Address string `toml:"address"`
+}
+
+type sdTomlConfig struct {
+	SD sdInfo `toml:"sd"`
+}
+
+func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
+	ias, err := addr.IAFromString(ia)
+	if CheckError(err) {
+		fmt.Println(err)
+	}
+	tomlPath := path.Join(options.ScionGen, addr.ISDFmtPrefix+strconv.FormatUint(uint64(ias.I), 10),
+		addr.ASFmtPrefix+ias.A.FileFmt(), "endhost/sd.toml")
+
+	var config sdTomlConfig
+	if _, err := toml.DecodeFile(tomlPath, &config); err != nil {
+		fmt.Println(err)
+	}
+	return config, nil
+}
+
+func getSciondByIA(ia addr.IA, sciondAddress string) (sciond.Connector, error) {
+	if len(sciondAddress) == 0 {
 		sciondAddress = sciond.DefaultSCIONDAddress
 	}
 	sciondConn, err := sciond.NewService(sciondAddress).Connect(context.Background())
@@ -85,6 +105,20 @@ func getSciondByIA(ia addr.IA) (sciond.Connector, error) {
 }
 
 // sciond data sources and calls
+
+// Path holds information about the discovered path.
+type Path struct {
+	Fingerprint string
+	Hops        []Hop
+	Expiry      time.Time
+	MTU         uint16
+}
+
+// Hop represents an hop on the path.
+type Hop struct {
+	IfID common.IFIDType
+	IA   addr.IA
+}
 
 // PathTopoHandler handles requests for paths, returning results from sciond.
 func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
@@ -108,18 +142,27 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		return
 	}
 
-	sciondConn, err := getSciondByIA(localIA)
+	config, err := LoadSciondConfig(options, CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	pathQuerier := &sciond.Querier{Connector: sciondConn, IA: localIA}
+	sdAddress := config.SD.Address
 
-	paths, err := getPathsJSON(pathQuerier, remoteIA)
+	sciondConn, err := getSciondByIA(localIA, sdAddress)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
+	//Refresh: cfg.Refresh,
+	//TODO: pass in max paths from user
+	pathData, err := sciondConn.Paths(context.Background(), remoteIA, localIA,
+		sciond.PathReqFlags{PathCount: 10})
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	paths, err := getPathsJSON(pathData)
 	log.Debug("PathTopoHandler:", "paths", string(paths))
 
 	// Since segments data is supplimentary to paths data, if segments data
@@ -177,12 +220,12 @@ func getSegmentsJSON(localIA addr.IA, options *CmdOptions) ([]byte, error) {
 }
 
 func findDBFilename(ia addr.IA, options *CmdOptions) string {
-	filenames, err := filepath.Glob(filepath.Join(options.ScionGenCache, "ps*path.db"))
+	filenames, err := filepath.Glob(filepath.Join(options.ScionGenCache, "sd*.path.db"))
 	CheckError(err)
 	if len(filenames) == 1 {
 		return filenames[0]
 	}
-	pathDBFileName := fmt.Sprintf("ps%s-1.path.db", ia.FileFmt(false))
+	pathDBFileName := fmt.Sprintf("sd%s.path.db", ia.FileFmt(false))
 	return filepath.Join(options.ScionGenCache, pathDBFileName)
 }
 
@@ -226,22 +269,20 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPathsJSON(pathQuerier *sciond.Querier, remoteIA addr.IA) ([]byte, error) {
-	paths, err := pathQuerier.Query(context.Background(), remoteIA)
-	if err != nil || len(paths) == 0 {
-		return nil, fmt.Errorf("No paths from %s to %s", pathQuerier.IA, remoteIA)
+func getPathsJSON(paths []snet.Path) ([]byte, error) {
+	var rPaths []Path
+	for _, path := range paths {
+		rpath := Path{
+			Fingerprint: path.Fingerprint().String()[:16],
+			Expiry:      path.Expiry(),
+			MTU:         path.MTU(),
+		}
+		for _, hop := range path.Interfaces() {
+			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
+		}
+		rPaths = append(rPaths, rpath)
 	}
-	sort.Slice(paths, func(i, j int) bool {
-		// sort by shortest # hops, then by IA/interface
-		if len(paths[i].Interfaces()) < len(paths[j].Interfaces()) {
-			return true
-		}
-		if len(paths[i].Interfaces()) > len(paths[j].Interfaces()) {
-			return false
-		}
-		return fmt.Sprintf("%s", paths[i]) < fmt.Sprintf("%s", paths[j])
-	})
-	jsonPathInfo, err := json.Marshal(paths)
+	jsonPathInfo, err := json.Marshal(rPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +290,7 @@ func getPathsJSON(pathQuerier *sciond.Querier, remoteIA addr.IA) ([]byte, error)
 }
 
 // AsTopoHandler handles requests for AS data, returning results from sciond.
-func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
+func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
@@ -258,7 +299,15 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
 		returnError(w, err)
 		return
 	}
-	c, err := getSciondByIA(localIA)
+
+	config, err := LoadSciondConfig(options, CIa)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	sdAddress := config.SD.Address
+
+	c, err := getSciondByIA(localIA, sdAddress)
 	if CheckError(err) {
 		returnError(w, err)
 		return

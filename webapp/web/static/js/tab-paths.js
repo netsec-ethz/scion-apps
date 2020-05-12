@@ -363,8 +363,8 @@ function formatPathJson(paths, idx) {
     if (typeof idx === 'undefined') {
         return '';
     }
-    var ent = paths[idx].Entry;
-    var hops = ent.Path.Interfaces;
+    var ent = paths[idx];
+    var hops = ent.Hops;
     var path = "[";
     for (var i = 0; i < hops.length; i += 2) {
         var prev = hops[i];
@@ -372,9 +372,9 @@ function formatPathJson(paths, idx) {
         if (i > 0) {
             path += ' ';
         }
-        path += iaRaw2Read(prev.RawIsdas) + ' ' + prev.IfID + '>' + next.IfID;
+        path += prev.IA + ' ' + prev.IfID + '>' + next.IfID;
         if (i == (hops.length - 2)) {
-            path += ' ' + iaRaw2Read(next.RawIsdas);
+            path += ' ' + next.IA;
         }
     }
     path += "]";
@@ -385,9 +385,9 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
     var html = "<ul class='tree'>";
     for (p in paths) {
 
-        var ent = paths[p].Entry;
-        var exp = new Date(0);
-        if_ = ent.Path.Interfaces;
+        var ent = paths[p];
+        var exp = new Date(ent.Expiry);
+        if_ = ent.Hops;
         var hops = if_.length / 2;
 
         var style = "style='background-color: "
@@ -395,23 +395,22 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         html += "<li seg-type='PATH' seg-num=" + p + "><a " + style
                 + " href='#'>PATH " + (parseInt(p) + 1)
                 + "</a> <span class='badge'>" + hops + "</span>";
-        exp.setUTCSeconds(ent.Path.ExpTime);
         html += "<ul>";
-        html += "<li><a href='#'>Mtu: " + ent.Path.Mtu + "</a>";
-        if (ent.HostInfo.Addrs.Ipv4) {
-            html += "<li><a href='#'>Ipv4: "
-                    + ipv4Raw2Read(ent.HostInfo.Addrs.Ipv4) + "</a>";
-        }
-        if (ent.HostInfo.Addrs.Ipv6) {
-            html += "<li><a href='#'>Ipv6: "
-                    + ipv6Raw2Read(ent.HostInfo.Addrs.Ipv6) + "</a>";
-        }
-        html += "<li><a href='#'>Port: " + ent.HostInfo.Port + "</a>";
+        html += "<li><a href='#'>MTU: " + ent.MTU + "</a>";
+        // if (ent.HostInfo.Addrs.Ipv4) {
+        // html += "<li><a href='#'>Ipv4: "
+        // + ipv4Raw2Read(ent.HostInfo.Addrs.Ipv4) + "</a>";
+        // }
+        // if (ent.HostInfo.Addrs.Ipv6) {
+        // html += "<li><a href='#'>Ipv6: "
+        // + ipv6Raw2Read(ent.HostInfo.Addrs.Ipv6) + "</a>";
+        // }
+        // html += "<li><a href='#'>Port: " + ent.HostInfo.Port + "</a>";
         html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
-            html += "<li><a href='#'>" + iaRaw2Read(if_[i].RawIsdas) + " ("
-                    + if_[i].IfID + ")</a>";
+            html += "<li><a href='#'>" + if_[i].IA + " (" + if_[i].IfID
+                    + ")</a>";
         }
         html += "</ul>";
     }
@@ -483,9 +482,9 @@ function get_json_seg_topo(paths, segs, src, dst) {
     var pathStr = "";
     for (p in paths) {
         pathStr += "| ";
-        var if_ = paths[p].Entry.Path.Interfaces;
+        var if_ = paths[p].Hops;
         for (i in if_) {
-            var ia = iaRaw2Read(if_[i].RawIsdas);
+            var ia = if_[i].IA;
             if (!pathIAs.includes(ia)) {
                 pathIAs.push(ia);
             }
@@ -602,19 +601,20 @@ function get_json_paths(paths, src, dst) {
     var json_paths = {};
     var if_lists = [];
     for (p in paths) {
-        var if_ = paths[p].Entry.Path.Interfaces;
+        var if_ = paths[p].Hops;
         var ifaces = {};
         var interfaces = [];
         for (i in if_) {
             var iface = {};
-            var ia = iaRaw2Read(if_[i].RawIsdas).split('-');
+            var ia = if_[i].IA.split('-');
             iface.IFID = if_[i].IfID;
             iface.ISD = ia[0];
             iface.AS = ia[1];
             interfaces.push(iface);
         }
         ifaces.interfaces = interfaces;
-        ifaces.expTime = paths[p].Entry.Path.ExpTime;
+        ifaces.expTime = new Date(paths[p].Expiry)
+        ifaces.MTU = paths[p].MTU;
         if_lists.push(ifaces);
     }
     json_paths.if_lists = if_lists;
@@ -680,6 +680,10 @@ function requestPaths() {
     // make sure to get path topo after IAs are loaded
     var form_data = $('#command-form').serializeArray();
     $("#as-error").empty();
+    if ($('#ia_cli').val().len == 0 || $('#ia_ser').val() == 0) {
+        showError("Both Source and Destination IAs are required.");
+        return;
+    }
     $.ajax({
         url : 'getpathtopo',
         type : 'post',

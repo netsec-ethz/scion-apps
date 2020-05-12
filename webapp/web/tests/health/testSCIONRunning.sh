@@ -15,7 +15,7 @@ isd=$(echo ${iaFile} | cut -d"-" -f1)
 
 # check if "./scion.sh status" returns anything, fail if it does
 if [ $isd -ge 16 ]; then
-    status="$(systemctl -t service --failed | grep scion-*.service 2>&1)"
+    status="$(systemctl -t service --failed | grep scion*.service 2>&1)"
 else
     # localhost testing
     cd $SCION_ROOT
@@ -57,11 +57,6 @@ else
 fi
 }
 
-
-if [ $isd -ge 16 ]; then
-    # not used for localhost testing
-    check_presence /run/shm/sciond default.sock
-fi
 check_presence /run/shm/dispatcher default.sock
 
 echo "Test for SCION running succeeds."

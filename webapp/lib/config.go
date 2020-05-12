@@ -43,7 +43,8 @@ var cfgFileSerDef = "config/servers_default.json"
 
 // UserSetting holds the serialized structure for persistent user settings
 type UserSetting struct {
-	MyIA string `json:"myIa"`
+	MyIA      string `json:"myIa"`
+	SDAddress string `json:"sdAddress"`
 }
 
 type CmdOptions struct {
@@ -53,9 +54,18 @@ type CmdOptions struct {
 // WriteUserSetting writes the settings to disk.
 func WriteUserSetting(options *CmdOptions, settings UserSetting) {
 	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
+
+	//TODO: writing myIA means we have to retrieve sciond's tcp address too
+	// since sciond's address may be autognerated, it is best to always read from toml
+
+	config, err := LoadSciondConfig(options, settings.MyIA)
+	CheckError(err)
+	settings.SDAddress = config.SD.Address
+	fmt.Printf("Sciond Address: %s\n", settings.SDAddress)
+
 	settingsJSON, _ := json.Marshal(settings)
 
-	err := ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
+	err = ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
 	CheckError(err)
 }
 

@@ -44,20 +44,20 @@ import (
 // GOPATH is the root of the GOPATH environment (in development).
 var GOPATH = os.Getenv("GOPATH")
 
-// browseRoot is browse-only, consider security (def: cwd)
-var browseRoot = flag.String("r", ".",
-	"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
-
 // staticRoot for serving/writing static data
-var staticRoot = flag.String("srvroot", path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp/web"),
+var staticRoot = flag.String("srvroot", "/git/scion-apps/webapp/web",
 	"Path to read/write web server files.")
+
+// browseRoot is browse-only, consider security (def: cwd)
+var browseRoot = flag.String("r", path.Join(*staticRoot, "data"),
+	"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
 
 // appsRoot is the root location of scionlab apps.
 var appsRoot = flag.String("sabin", path.Join(GOPATH, "bin"),
 	"Path to execute the installed scionlab apps binaries")
 
 // scionRoot is the root location of the scion infrastructure.
-var scionRoot = flag.String("sroot", path.Join(GOPATH, "src/github.com/scionproto/scion"),
+var scionRoot = flag.String("sroot", "/git/scion",
 	"Path to read SCION root directory of infrastructure")
 var scionBin = flag.String("sbin", path.Join(*scionRoot, "bin"),
 	"Path to execute SCION bin directory of infrastructure tools")
@@ -252,7 +252,7 @@ func initServeHandlers() {
 	http.HandleFunc("/locations", lib.LocationsHandler)
 	http.HandleFunc("/geolocate", lib.GeolocateHandler)
 	http.HandleFunc("/getpathtopo", getPathInfoHandler)
-	http.HandleFunc("/getastopo", lib.AsTopoHandler)
+	http.HandleFunc("/getastopo", getAsTopoHandler)
 	http.HandleFunc("/gettrc", getTrcInfoHandler)
 }
 
@@ -386,9 +386,8 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
-		optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
 		optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
-		command = append(command, installpath, optServer, optClient)
+		command = append(command, installpath, optServer)
 		if appSel == "bwtester" {
 			bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
 				d.CSPackets, d.CSBandwidth)
@@ -409,12 +408,11 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			return nil
 		}
 		optApp := "echo"
-		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optCount := fmt.Sprintf("-c=%d", d.Count)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
-		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
+		command = append(command, installpath, optApp, optRemote, optCount, optTimeout, optInterval)
 		if len(pathStr) > 0 {
 			// if path choice provided, use interactive mode
 			command = append(command, "-i")
@@ -428,10 +426,9 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			return nil
 		}
 		optApp := "tr"
-		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
-		command = append(command, installpath, optApp, optRemote, optLocal, optTimeout)
+		command = append(command, installpath, optApp, optRemote, optTimeout)
 		if len(pathStr) > 0 {
 			// if path choice provided, use interactive mode
 			command = append(command, "-i")
@@ -441,7 +438,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 
 	if isdCli < 16 {
 		// -sciondFromIA is better for localhost testing, with test isds
-		command = append(command, "-sciondFromIA")
+		command = append(command, fmt.Sprintf("-sciond=%s", settings.SDAddress))
 	}
 	return command
 }
@@ -728,7 +725,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, &options, settings.MyIA)
+	lib.HealthCheckHandler(w, r, &options, settings)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
@@ -758,6 +755,10 @@ func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
 	lib.PathTopoHandler(w, r, &options)
+}
+
+func getAsTopoHandler(w http.ResponseWriter, r *http.Request) {
+	lib.AsTopoHandler(w, r, &options)
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
