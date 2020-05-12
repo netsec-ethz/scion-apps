@@ -1,8 +1,12 @@
 .PHONY: all clean test lint build install
 
 BIN = bin
-# default DESTDIR for installation uses fallback sequence, as documented by go install.
-DESTDIR = $(shell go env GOBIN GOPATH | eval; echo $${GOBIN:-$${GOPATH:-$${HOME}/go}/bin})
+# Default DESTDIR for installation uses fallback sequence, as documented by go install;
+#   This Make-escaped ($ replaced with $$) shell oneliner sources the
+#   environment as returned by go env, and uses the "Default Values" parameter
+#   expansion ${variable:-default} to implement the fallback sequence:
+#     $GOBIN, else $GOPATH/bin, else $HOME/go/bin
+DESTDIR = $(shell set -a; eval $$( go env ); echo $${GOBIN:-$${GOPATH:-$${HOME}/go}/bin})
 
 all: lint build
 
