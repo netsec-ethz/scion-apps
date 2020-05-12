@@ -41,7 +41,7 @@ func TestSCIONNetcat(t *testing.T) {
 	}()
 
 	// Check we are running the right scion-netcat, inspect the help
-	cmd := exec.Command("netcat",
+	cmd := exec.Command("bin/scion-netcat",
 		"--help",
 	)
 	ncOut, _ := cmd.StdoutPipe()
@@ -62,7 +62,7 @@ func TestSCIONNetcat(t *testing.T) {
 	// Start the actual test
 	testMessage := "Hello World!"
 	// Server command
-	cmd = exec.Command("netcat",
+	cmd = exec.Command("bin/scion-netcat",
 		"-l",
 		"1234",
 	)
@@ -83,7 +83,7 @@ func TestSCIONNetcat(t *testing.T) {
 	echoOut, _ := echoCmd.StdoutPipe()
 
 	// Client command
-	cmd = exec.Command("netcat",
+	cmd = exec.Command("bin/scion-netcat",
 		"1-ff00:0:110,[127.0.0.1]:1234",
 	)
 	cmd.Stdin = echoOut

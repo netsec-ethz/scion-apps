@@ -25,7 +25,7 @@ import (
 
 const (
 	name = "helloworld"
-	cmd  = "helloworld"
+	cmd  = "bin/example-helloworld"
 )
 
 func TestHelloworldSample(t *testing.T) {

@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	name = "bwtester"
-	clientCmd  = "bwtestclient"
-	serverCmd  = "bwtestserver"
+	name      = "bwtester"
+	clientCmd = "bin/scion-bwtestclient"
+	serverCmd = "bin/scion-bwtestserver"
 )
 
 func TestIntegrationBwtestclient(t *testing.T) {

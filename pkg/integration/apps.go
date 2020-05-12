@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -51,6 +52,7 @@ type ScionAppsIntegration struct {
 
 // NewAppsIntegration returns an implementation of the Integration interface.
 // Start{Client|Server} will run the binary program with name and use the given arguments for the client/server.
+// Paths to the client/server binaries are relative to the project root.
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
@@ -89,7 +91,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 	log.Debug(fmt.Sprintf("Running server command: %v %v\n", sai.serverCmd, strings.Join(args, " ")))
 
 	r := &appsWaiter{
-		exec.CommandContext(ctx, sai.serverCmd, args...),
+		exec.CommandContext(ctx, path.Join(projectRoot, sai.serverCmd), args...),
 		make(chan bool, 1),
 		make(chan bool, 1),
 	}
@@ -213,7 +215,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 	log.Debug(fmt.Sprintf("Running client command: %v %v\n", sai.clientCmd, strings.Join(args, " ")))
 
 	r := &appsWaiter{
-		exec.CommandContext(ctx, sai.clientCmd, args...),
+		exec.CommandContext(ctx, path.Join(projectRoot, sai.clientCmd), args...),
 		make(chan bool, 1),
 		make(chan bool, 1),
 	}
