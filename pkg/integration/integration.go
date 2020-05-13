@@ -100,6 +100,11 @@ func Init(name string) (err error) {
 	return err
 }
 
+// AppBinPath returns the path to a scion-apps binary built with the projects Makefile.
+func AppBinPath(name string) string {
+	return path.Join(projectRoot, "bin", name)
+}
+
 // IAPairs returns all IAPairs that should be tested.
 func IAPairs(hostAddr sintegration.HostAddr) []sintegration.IAPair {
 	if hostAddr == nil {

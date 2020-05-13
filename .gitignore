@@ -37,6 +37,7 @@ webapp/web/data
 vendor/*/
 
 # generated binaries
+bin/
 bat/bat
 bwtester/bwtestclient/bwtestclient
 bwtester/bwtestserver/bwtestserver

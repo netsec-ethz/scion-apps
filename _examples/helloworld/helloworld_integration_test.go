@@ -25,13 +25,14 @@ import (
 
 const (
 	name = "helloworld"
-	cmd  = "helloworld"
+	bin  = "example-helloworld"
 )
 
 func TestHelloworldSample(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
 	}
+  cmd := integration.AppBinPath(bin)
 	// Common arguments
 	cmnArgs := []string{}
 	// Server
