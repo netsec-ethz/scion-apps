@@ -24,14 +24,17 @@ import (
 
 const (
 	name      = "bwtester"
-	clientCmd = "bin/scion-bwtestclient"
-	serverCmd = "bin/scion-bwtestserver"
+	clientBin = "scion-bwtestclient"
+	serverBin = "scion-bwtestserver"
 )
 
 func TestIntegrationBwtestclient(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
 	}
+  clientCmd := integration.AppBinPath(clientBin)
+  serverCmd := integration.AppBinPath(serverBin)
+
 	// Common arguments
 	cmnArgs := []string{}
 	// Server
