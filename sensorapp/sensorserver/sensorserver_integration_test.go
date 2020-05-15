@@ -17,9 +17,12 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
+	"path"
+	"runtime"
 	"testing"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration"
@@ -31,19 +34,6 @@ const (
 	serverBin = "scion-sensorserver"
 )
 
-func wrapperCommand(inputSource string, command string, port int) (wrapperCmd string, err error){
-	wrapperCmd = integration.AppBinPath(fmt.Sprintf("%s_wrapper.sh", serverBin))
-	f, err := os.OpenFile(serverBinWrapper, O_RDWR|O_CREATE|O_TRUNC, 0777)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to create %s", serverBinWrapperCmd))
-	}
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	_, _ = w.WriteString(fmt.Sprintf("%s | %s -p %d", inputSource, command, port),
-		inputSource, command, port)
-	return wrapperCmd, nil
-}
-
 func TestIntegrationSensorserver(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
@@ -52,16 +42,16 @@ func TestIntegrationSensorserver(t *testing.T) {
 	cmnArgs := []string{}
 	// Server
 	serverPort := "42003"
-	serverArgs := []string{"-p", serverPort}
+	serverArgs := []string{}
 	serverArgs = append(serverArgs, cmnArgs...)
 
 	clientCmd := integration.AppBinPath(clientBin)
-	serverBinWrapperCmd, err := wrapperCommand("./sensorapp/sensorserver/timereader.py",
+	serverBinWrapperCmd, err := wrapperCommand("timereader.py",
 		integration.AppBinPath(serverBin), serverPort)
 	if err != nil {
 		t.Fatalf("Failed to wrap sensorserver input: %s\n", err)
 	}
-	serverCmd := integration.AppBinPath(serverBinWrapperCmd)
+	serverCmd := serverBinWrapperCmd
 
 	testCases := []struct {
 		Name              string
@@ -76,7 +66,7 @@ func TestIntegrationSensorserver(t *testing.T) {
 			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort}, cmnArgs...),
 			nil,
 			nil,
-			integration.RegExp("^\\w{3} \\w+ \\d+ \\d{2}:\\d{2}:\\d{2} UTC 20\\d{2}$"),
+			integration.RegExp("^20\\d{2}\\/\\d{2}\\/\\d{2} \\d{2}:\\d{2}:\\d{2}$"),
 			nil,
 		},
 	}
@@ -93,8 +83,25 @@ func TestIntegrationSensorserver(t *testing.T) {
 		IAPairs := integration.IAPairs(hostAddr)
 		IAPairs = IAPairs[:1]
 
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, integration.DefaultClientTimeout/5); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
 	}
+}
+
+func wrapperCommand(inputSource string, command string, port string) (wrapperCmd string, err error){
+	wrapperCmd = integration.AppBinPath(fmt.Sprintf("%s_wrapper.sh", serverBin))
+	f, err := os.OpenFile(wrapperCmd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("failed to create %s: %v", wrapperCmd, err))
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	defer w.Flush()
+	_, file, _, _ := runtime.Caller(0)
+	cwd := path.Dir(file)
+	inputSource = path.Join(cwd, inputSource)
+	_, _ = w.WriteString(fmt.Sprintf("#!/bin/bash\ntimeout 5 /bin/bash -c \"%s | %s -p %s\"",
+		inputSource, command, port))
+	return wrapperCmd, nil
 }

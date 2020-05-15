@@ -71,7 +71,7 @@ func TestIntegrationImagefetcher(t *testing.T) {
 		IAPairs := integration.IAPairs(hostAddr)
 		IAPairs = IAPairs[:1]
 
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 0); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
 	}
