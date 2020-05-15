@@ -17,8 +17,13 @@
 package main
 
 import (
-	"github.com/netsec-ethz/scion-apps/pkg/integration"
+	"os/exec"
+	"path"
+	"regexp"
+	"runtime"
 	"testing"
+
+	"github.com/netsec-ethz/scion-apps/pkg/integration"
 )
 
 const (
@@ -31,8 +36,8 @@ func TestIntegrationImagefetcher(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
 	}
-  clientCmd := integration.AppBinPath(clientBin)
-  serverCmd := integration.AppBinPath(serverBin)
+	clientCmd := integration.AppBinPath(clientBin)
+	serverCmd := integration.AppBinPath(serverBin)
 
 	// Common arguments
 	cmnArgs := []string{}
@@ -40,6 +45,11 @@ func TestIntegrationImagefetcher(t *testing.T) {
 	serverPort := "42002"
 	serverArgs := []string{"-p", serverPort}
 	serverArgs = append(serverArgs, cmnArgs...)
+
+	_, file, _, _ := runtime.Caller(0)
+	cwd := path.Dir(file)
+	// Sample file path
+	sample := path.Join(cwd, "../imageserver/logo.jpg")
 
 	testCases := []struct {
 		Name              string
@@ -55,6 +65,33 @@ func TestIntegrationImagefetcher(t *testing.T) {
 			nil,
 			nil,
 			integration.RegExp("^Done, exiting. Total duration \\d+\\.\\d+m?s$"),
+			nil,
+		},
+		{
+			"fetch_image",
+			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-output", "/tmp/download.jpg"}, cmnArgs...),
+			nil,
+			nil,
+			func(prev bool, line string) (res bool) {
+				if !prev {
+					matched, err := regexp.MatchString("^r+[.r]+$", line)
+					if err == nil {
+						res = matched
+					}
+				} else {
+					matched, err := regexp.MatchString("^Done, exiting. Total duration \\d+\\.\\d+m?s$", line)
+					if err != nil || !matched {
+						return false
+					}
+					res = true
+					// The image was downloaded, compare it with the source
+					cmd := exec.Command("cmp", "-l", "/tmp/download.jpg", sample)
+					// cmp exits with 0 exit status if the files are identical, and err is nil if the exit status is 0
+					err = cmd.Run()
+					res = err == nil
+				}
+				return res
+			},
 			nil,
 		},
 	}
