@@ -20,7 +20,9 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -46,7 +48,12 @@ func TestIntegrationScionNetcat(t *testing.T) {
 	serverArgs = append(cmnArgs, serverArgs...)
 
 	testMessage := "Hello World!"
-	clientBinWrapperCmd, err := wrapperCommand(fmt.Sprintf("echo -e '%s'", testMessage),
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	clientBinWrapperCmd, err := wrapperCommand(tmpDir, fmt.Sprintf("echo -e '%s'", testMessage),
 		integration.AppBinPath(clientBin))
 	if err != nil {
 		t.Fatalf("Failed to wrap scion-netcat input: %s\n", err)
@@ -69,7 +76,6 @@ func TestIntegrationScionNetcat(t *testing.T) {
 			nil,
 			nil,
 			integration.RegExp("^.*SCION.*$"),
-			//integration.Contains("SCION"),
 			nil,
 		},
 		{
@@ -78,7 +84,7 @@ func TestIntegrationScionNetcat(t *testing.T) {
 			integration.RegExp(fmt.Sprintf("^%s$", testMessage)),
 			nil,
 			nil,
-			nil,
+			integration.NoPanic(),
 		},
 	}
 
@@ -99,9 +105,14 @@ func TestIntegrationScionNetcat(t *testing.T) {
 		}
 	}
 
-	// Common arguments
-	cmnArgs = []string{"-vv -u"}
 	// UDP tests
+	// Common arguments
+	cmnArgs = []string{"-vv", "-u"}
+
+	// Server
+	serverPort = "1234"
+	serverArgs = []string{"-l", serverPort}
+	serverArgs = append(cmnArgs, serverArgs...)
 	testCases = []struct {
 		Name              string
 		Args              []string
@@ -113,10 +124,10 @@ func TestIntegrationScionNetcat(t *testing.T) {
 		{
 			"client_hello_UDP",
 			append(cmnArgs, integration.DstAddrPattern + ":" + serverPort),
-			integration.RegExp(fmt.Sprintf("^%s$", testMessage)),
 			nil,
 			nil,
 			nil,
+			integration.RegExp("^.*Connected.*$"),
 		},
 	}
 
@@ -138,8 +149,8 @@ func TestIntegrationScionNetcat(t *testing.T) {
 	}
 }
 
-func wrapperCommand(inputSource string, command string) (wrapperCmd string, err error){
-	wrapperCmd = integration.AppBinPath(fmt.Sprintf("%s_wrapper.sh", serverBin))
+func wrapperCommand(tmpDir string, inputSource string, command string) (wrapperCmd string, err error){
+	wrapperCmd = path.Join(tmpDir, fmt.Sprintf("%s_wrapper.sh", serverBin))
 	f, err := os.OpenFile(wrapperCmd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("failed to create %s: %v", wrapperCmd, err))

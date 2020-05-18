@@ -406,3 +406,19 @@ func RegExp(regularExpression string) func(prev bool, line string) bool {
 		return prev || matched // return true if any output line matches the expression
 	}
 }
+
+func NoPanic() func(prev bool, line string) bool {
+	return func(prev bool, line string) bool {
+		matched, err := regexp.MatchString("^.*panic: .*$", line)
+		if err != nil {
+			// invalid regexp, don't count as a match
+			return prev
+		}
+		if init, err := regexp.MatchString("^.*Registered with dispatcher.*$", line); err == nil {
+			if init {
+				return init
+			}
+		}
+		return prev && !matched
+	}
+}

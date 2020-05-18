@@ -102,9 +102,6 @@ func DoDialQUIC(remoteAddr string) io.ReadWriteCloser {
 		&tls.Config{
 			InsecureSkipVerify: true,
 			NextProtos:         []string{nextProto},
-			// TODO: remove the hack below, and fix anywhere between appquic.Dial and quic-go/client.go newClient
-			ServerName:         "example.com", // this is a stupid workaround to not hit SplitHostPort
-			// on a SCION address in quic-go newClient
 		},
 		&quic.Config{KeepAlive: true},
 	)

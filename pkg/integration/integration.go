@@ -145,7 +145,7 @@ func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTi
 			}
 		}(&serverClosers)
 		for _, dst := range dsts {
-			c, err := sintegration.StartServer(in, dst)
+			c, err := StartServer(in, dst)
 			if err != nil {
 				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
 				return err
@@ -231,4 +231,29 @@ func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net
 		return nil, err
 	}
 	return bsAddr.IP, nil
+}
+
+
+// Duplicated from "github.com/scionproto/scion/go/lib/integration", but do not swallow error
+func (s *serverStop) Close() error {
+	s.cancel()
+	err := s.wait.Wait()
+	return err // Do return the error
+}
+
+type serverStop struct {
+	cancel context.CancelFunc
+	wait   sintegration.Waiter
+}
+
+// StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
+// To start a server with a custom context use in.StartServer directly.
+func StartServer(in sintegration.Integration, dst *snet.UDPAddr) (io.Closer, error) {
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	s, err := in.StartServer(serverCtx, dst)
+	if err != nil {
+		serverCancel()
+		return nil, err
+	}
+	return &serverStop{serverCancel, s}, nil
 }
