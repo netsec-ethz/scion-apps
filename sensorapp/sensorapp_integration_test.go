@@ -46,13 +46,20 @@ func TestIntegrationSensorserver(t *testing.T) {
 	serverArgs := []string{}
 	serverArgs = append(serverArgs, cmnArgs...)
 
-	clientCmd := integration.AppBinPath(clientBin)
-	serverBinWrapperCmd, err := wrapperCommand("timereader.py",
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	serverBinWrapperCmd, err := wrapperCommand(tmpDir, "timereader.py",
 		integration.AppBinPath(serverBin), serverPort)
 	if err != nil {
 		t.Fatalf("Failed to wrap sensorserver input: %s\n", err)
 	}
 	serverCmd := serverBinWrapperCmd
+
+	// Client
+	clientCmd := integration.AppBinPath(clientBin)
 
 	testCases := []struct {
 		Name              string
@@ -82,7 +89,6 @@ func TestIntegrationSensorserver(t *testing.T) {
 		hostAddr := integration.HostAddr
 
 		IAPairs := integration.IAPairs(hostAddr)
-		IAPairs = IAPairs[:1]
 
 		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, integration.DefaultClientTimeout/5); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
@@ -90,11 +96,7 @@ func TestIntegrationSensorserver(t *testing.T) {
 	}
 }
 
-func wrapperCommand(inputSource string, command string, port string) (wrapperCmd string, err error){
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		return "", err
-	}
+func wrapperCommand(tmpDir string, inputSource string, command string, port string) (wrapperCmd string, err error){
 	wrapperCmd =  path.Join(tmpDir, fmt.Sprintf("%s_wrapper.sh", serverBin))
 	f, err := os.OpenFile(wrapperCmd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
@@ -105,7 +107,7 @@ func wrapperCommand(inputSource string, command string, port string) (wrapperCmd
 	defer w.Flush()
 	_, file, _, _ := runtime.Caller(0)
 	cwd := path.Dir(file)
-	inputSource = path.Join(cwd, inputSource)
+	inputSource = path.Join(cwd, "sensorserver", inputSource)
 	_, _ = w.WriteString(fmt.Sprintf("#!/bin/bash\ntimeout 5 /bin/bash -c \"%s | %s -p %s\"",
 		inputSource, command, port))
 	return wrapperCmd, nil

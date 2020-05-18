@@ -105,11 +105,6 @@ func AppBinPath(name string) string {
 	return path.Join(projectRoot, "bin", name)
 }
 
-// AppTestdataPath returns the path to a scion-apps testdata directory.
-func AppTestdataPath() string {
-	return path.Join(projectRoot, "testdata")
-}
-
 // IAPairs returns all IAPairs that should be tested.
 func IAPairs(hostAddr sintegration.HostAddr) []sintegration.IAPair {
 	if hostAddr == nil {

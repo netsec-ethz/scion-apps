@@ -45,17 +45,18 @@ func TestIntegrationImagefetcher(t *testing.T) {
 	cmnArgs := []string{}
 	// Server
 	serverPort := "42002"
-	serverArgs := []string{"-p", serverPort, "-d", integration.AppTestdataPath()}
+	serverArgs := []string{"-p", serverPort, "-d", "testdata"}
 	serverArgs = append(serverArgs, cmnArgs...)
 
 	// Sample file path
-	sample := path.Join(integration.AppTestdataPath(), "logo.jpg")
+	sample := path.Join("testdata", "logo.jpg")
 	// Image fetcher output directory
 	sampleOutputDir, err := ioutil.TempDir("", fmt.Sprintf("%s_integration_output", name))
 	sampleOuput := path.Join(sampleOutputDir, "download.jpg")
 	if err != nil {
 		t.Fatalf("Error during setup err: %v", err)
 	}
+	defer os.RemoveAll(sampleOutputDir)
 
 	testCases := []struct {
 		Name              string
@@ -103,13 +104,10 @@ func TestIntegrationImagefetcher(t *testing.T) {
 		hostAddr := integration.HostAddr
 
 		IAPairs := integration.IAPairs(hostAddr)
+		IAPairs = IAPairs[:1]
 
 		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 0); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
-	}
-	// Cleanup temporary output directory
-	if err := os.RemoveAll(sampleOutputDir); err != nil {
-		fmt.Printf("Error during cleanup: err=%s\n", err)
 	}
 }
