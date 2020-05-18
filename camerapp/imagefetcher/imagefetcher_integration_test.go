@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	name      = "cameraapp"
+	name      = "camerapp"
 	clientBin = "scion-imagefetcher"
 	serverBin = "scion-imageserver"
 )
@@ -49,7 +49,7 @@ func TestIntegrationImagefetcher(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	cwd := path.Dir(file)
 	// Sample file path
-	sample := path.Join(cwd, "../imageserver/logo.jpg")
+	sample := path.Join(cwd, "logo.jpg")
 
 	testCases := []struct {
 		Name              string
