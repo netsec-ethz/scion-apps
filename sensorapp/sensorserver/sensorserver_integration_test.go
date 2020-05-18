@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -90,7 +91,11 @@ func TestIntegrationSensorserver(t *testing.T) {
 }
 
 func wrapperCommand(inputSource string, command string, port string) (wrapperCmd string, err error){
-	wrapperCmd = integration.AppBinPath(fmt.Sprintf("%s_wrapper.sh", serverBin))
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		return "", err
+	}
+	wrapperCmd =  path.Join(tmpDir, fmt.Sprintf("%s_wrapper.sh", serverBin))
 	f, err := os.OpenFile(wrapperCmd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("failed to create %s: %v", wrapperCmd, err))

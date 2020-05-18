@@ -17,10 +17,12 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"path"
 	"regexp"
-	"runtime"
 	"testing"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration"
@@ -43,13 +45,17 @@ func TestIntegrationImagefetcher(t *testing.T) {
 	cmnArgs := []string{}
 	// Server
 	serverPort := "42002"
-	serverArgs := []string{"-p", serverPort}
+	serverArgs := []string{"-p", serverPort, "-d", integration.AppTestdataPath()}
 	serverArgs = append(serverArgs, cmnArgs...)
 
-	_, file, _, _ := runtime.Caller(0)
-	cwd := path.Dir(file)
 	// Sample file path
-	sample := path.Join(cwd, "logo.jpg")
+	sample := path.Join(integration.AppTestdataPath(), "logo.jpg")
+	// Image fetcher output directory
+	sampleOutputDir, err := ioutil.TempDir("", fmt.Sprintf("%s_integration_output", name))
+	sampleOuput := path.Join(sampleOutputDir, "download.jpg")
+	if err != nil {
+		t.Fatalf("Error during setup err: %v", err)
+	}
 
 	testCases := []struct {
 		Name              string
@@ -61,36 +67,27 @@ func TestIntegrationImagefetcher(t *testing.T) {
 	}{
 		{
 			"fetch_image",
-			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-output", "./download.jpg"}, cmnArgs...),
+			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-output", sampleOuput}, cmnArgs...),
 			nil,
 			nil,
-			integration.RegExp("^Done, exiting. Total duration \\d+\\.\\d+m?s$"),
-			nil,
-		},
-		{
-			"fetch_image",
-			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-output", "/tmp/download.jpg"}, cmnArgs...),
-			nil,
-			nil,
-			func(prev bool, line string) (res bool) {
+			func(prev bool, line string) bool {
 				if !prev {
 					matched, err := regexp.MatchString("^r+[.r]+$", line)
 					if err == nil {
-						res = matched
+						return matched
 					}
 				} else {
 					matched, err := regexp.MatchString("^Done, exiting. Total duration \\d+\\.\\d+m?s$", line)
 					if err != nil || !matched {
 						return false
 					}
-					res = true
 					// The image was downloaded, compare it with the source
-					cmd := exec.Command("cmp", "-l", "/tmp/download.jpg", sample)
+					cmd := exec.Command("cmp", "-l", sampleOuput, sample)
 					// cmp exits with 0 exit status if the files are identical, and err is nil if the exit status is 0
 					err = cmd.Run()
-					res = err == nil
+					return err == nil
 				}
-				return res
+				return prev
 			},
 			nil,
 		},
@@ -106,10 +103,13 @@ func TestIntegrationImagefetcher(t *testing.T) {
 		hostAddr := integration.HostAddr
 
 		IAPairs := integration.IAPairs(hostAddr)
-		IAPairs = IAPairs[:1]
 
 		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 0); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
+	}
+	// Cleanup temporary output directory
+	if err := os.RemoveAll(sampleOutputDir); err != nil {
+		fmt.Printf("Error during cleanup: err=%s\n", err)
 	}
 }
