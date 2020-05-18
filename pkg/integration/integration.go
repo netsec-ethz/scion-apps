@@ -233,7 +233,6 @@ func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net
 	return bsAddr.IP, nil
 }
 
-
 // Duplicated from "github.com/scionproto/scion/go/lib/integration", but do not swallow error
 func (s *serverStop) Close() error {
 	s.cancel()
