@@ -124,7 +124,7 @@ func IAPairs(hostAddr sintegration.HostAddr) []sintegration.IAPair {
 
 // RunTests runs the client and server for each IAPair.
 // In case of an error the function is terminated immediately.
-func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTimeout time.Duration) error {
+func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTimeout time.Duration, clientDelay time.Duration) error {
 	defer log.HandlePanic()
 	defer log.Flush()
 	return sintegration.ExecuteTimed(in.Name(), func() (clossingErr error) {
@@ -152,6 +152,7 @@ func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTi
 			}
 			serverClosers = append(serverClosers, c)
 		}
+		time.Sleep(clientDelay)
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
 			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))

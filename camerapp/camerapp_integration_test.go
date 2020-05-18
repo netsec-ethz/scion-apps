@@ -17,30 +17,46 @@
 package main
 
 import (
-	"github.com/netsec-ethz/scion-apps/pkg/integration"
-	"strings"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"regexp"
 	"testing"
+
+	"github.com/netsec-ethz/scion-apps/pkg/integration"
 )
 
 const (
-	name      = "bwtester"
-	clientBin = "scion-bwtestclient"
-	serverBin = "scion-bwtestserver"
+	name      = "camerapp"
+	clientBin = "scion-imagefetcher"
+	serverBin = "scion-imageserver"
 )
 
-func TestIntegrationBwtestclient(t *testing.T) {
+func TestIntegrationImagefetcher(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
 	}
-  clientCmd := integration.AppBinPath(clientBin)
-  serverCmd := integration.AppBinPath(serverBin)
+	clientCmd := integration.AppBinPath(clientBin)
+	serverCmd := integration.AppBinPath(serverBin)
 
 	// Common arguments
 	cmnArgs := []string{}
 	// Server
-	serverPort := "40002"
-	serverArgs := []string{"-p", serverPort}
+	serverPort := "42002"
+	serverArgs := []string{"-p", serverPort, "-d", "testdata"}
 	serverArgs = append(serverArgs, cmnArgs...)
+
+	// Sample file path
+	sample := path.Join("testdata", "logo.jpg")
+	// Image fetcher output directory
+	sampleOutputDir, err := ioutil.TempDir("", fmt.Sprintf("%s_integration_output", name))
+	sampleOuput := path.Join(sampleOutputDir, "download.jpg")
+	if err != nil {
+		t.Fatalf("Error during setup err: %v", err)
+	}
+	defer os.RemoveAll(sampleOutputDir)
 
 	testCases := []struct {
 		Name              string
@@ -51,14 +67,29 @@ func TestIntegrationBwtestclient(t *testing.T) {
 		ClientErrMatchFun func(bool, string) bool
 	}{
 		{
-			"bandwidth_client",
-			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-cs", "1Mbps"}, cmnArgs...),
-			func(prev bool, line string) bool {
-				res := strings.Contains(line, "Received request")
-				return prev || res // return true if any output line contains the string
-			},
+			"fetch_image",
+			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-output", sampleOuput}, cmnArgs...),
 			nil,
-			integration.RegExp("^Achieved bandwidth: \\d+ bps / \\d+.\\d+ [Mk]bps$"),
+			nil,
+			func(prev bool, line string) bool {
+				if !prev {
+					matched, err := regexp.MatchString("^r+[.r]+$", line)
+					if err == nil {
+						return matched
+					}
+				} else {
+					matched, err := regexp.MatchString("^Done, exiting. Total duration \\d+\\.\\d+m?s$", line)
+					if err != nil || !matched {
+						return false
+					}
+					// The image was downloaded, compare it with the source
+					cmd := exec.Command("cmp", "-l", sampleOuput, sample)
+					// cmp exits with 0 exit status if the files are identical, and err is nil if the exit status is 0
+					err = cmd.Run()
+					return err == nil
+				}
+				return prev
+			},
 			nil,
 		},
 	}

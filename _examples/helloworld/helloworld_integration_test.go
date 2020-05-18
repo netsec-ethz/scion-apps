@@ -84,7 +84,7 @@ func TestHelloworldSample(t *testing.T) {
 		IAPairs = IAPairs[:len(IAPairs)/2]
 		// Run the tests to completion or until a test fails,
 		// increase the client timeout if clients need more time to start
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout); err != nil {
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 0); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
 	}
