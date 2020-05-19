@@ -19,29 +19,21 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
 	//"github.com/lucas-clemente/quic-go/quictrace"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
-)
-
-const (
-	defScionConfPath = "/etc/scion/"
-	defKeyPath       = "gen-certs/tls.key"
-	defPemPath       = "gen-certs/tls.pem"
 )
 
 const (
@@ -50,23 +42,25 @@ const (
 
 var _ quic.Session = (*MPQuic)(nil)
 
+// XXX(matzf): redundant fields? raddr contains path, path contains fingerprint/expiry.
 type pathInfo struct {
-	raddr      *snet.Addr
-	path       spathmeta.AppPath
-	appPathKey spathmeta.PathKey // caches path.Key()
-	rawPathKey RawKey            // caches
-	expiration time.Time
-	rtt        time.Duration
-	bw         int // in bps
+	raddr       *snet.UDPAddr
+	path        snet.Path
+	fingerprint snet.PathFingerprint // caches path.Fingerprint()
+	rawPathKey  RawKey
+	expiry      time.Time
+	rtt         time.Duration
+	bw          int // in bps
 }
 
+// TODO(matzf): rename to Session?
 type MPQuic struct {
 	quic.Session
 	scionFlexConnection *SCIONFlexConn
-	network             *snet.SCIONNetwork
-	dispConn            *reliable.Conn
-	paths               []pathInfo
+	dispConn            net.PacketConn
+	paths               []*pathInfo
 	active              *pathInfo
+	pathResolver        pathmgr.Resolver
 }
 
 type Logger struct {
@@ -79,7 +73,7 @@ type Logger struct {
 }
 
 type keyedRevocation struct {
-	key            *RawKey
+	key            RawKey
 	revocationInfo *scmp.InfoRevocation
 }
 
@@ -87,46 +81,14 @@ var (
 	logger *Logger
 
 	revocationQ chan keyedRevocation
-
-	//tracer quictrace.Tracer
-	// Don't verify the server's cert, as we are not using the TLS PKI.
-	cliTlsCfg = &tls.Config{
-		InsecureSkipVerify: true,
-		NextProtos:         []string{"SCION"},
-	}
-	srvTlsCfg = &tls.Config{NextProtos: []string{"SCION"}}
 )
 
-// Init initializes the SCION networking context and the QUIC session's crypto.
-func Init(ia addr.IA, sciondPath, dispatcher, keyPath, pemPath string) error {
-	if logger == nil {
-		// By default this library is noisy, to mute it call msquic.MuteLogging
-		initLogging(log.Root())
-	}
-	/*
-		// Default SCION networking context without custom SCMP handler
-		if err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
-			return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
-		}
-	*/
-	if revocationQ == nil {
-		revocationQ = make(chan keyedRevocation, 50) // Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
-	}
-	if err := initNetworkWithPRCustomSCMPHandler(ia, sciondPath, reliable.NewDispatcherService(dispatcher)); err != nil {
-		return common.NewBasicError("mpsquic: Unable to initialize SCION network", err)
-	}
-	if keyPath == "" {
-		keyPath = defScionConfPath + defKeyPath
-	}
-	if pemPath == "" {
-		pemPath = defScionConfPath + defPemPath
-	}
-	cert, err := tls.LoadX509KeyPair(pemPath, keyPath)
-	if err != nil {
-		return common.NewBasicError("mpsquic: Unable to load TLS cert/key", err)
-	}
-	srvTlsCfg.Certificates = []tls.Certificate{cert}
-	return nil
+func init() {
+	// TODO(matzf) does this need to be global?
+	revocationQ = make(chan keyedRevocation, 50) // Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
+	// TODO(matzf) change default to mute
+	// By default this library is noisy, to mute it call msquic.MuteLogging
+	initLogging(log.Root())
 }
 
 // initLogging initializes logging for the mpsquic library using the passed scionproto (or similar) logger
@@ -175,186 +137,127 @@ func (mpq *MPQuic) OpenStreamSync(ctx context.Context) (quic.Stream, error) {
 }
 
 // Close closes the QUIC session.
-func (mpq *MPQuic) Close() error {
+func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
 	if err := exportTraces(); err != nil {
 		logger.Warn("Failed to export QUIC trace", "err", err)
 	}
+	// TODO(matzf) return all errors (multierr)
 	if mpq.Session != nil {
-		return mpq.Session.Close()
-	}
-	return nil
-}
-
-// CloseConn closes the embedded SCION connection.
-func (mpq *MPQuic) CloseConn() error {
-	if mpq.dispConn != nil {
-		tmp := mpq.dispConn
-		mpq.dispConn = nil
-		time.Sleep(time.Second)
-		err := tmp.Close()
-		if err != nil {
-			return err
+		if err := mpq.Session.CloseWithError(code, desc); err != nil {
+			logger.Warn("Error closing QUIC session", "err", err)
 		}
 	}
+	// TODO(matzf) close disp connection
+	// TODO(matzf) destroy network object?
 	return mpq.scionFlexConnection.Close()
 }
 
-// DialMP creates a monitored multiple paths connection using QUIC over SCION.
-// It returns a MPQuic struct if opening a QUIC session over the initial SCION path succeeded.
-func DialMP(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths []spathmeta.AppPath,
-	quicConfig *quic.Config) (*MPQuic, error) {
-
-	return DialMPWithBindSVC(network, laddr, raddr, paths, nil, addr.SvcNone, quicConfig)
+// createSCMPMonitorConn opens a new connection to send/receive SCMPs on.
+// NOTE(matzf): this should not be necessary, as the regular snet.Conn uses the
+// same underlying type. We just cant get it out.
+func createSCMPMonitorConn(ctx context.Context, localIP net.IP) (net.PacketConn, error) {
+	// New connection
+	// Ignore assigned port
+	disp := appnet.DefNetwork().Dispatcher
+	localIA := appnet.DefNetwork().IA
+	dispConn, _, err := disp.Register(ctx, localIA, &net.UDPAddr{IP: localIP, Port: 0}, addr.SvcNone)
+	return dispConn, err
 }
 
-// createSCMPMonitorConn opens a connection to the default dispatcher.
-// It returns a reliable socket connection.
-func createSCMPMonitorConn(laddr, baddr *snet.Addr) (dispConn *reliable.Conn, err error) {
-	// Connect to the dispatcher
-	var overlayBindAddr *overlay.OverlayAddr
-	if baddr != nil {
-		if baddr.Host != nil {
-			overlayBindAddr, err = overlay.NewOverlayAddr(baddr.Host.L3, baddr.Host.L4)
-			if err != nil {
-				logger.Error("Failed to create bind address", "err", err)
-				return nil, err
-			}
-		}
-	}
-	laddrMonitor := laddr.Copy()
-	laddrMonitor.Host.L4 = addr.NewL4UDPInfo(0) // Use any free port
-	dispConn, _, err = reliable.Register(reliable.DefaultDispPath, laddrMonitor.IA, laddrMonitor.Host,
-		overlayBindAddr, addr.SvcNone)
-	if err != nil {
-		logger.Error("Unable to register with the dispatcher", "addr", laddrMonitor, "err", err)
-		return nil, err
-	}
-	return dispConn, nil
-}
-
-// Creates an AppPath using the spath.Path and hostinfo addr.AppAddr available on a snet.Addr, missing values are set to their zero value.
-func mockAppPath(spathP *spath.Path, host *addr.AppAddr) (appPath *spathmeta.AppPath, err error) {
-	appPath = &spathmeta.AppPath{
-		Entry: &sciond.PathReplyEntry{
-			Path:     nil,
-			HostInfo: *hostinfo.FromHostAddr(addr.HostFromIPStr("127.0.0.1"), 30041)}}
-	if host != nil {
-		appPath.Entry.HostInfo = *hostinfo.FromHostAddr(host.L3, host.L4.Port())
-	}
-	if spathP == nil {
-		return appPath, nil
-	}
-
-	cpath, err := parseSPath(*spathP)
-	if err != nil {
-		return nil, err
-	}
-
-	appPath.Entry.Path = &sciond.FwdPathMeta{
-		FwdPath:    spathP.Raw,
-		Mtu:        cpath.Mtu,
-		Interfaces: cpath.Interfaces,
-		ExpTime:    uint32(cpath.ComputeExpTime().Unix())}
-	return appPath, nil
-}
-
-// DialMPWithBindSVC creates a monitored multiple paths connection using QUIC over SCION on the specified bind address baddr.
+// Dial creates a monitored multiple paths connection using QUIC.
 // It returns a MPQuic struct if a opening a QUIC session over the initial SCION path succeeded.
-func DialMPWithBindSVC(network *snet.SCIONNetwork, laddr *snet.Addr, raddr *snet.Addr, paths []spathmeta.AppPath, baddr *snet.Addr,
-	svc addr.HostSVC, quicConfig *quic.Config) (*MPQuic, error) {
+func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
+	tlsConf *tls.Config, quicConf *quic.Config) (*MPQuic, error) {
 
-	if network == nil {
-		network = snet.DefNetwork
+	ctx := context.Background()
+
+	// XXX(matzf): this is ugly as; the SCMPHandler could be configured per connection but it's not
+	// accessible so we have to make this weird detour of creating a new Network object.
+	defNetwork := appnet.DefNetwork()
+	network := snet.NewCustomNetworkWithPR(
+		defNetwork.IA,
+		&snet.DefaultPacketDispatcherService{
+			Dispatcher: defNetwork.Dispatcher,
+			SCMPHandler: &scmpHandler{
+				revocationQ: revocationQ,
+			},
+		},
+	)
+	// Analogous to appnet.Listen(nil), but need to hand roll because we are not
+	// using the default network
+	localIP, err := appnet.DefaultLocalIP()
+	if err != nil {
+		return nil, err
 	}
-
-	sconn, err := sListen(network, laddr, baddr, svc)
+	conn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: localIP, Port: 0}, addr.SvcNone)
 	if err != nil {
 		return nil, err
 	}
 
-	dispConn, err := createSCMPMonitorConn(laddr, baddr)
+	dispConn, err := createSCMPMonitorConn(ctx, localIP)
 	if err != nil {
 		return nil, err
 	}
 
-	if paths == nil {
-		paths = []spathmeta.AppPath{}
-		// Infer path meta information from path on raddr, since no paths were provided
-		appPath, err := mockAppPath(raddr.Path, raddr.Host)
-		if err != nil {
-			return nil, err
-		}
-		paths = append(paths, *appPath)
-	}
+	// XXX(matzf): make this public on DefNetwork
+	sdConn := defNetwork.PathQuerier.(sciond.Querier).Connector
+	pathResolver := pathmgr.New(sdConn, pathmgr.Timers{}, 0)
 
-	var raddrs []*snet.Addr = []*snet.Addr{}
-	// Initialize a raddr for each path
-	for i, p := range paths {
-		logger.Info("Path", "index", i, "interfaces", p.Entry.Path.Interfaces)
-		r := raddr.Copy()
-		if p.Entry.Path != nil {
-			r.Path = spath.New(p.Entry.Path.FwdPath)
-		}
-		if r.Path != nil {
-			_ = r.Path.InitOffsets()
-		}
-		r.NextHop, _ = p.Entry.HostInfo.Overlay()
-		raddrs = append(raddrs, r)
-	}
+	pathInfos := makePathInfos(paths, raddr)
 
-	pathInfos := []pathInfo{}
-	for i, raddr := range raddrs {
-		spathRepr := spath.New(paths[i].Entry.Path.FwdPath)
-		rawSpathKey, err := getSpathKey(*spathRepr)
-		if err != nil {
-			rspk := RawKey([]byte{})
-			rawSpathKey = &rspk
-		}
-		pi := pathInfo{
-			raddr:      raddr,
-			path:       paths[i],
-			appPathKey: paths[i].Key(),
-			rawPathKey: *rawSpathKey,
-			expiration: time.Time{},
-			rtt:        maxDuration,
-			bw:         0,
-		}
-		pathInfos = append(pathInfos, pi)
-	}
-
-	mpQuic, err := newMPQuic(sconn, laddr, network, quicConfig, dispConn, pathInfos)
+	active := pathInfos[0]
+	flexConn := newSCIONFlexConn(conn, active.raddr)
+	qsession, err := quic.Dial(flexConn, flexConn.raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
+	mpQuic := &MPQuic{
+		Session:             qsession,
+		scionFlexConnection: flexConn,
+		dispConn:            dispConn,
+		paths:               pathInfos,
+		active:              active,
+		pathResolver:        pathResolver,
+	}
+	logger.Info("Active Path", "key", active.fingerprint, "Hops", active.path.Interfaces())
+	/*if quicConfig != nil {
+		tracer = quicConfig.QuicTracer
+	}*/
 	mpQuic.monitor()
 
 	return mpQuic, nil
 }
 
-func newMPQuic(sconn snet.Conn, laddr *snet.Addr, network *snet.SCIONNetwork, quicConfig *quic.Config, dispConn *reliable.Conn, pathInfos []pathInfo) (mpQuic *MPQuic, err error) {
-	active := &pathInfos[0]
-	mpQuic = &MPQuic{Session: nil, scionFlexConnection: nil, network: network, dispConn: dispConn, paths: pathInfos, active: active}
-	logger.Info("Active AppPath", "key", active.appPathKey, "Hops", active.path.Entry.Path.Interfaces)
-	flexConn := newSCIONFlexConn(sconn, mpQuic, laddr, active.raddr)
-	mpQuic.scionFlexConnection = flexConn
+// makePathInfos initializes pathInfo structs for the paths
+func makePathInfos(paths []snet.Path, raddr *snet.UDPAddr) []*pathInfo {
 
-	/*if quicConfig != nil {
-		tracer = quicConfig.QuicTracer
-	}*/
+	pathInfos := make([]*pathInfo, 0, len(paths))
+	for i, p := range paths {
+		logger.Info("Path", "index", i, "interfaces", p.Interfaces())
+		r := raddr.Copy()
+		r.Path = p.Path()
+		r.NextHop = p.OverlayNextHop()
 
-	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
-	qsession, err := quic.Dial(flexConn, flexConn.raddr, "host:0", cliTlsCfg, quicConfig)
-	if err != nil {
-		return nil, err
+		spathKey, _ := getSpathKey(r.Path)
+
+		pi := &pathInfo{
+			raddr:       r,
+			path:        p,
+			fingerprint: p.Fingerprint(),
+			rawPathKey:  spathKey,
+			expiry:      p.Expiry(),
+			rtt:         maxDuration,
+			bw:          0,
+		}
+		pathInfos = append(pathInfos, pi)
 	}
-	mpQuic.Session = qsession
-	return mpQuic, nil
+	return pathInfos
 }
 
 // displayStats logs the collected metrics for all monitored paths.
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
-		logger.Debug(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiration))
+		logger.Debug(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiry))
 		logger.Debug(fmt.Sprintf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i))
 		logger.Debug(fmt.Sprintf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i))
 	}
@@ -370,7 +273,7 @@ func (mpq *MPQuic) updateActivePath(newPathIndex int) {
 	// Lock the connection raddr, and update both the active path and the raddr of the FlexConn.
 	mpq.scionFlexConnection.addrMtx.Lock()
 	defer mpq.scionFlexConnection.addrMtx.Unlock()
-	mpq.active = &mpq.paths[newPathIndex]
+	mpq.active = mpq.paths[newPathIndex]
 	mpq.scionFlexConnection.setRemoteAddr(mpq.active.raddr)
 }
 
@@ -380,21 +283,21 @@ func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 	mpq.displayStats()
 	if force {
 		// Always refresh available paths, as failing to find a fresh path leads to a hard failure
-		mpq.refreshPaths(mpq.network.PathResolver())
+		mpq.refreshPaths(mpq.pathResolver)
 	}
 	for i := range mpq.paths {
 		// Do not switch to identical path or to expired path
-		if mpq.scionFlexConnection.raddr != mpq.paths[i].raddr && mpq.paths[i].expiration.After(time.Now()) {
+		if mpq.scionFlexConnection.raddr != mpq.paths[i].raddr && mpq.paths[i].expiry.After(time.Now()) {
 			logger.Trace("Previous path", "path", mpq.scionFlexConnection.raddr.Path)
 			logger.Trace("New path", "path", mpq.paths[i].raddr.Path)
 			if !filter {
 				mpq.updateActivePath(i)
-				logger.Debug("Updating to path", "index", i, "path", mpq.paths[i].path.Entry.Path.Interfaces)
+				logger.Debug("Updating to path", "index", i, "path", mpq.paths[i].path.Interfaces())
 				return nil
 			}
 			if mpq.policyLowerRTTMatch(i) {
 				mpq.updateActivePath(i)
-				logger.Debug("Updating to better path", "index", i, "path", mpq.paths[i].path.Entry.Path.Interfaces)
+				logger.Debug("Updating to better path", "index", i, "path", mpq.paths[i].path.Interfaces())
 				return nil
 			}
 		}

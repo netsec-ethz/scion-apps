@@ -43,6 +43,7 @@ type closerSession struct {
 }
 
 func (s *closerSession) CloseWithError(code quic.ErrorCode, desc string) error {
+	// TODO(matzf) wrong order!?
 	s.conn.Close()
 	return s.Session.CloseWithError(code, desc)
 }
@@ -54,6 +55,7 @@ type closerEarlySession struct {
 }
 
 func (s *closerEarlySession) CloseWithError(code quic.ErrorCode, desc string) error {
+	// TODO(matzf) wrong order!?
 	s.conn.Close()
 	return s.EarlySession.CloseWithError(code, desc)
 }

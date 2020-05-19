@@ -14,36 +14,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Simple application for SCION connectivity using the snet library.
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/gob"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
 	//"github.com/lucas-clemente/quic-go/quictrace"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
-	sd "github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet"
+
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/mpsquic"
 )
 
@@ -56,53 +52,49 @@ const (
 	TSLen           = 8
 	ModeServer      = "server"
 	ModeClient      = "client"
+	nextProto       = "boingboing"
+
+	errorNoError quic.ErrorCode = 0x100
 )
 
 var (
-	local  snet.Addr
-	remote snet.Addr
-	paths  []spathmeta.AppPath
+	remote snet.UDPAddr
 	file   = flag.String("file", "",
 		"File containing the data to send, optional to test larger data (only client)")
-	interactive = flag.Bool("ibb", false, "Interactive mode")
-	id          = flag.String("id", "boingboing", "Element ID")
+	interactive = flag.Bool("i", false, "Interactive mode")
 	mode        = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
-	sciond      = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher  = flag.String("dispatcher", "", "Path to dispatcher socket")
 	count       = flag.Int("count", 0,
 		fmt.Sprintf("Number of boings, between 0 and %d; a count of 0 means infinity", MaxPings))
-	timeout = flag.Duration("timeoutbb", DefaultTimeout,
+	timeout = flag.Duration("timeout", DefaultTimeout,
 		"Timeout for the boing response")
-	interval     = flag.Duration("intervalbb", DefaultInterval, "time between boings")
-	verbose      = flag.Bool("v", false, "sets verbose output")
-	trace        = flag.Bool("t", false, "enables tracing of the QUIC connection")
-	quiet        = flag.Bool("q", false, "sets quiet output, only show control output. Suppresses verbose.")
-	sciondFromIA = flag.Bool("sciondFromIA", false,
-		"SCIOND socket path from IA address:ISD-AS")
+	interval = flag.Duration("interval", DefaultInterval, "time between boings")
+	verbose  = flag.Bool("v", false, "sets verbose output")
+	trace    = flag.Bool("t", false, "enables tracing of the QUIC connection")
+	quiet    = flag.Bool("q", false, "sets quiet output, only show control output. Suppresses verbose.")
+	port     = flag.Int("port", 0, "(Mandatory for server) Server port")
 	fileData []byte
+
+	// No way to extract error code from error returned after closing session in quic-go.
+	// c.f. https://github.com/lucas-clemente/quic-go/issues/2441
+	// Workaround by string comparison with known formated error string.
+	errorNoErrorString = fmt.Sprintf("Application error %#x", uint64(errorNoError))
 )
 
 func init() {
-	flag.Var((*snet.Addr)(&local), "localbb", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&remote), "remotebb", "(Mandatory for clients) address to connect to")
+	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 }
 
 func main() {
-	os.Setenv("TZ", "UTC")
-	log.AddLogConsFlags()
 	validateFlags()
-	if err := log.SetupFromFlags(""); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
-		flag.Usage()
-		os.Exit(1)
-	}
-	defer log.LogPanicAndExit()
-	initNetwork()
 	switch *mode {
 	case ModeClient:
-		c := newClient()
+		paths, err := choosePaths(remote.IA, *interactive)
+		if err != nil || len(paths) == 0 {
+			LogFatal("No paths available to remote destination")
+		}
+		c := &client{}
 		setSignalHandler(c)
-		c.run()
+		c.run(&remote, paths)
 	case ModeServer:
 		server{}.run()
 	}
@@ -117,26 +109,13 @@ func validateFlags() {
 		if remote.Host == nil {
 			LogFatal("Missing remote address")
 		}
-		if remote.Host.L4 == nil {
+		if remote.Host.Port == 0 {
 			LogFatal("Missing remote port")
 		}
-		if remote.Host.L4.Port() == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
+	} else {
+		if *port == 0 {
+			LogFatal("Missing server port")
 		}
-	}
-	if local.Host == nil {
-		LogFatal("Missing local address")
-	}
-	if *sciondFromIA {
-		if *sciond != "" {
-			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		if local.IA.IsZero() {
-			LogFatal("-local flag is missing")
-		}
-		*sciond = sd.GetDefaultSCIONDPath(&local.IA)
-	} else if *sciond == "" {
-		*sciond = sd.GetDefaultSCIONDPath(nil)
 	}
 	if *count < 0 || *count > MaxPings {
 		LogFatal("Invalid count", "min", 0, "max", MaxPings, "actual", *count)
@@ -157,24 +136,6 @@ func validateFlags() {
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
 	os.Exit(1)
-}
-
-func initNetwork() {
-	/*
-		// Initialize default SCION networking context
-		if err := snet.Init(local.IA, *sciond, reliable.NewDispatcherService(*dispatcher)); err != nil {
-			LogFatal("Unable to initialize SCION network", "err", err)
-		}
-		log.Debug("SCION network successfully initialized")
-	*/
-	// We let mpsquic initialize the SCION networking context with a custom SCMP handler
-	if err := mpsquic.Init(local.IA, *sciond, *dispatcher, "", ""); err != nil {
-		LogFatal("Unable to initialize QUIC/SCION", "err", err)
-	}
-	if !*verbose {
-		mpsquic.MuteLogging()
-	}
-	log.Debug("QUIC/SCION successfully initialized")
 }
 
 type message struct {
@@ -234,43 +195,38 @@ type client struct {
 	mpQuic *mpsquic.MPQuic
 }
 
-func newClient() *client {
+func newClient(remote *snet.UDPAddr) *client {
 	return &client{}
 }
 
 // run dials to a remote SCION address and repeatedly sends boing? messages
 // while receiving boing! messages. For each successful boing?-boing!, a message
 // with the round trip time is printed.
-func (c *client) run() {
-	// Needs to happen before DialSCION, as it will 'copy' the remote to the connection.
-	// If remote is not in local AS, we need a path!
-	c.setupPaths()
-	defer c.Close()
+func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 
-	var quicConfig *quic.Config
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{nextProto},
+	}
+	var quicConf *quic.Config
 	/*if *trace {
 		// Only capture the QUIC connection trace when tracing is enabled
-		quicConfig = &quic.Config{QuicTracer: quictrace.NewTracer()}
+		quicConf = &quic.Config{QuicTracer: quictrace.NewTracer()}
 	}*/
-
-	// Connect to remote addresses. Note that currently the SCION library
-	// does not support automatic binding to local addresses, so the local
-	// IP address needs to be supplied explicitly. When supplied a local
-	// port of 0, DialSCION will assign a random free local port.
-	mpQuic, err := mpsquic.DialMP(nil, &local, &remote, paths, quicConfig)
+	mpQuic, err := mpsquic.Dial(remote, "host:0", paths, tlsConf, quicConf)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
 	c.mpQuic = mpQuic
 
-	qstream, err := c.mpQuic.OpenStreamSync(context.TODO())
+	qstream, err := c.mpQuic.OpenStreamSync(context.Background())
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
 	c.mpQuicStream = newMPQuicStream(qstream)
-	log.Debug("Quic stream opened", "local", &local, "remote", &remote)
+	log.Debug("Quic stream opened", "remote", remote)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		c.send()
 	}()
 	c.read()
@@ -288,24 +244,12 @@ func (c *client) Close() error {
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		err = c.mpQuic.Close()
-	}
-	if c.mpQuic != nil {
-		err = c.mpQuic.CloseConn()
+		c.mpQuic.CloseWithError(errorNoError, "")
 	}
 	return err
 }
 
 func (c client) setupPaths() {
-	if !remote.IA.Equal(local.IA) {
-		pathEntries := choosePaths(*interactive)
-		if pathEntries == nil {
-			LogFatal("No paths available to remote destination")
-		}
-		for _, pathEntry := range pathEntries {
-			paths = append(paths, spathmeta.AppPath{pathEntry})
-		}
-	}
 }
 
 func imax(a, b int) (maximum int) {
@@ -362,14 +306,12 @@ func (c client) read() {
 		msg, err := c.ReadMsg()
 		after := time.Now()
 		if err != nil {
-			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				log.Debug("ReadDeadline missed", "err", err)
-				// ReadDeadline is only set after we are done writing
-				// and we don't want to wait indefinitely for the remaining responses
-				break
+			if err == io.EOF || err.Error() == errorNoErrorString {
+				log.Info("Quic session ended")
+			} else {
+				log.Error("Unable to read", "err", err)
 			}
-			log.Error("Unable to read", "err", err)
-			continue
+			break
 		}
 		if msg.BoingBoing != ReplyMsg {
 			log.Error("Received wrong boingboing", "expected", ReplyMsg, "actual", msg.BoingBoing)
@@ -403,13 +345,20 @@ type server struct {
 // On any error, the server exits.
 func (s server) run() {
 	// Listen on SCION address
-	qsock, err := mpsquic.ListenSCION(nil, &local, nil)
+	qsock, err := appquic.ListenPort(
+		uint16(*port),
+		&tls.Config{
+			Certificates: appquic.GetDummyTLSCerts(),
+			NextProtos:   []string{nextProto},
+		},
+		nil,
+	)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
 	log.Info("Listening", "local", qsock.Addr())
 	for {
-		qsess, err := qsock.Accept(context.TODO())
+		qsess, err := qsock.Accept(context.Background())
 		if err != nil {
 			log.Error("Unable to accept quic session", "err", err)
 			// Accept failing means the socket is unusable.
@@ -417,7 +366,7 @@ func (s server) run() {
 		}
 		log.Info("Quic session accepted", "src", qsess.RemoteAddr())
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			s.handleClient(qsess)
 		}()
 	}
@@ -425,7 +374,7 @@ func (s server) run() {
 
 func (s server) handleClient(qsess quic.Session) {
 	var err error
-	defer qsess.Close()
+	defer qsess.CloseWithError(errorNoError, "")
 	qstream, err := qsess.AcceptStream(context.TODO())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
@@ -438,12 +387,11 @@ func (s server) handleClient(qsess quic.Session) {
 		// Receive boing? message
 		msg, err := qs.ReadMsg()
 		if err != nil {
-			if err == io.EOF {
-				// Client went away
-				log.Debug("Client went away.", "err", err)
-				break
+			if err == io.EOF || err.Error() == errorNoErrorString {
+				log.Info("Quic session ended", "src", qsess.RemoteAddr())
+			} else {
+				log.Error("Unable to read", "err", err)
 			}
-			log.Error("Unable to read from client", "err", err)
 			break
 		}
 
@@ -457,118 +405,11 @@ func (s server) handleClient(qsess quic.Session) {
 	}
 }
 
-func parsePathIndex(index string, max int) (pathIndex uint64, err error) {
-	pathIndex, err = strconv.ParseUint(index, 10, 64)
-	if err != nil {
-		return 0, errors.New(fmt.Sprintf("Invalid choice: '%v', %v", index, err))
-	}
-	if int(pathIndex) > max {
-		return 0, errors.New(fmt.Sprintf("Invalid choice: '%v', valid indices range: [0, %v]", index, max))
-	}
-	return
-}
-
-func parsePathChoice(selection string, max int) (pathIndices []uint64, err error) {
-	var pathIndex uint64
-
-	// Split tokens
-	pathIndicesStr := strings.Split(selection[:len(selection)-1], " ")
-	for _, pathIndexStr := range pathIndicesStr {
-		if strings.Contains(pathIndexStr, "-") {
-			// Handle ranges
-			pathIndixRangeBoundaries := strings.Split(pathIndexStr, "-")
-			if len(pathIndixRangeBoundaries) != 2 ||
-				pathIndixRangeBoundaries[0] == "" ||
-				pathIndixRangeBoundaries[1] == "" {
-				return nil, errors.New(fmt.Sprintf("Invalid path range choice: '%v'", pathIndexStr))
-			}
-
-			pathIndexRangeStart, err := parsePathIndex(pathIndixRangeBoundaries[0], max)
-			if err != nil {
-				return nil, err
-			}
-			pathIndexRangeEnd, err := parsePathIndex(pathIndixRangeBoundaries[1], max)
-			if err != nil {
-				return nil, err
-			}
-
-			for i := pathIndexRangeStart; i <= pathIndexRangeEnd; i++ {
-				pathIndices = append(pathIndices, i)
-			}
-		} else {
-			// Handle individual entries
-			pathIndex, err = parsePathIndex(pathIndexStr, max)
-			if err != nil {
-				return nil, err
-			}
-			pathIndices = append(pathIndices, pathIndex)
-		}
-	}
-	if len(pathIndices) < 1 {
-		return nil, errors.New(fmt.Sprintf("No path selected: '%v'", selection))
-	}
-	return pathIndices, nil
-}
-
-func choosePaths(interactive bool) []*sd.PathReplyEntry {
-	var paths []*sd.PathReplyEntry
-	var selectedPaths []*sd.PathReplyEntry
-
-	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sd.PathReqFlags{})
-
-	for _, p := range pathSet {
-		paths = append(paths, p.Entry)
-	}
-	if len(pathSet) == 0 || paths == nil {
-		return nil
-	}
-
-	var pathIndices []uint64
-	if interactive {
-		fmt.Printf("Available paths to %v:\t(you can select multiple paths, such as ranges like A-C and multiple space separated path like B D F-H)\n", remote.IA)
-		for i := range paths {
-			fmt.Printf("[%2d] %s\n", i, paths[i].Path.String())
-		}
-		reader := bufio.NewReader(os.Stdin)
-		for {
-			fmt.Printf("\nChoose paths: ")
-			pathIndexStr, err := reader.ReadString('\n')
-			pathIndices, err = parsePathChoice(pathIndexStr, len(paths)-1)
-			if err != nil {
-				_, err := fmt.Fprintf(os.Stderr,
-					"ERROR: Invalid path selection. %v\n", err)
-				if err != nil {
-					log.Error("Unable to write to Stderr", "err", err)
-				}
-				continue
-			}
-			break
-		}
-	} else {
-		// select all paths
-		for i := range paths {
-			pathIndices = append(pathIndices, uint64(i))
-		}
-	}
-
-	for i := range pathIndices {
-		selectedPaths = append(selectedPaths, paths[i])
-	}
-
-	fmt.Println("Using paths:")
-	for _, path := range selectedPaths {
-		fmt.Printf("  %s\n", path.Path.String())
-	}
-	fmt.Println()
-	return selectedPaths
-}
-
 func setSignalHandler(closer io.Closer) {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-c
 		closer.Close()
 		os.Exit(1)

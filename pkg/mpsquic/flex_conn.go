@@ -18,91 +18,56 @@ import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var _ net.Conn = (*SCIONFlexConn)(nil)
 var _ net.PacketConn = (*SCIONFlexConn)(nil)
-var _ snet.Conn = (*SCIONFlexConn)(nil)
 
+// TODO: private
+// TODO: rename
 type SCIONFlexConn struct {
-	snet.Conn
-	mpq     *MPQuic
-	laddr   *snet.Addr
-	raddr   *snet.Addr
+	*snet.Conn
+	raddr   *snet.UDPAddr
 	addrMtx sync.RWMutex
 }
 
-// newSCIONFlexConn returns an initalized SCIONFlexConn, on which the used path can be dynamically updated
-func newSCIONFlexConn(sconn snet.Conn, mpq *MPQuic, laddr, raddr *snet.Addr) *SCIONFlexConn {
+// newSCIONFlexConn returns an initialized SCIONFlexConn, on which the used
+// path can be dynamically updated
+func newSCIONFlexConn(conn *snet.Conn, raddr *snet.UDPAddr) *SCIONFlexConn {
 	c := &SCIONFlexConn{
-		Conn:  sconn,
-		mpq:   mpq,
-		laddr: laddr,
+		Conn:  conn,
 		raddr: raddr,
 	}
 	return c
 }
 
-// SetRemoteAddr updates the remote address raddr of the SCIONFlexConn connection in a thread safe manner.
-func (c *SCIONFlexConn) SetRemoteAddr(raddr *snet.Addr) {
+// SetRemoteAddr updates the remote address raddr of the SCIONFlexConn
+// connection in a thread safe manner.
+func (c *SCIONFlexConn) SetRemoteAddr(raddr *snet.UDPAddr) {
 	c.addrMtx.Lock()
 	defer c.addrMtx.Unlock()
 	c.setRemoteAddr(raddr)
 }
 
 // setRemoteAddr implements the update of the remote address of the SCION connection
-func (c *SCIONFlexConn) setRemoteAddr(raddr *snet.Addr) {
+func (c *SCIONFlexConn) setRemoteAddr(raddr *snet.UDPAddr) {
 	c.raddr = raddr
 }
 
 // Write writes the byte slice b to the embedded SCION connection of the SCIONFlexConn.
 // It returns the number of bytes written and any write error encountered.
 func (c *SCIONFlexConn) Write(b []byte) (n int, err error) {
-	return c.WriteToSCION(b, c.raddr)
-}
-
-// WriteTo writes the byte slice b to the embedded SCION connection of the SCIONFlexConn. The raddr parameter is ignored
-// and the data is always written to the raddr on the connection.
-// It returns the number of bytes written and any write error encountered.
-func (c *SCIONFlexConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
-	_, ok := raddr.(*snet.Addr)
-	if !ok {
-		return 0, common.NewBasicError("Unable to write to non-SCION address", nil, "addr", raddr)
-	}
-	// Ignore raddr, force use of c.raddr
-	return c.WriteToSCION(b, c.raddr)
-}
-
-// WriteToSCION writes the byte slice b to the embedded SCION connection of the SCIONFlexConn. The raddr parameter is ignored
-// and the data is always written to the raddr on the connection.
-// It returns the number of bytes written and any write error encountered.
-func (c *SCIONFlexConn) WriteToSCION(b []byte, raddr *snet.Addr) (int, error) {
 	c.addrMtx.RLock()
 	defer c.addrMtx.RUnlock()
-	// Ignore raddr, force use of c.raddr
-	n, err := c.Conn.WriteToSCION(b, c.raddr)
-	return n, err
+	return c.Conn.WriteTo(b, c.raddr)
 }
 
-// Read reads from the embedded SCION connection of the SCIONFlexConn into the byte slice b.
-// It returns the number of bytes read and any read error encountered.
-func (c *SCIONFlexConn) Read(b []byte) (int, error) {
-	n, _, err := c.ReadFromSCION(b)
-	return n, err
-}
-
-// ReadFrom reads from the embedded SCION connection of the SCIONFlexConn into the byte slice b.
-// It returns the number of bytes read, the address read from and any read error encountered.
-func (c *SCIONFlexConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	n, addr, err := c.ReadFromSCION(b)
-	return n, addr, err
-}
-
-// ReadFromSCION reads from the embedded SCION connection of the SCIONFlexConn into the byte slice b.
-// It returns the number of bytes read, the address read from and any read error encountered.
-func (c *SCIONFlexConn) ReadFromSCION(b []byte) (int, *snet.Addr, error) {
-	n, addr, err := c.Conn.ReadFromSCION(b)
-	return n, addr, err
+// WriteTo writes the byte slice b to the embedded SCION connection of the
+// SCIONFlexConn. The raddr parameter is ignored and the data is always written
+// to the raddr on the connection.  It returns the number of bytes written and
+// any write error encountered.
+func (c *SCIONFlexConn) WriteTo(b []byte, _ net.Addr) (int, error) {
+	// Ignore param, force use of c.raddr
+	return c.Write(b)
 }
