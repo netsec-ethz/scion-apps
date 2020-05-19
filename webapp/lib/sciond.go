@@ -51,7 +51,7 @@ var cNodes string
 var cGeoLoc string
 
 func returnError(w http.ResponseWriter, err error) {
-	fmt.Fprintf(w, `{"err":`+strconv.Quote(err.Error())+`}`)
+	fmt.Fprint(w, `{"err":`+strconv.Quote(err.Error())+`}`)
 }
 
 func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, err error) {
@@ -67,7 +67,7 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 		buffer.WriteString(fmt.Sprintf(`,"err":%s`, strconv.Quote(err.Error())))
 	}
 	buffer.WriteString(`}`)
-	fmt.Fprintf(w, buffer.String())
+	fmt.Fprint(w, buffer.String())
 }
 
 type sdInfo struct {
@@ -353,7 +353,7 @@ func TrcHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 		return
 	}
 	log.Debug("TrcHandler:", "trcInfo", string(raw))
-	fmt.Fprintf(w, string(raw))
+	fmt.Fprint(w, string(raw))
 }
 
 func loadJSONCerts(src, pattern string, options *CmdOptions) ([]byte, error) {
@@ -441,7 +441,7 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("ConfigHandler:", "cached", cConfig)
 	}
-	fmt.Fprintf(w, cConfig)
+	fmt.Fprint(w, cConfig)
 }
 
 // LabelsHandler handles AS label requests, using exernal request when needed.
@@ -465,7 +465,7 @@ func LabelsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("LabelsHandler:", "cached", cLabels)
 	}
-	fmt.Fprintf(w, cLabels)
+	fmt.Fprint(w, cLabels)
 }
 
 // LocationsHandler handles AS location requests, using exernal request when needed.
@@ -489,7 +489,7 @@ func LocationsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("LocationsHandler:", "cached", cNodes)
 	}
-	fmt.Fprintf(w, cNodes)
+	fmt.Fprint(w, cNodes)
 }
 
 // GeolocateHandler handles geolocation requests, using exernal request when needed.
@@ -516,7 +516,7 @@ func GeolocateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("GeolocateHandler:", "cached", cGeoLoc)
 	}
-	fmt.Fprintf(w, cGeoLoc)
+	fmt.Fprint(w, cGeoLoc)
 }
 
 func loadTestFile(testpath string) []byte {

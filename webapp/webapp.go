@@ -128,16 +128,17 @@ func checkPath(dir string) {
 
 func main() {
 	flag.Parse()
-	options = lib.CmdOptions{
-		StaticRoot:    *staticRoot,
-		BrowseRoot:    *browseRoot,
-		AppsRoot:      *appsRoot,
-		ScionRoot:     *scionRoot,
-		ScionBin:      *scionBin,
-		ScionGen:      *scionGen,
-		ScionGenCache: *scionGenCache,
-		ScionLogs:     *scionLogs,
-	}
+	options = *(new(lib.CmdOptions))
+	options.AbsPathCmdOptions(
+		*staticRoot,
+		*browseRoot,
+		*appsRoot,
+		*scionRoot,
+		*scionBin,
+		*scionGen,
+		*scionGenCache,
+		*scionLogs)
+
 	// correct static files are required for the app to serve them, else fail
 	if _, err := os.Stat(path.Join(options.StaticRoot, "static")); os.IsNotExist(err) {
 		log.Error("-s flag must be set with local repo: scion-apps/webapp/web")
@@ -394,10 +395,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			bwSC := fmt.Sprintf("-sc=%d,%d,%d,%dbps", d.SCDuration/1000, d.SCPktSize,
 				d.SCPackets, d.SCBandwidth)
 			command = append(command, bwCS, bwSC)
-			if len(pathStr) > 0 {
-				// if path choice provided, use interactive mode
-				command = append(command, "-i")
-			}
 		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
@@ -413,10 +410,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
 		command = append(command, installpath, optApp, optRemote, optCount, optTimeout, optInterval)
-		if len(pathStr) > 0 {
-			// if path choice provided, use interactive mode
-			command = append(command, "-i")
-		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
 	case "traceroute":
@@ -429,13 +422,13 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		command = append(command, installpath, optApp, optRemote, optTimeout)
-		if len(pathStr) > 0 {
-			// if path choice provided, use interactive mode
-			command = append(command, "-i")
-		}
 		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 	}
 
+	if len(pathStr) > 0 {
+		// if path choice provided, use interactive mode
+		command = append(command, "-i")
+	}
 	if isdCli < 16 {
 		// -sciondFromIA is better for localhost testing, with test isds
 		command = append(command, fmt.Sprintf("-sciond=%s", settings.SDAddress))
@@ -451,7 +444,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	continuous, _ := strconv.ParseBool(r.PostFormValue("continuous"))
 	interval, _ := strconv.Atoi(r.PostFormValue("interval"))
 	if appSel == "" {
-		fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
+		fmt.Fprint(w, "Unknown SCION client app. Is one selected?")
 		return
 	}
 	if continuous || contCmdActive {
@@ -768,7 +761,7 @@ func getNodesHandler(w http.ResponseWriter, r *http.Request) {
 func getIAsHandler(w http.ResponseWriter, r *http.Request) {
 	// in:nil, out:list[ias]
 	iasJSON, _ := json.Marshal(localIAs)
-	fmt.Fprintf(w, string(iasJSON))
+	fmt.Fprint(w, string(iasJSON))
 }
 
 func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {

@@ -392,9 +392,9 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
 
         var style = "style='background-color: "
                 + getPathColor(formatPathJson(paths, parseInt(p))) + "; '";
-        html += "<li seg-type='PATH' seg-num=" + p + "><a " + style
-                + " href='#'>PATH " + (parseInt(p) + 1)
-                + "</a> <span class='badge'>" + hops + "</span>";
+        html += "<li seg-type='PATH' seg-num=" + p + "><a href='#'><span "
+                + style + " class='path-text badge'>PATH " + (parseInt(p) + 1)
+                + "</span></a> <span class='badge'>" + hops + "</span>";
         html += "<ul>";
         html += "<li><a href='#'>MTU: " + ent.MTU + "</a>";
         // if (ent.HostInfo.Addrs.Ipv4) {
@@ -406,7 +406,7 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         // + ipv6Raw2Read(ent.HostInfo.Addrs.Ipv6) + "</a>";
         // }
         // html += "<li><a href='#'>Port: " + ent.HostInfo.Port + "</a>";
-        html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
+        html += "<li><a href='#'>Expires: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
             html += "<li><a href='#'>" + if_[i].IA + " (" + if_[i].IfID
@@ -448,7 +448,7 @@ function get_segment_info(segs, type) {
                 + " href='#'>" + type + " SEGMENT " + (parseInt(s) + 1)
                 + "</a> <span class='badge'>" + hops + "</span>";
         html += "<ul>";
-        html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
+        html += "<li><a href='#'>Expires: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
             html += "<li><a href='#'>" + if_[i].ISD + "-" + if_[i].AS + " ("
@@ -678,12 +678,12 @@ function get_nonseg_links(paths, lType) {
 
 function requestPaths() {
     // make sure to get path topo after IAs are loaded
-    var form_data = $('#command-form').serializeArray();
     $("#as-error").empty();
     if ($('#ia_cli').val().len == 0 || $('#ia_ser').val() == 0) {
         showError("Both Source and Destination IAs are required.");
         return;
     }
+    var form_data = $('#command-form').serializeArray();
     $.ajax({
         url : 'getpathtopo',
         type : 'post',
@@ -721,7 +721,13 @@ function requestPaths() {
 
             // setup path config based on defaults loaded
             setupDebug();
-            ajaxConfig();
+
+            // request config/paths if none exists
+            if (!iaLabels || !iaGeoLoc || !iaLocations) {
+                ajaxConfig(); // ajaxConfig => loadPathData
+            } else {
+                loadPathData(g.src, g.dst);
+            }
 
             // path info label switches
             $('#switch_as_names').change(function() {

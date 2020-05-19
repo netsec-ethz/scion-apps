@@ -65,7 +65,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	fp := path.Join(options.StaticRoot, defFileHealthCheck)
 	raw, err := ioutil.ReadFile(fp)
 	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		fmt.Fprint(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
@@ -81,7 +81,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	var tests DefTests
 	err = json.Unmarshal([]byte(raw), &tests)
 	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		fmt.Fprint(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
 
@@ -152,7 +152,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		results[i].Reason = result
 		jsonRes, err = json.Marshal(results)
 		if CheckError(err) {
-			fmt.Fprintf(w, `{ "err": %q }`, err.Error())
+			fmt.Fprint(w, `{ "err": %q }`, err.Error())
 			return
 		}
 		log.Debug(string(jsonRes))
@@ -160,6 +160,6 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		CheckError(err)
 	}
 
-	// ensure all escaped correctly before writing to printf formatter
-	fmt.Fprintf(w, string(jsonRes))
+	// ensure all escaped correctly before writing to output
+	fmt.Fprint(w, string(jsonRes))
 }

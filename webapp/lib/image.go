@@ -81,7 +81,7 @@ func FindImageInfoHandler(w http.ResponseWriter, r *http.Request, options *CmdOp
 		return
 	}
 	fileText := imgFilename
-	fmt.Fprintf(w, fileText)
+	fmt.Fprint(w, fileText)
 }
 
 // FindImageHandler locating most recent image formatting it for graphic display in response.
@@ -113,6 +113,7 @@ func FindImageHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 		panic("Unhandled image type!")
 	}
 	CheckError(err)
+	//TODO fix location
 	url := fmt.Sprintf("http://%s:%d/%s/%s", browserAddr, port, "data/images", imgFilename)
 	writeJpegTemplate(w, &rawImage, url)
 }
