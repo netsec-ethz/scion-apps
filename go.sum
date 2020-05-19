@@ -158,6 +158,7 @@ github.com/neelance/astrewrite v0.0.0-20160511093645-99348263ae86/go.mod h1:kHJE
 github.com/neelance/sourcemap v0.0.0-20151028013722-8c68805598ab/go.mod h1:Qr6/a/Q4r9LP1IltGz7tA7iOK1WonHEYhu1HRBA7ZiM=
 github.com/netsec-ethz/rains v0.1.0 h1:ZKtTLHnDcs2pkzVkdDuh0PySVDtZ3gsg0Fkspq0P0rE=
 github.com/netsec-ethz/rains v0.1.0/go.mod h1:Qh9hqQp3OeOcMtt6NxBqw53159pj4T2Q/Nih0qd8PxY=
+github.com/netsec-ethz/scion v0.0.0-20200330122244-e161bd23eca3/go.mod h1:yayLUQzSt/Lwg+3dA2terZ3tEgXI9r7CX8MKrX5CIdI=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.10.3 h1:OoxbjfXVZyod1fmWYhI7SEyaD8B00ynP3T+D5GiyHOY=
