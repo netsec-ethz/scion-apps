@@ -37,6 +37,7 @@ webapp/web/data
 vendor/*/
 
 # generated binaries
+bin/
 bat/bat
 bwtester/bwtestclient/bwtestclient
 bwtester/bwtestserver/bwtestserver
@@ -45,7 +46,6 @@ camerapp/imageserver/imageserver
 sensorapp/sensorfetcher/sensorfetcher
 sensorapp/sensorserver/sensorserver
 webapp/webapp
-tools/pathdb_dump/pathdb_dump
 netcat/netcat
 ssh/client/client
 ssh/server/server

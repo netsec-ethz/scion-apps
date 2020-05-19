@@ -78,7 +78,7 @@ func runClient(address string) error {
 // Check just ensures the error is nil, or complains and quits
 func check(e error) {
 	if e != nil {
-		fmt.Println("Fatal error. Exiting.", "err", e)
+		fmt.Fprintln(os.Stderr, "Fatal error. Exiting.", "err", e)
 		os.Exit(1)
 	}
 }

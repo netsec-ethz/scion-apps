@@ -15,6 +15,8 @@
 package modes
 
 import (
+	"context"
+	"crypto/tls"
 	"io"
 	golog "log"
 
@@ -23,6 +25,8 @@ import (
 
 	log "github.com/inconshreveable/log15"
 )
+
+const nextProto = "netcat"
 
 type sessConn struct {
 	sess   quic.Session
@@ -43,7 +47,7 @@ func (conn *sessConn) Close() error {
 		return err
 	}
 
-	err = conn.sess.Close()
+	err = conn.sess.CloseWithError(quic.ErrorCode(0), "")
 	if err != nil {
 		return err
 	}
@@ -53,7 +57,13 @@ func (conn *sessConn) Close() error {
 
 // DoListenQUIC listens on a QUIC socket
 func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
-	listener, err := appquic.ListenPort(port, nil, &quic.Config{KeepAlive: true})
+	listener, err := appquic.ListenPort(
+		port,
+		&tls.Config{
+			Certificates: appquic.GetDummyTLSCerts(),
+			NextProtos:   []string{nextProto}},
+		&quic.Config{KeepAlive: true},
+	)
 	if err != nil {
 		golog.Panicf("Can't listen on port %d: %v", port, err)
 	}
@@ -61,13 +71,13 @@ func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
 	conns := make(chan io.ReadWriteCloser)
 	go func() {
 		for {
-			sess, err := listener.Accept()
+			sess, err := listener.Accept(context.Background())
 			if err != nil {
 				log.Crit("Can't accept listener: %v", err)
 				continue
 			}
 
-			stream, err := sess.AcceptStream()
+			stream, err := sess.AcceptStream(context.Background())
 			if err != nil {
 				log.Crit("Can't accept stream: %v", err)
 				continue
@@ -87,12 +97,19 @@ func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
 
 // DoDialQUIC dials with a QUIC socket
 func DoDialQUIC(remoteAddr string) io.ReadWriteCloser {
-	sess, err := appquic.Dial(remoteAddr, nil, &quic.Config{KeepAlive: true})
+	sess, err := appquic.Dial(
+		remoteAddr,
+		&tls.Config{
+			InsecureSkipVerify: true,
+			NextProtos:         []string{nextProto},
+		},
+		&quic.Config{KeepAlive: true},
+	)
 	if err != nil {
 		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)
 	}
 
-	stream, err := sess.OpenStreamSync()
+	stream, err := sess.OpenStreamSync(context.Background())
 	if err != nil {
 		golog.Panicf("Can't open stream: %v", err)
 	}

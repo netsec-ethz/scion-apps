@@ -15,6 +15,7 @@
 package ssh
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -205,13 +206,13 @@ func (client *Client) StartTunnel(localPort uint16, addr string) error {
 		go func() {
 			defer localListener.Close()
 			for {
-				sess, err := localListener.Accept()
+				sess, err := localListener.Accept(context.Background())
 				if err != nil {
 					log.Debug("Error accepting tunnel listener: ", err)
 					continue
 				}
 
-				stream, err := sess.AcceptStream()
+				stream, err := sess.AcceptStream(context.Background())
 				if err != nil {
 					log.Debug("Error accepting tunnel listener session: ", err)
 					continue

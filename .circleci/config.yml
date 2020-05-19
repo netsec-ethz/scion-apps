@@ -29,3 +29,82 @@ jobs:
           key: v1-pkg-cache-{{ checksum "go.sum" }}
           paths:
             - "/go/pkg"
+
+  integration:
+    docker:
+      - image: circleci/golang:1.13-stretch
+    resource_class: medium
+    steps:
+      - checkout
+      # The following step are shared with netsec-ethz/rains
+      - run:
+          name: Checkout SCION
+          command: |
+            # Get scion version from go modules. The sed command extracts the
+            # replacement if one is specified in the go.mod file.
+            scion_mod_version=$(go list -m github.com/scionproto/scion | sed -s 's/.*\s*=>\s*//')
+            scion_repo=https://${scion_mod_version% *}.git
+            # Extract the commit hash, which is the last part of the go modules version
+            scion_commit=${scion_mod_version##*[ -]}
+            git clone ${scion_repo} ~/scion
+            cd ~/scion
+            git checkout --quiet ${scion_commit}
+      - restore_cache:
+          keys:
+            - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+            - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-
+            - v1-pkg-cache-
+      - run:
+          name: Build SCION services and install python3 dependencies
+          command: |
+            cd ~/scion
+            for service in "border" "cs" "godispatcher" "sciond" "tools/scion-pki"; do
+              go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
+            done
+
+            sudo apt-get update && sudo apt-get install --assume-yes python3 python3-pip
+            pip3 install -U wheel setuptools
+            pip3 install -r ~/scion/env/pip3/requirements.txt
+      - run:
+          name: Configure and start local SCION AS
+          command: |
+            export PYTHONPATH=~/scion/python/
+            cd ~/scion
+
+            # Generate Tiny.topo
+            printf '#!/bin/bash\necho "0.0.0.0"' > tools/docker-ip # Some hackery to make topo scripts run
+            # Use IPv4 addresses for this test
+            python/topology/generator.py -c ./topology/Tiny4.topo
+            # Link the gen directory containing sciond_addresses.json and as_list.json
+            ln -s ~/scion/gen /home/circleci/project/gen
+            # Generate gen-certs
+            mkdir gen-certs gen-cache
+            openssl genrsa -out "gen-certs/tls.key" 2048
+            openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
+
+            sudo mkdir /run/shm -m 777
+
+            # Start all AS Tiny.topo
+            supervisor/supervisor.sh reload
+            supervisor/supervisor.sh start all
+      - run:
+          name: Prepare integration test
+          command: |
+            # Handle the two special ones
+            make setup_lint
+            sudo apt-get update && sudo apt-get install -y libpam0g-dev
+      - run:
+          name: Integration tests
+          command: |
+            make integration
+      - save_cache:
+          key: v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg"
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - integration
