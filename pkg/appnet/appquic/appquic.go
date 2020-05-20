@@ -66,6 +66,9 @@ func Dial(remote string, tlsConf *tls.Config, quicConf *quic.Config) (quic.Sessi
 	if err != nil {
 		return nil, err
 	}
+	if tlsConf.ServerName == "" {
+		tlsConf.ServerName = mangleSCIONAddr(raddr)
+	}
 	return DialAddr(raddr, remote, tlsConf, quicConf)
 }
 
@@ -97,6 +100,9 @@ func DialEarly(remote string, tlsConf *tls.Config, quicConf *quic.Config) (quic.
 	if err != nil {
 		return nil, err
 	}
+	if tlsConf.ServerName == "" {
+		tlsConf.ServerName = mangleSCIONAddr(raddr)
+	}
 	return DialAddrEarly(raddr, remote, tlsConf, quicConf)
 }
 
@@ -123,6 +129,17 @@ func ensurePathDefined(raddr *snet.UDPAddr) error {
 		return appnet.SetDefaultPath(raddr)
 	}
 	return nil
+}
+
+// mangleSCIONAddr mangles a SCION address
+func mangleSCIONAddr(raddr *snet.UDPAddr) string {
+	// Turn this into [IA,IP]:port format.
+	// Same mangling as for the host part in MangleSCIONAddrURL github.com/netsec-ethz/scion-apps/pkg/shttp/transport.go
+	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
+	if raddr.Host.Port != 0 {
+		mangledAddr += fmt.Sprintf(":%d", raddr.Host.Port)
+	}
+	return mangledAddr
 }
 
 // ListenPort listens for QUIC connections on a SCION/UDP port.
