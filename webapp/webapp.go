@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -41,36 +40,6 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// GOPATH is the root of the GOPATH environment (in development).
-var GOPATH = os.Getenv("GOPATH")
-
-// staticRoot for serving/writing static data
-var staticRoot = flag.String("srvroot", "/git/scion-apps/webapp/web",
-	"Path to read/write web server files.")
-
-// browseRoot is browse-only, consider security (def: cwd)
-var browseRoot = flag.String("r", path.Join(*staticRoot, "data"),
-	"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
-
-// appsRoot is the root location of scionlab apps.
-var appsRoot = flag.String("sabin", path.Join(GOPATH, "bin"),
-	"Path to execute the installed scionlab apps binaries")
-
-// scionRoot is the root location of the scion infrastructure.
-var scionRoot = flag.String("sroot", "/git/scion",
-	"Path to read SCION root directory of infrastructure")
-var scionBin = flag.String("sbin", path.Join(*scionRoot, "bin"),
-	"Path to execute SCION bin directory of infrastructure tools")
-var scionGen = flag.String("sgen", path.Join(*scionRoot, "gen"),
-	"Path to read SCION gen directory of infrastructure config")
-var scionGenCache = flag.String("sgenc", path.Join(*scionRoot, "gen-cache"),
-	"Path to read SCION gen-cache directory of infrastructure run-time config")
-var scionLogs = flag.String("slogs", path.Join(*scionRoot, "logs"),
-	"Path to read SCION logs directory of infrastructure logging")
-
-var addr = flag.String("a", "127.0.0.1", "Address of server host.")
-var port = flag.Int("p", 8000, "Port of server host.")
-var browserAddr = "127.0.0.1"
 var settings lib.UserSetting
 var id = "webapp"
 
@@ -120,6 +89,7 @@ func ensurePath(srcpath, staticDir string) string {
 	}
 	return dir
 }
+
 func checkPath(dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		CheckError(err)
@@ -127,21 +97,13 @@ func checkPath(dir string) {
 }
 
 func main() {
-	flag.Parse()
-	options = *(new(lib.CmdOptions))
-	options.AbsPathCmdOptions(
-		*staticRoot,
-		*browseRoot,
-		*appsRoot,
-		*scionRoot,
-		*scionBin,
-		*scionGen,
-		*scionGenCache,
-		*scionLogs)
+	options = lib.ParseFlags()
 
 	// correct static files are required for the app to serve them, else fail
 	if _, err := os.Stat(path.Join(options.StaticRoot, "static")); os.IsNotExist(err) {
-		log.Error("-s flag must be set with local repo: scion-apps/webapp/web")
+		repo := "scion-apps/webapp/web"
+		msg := "-%s flag must be set with installed static website from repo: %s"
+		log.Error(fmt.Sprintf(msg, lib.CMD_WEB, repo))
 		CheckFatal(err)
 		return
 	}
@@ -194,11 +156,11 @@ func main() {
 	appsBuildCheck("traceroute")
 
 	initServeHandlers()
-	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
+	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", options.Addr, options.Port))
 	checkPath(options.BrowseRoot)
 	log.Info("File browser root:", "root", options.BrowseRoot)
-	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
-	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
+	log.Info(fmt.Sprintf("Listening on %s:%d...", options.Addr, options.Port))
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", options.Addr, options.Port), logRequestHandler(http.DefaultServeMux))
 	CheckFatal(err)
 }
 
@@ -735,7 +697,7 @@ func getTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handles locating most recent image formatting it for graphic display in response.
 func findImageHandler(w http.ResponseWriter, r *http.Request) {
-	lib.FindImageHandler(w, r, &options, browserAddr, *port)
+	lib.FindImageHandler(w, r, &options)
 }
 
 func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {

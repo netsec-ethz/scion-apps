@@ -16,6 +16,7 @@ package lib
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -25,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	log "github.com/inconshreveable/log15"
@@ -32,14 +34,37 @@ import (
 )
 
 // default params for localhost testing
-var cliPortDef = "30001"
-var serPortDefBwt = "30100"
+var listenAddrDef = "127.0.0.1"
+var listenPortDef = 8000
+var cliPortDef = 30001
+var serPortDef = 30100
 var serDefAddr = "127.0.0.2"
 
 var cfgFileCliUser = "config/clients_user.json"
 var cfgFileSerUser = "config/servers_user.json"
 var cfgFileCliDef = "config/clients_default.json"
 var cfgFileSerDef = "config/servers_default.json"
+
+// command argument constants
+var CMD_ADR = "a"
+var CMD_PRT = "p"
+var CMD_ART = "sabin"
+var CMD_WEB = "srvroot"
+var CMD_BRT = "r"
+var CMD_SCN = "sroot"
+var CMD_SCB = "sbin"
+var CMD_SCG = "sgen"
+var CMD_SCC = "sgenc"
+var CMD_SCL = "slogs"
+
+// appsRoot is the root location of scionlab apps.
+var GOPATH = os.Getenv("GOPATH")
+
+// staticRoot for serving/writing static website
+var DEF_WEBDIR = path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp/web")
+
+// scionRoot is the root location of the scion infrastructure.
+var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
 // UserSetting holds the serialized structure for persistent user settings
 type UserSetting struct {
@@ -48,18 +73,112 @@ type UserSetting struct {
 }
 
 type CmdOptions struct {
-	StaticRoot, BrowseRoot, AppsRoot, ScionRoot, ScionBin, ScionGen, ScionGenCache, ScionLogs string
+	Addr          string
+	Port          int
+	StaticRoot    string
+	BrowseRoot    string
+	AppsRoot      string
+	ScionRoot     string
+	ScionBin      string
+	ScionGen      string
+	ScionGenCache string
+	ScionLogs     string
 }
 
-func (o *CmdOptions) AbsPathCmdOptions(StaticRoot, BrowseRoot, AppsRoot, ScionRoot, ScionBin, ScionGen, ScionGenCache, ScionLogs string) {
-	o.StaticRoot, _ = filepath.Abs(StaticRoot)
-	o.BrowseRoot, _ = filepath.Abs(BrowseRoot)
-	o.AppsRoot, _ = filepath.Abs(AppsRoot)
-	o.ScionRoot, _ = filepath.Abs(ScionRoot)
-	o.ScionBin, _ = filepath.Abs(ScionBin)
-	o.ScionGen, _ = filepath.Abs(ScionGen)
-	o.ScionGenCache, _ = filepath.Abs(ScionGenCache)
-	o.ScionLogs, _ = filepath.Abs(ScionLogs)
+func (o *CmdOptions) AbsPathCmdOptions() {
+	o.StaticRoot, _ = filepath.Abs(o.StaticRoot)
+	o.BrowseRoot, _ = filepath.Abs(o.BrowseRoot)
+	o.AppsRoot, _ = filepath.Abs(o.AppsRoot)
+	o.ScionRoot, _ = filepath.Abs(o.ScionRoot)
+	o.ScionBin, _ = filepath.Abs(o.ScionBin)
+	o.ScionGen, _ = filepath.Abs(o.ScionGen)
+	o.ScionGenCache, _ = filepath.Abs(o.ScionGenCache)
+	o.ScionLogs, _ = filepath.Abs(o.ScionLogs)
+}
+
+func isFlagUsed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func computeBrowseRoot(staticRoot string) string {
+	return path.Join(staticRoot, "data")
+}
+
+func computeScionBin(scionRoot string) string {
+	return path.Join(scionRoot, "bin")
+}
+
+func computeScionGen(scionRoot string) string {
+	return path.Join(scionRoot, "gen")
+}
+
+func computeScionGenCache(scionRoot string) string {
+	return path.Join(scionRoot, "gen-cache")
+}
+
+func computeScionLogs(scionRoot string) string {
+	return path.Join(scionRoot, "logs")
+}
+
+func ParseFlags() CmdOptions {
+	addr := flag.String(CMD_ADR, listenAddrDef, "Address of server host.")
+	port := flag.Int(CMD_PRT, listenPortDef, "Port of server host.")
+	appsRoot := flag.String(CMD_ART, path.Join(GOPATH, "bin"),
+		"Path to execute the installed scionlab apps binaries")
+	staticRoot := flag.String(CMD_WEB, DEF_WEBDIR,
+		"Path to read/write web server files.")
+	browseRoot := flag.String(CMD_BRT, computeBrowseRoot(*staticRoot),
+		"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
+	scionRoot := flag.String(CMD_SCN, DEF_SCIONDIR,
+		"Path to read SCION root directory of infrastructure")
+	scionBin := flag.String(CMD_SCB, computeScionBin(*scionRoot),
+		"Path to execute SCION bin directory of infrastructure tools")
+	scionGen := flag.String(CMD_SCG, computeScionGen(*scionRoot),
+		"Path to read SCION gen directory of infrastructure config")
+	scionGenCache := flag.String(CMD_SCC, computeScionGenCache(*scionRoot),
+		"Path to read SCION gen-cache directory of infrastructure run-time config")
+	scionLogs := flag.String(CMD_SCL, computeScionLogs(*scionRoot),
+		"Path to read SCION logs directory of infrastructure logging")
+	flag.Parse()
+	// recompute root args to use the proper relative defaults if undefined
+	if isFlagUsed(CMD_WEB) {
+		if !isFlagUsed(CMD_BRT) {
+			*browseRoot = computeBrowseRoot(*staticRoot)
+		}
+	}
+	if isFlagUsed(CMD_SCN) {
+		if !isFlagUsed(CMD_SCB) {
+			*scionBin = computeScionBin(*scionRoot)
+		}
+		if !isFlagUsed(CMD_SCG) {
+			*scionGen = computeScionGen(*scionRoot)
+		}
+		if !isFlagUsed(CMD_SCC) {
+			*scionGenCache = computeScionGenCache(*scionRoot)
+		}
+		if !isFlagUsed(CMD_SCL) {
+			*scionLogs = computeScionLogs(*scionRoot)
+		}
+	}
+	options := CmdOptions{
+		*addr,
+		*port,
+		*staticRoot,
+		*browseRoot,
+		*appsRoot,
+		*scionRoot,
+		*scionBin,
+		*scionGen,
+		*scionGenCache,
+		*scionLogs}
+	options.AbsPathCmdOptions()
+	return options
 }
 
 // WriteUserSetting writes the settings to disk.
@@ -174,7 +293,8 @@ func GenServerNodeDefaults(options *CmdOptions, localIAs []string) {
 		// use all localhost endpoints as possible servers for bwtester as least
 		ia := strings.Replace(localIAs[i], "_", ":", -1)
 		json := []byte(`{"name":"lo ` + ia + `","isdas":"` + ia +
-			`", "addr":"` + serDefAddr + `","port":` + serPortDefBwt + `}`)
+			`", "addr":"` + serDefAddr + `","port":` + strconv.Itoa(serPortDef) +
+			`}`)
 		jsonBuf = append(jsonBuf, json...)
 		if i < (len(localIAs) - 1) {
 			jsonBuf = append(jsonBuf, []byte(`,`)...)
@@ -189,7 +309,6 @@ func GenServerNodeDefaults(options *CmdOptions, localIAs []string) {
 // SCION addresses as json
 func GenClientNodeDefaults(options *CmdOptions, cisdas string) {
 	cliFp := path.Join(options.StaticRoot, cfgFileCliDef)
-	cport := cliPortDef
 
 	// find interface addresses
 	jsonBuf := []byte(`{ "all": [ `)
@@ -213,7 +332,8 @@ func GenClientNodeDefaults(options *CmdOptions, cisdas string) {
 					cname := i.Name
 					caddr := ipnet.IP.String()
 					jsonInterface := []byte(`{"name":"` + cname + `", "isdas":"` +
-						cisdas + `", "addr":"` + caddr + `","port":` + cport + `}`)
+						cisdas + `", "addr":"` + caddr + `","port":` +
+						strconv.Itoa(cliPortDef) + `}`)
 					jsonBuf = append(jsonBuf, jsonInterface...)
 					idx++
 				}

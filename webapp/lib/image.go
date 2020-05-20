@@ -85,7 +85,7 @@ func FindImageInfoHandler(w http.ResponseWriter, r *http.Request, options *CmdOp
 }
 
 // FindImageHandler locating most recent image formatting it for graphic display in response.
-func FindImageHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, browserAddr string, port int) {
+func FindImageHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	filesDir := path.Join(options.StaticRoot, "data/images")
 	imgFilename, _ := findNewestFileExt(filesDir, regexImageFiles)
 	if imgFilename == "" {
@@ -114,6 +114,6 @@ func FindImageHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 	}
 	CheckError(err)
 	//TODO fix location
-	url := fmt.Sprintf("http://%s:%d/%s/%s", browserAddr, port, "data/images", imgFilename)
+	url := fmt.Sprintf("http://%s:%d/%s/%s", options.Addr, options.Port, "data/images", imgFilename)
 	writeJpegTemplate(w, &rawImage, url)
 }
