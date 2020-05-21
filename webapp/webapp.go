@@ -101,7 +101,7 @@ func main() {
 
 	// correct static files are required for the app to serve them, else fail
 	if _, err := os.Stat(path.Join(options.StaticRoot, "static")); os.IsNotExist(err) {
-		repo := "scion-apps/webapp/web"
+		repo := "https://github.com/netsec-ethz/scion-apps/tree/master/webapp/web"
 		msg := "-%s flag must be set with installed static website from repo: %s"
 		log.Error(fmt.Sprintf(msg, lib.CMD_WEB, repo))
 		CheckFatal(err)
