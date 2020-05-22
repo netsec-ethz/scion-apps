@@ -397,15 +397,6 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
                 + "</span></a> <span class='badge'>" + hops + "</span>";
         html += "<ul>";
         html += "<li><a href='#'>MTU: " + ent.MTU + "</a>";
-        // if (ent.HostInfo.Addrs.Ipv4) {
-        // html += "<li><a href='#'>Ipv4: "
-        // + ipv4Raw2Read(ent.HostInfo.Addrs.Ipv4) + "</a>";
-        // }
-        // if (ent.HostInfo.Addrs.Ipv6) {
-        // html += "<li><a href='#'>Ipv6: "
-        // + ipv6Raw2Read(ent.HostInfo.Addrs.Ipv6) + "</a>";
-        // }
-        // html += "<li><a href='#'>Port: " + ent.HostInfo.Port + "</a>";
         html += "<li><a href='#'>Expires: " + exp.toLocaleDateString() + " "
                 + exp.toLocaleTimeString() + "</a>";
         for (i in if_) {
@@ -439,8 +430,7 @@ function getSegColor(type) {
 function get_segment_info(segs, type) {
     var html = "";
     for (s in segs.if_lists) {
-        var exp = new Date(0);
-        exp.setUTCSeconds(segs.if_lists[s].expTime);
+        var exp = new Date(segs.if_lists[s].expTime);
         if_ = segs.if_lists[s].interfaces;
         var hops = if_.length / 2;
         var style = "style='color: " + getSegColor(type) + ";'";
@@ -512,7 +502,7 @@ function get_json_seg_topo(paths, segs, src, dst) {
                     + if_[if_.length - 1 - i].IfNum + " ";
         }
         // TODO: (mwfarb) this filtering logic should eventually move to Go
-        var exp = new Date(segments[s].Expiry).getTime();
+        var exp = new Date(segments[s].Expiry);
         if (exp < now) {
             // segment IAs must not be expired
             segments.splice(s, 1);
@@ -582,7 +572,7 @@ function get_json_seg_topo(paths, segs, src, dst) {
         }
         var ifaces = {};
         ifaces.interfaces = interfaces;
-        ifaces.expTime = new Date(segments[s].Expiry).getTime() / 1000;
+        ifaces.expTime = new Date(segments[s].Expiry);
         outSegs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
     }
     console.debug("segments post trim:", segments.length);
@@ -613,7 +603,7 @@ function get_json_paths(paths, src, dst) {
             interfaces.push(iface);
         }
         ifaces.interfaces = interfaces;
-        ifaces.expTime = new Date(paths[p].Expiry)
+        ifaces.expTime = new Date(paths[p].Expiry);
         ifaces.MTU = paths[p].MTU;
         if_lists.push(ifaces);
     }

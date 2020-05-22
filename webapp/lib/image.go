@@ -113,7 +113,6 @@ func FindImageHandler(w http.ResponseWriter, r *http.Request, options *CmdOption
 		panic("Unhandled image type!")
 	}
 	CheckError(err)
-	//TODO fix location
 	url := fmt.Sprintf("http://%s:%d/%s/%s", options.Addr, options.Port, "data/images", imgFilename)
 	writeJpegTemplate(w, &rawImage, url)
 }

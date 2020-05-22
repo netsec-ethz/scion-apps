@@ -166,17 +166,8 @@ func ParseFlags() CmdOptions {
 			*scionLogs = computeScionLogs(*scionRoot)
 		}
 	}
-	options := CmdOptions{
-		*addr,
-		*port,
-		*staticRoot,
-		*browseRoot,
-		*appsRoot,
-		*scionRoot,
-		*scionBin,
-		*scionGen,
-		*scionGenCache,
-		*scionLogs}
+	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *appsRoot,
+		*scionRoot, *scionBin, *scionGen, *scionGenCache, *scionLogs}
 	options.AbsPathCmdOptions()
 	return options
 }
@@ -185,9 +176,8 @@ func ParseFlags() CmdOptions {
 func WriteUserSetting(options *CmdOptions, settings UserSetting) {
 	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
 
-	//TODO: writing myIA means we have to retrieve sciond's tcp address too
-	// since sciond's address may be autognerated, it is best to always read from toml
-
+	// writing myIA means we have to retrieve sciond's tcp address too
+	// since sciond's address may be autognerated
 	config, err := LoadSciondConfig(options, settings.MyIA)
 	CheckError(err)
 	settings.SDAddress = config.SD.Address

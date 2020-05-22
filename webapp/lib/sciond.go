@@ -39,7 +39,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -154,15 +153,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		returnError(w, err)
 		return
 	}
-	//Refresh: cfg.Refresh,
-	//TODO: pass in max paths from user
-	pathData, err := sciondConn.Paths(context.Background(), remoteIA, localIA,
-		sciond.PathReqFlags{PathCount: 10})
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-	paths, err := getPathsJSON(pathData)
+	paths, err := getPathsJSON(sciondConn, localIA, remoteIA)
 	log.Debug("PathTopoHandler:", "paths", string(paths))
 
 	// Since segments data is supplimentary to paths data, if segments data
@@ -269,7 +260,14 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPathsJSON(paths []snet.Path) ([]byte, error) {
+func getPathsJSON(sciondConn sciond.Connector, srcIA, dstIA addr.IA) ([]byte, error) {
+	ctx := context.Background()
+	paths, err := sciondConn.Paths(ctx, dstIA, srcIA,
+		sciond.PathReqFlags{PathCount: 10})
+	if err != nil {
+		return nil, err
+	}
+
 	var rPaths []Path
 	for _, path := range paths {
 		rpath := Path{
