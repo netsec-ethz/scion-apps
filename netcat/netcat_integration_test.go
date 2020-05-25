@@ -104,16 +104,33 @@ func TestIntegrationScionNetcat(t *testing.T) {
 			t.Fatalf("Error during tests err: %v", err)
 		}
 	}
+}
 
+func TestIntegrationScionNetcatUDP(t *testing.T) {
 	// UDP tests
 	// Common arguments
-	cmnArgs = []string{"-vv", "-u"}
+	cmnArgs := []string{"-vv", "-u"}
 
 	// Server
-	serverPort = "1234"
-	serverArgs = []string{"-l", serverPort}
+	serverPort := "1234"
+	serverArgs := []string{"-l", serverPort}
 	serverArgs = append(cmnArgs, serverArgs...)
-	testCases = []struct {
+
+	testMessage := "Hello UDP World!"
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	clientBinWrapperCmd, err := wrapperCommand(tmpDir, fmt.Sprintf("echo -e '%s'", testMessage),
+		integration.AppBinPath(clientBin))
+	if err != nil {
+		t.Fatalf("Failed to wrap scion-netcat input: %s\n", err)
+	}
+	clientCmd := clientBinWrapperCmd
+	serverCmd := integration.AppBinPath(serverBin)
+
+	testCases := []struct {
 		Name              string
 		Args              []string
 		ServerOutMatchFun func(bool, string) bool
@@ -148,6 +165,7 @@ func TestIntegrationScionNetcat(t *testing.T) {
 		}
 	}
 }
+
 
 func wrapperCommand(tmpDir string, inputSource string, command string) (wrapperCmd string, err error){
 	wrapperCmd = path.Join(tmpDir, fmt.Sprintf("%s_wrapper.sh", serverBin))
