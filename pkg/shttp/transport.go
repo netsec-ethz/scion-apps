@@ -19,18 +19,15 @@ package shttp
 
 import (
 	"crypto/tls"
-	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // RoundTripper extends the http.RoundTripper interface with a Close
@@ -59,7 +56,7 @@ type roundTripper struct {
 	rt *http3.RoundTripper
 }
 
-// RoundTrip does a single round trip; retreiving a response for a given request
+// RoundTrip does a single round trip; retrieving a response for a given request
 func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// If req.URL.Host is a SCION address, we need to mangle it so it passes through
@@ -69,7 +66,7 @@ func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	cpy := *req
 	cpy.URL = new(url.URL)
 	*cpy.URL = *req.URL
-	cpy.URL.Host = mangleSCIONAddr(req.URL.Host)
+	cpy.URL.Host = appnet.MangleSCIONAddr(req.URL.Host)
 
 	return t.rt.RoundTrip(&cpy)
 }
@@ -86,7 +83,7 @@ func (t *roundTripper) Close() (err error) {
 
 // dial is the Dial function used in RoundTripper
 func dial(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
-	return appquic.DialEarly(unmangleSCIONAddr(address), tlsCfg, cfg)
+	return appquic.DialEarly(appnet.UnmangleSCIONAddr(address), tlsCfg, cfg)
 }
 
 var scionAddrURLRegexp = regexp.MustCompile(
@@ -96,7 +93,6 @@ var scionAddrURLRegexp = regexp.MustCompile(
 // string so that it can be safely used as a URL, i.e. it can be parsed by
 // net/url.Parse
 func MangleSCIONAddrURL(url string) string {
-
 	match := scionAddrURLRegexp.FindStringSubmatch(url)
 	if len(match) == 0 {
 		return url // does not match: it's not a URL or not a URL with a SCION address. Just pass it through.
@@ -106,53 +102,5 @@ func MangleSCIONAddrURL(url string) string {
 	userInfoPart := match[2]
 	hostPart := match[3]
 	tail := match[4]
-	return schemePart + userInfoPart + mangleSCIONAddr(hostPart) + tail
-}
-
-// mangleSCIONAddr mangles a SCION address string (if it is one) so it can be
-// safely used in the host part of a URL.
-func mangleSCIONAddr(address string) string {
-
-	raddr, err := snet.ParseUDPAddr(address)
-	if err != nil {
-		return address
-	}
-
-	// Turn this into [IA,IP]:port format. This is a valid host in a URI, as per
-	// the "IP-literal" case in RFC 3986, §3.2.2.
-	// Unfortunately, this is not currently compatible with snet.ParseUDPAddr,
-	// so this will have to be _unmangled_ before use.
-	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
-	if raddr.Host.Port != 0 {
-		mangledAddr += fmt.Sprintf(":%d", raddr.Host.Port)
-	}
-	return mangledAddr
-}
-
-// unmangleSCIONAddr returns a SCION address that can be parsed with
-// with snet.ParseUDPAddr.
-// If the input is not a SCION address (e.g. a hostname), the address is
-// returned unchanged.
-// This parses the address, so that it can safely join host and port, with the
-// brackets in the right place. Yes, this means this will be parsed twice.
-//
-// Assumes that address always has a port (this is enforced by the http3
-// roundtripper code)
-func unmangleSCIONAddr(address string) string {
-	host, port, err := net.SplitHostPort(address)
-	if err != nil || port == "" {
-		panic(fmt.Sprintf("unmangleSCIONAddr assumes that address is of the form host:port %s", err))
-	}
-	// brackets are removed from [I-A,IP] part by SplitHostPort, so this can be
-	// parsed with ParseUDPAddr:
-	udpAddr, err := snet.ParseUDPAddr(host)
-	if err != nil {
-		return address
-	}
-	p, err := strconv.ParseUint(port, 10, 16)
-	if err != nil {
-		return address
-	}
-	udpAddr.Host.Port = int(p)
-	return udpAddr.String()
+	return schemePart + userInfoPart + appnet.MangleSCIONAddr(hostPart) + tail
 }
