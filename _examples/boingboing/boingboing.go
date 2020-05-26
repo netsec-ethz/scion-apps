@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/mpsquic"
 )
@@ -89,7 +90,7 @@ func main() {
 	switch *mode {
 	case ModeClient:
 		paths, err := choosePaths(remote.IA, *interactive)
-		if err != nil || len(paths) == 0 {
+		if err != nil {
 			LogFatal("No paths available to remote destination")
 		}
 		c := &client{}
@@ -163,25 +164,25 @@ func (m *message) len() int {
 	return len(m.BoingBoing) + len(m.Data) + 8
 }
 
-type mpQuicStream struct {
+type quicStream struct {
 	qstream quic.Stream
 	encoder *gob.Encoder
 	decoder *gob.Decoder
 }
 
-func newMPQuicStream(qstream quic.Stream) *mpQuicStream {
-	return &mpQuicStream{
+func newQuicStream(qstream quic.Stream) *quicStream {
+	return &quicStream{
 		qstream,
 		gob.NewEncoder(qstream),
 		gob.NewDecoder(qstream),
 	}
 }
 
-func (qs mpQuicStream) WriteMsg(msg *message) error {
+func (qs quicStream) WriteMsg(msg *message) error {
 	return qs.encoder.Encode(msg)
 }
 
-func (qs mpQuicStream) ReadMsg() (*message, error) {
+func (qs quicStream) ReadMsg() (*message, error) {
 	var msg message
 	err := qs.decoder.Decode(&msg)
 	if err != nil {
@@ -191,8 +192,8 @@ func (qs mpQuicStream) ReadMsg() (*message, error) {
 }
 
 type client struct {
-	*mpQuicStream
-	mpQuic *mpsquic.MPQuic
+	*quicStream
+	qsess quic.Session
 }
 
 func newClient(remote *snet.UDPAddr) *client {
@@ -213,17 +214,23 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 		// Only capture the QUIC connection trace when tracing is enabled
 		quicConf = &quic.Config{QuicTracer: quictrace.NewTracer()}
 	}*/
-	mpQuic, err := mpsquic.Dial(remote, "host:0", paths, tlsConf, quicConf)
+	var err error
+	if remote.IA == appnet.DefNetwork().IA {
+		// XXX(matzf) mpsquic does not properly handle destination in same AS. Too many places assume
+		// an existing path. Easy fallback, use normal appquic.
+		c.qsess, err = appquic.DialAddr(remote, "host:0", tlsConf, quicConf)
+	} else {
+		c.qsess, err = mpsquic.Dial(remote, "host:0", paths, tlsConf, quicConf)
+	}
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
-	c.mpQuic = mpQuic
 
-	qstream, err := c.mpQuic.OpenStreamSync(context.Background())
+	qstream, err := c.qsess.OpenStreamSync(context.Background())
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
-	c.mpQuicStream = newMPQuicStream(qstream)
+	c.quicStream = newQuicStream(qstream)
 	log.Debug("Quic stream opened", "remote", remote)
 	go func() {
 		defer log.HandlePanic()
@@ -238,13 +245,13 @@ func (c *client) Close() error {
 	if c.qstream != nil {
 		err = c.qstream.Close()
 	}
-	if err == nil && c.mpQuic != nil {
+	if err == nil && c.qsess != nil {
 		// Note closing the session here is fine since we know that all the traffic went through.
 		// If you are not sure that this is the case you should probably not close the session.
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		c.mpQuic.CloseWithError(errorNoError, "")
+		c.qsess.CloseWithError(errorNoError, "")
 	}
 	return err
 }
@@ -382,7 +389,7 @@ func (s server) handleClient(qsess quic.Session) {
 	}
 	defer qstream.Close()
 
-	qs := newMPQuicStream(qstream)
+	qs := newQuicStream(qstream)
 	for {
 		// Receive boing? message
 		msg, err := qs.ReadMsg()

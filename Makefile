@@ -16,6 +16,7 @@ build: scion-bat \
 	scion-netcat \
 	scion-sensorfetcher scion-sensorserver \
 	scion-ssh scion-sshd \
+	example-boingboing \
 	example-helloworld \
 	example-shttp-client example-shttp-server
 
@@ -40,7 +41,7 @@ install: all
 	cp -t $(DESTDIR) $(BIN)/scion-*
 
 integration: all
-	go test -v -tags=integration ./... ./_examples/helloworld/
+	go test -v -tags=integration ./... ./_examples/helloworld/ ./_examples/boingboing/
 
 .PHONY: scion-bat
 scion-bat:

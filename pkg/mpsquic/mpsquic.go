@@ -144,8 +144,9 @@ func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
 			logger.Warn("Error closing QUIC session", "err", err)
 		}
 	}
-	// TODO(matzf) close disp connection
-	// TODO(matzf) destroy network object?
+	if mpq.dispConn != nil {
+		mpq.dispConn.Close()
+	}
 	return mpq.flexConn.Close()
 }
 
