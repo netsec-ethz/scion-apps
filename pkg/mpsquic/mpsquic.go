@@ -61,6 +61,7 @@ type MPQuic struct {
 	paths               []*pathInfo
 	active              *pathInfo
 	pathResolver        pathmgr.Resolver
+	revocationQ         chan keyedRevocation
 }
 
 type Logger struct {
@@ -79,13 +80,9 @@ type keyedRevocation struct {
 
 var (
 	logger *Logger
-
-	revocationQ chan keyedRevocation
 )
 
 func init() {
-	// TODO(matzf) does this need to be global?
-	revocationQ = make(chan keyedRevocation, 50) // Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
 	// TODO(matzf) change default to mute
 	// By default this library is noisy, to mute it call msquic.MuteLogging
 	initLogging(log.Root())
@@ -171,6 +168,9 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 
 	ctx := context.Background()
 
+	// Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
+	revocationQ := make(chan keyedRevocation, 50)
+
 	// XXX(matzf): this is ugly as; the SCMPHandler could be configured per connection but it's not
 	// accessible so we have to make this weird detour of creating a new Network object.
 	defNetwork := appnet.DefNetwork()
@@ -218,6 +218,7 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 		paths:               pathInfos,
 		active:              active,
 		pathResolver:        pathResolver,
+		revocationQ:         revocationQ,
 	}
 	logger.Info("Active Path", "key", active.fingerprint, "Hops", active.path.Interfaces())
 	/*if quicConfig != nil {

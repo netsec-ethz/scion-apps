@@ -191,7 +191,7 @@ func (mpq *MPQuic) rcvSCMP(appID uint64) {
 				continue
 			}
 			select {
-			case revocationQ <- keyedRevocation{key: pathKey, revocationInfo: scmpPld.Info.(*scmp.InfoRevocation)}:
+			case mpq.revocationQ <- keyedRevocation{key: pathKey, revocationInfo: scmpPld.Info.(*scmp.InfoRevocation)}:
 				logger.Trace("Processing scmp probe packet", "Action", "Revocation queued in revocationQ channel.")
 			default:
 				logger.Trace("Ignoring scmp probe packet", "Reason", "Revocation channel full.")
@@ -229,7 +229,7 @@ func (mpq *MPQuic) processRevocations() {
 		if mpq.dispConn == nil {
 			break
 		}
-		rev = <-revocationQ
+		rev = <-mpq.revocationQ
 		logger.Trace("Processing revocation", "Action", "Retrieved queued revocation from revocationQ channel.")
 		mpq.handleSCMPRevocation(rev.revocationInfo, rev.key)
 	}
