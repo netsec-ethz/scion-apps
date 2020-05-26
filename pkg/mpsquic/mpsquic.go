@@ -56,12 +56,12 @@ type pathInfo struct {
 // TODO(matzf): rename to Session?
 type MPQuic struct {
 	quic.Session
-	scionFlexConnection *SCIONFlexConn
-	dispConn            net.PacketConn
-	paths               []*pathInfo
-	active              *pathInfo
-	pathResolver        pathmgr.Resolver
-	revocationQ         chan keyedRevocation
+	flexConn     *flexConn
+	dispConn     net.PacketConn
+	paths        []*pathInfo
+	active       *pathInfo
+	pathResolver pathmgr.Resolver
+	revocationQ  chan keyedRevocation
 }
 
 type Logger struct {
@@ -146,7 +146,7 @@ func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
 	}
 	// TODO(matzf) close disp connection
 	// TODO(matzf) destroy network object?
-	return mpq.scionFlexConnection.Close()
+	return mpq.flexConn.Close()
 }
 
 // createSCMPMonitorConn opens a new connection to send/receive SCMPs on.
@@ -206,19 +206,19 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	pathInfos := makePathInfos(paths, raddr)
 
 	active := pathInfos[0]
-	flexConn := newSCIONFlexConn(conn, active.raddr)
+	flexConn := newFlexConn(conn, active.raddr)
 	qsession, err := quic.Dial(flexConn, flexConn.raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
 	mpQuic := &MPQuic{
-		Session:             qsession,
-		scionFlexConnection: flexConn,
-		dispConn:            dispConn,
-		paths:               pathInfos,
-		active:              active,
-		pathResolver:        pathResolver,
-		revocationQ:         revocationQ,
+		Session:      qsession,
+		flexConn:     flexConn,
+		dispConn:     dispConn,
+		paths:        pathInfos,
+		active:       active,
+		pathResolver: pathResolver,
+		revocationQ:  revocationQ,
 	}
 	logger.Info("Active Path", "key", active.fingerprint, "Hops", active.path.Interfaces())
 	/*if quicConfig != nil {
@@ -272,10 +272,10 @@ func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
 // updateActivePath updates the active path in a thread safe manner.
 func (mpq *MPQuic) updateActivePath(newPathIndex int) {
 	// Lock the connection raddr, and update both the active path and the raddr of the FlexConn.
-	mpq.scionFlexConnection.addrMtx.Lock()
-	defer mpq.scionFlexConnection.addrMtx.Unlock()
+	mpq.flexConn.addrMtx.Lock()
+	defer mpq.flexConn.addrMtx.Unlock()
 	mpq.active = mpq.paths[newPathIndex]
-	mpq.scionFlexConnection.setRemoteAddr(mpq.active.raddr)
+	mpq.flexConn.setRemoteAddr(mpq.active.raddr)
 }
 
 // switchMPConn switches between different SCION paths as given by the SCION address with path structs in paths.
@@ -288,8 +288,8 @@ func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 	}
 	for i := range mpq.paths {
 		// Do not switch to identical path or to expired path
-		if mpq.scionFlexConnection.raddr != mpq.paths[i].raddr && mpq.paths[i].expiry.After(time.Now()) {
-			logger.Trace("Previous path", "path", mpq.scionFlexConnection.raddr.Path)
+		if mpq.flexConn.raddr != mpq.paths[i].raddr && mpq.paths[i].expiry.After(time.Now()) {
+			logger.Trace("Previous path", "path", mpq.flexConn.raddr.Path)
 			logger.Trace("New path", "path", mpq.paths[i].raddr.Path)
 			if !filter {
 				mpq.updateActivePath(i)

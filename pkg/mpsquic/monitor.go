@@ -68,8 +68,8 @@ func (mpq *MPQuic) sendSCMP(appID uint64) {
 		}
 
 		localIA := appnet.DefNetwork().IA
-		localHost := mpq.scionFlexConnection.Conn.LocalAddr().(*net.UDPAddr)
-		laddr := &snet.UDPAddr{IA: localIA, Host: localHost}
+		localIP := mpq.flexConn.Conn.LocalAddr().(*net.UDPAddr).IP
+		laddr := &snet.UDPAddr{IA: localIA, Host: &net.UDPAddr{IP: localIP}}
 		for i := range mpq.paths {
 			raddr := mpq.paths[i].raddr
 			scmpID := appID + uint64(i)
