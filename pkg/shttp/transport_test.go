@@ -62,9 +62,9 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 			if _, _, err := net.SplitHostPort(u.Host); err != nil {
 				continue
 			}
-			unmangled := unmangleSCIONAddr(u.Host)
+			unmangled := appnet.UnmangleSCIONAddr(u.Host)
 			if unmangled != tc.HostPort {
-				t.Fatalf("unmangleSCIONAddr('%s') returned different result, actual='%s', expected='%s'", u.Host, unmangled, tc.HostPort)
+				t.Fatalf("UnmangleSCIONAddr('%s') returned different result, actual='%s', expected='%s'", u.Host, unmangled, tc.HostPort)
 			}
 		}
 	}
@@ -96,7 +96,7 @@ func TestRoundTripper(t *testing.T) {
 	// expected will be set in the test loop, below
 	var expected string
 	testDial := func(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
-		unmangled := unmangleSCIONAddr(address)
+		unmangled := appnet.UnmangleSCIONAddr(address)
 		resolvedAddr, err := appnet.ResolveUDPAddr(unmangled)
 		if err != nil {
 			t.Fatalf("unexpected error when resolving address '%s' in roundtripper: %s", unmangled, err)
