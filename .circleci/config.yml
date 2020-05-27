@@ -97,6 +97,8 @@ jobs:
           name: Integration tests
           command: |
             make integration
+      - store_artifacts:
+          path: /tmp/scion-apps-integration/
       - save_cache:
           key: v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
           paths:
