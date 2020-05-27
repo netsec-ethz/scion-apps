@@ -32,7 +32,7 @@ func TestHelloworldSample(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
 	}
-  cmd := integration.AppBinPath(bin)
+	cmd := integration.AppBinPath(bin)
 	// Common arguments
 	cmnArgs := []string{}
 	// Server
@@ -58,14 +58,6 @@ func TestHelloworldSample(t *testing.T) {
 			nil,
 			integration.Contains("Done. Wrote 11 bytes."),
 			nil,
-		},
-		{
-			"client_error",
-			append([]string{"-remote", "1-ff00:0:bad,[127.0.0.1]:" + serverPort}, cmnArgs...),
-			nil,
-			nil,
-			nil,
-			integration.RegExp("^Fatal error.*err_code=\"No paths available\"$"),
 		},
 	}
 

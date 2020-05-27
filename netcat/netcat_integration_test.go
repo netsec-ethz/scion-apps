@@ -80,7 +80,7 @@ func TestIntegrationScionNetcat(t *testing.T) {
 		},
 		{
 			"client_hello",
-			append(cmnArgs, integration.DstAddrPattern + ":" + serverPort),
+			append(cmnArgs, integration.DstAddrPattern+":"+serverPort),
 			integration.RegExp(fmt.Sprintf("^%s$", testMessage)),
 			nil,
 			nil,
@@ -100,7 +100,7 @@ func TestIntegrationScionNetcat(t *testing.T) {
 		IAPairs := integration.IAPairs(hostAddr)
 		IAPairs = IAPairs[:5]
 
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 250 * time.Millisecond); err != nil {
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 250*time.Millisecond); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
 	}
@@ -140,7 +140,7 @@ func TestIntegrationScionNetcatUDP(t *testing.T) {
 	}{
 		{
 			"client_hello_UDP",
-			append(cmnArgs, integration.DstAddrPattern + ":" + serverPort),
+			append(cmnArgs, integration.DstAddrPattern+":"+serverPort),
 			nil,
 			nil,
 			nil,
@@ -160,14 +160,13 @@ func TestIntegrationScionNetcatUDP(t *testing.T) {
 		IAPairs := integration.IAPairs(hostAddr)
 		IAPairs = IAPairs[:5]
 
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 250 * time.Millisecond); err != nil {
+		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 250*time.Millisecond); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
 	}
 }
 
-
-func wrapperCommand(tmpDir string, inputSource string, command string) (wrapperCmd string, err error){
+func wrapperCommand(tmpDir string, inputSource string, command string) (wrapperCmd string, err error) {
 	wrapperCmd = path.Join(tmpDir, fmt.Sprintf("%s_wrapper.sh", serverBin))
 	f, err := os.OpenFile(wrapperCmd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
@@ -176,7 +175,7 @@ func wrapperCommand(tmpDir string, inputSource string, command string) (wrapperC
 	defer f.Close()
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-	_, _ = w.WriteString(fmt.Sprintf("#!/bin/bash\ntimeout 5 /bin/bash -c \"%s | %s $1 $2 $3 $4\"",
+	_, _ = w.WriteString(fmt.Sprintf("#!/bin/bash\ntimeout 5 /bin/bash -c \"%s | %s $1 $2 $3 $4\" || true",
 		inputSource, command))
 	return wrapperCmd, nil
 }
