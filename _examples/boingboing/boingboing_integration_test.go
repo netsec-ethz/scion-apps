@@ -18,6 +18,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration"
 )
@@ -27,7 +28,7 @@ const (
 	bin  = "example-boingboing"
 )
 
-func TestBoingboingSample(t *testing.T) {
+func TestIntegrationBoingboing(t *testing.T) {
 	if err := integration.Init(name); err != nil {
 		t.Fatalf("Failed to init: %s\n", err)
 	}
@@ -46,10 +47,11 @@ func TestBoingboingSample(t *testing.T) {
 	}{
 		{
 			"default",
-			[]string{"-remote", integration.DstAddrPattern + ":" + serverPort, "-count", "3"},
-			integration.RegExp("Quic session accepted"),
+			[]string{"-remote", integration.DstAddrPattern + ":" + serverPort,
+				"-count", "10", "-interval", "0.01s"},
+			integration.RegExp("Received message"),
 			nil,
-			integration.RegExp("Received .* bytes from .* seq=.* RTT=.*ms"),
+			integration.RegExp("Received reply.*seq=9"),
 			nil,
 		},
 	}
@@ -63,7 +65,7 @@ func TestBoingboingSample(t *testing.T) {
 
 		IAPairs := integration.IAPairs(integration.HostAddr)
 
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 0); err != nil {
+		if err := integration.RunTests(in, IAPairs, 30*time.Second, 0); err != nil {
 			t.Fatalf("Error during tests err: %v", err)
 		}
 	}

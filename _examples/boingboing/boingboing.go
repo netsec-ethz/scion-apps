@@ -31,11 +31,10 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	//"github.com/lucas-clemente/quic-go/quictrace"
+	"github.com/lucas-clemente/quic-go/quictrace"
 
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 
@@ -56,6 +55,7 @@ const (
 	nextProto       = "boingboing"
 
 	errorNoError quic.ErrorCode = 0x100
+	errorTimeout quic.ErrorCode = 0x200
 )
 
 var (
@@ -69,8 +69,7 @@ var (
 	timeout = flag.Duration("timeout", DefaultTimeout,
 		"Timeout for the boing response")
 	interval = flag.Duration("interval", DefaultInterval, "time between boings")
-	verbose  = flag.Bool("v", false, "sets verbose output")
-	trace    = flag.Bool("t", false, "enables tracing of the QUIC connection")
+	trace    = flag.Bool("trace", false, "enables tracing of the QUIC connection")
 	quiet    = flag.Bool("q", false, "sets quiet output, only show control output. Suppresses verbose.")
 	port     = flag.Int("port", 0, "(Mandatory for server) Server port")
 	fileData []byte
@@ -149,6 +148,7 @@ func requestMsg() *message {
 	return &message{
 		BoingBoing: ReqMsg,
 		Data:       fileData,
+		Timestamp:  time.Now().UnixNano(),
 	}
 }
 
@@ -193,11 +193,8 @@ func (qs quicStream) ReadMsg() (*message, error) {
 
 type client struct {
 	*quicStream
-	qsess quic.Session
-}
-
-func newClient(remote *snet.UDPAddr) *client {
-	return &client{}
+	qsess  quic.Session
+	tracer quictrace.Tracer
 }
 
 // run dials to a remote SCION address and repeatedly sends boing? messages
@@ -209,11 +206,12 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 		InsecureSkipVerify: true,
 		NextProtos:         []string{nextProto},
 	}
-	var quicConf *quic.Config
-	/*if *trace {
-		// Only capture the QUIC connection trace when tracing is enabled
-		quicConf = &quic.Config{QuicTracer: quictrace.NewTracer()}
-	}*/
+	if *trace {
+		c.tracer = quictrace.NewTracer()
+	}
+	quicConf := &quic.Config{
+		QuicTracer: c.tracer,
+	}
 	var err error
 	if remote.IA == appnet.DefNetwork().IA {
 		// XXX(matzf) mpsquic does not properly handle destination in same AS. Too many places assume
@@ -226,7 +224,9 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 		LogFatal("Unable to dial", "err", err)
 	}
 
-	qstream, err := c.qsess.OpenStreamSync(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	qstream, err := c.qsess.OpenStreamSync(ctx)
+	cancel()
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
@@ -251,21 +251,12 @@ func (c *client) Close() error {
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		c.qsess.CloseWithError(errorNoError, "")
+		_ = c.qsess.CloseWithError(errorNoError, "")
+	}
+	if c.tracer != nil {
+		exportTraces(c.tracer)
 	}
 	return err
-}
-
-func (c client) setupPaths() {
-}
-
-func imax(a, b int) (maximum int) {
-	if a > b {
-		maximum = a
-	} else {
-		maximum = b
-	}
-	return
 }
 
 func (c client) send() {
@@ -275,36 +266,29 @@ func (c client) send() {
 			time.Sleep(*interval)
 		}
 
+		// Send boing? message to destination
 		reqMsg := requestMsg()
 
-		/*
-			// Send different payload size to correlate iterations in network capture
-			infoString := fmt.Sprintf("This is the %vth message sent on this stream", i)
-			fileData = []byte(infoString + strings.Repeat("A", imax(1000-len(infoString)-(100*(9-i)), len(infoString))))
-		*/
-
-		reqMsg = &message{
-			BoingBoing: ReqMsg,
-			Data:       fileData,
+		err := c.qstream.SetWriteDeadline(time.Now().Add(*timeout))
+		if err != nil {
+			LogFatal("Unable to set write deadline", "err", err)
 		}
-
-		// Send boing? message to destination
-		before := time.Now()
-		reqMsg.Timestamp = before.UnixNano()
-
-		err := c.WriteMsg(reqMsg)
+		err = c.WriteMsg(reqMsg)
 		if err != nil {
 			log.Error("Unable to write", "err", err)
-			continue
+			c.qstream.CancelRead(errorTimeout)
+			c.qstream.Close()
+			return
+		}
+		log.Info("Wrote message", "server", &remote, "len", reqMsg.len(), "seq", i)
+
+		// After sending each request, set a ReadDeadline for the expected reply on the stream
+		err = c.qstream.SetReadDeadline(time.Now().Add(*timeout))
+		if err != nil {
+			LogFatal("Unable to set read deadline", "err", err)
 		}
 	}
 	fmt.Println("-----------------------------Client done sending.-----------------------------")
-	// After sending the last boing?, set a ReadDeadline on the stream
-	err := c.qstream.SetReadDeadline(time.Now().Add(*timeout))
-	log.Debug("Set read deadline on stream", "timeout", timeout)
-	if err != nil {
-		LogFatal("SetReadDeadline failed", "err", err)
-	}
 }
 
 func (c client) read() {
@@ -321,25 +305,13 @@ func (c client) read() {
 			break
 		}
 		if msg.BoingBoing != ReplyMsg {
-			log.Error("Received wrong boingboing", "expected", ReplyMsg, "actual", msg.BoingBoing)
-		}
-		if *quiet {
-			// Do not inspect data received
-			continue
-		}
-		if !bytes.Equal(msg.Data, fileData) {
+			log.Error("Received wrong message", "expected", ReplyMsg, "actual", msg.BoingBoing)
+		} else if !bytes.Equal(msg.Data, fileData) {
 			log.Error("Received different data than sent.")
-			continue
-		}
-
-		before := time.Unix(0, int64(msg.Timestamp))
-		elapsed := after.Sub(before).Round(time.Microsecond)
-		if *verbose {
-			fmt.Printf("[%s]\tReceived %d bytes from %v: seq=%d RTT=%s\n",
-				before.Format(common.TimeFmt), msg.len(), &remote, i, elapsed)
 		} else {
-			fmt.Printf("Received %d bytes from %v: seq=%d RTT=%s\n",
-				msg.len(), &remote, i, elapsed)
+			before := time.Unix(0, int64(msg.Timestamp))
+			elapsed := after.Sub(before).Round(time.Microsecond)
+			log.Info("Received reply", "server", &remote, "len", msg.len(), "seq", i, "RTT", elapsed)
 		}
 	}
 	fmt.Println("-----------------------------Client done receiving.-----------------------------")
@@ -382,7 +354,7 @@ func (s server) run() {
 func (s server) handleClient(qsess quic.Session) {
 	var err error
 	defer qsess.CloseWithError(errorNoError, "")
-	qstream, err := qsess.AcceptStream(context.TODO())
+	qstream, err := qsess.AcceptStream(context.Background())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
 		return
@@ -402,13 +374,18 @@ func (s server) handleClient(qsess quic.Session) {
 			break
 		}
 
+		dt := time.Since(time.Unix(0, msg.Timestamp)).Round(time.Microsecond)
+		log.Info("Received message", "client", qsess.RemoteAddr(), "len", msg.len(), "dt", dt)
+
 		// Send boing! message
+		_ = qs.qstream.SetWriteDeadline(time.Now().Add(*timeout))
 		replyMsg := replyMsg(msg)
 		err = qs.WriteMsg(replyMsg)
 		if err != nil {
 			log.Error("Unable to write", "err", err)
 			break
 		}
+		log.Info("Wrote reply", "client", qsess.RemoteAddr(), "len", replyMsg.len())
 	}
 }
 
@@ -421,4 +398,25 @@ func setSignalHandler(closer io.Closer) {
 		closer.Close()
 		os.Exit(1)
 	}()
+}
+
+func exportTraces(tracer quictrace.Tracer) error {
+	dir, err := ioutil.TempDir("", "boingboing_traces")
+	traces := tracer.GetAllTraces()
+	i := 0
+	for _, trace := range traces {
+		if err != nil {
+			return err
+		}
+		f, err := os.Create(fmt.Sprintf("%s/trace_%d.qtr", dir, i))
+		if err != nil {
+			return err
+		}
+		if _, err := f.Write(trace); err != nil {
+			return err
+		}
+		log.Debug("Wrote QUIC trace file", "path", f.Name())
+		i += 1
+	}
+	return nil
 }

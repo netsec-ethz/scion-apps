@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	//"github.com/lucas-clemente/quic-go/quictrace"
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -135,9 +134,6 @@ func (mpq *MPQuic) OpenStreamSync(ctx context.Context) (quic.Stream, error) {
 
 // Close closes the QUIC session.
 func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
-	if err := exportTraces(); err != nil {
-		logger.Warn("Failed to export QUIC trace", "err", err)
-	}
 	// TODO(matzf) return all errors (multierr)
 	if mpq.Session != nil {
 		if err := mpq.Session.CloseWithError(code, desc); err != nil {
@@ -222,9 +218,6 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 		revocationQ:  revocationQ,
 	}
 	logger.Info("Active Path", "key", active.fingerprint, "Hops", active.path.Interfaces())
-	/*if quicConfig != nil {
-		tracer = quicConfig.QuicTracer
-	}*/
 	mpQuic.monitor()
 
 	return mpQuic, nil
