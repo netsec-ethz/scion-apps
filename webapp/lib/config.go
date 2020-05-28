@@ -174,7 +174,7 @@ func ParseFlags() CmdOptions {
 }
 
 // WriteUserSetting writes the settings to disk.
-func WriteUserSetting(options *CmdOptions, settings UserSetting) {
+func WriteUserSetting(options *CmdOptions, settings *UserSetting) {
 	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
 
 	// writing myIA means we have to retrieve sciond's tcp address too
@@ -183,10 +183,9 @@ func WriteUserSetting(options *CmdOptions, settings UserSetting) {
 	CheckError(err)
 	settings.SDAddress = config.SD.Address
 	settings.MetAddress = config.Metrics.PromAddress
-	fmt.Printf("Sciond Address: %s\n", settings.SDAddress)
-
 	settingsJSON, _ := json.Marshal(settings)
 
+	log.Info("Updating...", "UserSetting", string(settingsJSON))
 	err = ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
 	CheckError(err)
 }

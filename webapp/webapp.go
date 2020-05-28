@@ -180,7 +180,7 @@ func initLocalIaOptions() {
 			settings.MyIA = ""
 		}
 	}
-	lib.WriteUserSetting(&options, settings)
+	lib.WriteUserSetting(&options, &settings)
 }
 
 func initServeHandlers() {
@@ -733,7 +733,7 @@ func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
 	settings.MyIA = myIa
 
 	// save myIA to file
-	lib.WriteUserSetting(&options, settings)
+	lib.WriteUserSetting(&options, &settings)
 	lib.GenClientNodeDefaults(&options, settings.MyIA)
 	log.Info("IA set:", "myIa", settings.MyIA)
 }

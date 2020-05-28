@@ -64,11 +64,11 @@ check_presence /run/shm/dispatcher default.sock
 # check TCP sciond socket is running
 cmd="curl -v --silent -m 1 $metaddress/config"
 echo "Running: $cmd"
-recv=$($cmd 2>&1 | grep '[metrics]')
-if [ "$recv" == "0" ]; then
-    error_exit "SCIOND did not respond from $metaddress/config."
-else
+recv=$($cmd 2>&1)
+if echo "$recv" | grep -q "metrics"; then
     echo "SCIOND responded."
+else
+    error_exit "SCIOND did not respond from $metaddress/config."
 fi
 
 echo "Test for SCION running succeeds."
