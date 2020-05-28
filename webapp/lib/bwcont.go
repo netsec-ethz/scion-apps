@@ -192,9 +192,9 @@ func formatGraphResults(v interface{}, active bool) (string, error) {
 	json := []byte(`, "active": ` + strconv.FormatBool(active))
 	jsonBuf = append(jsonBuf, json...)
 	jsonBuf = append(jsonBuf, []byte(`}`)...)
-	jsonStr := strings.Replace(string(jsonBuf), "%", "%%", -1)
 
 	// ensure % if any, is escaped correctly before writing to output
+	jsonStr := strings.Replace(string(jsonBuf), "%", "%%", -1)
 	return jsonStr, nil
 }
 

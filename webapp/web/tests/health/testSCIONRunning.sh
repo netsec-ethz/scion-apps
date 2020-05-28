@@ -7,9 +7,12 @@ error_exit()
     exit 1
 }
 
-# allow IA via args, ignoring gen/ia
+# allow IA via args
 iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
+
+sdaddress=$(echo $2)
+echo "sciond address: $sdaddress"
 
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 
@@ -58,5 +61,18 @@ fi
 }
 
 check_presence /run/shm/dispatcher default.sock
+
+if [ $isd -ge 16 ]; then
+    # not used for localhost testing
+    cmd="curl -m 1 $sdaddress/config"
+    echo "Running: $cmd"
+    recv=$($cmd | grep -E -o '[0-9]+ bytes received' | cut -f1 -d' ')
+    echo $recv
+    if [ "$recv" == "0" ]; then
+        error_exit "SCIOND did not respond from $sdaddress/config."
+    else
+        echo "SCIOND responded."
+    fi
+fi
 
 echo "Test for SCION running succeeds."

@@ -248,10 +248,10 @@ function highlightNoGeoCode(src) {
         return $.inArray(el, geoLocIAs) == -1
     });
     notGeoLocIAs.forEach(function(ia) {
-        dt = "data-toggle='tooltip'";
-        t = "title='" + ia + " unknown map location'";
-        str = "<b " + dt + " " + t + ">" + ia + "*</b>";
-        $("#as-iflist li:contains(" + ia + ")").html(function(_, html) {
+        dt = `data-toggle='tooltip'`;
+        t = `title='${ia} unknown map location'`;
+        str = `<b ${dt} ${t}>${ia}*</b>`;
+        $(`#as-iflist li:contains(${ia})`).html(function(_, html) {
             return html.split(ia).join(str);
         });
     });
@@ -363,8 +363,8 @@ function formatPathJson(paths, idx) {
     if (typeof idx === 'undefined') {
         return '';
     }
-    var ent = paths[idx];
-    var hops = ent.Hops;
+    var entry = paths[idx];
+    var hops = entry.Hops;
     var path = "[";
     for (var i = 0; i < hops.length; i += 2) {
         var prev = hops[i];
@@ -382,35 +382,32 @@ function formatPathJson(paths, idx) {
 }
 
 function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
-    var html = "<ul class='tree'>";
+    var html = `<ul class='tree'>`;
     for (p in paths) {
-
-        var ent = paths[p];
-        var exp = new Date(ent.Expiry);
-        if_ = ent.Hops;
+        var entry = paths[p];
+        var exp = new Date(entry.Expiry);
+        if_ = entry.Hops;
         var hops = if_.length / 2;
-
-        var style = "style='background-color: "
-                + getPathColor(formatPathJson(paths, parseInt(p))) + "; '";
-        html += "<li seg-type='PATH' seg-num=" + p + "><a href='#'><span "
-                + style + " class='path-text badge'>PATH " + (parseInt(p) + 1)
-                + "</span></a> <span class='badge'>" + hops + "</span>";
-        html += "<ul>";
-        html += "<li><a href='#'>MTU: " + ent.MTU + "</a>";
-        html += "<li><a href='#'>Expires: " + exp.toLocaleDateString() + " "
-                + exp.toLocaleTimeString() + "</a>";
+        var hcolor = getPathColor(formatPathJson(paths, parseInt(p)));
+        var style = `style='background-color: ${hcolor}; '`;
+        html += `<li seg-type='PATH' seg-num=${p}><a href='#'>
+            <span ${style} class='path-text badge'>PATH ${parseInt(p)+1}</span>
+            </a>
+            <span class='badge'>${hops}</span>
+            <ul>
+            <li><a href='#'>MTU: ${entry.MTU}</a>
+            <li><a href='#'>Expires: ${exp.toLocaleString()}</a>`;
         for (i in if_) {
-            html += "<li><a href='#'>" + if_[i].IA + " (" + if_[i].IfID
-                    + ")</a>";
+            html += `<li><a href='#'>${if_[i].IA} (${if_[i].IfID})</a>`;
         }
-        html += "</ul>";
+        html += `</ul>`;
     }
     if (show_segs) {
         html += get_segment_info(csegs, "CORE");
         html += get_segment_info(usegs, "UP");
         html += get_segment_info(dsegs, "DOWN");
     }
-    html += "</ul>";
+    html += `</ul>`;
     return html;
 }
 
@@ -428,23 +425,22 @@ function getSegColor(type) {
 }
 
 function get_segment_info(segs, type) {
-    var html = "";
+    var html = ``;
     for (s in segs.if_lists) {
         var exp = new Date(segs.if_lists[s].expTime);
         if_ = segs.if_lists[s].interfaces;
         var hops = if_.length / 2;
-        var style = "style='color: " + getSegColor(type) + ";'";
-        html += "<li seg-type='" + type + "' seg-num=" + s + "><a " + style
-                + " href='#'>" + type + " SEGMENT " + (parseInt(s) + 1)
-                + "</a> <span class='badge'>" + hops + "</span>";
-        html += "<ul>";
-        html += "<li><a href='#'>Expires: " + exp.toLocaleDateString() + " "
-                + exp.toLocaleTimeString() + "</a>";
+        var style = `style='color: ${getSegColor(type)};'`;
+        html += `<li seg-type='${type}' seg-num=${s}>
+            <a ${style} href='#'>${type} SEGMENT ${parseInt(s)+1}</a>
+            <span class='badge'>${hops}</span>
+            <ul>
+            <li><a href='#'>Expires: ${exp.toLocaleString()}</a>`;
         for (i in if_) {
-            html += "<li><a href='#'>" + if_[i].ISD + "-" + if_[i].AS + " ("
-                    + if_[i].IFID + ")</a>";
+            html += `<li><a href='#'>${if_[i].ISD}-${if_[i].AS} (${if_[i].IFID})
+                </a>`;
         }
-        html += "</ul>";
+        html += `</ul>`;
     }
     return html;
 }

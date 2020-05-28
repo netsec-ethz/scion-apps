@@ -347,18 +347,9 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 	var graphEntries []TracerouteGraph
 
 	// Store the infos of the last hop
-	var inserted int64
-	var actualDuration int
 	var trhops []ReducedTrHopItem
-	var cmdOutput, path, errors string
 
 	for i, hop := range result {
-		inserted = hop.Inserted
-		actualDuration = hop.ActualDuration
-		cmdOutput = hop.CmdOutput
-		errors = hop.Error
-		path = hop.Path
-
 		rth := ReducedTrHopItem{HopIa: hop.HopIa,
 			HopAddr:   hop.HopAddr,
 			IntfID:    hop.IntfID,
@@ -370,12 +361,12 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 		// append hops group at the end of each group
 		if (i+1) == len(result) || result[i+1].Inserted != hop.Inserted {
 			trg := TracerouteGraph{
-				Inserted:       inserted,
-				ActualDuration: actualDuration,
+				Inserted:       hop.Inserted,
+				ActualDuration: hop.ActualDuration,
 				TrHops:         trhops,
-				CmdOutput:      cmdOutput,
-				Error:          errors,
-				Path:           path}
+				CmdOutput:      hop.CmdOutput,
+				Error:          hop.Error,
+				Path:           hop.Path}
 
 			graphEntries = append(graphEntries, trg)
 			trhops = nil
