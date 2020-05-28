@@ -10,11 +10,10 @@ error_exit()
 # allow IA via args
 iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
-
-sdaddress=$(echo $2)
-echo "sciond address: $sdaddress"
-
 isd=$(echo ${iaFile} | cut -d"-" -f1)
+
+metaddress=$(echo $3)
+echo "sciond metrics address: $metaddress"
 
 # check if "./scion.sh status" returns anything, fail if it does
 if [ $isd -ge 16 ]; then
@@ -62,17 +61,14 @@ fi
 
 check_presence /run/shm/dispatcher default.sock
 
-if [ $isd -ge 16 ]; then
-    # not used for localhost testing
-    cmd="curl -m 1 $sdaddress/config"
-    echo "Running: $cmd"
-    recv=$($cmd | grep -E -o '[0-9]+ bytes received' | cut -f1 -d' ')
-    echo $recv
-    if [ "$recv" == "0" ]; then
-        error_exit "SCIOND did not respond from $sdaddress/config."
-    else
-        echo "SCIOND responded."
-    fi
+# check TCP sciond socket is running
+cmd="curl -v --silent -m 1 $metaddress/config"
+echo "Running: $cmd"
+recv=$($cmd 2>&1 | grep '[metrics]')
+if [ "$recv" == "0" ]; then
+    error_exit "SCIOND did not respond from $metaddress/config."
+else
+    echo "SCIOND responded."
 fi
 
 echo "Test for SCION running succeeds."

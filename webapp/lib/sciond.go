@@ -73,8 +73,13 @@ type sdInfo struct {
 	Address string `toml:"address"`
 }
 
+type metInfo struct {
+	PromAddress string `toml:"prometheus"`
+}
+
 type sdTomlConfig struct {
-	SD sdInfo `toml:"sd"`
+	SD      sdInfo  `toml:"sd"`
+	Metrics metInfo `toml:"metrics"`
 }
 
 func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
