@@ -339,7 +339,6 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 // d could be either model.BwTestItem, model.EchoItem or model.TracerouteItem
 func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
-	var isdCli int
 	installpath := getClientLocationBin(appSel)
 	log.Info(fmt.Sprintf("App tag is %s...", appSel))
 	switch appSel {
@@ -358,7 +357,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 				d.SCPackets, d.SCBandwidth)
 			command = append(command, bwCS, bwSC)
 		}
-		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
 	case "echo":
 		d, ok := dOrinial.(model.EchoItem)
@@ -371,8 +369,9 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optCount := fmt.Sprintf("-c=%d", d.Count)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
-		command = append(command, installpath, optApp, optRemote, optCount, optTimeout, optInterval)
-		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
+		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
+		command = append(command, installpath,
+			optApp, optRemote, optCount, optTimeout, optInterval, optSciond)
 
 	case "traceroute":
 		d, ok := dOrinial.(model.TracerouteItem)
@@ -383,17 +382,13 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optApp := "tr"
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
-		command = append(command, installpath, optApp, optRemote, optTimeout)
-		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
+		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
+		command = append(command, installpath, optApp, optRemote, optTimeout, optSciond)
 	}
 
 	if len(pathStr) > 0 {
 		// if path choice provided, use interactive mode
 		command = append(command, "-i")
-	}
-	if isdCli < 16 {
-		// -sciondFromIA is better for localhost testing, with test isds
-		command = append(command, fmt.Sprintf("-sciond=%s", settings.SDAddress))
 	}
 	return command
 }
@@ -493,6 +488,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = getClientCwd(appSel)
+	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+settings.SDAddress)
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
@@ -546,11 +542,11 @@ func getClientLocationBin(app string) string {
 	var binname string
 	switch app {
 	case "sensorapp":
-		binname = path.Join(options.AppsRoot, "sensorfetcher")
+		binname = path.Join(options.AppsRoot, "scion-sensorfetcher")
 	case "camerapp":
-		binname = path.Join(options.AppsRoot, "imagefetcher")
+		binname = path.Join(options.AppsRoot, "scion-imagefetcher")
 	case "bwtester":
-		binname = path.Join(options.AppsRoot, "bwtestclient")
+		binname = path.Join(options.AppsRoot, "scion-bwtestclient")
 	case "echo", "traceroute":
 		binname = path.Join(options.ScionBin, "scmp")
 	}

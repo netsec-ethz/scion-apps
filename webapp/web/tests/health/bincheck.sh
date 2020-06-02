@@ -3,7 +3,7 @@
 
 # check for required binaries which may not have been built and installed
 missingbin=false
-declare -a apps=("$SCION_BIN/scmp" "$APPS_ROOT/bwtestclient" "$APPS_ROOT/imagefetcher" "$APPS_ROOT/sensorfetcher" )
+declare -a apps=("$SCION_BIN/scmp" "$APPS_ROOT/scion-bwtestclient" "$APPS_ROOT/scion-imagefetcher" "$APPS_ROOT/scion-sensorfetcher" )
 for fbin in "${apps[@]}"; do
     if [ -f "$fbin" ]; then
         echo "$fbin exists"
