@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"net"
+	"runtime"
 	"strings"
 	"time"
 
@@ -354,6 +355,7 @@ func (mpq *MPQuic) managePaths() {
 		if measuredPaths > 1 {
 			break
 		}
+		runtime.Gosched()
 	}
 
 	// Make a (voluntary) path change decision to increase performance at most once per 5 seconds
