@@ -12,23 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// "Multiple paths" QUIC/SCION implementation.
+// package mpsquic is a prototype implementation for a QUIC/SCION "socket" with
+// automatic, performance aware path choice.
 package mpsquic
 
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
-	"os"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -63,63 +62,9 @@ type MPQuic struct {
 	revocationQ  chan keyedRevocation
 }
 
-type Logger struct {
-	Trace func(msg string, ctx ...interface{})
-	Debug func(msg string, ctx ...interface{})
-	Info  func(msg string, ctx ...interface{})
-	Warn  func(msg string, ctx ...interface{})
-	Error func(msg string, ctx ...interface{})
-	Crit  func(msg string, ctx ...interface{})
-}
-
 type keyedRevocation struct {
 	key            RawKey
 	revocationInfo *scmp.InfoRevocation
-}
-
-var (
-	logger *Logger
-)
-
-func init() {
-	// TODO(matzf) change default to mute
-	// By default this library is noisy, to mute it call msquic.MuteLogging
-	initLogging(log.Root())
-}
-
-// initLogging initializes logging for the mpsquic library using the passed scionproto (or similar) logger
-func initLogging(baseLogger log.Logger) {
-	logger = &Logger{}
-	logger.Trace = func(msg string, ctx ...interface{}) { baseLogger.Trace("MSQUIC: "+msg, ctx...) }
-	logger.Debug = func(msg string, ctx ...interface{}) { baseLogger.Debug("MSQUIC: "+msg, ctx...) }
-	logger.Info = func(msg string, ctx ...interface{}) { baseLogger.Info("MSQUIC: "+msg, ctx...) }
-	logger.Warn = func(msg string, ctx ...interface{}) { baseLogger.Warn("MSQUIC: "+msg, ctx...) }
-	logger.Error = func(msg string, ctx ...interface{}) { baseLogger.Error("MSQUIC: "+msg, ctx...) }
-	logger.Crit = func(msg string, ctx ...interface{}) { baseLogger.Crit("MSQUIC: "+msg, ctx...) }
-}
-
-// SetBasicLogging sets mpsquic logging to only write to os.Stdout and os.Stderr
-func SetBasicLogging() {
-	if logger != nil {
-		logger.Trace = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Debug = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Info = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Warn = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Error = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx) }
-		logger.Crit = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx) }
-	}
-}
-
-// MuteLogging mutes all logging in this library
-func MuteLogging() {
-	if logger != nil {
-		logger.Trace = func(msg string, ctx ...interface{}) {}
-		logger.Debug = func(msg string, ctx ...interface{}) {}
-		logger.Info = func(msg string, ctx ...interface{}) {}
-		logger.Warn = func(msg string, ctx ...interface{}) {}
-		logger.Error = func(msg string, ctx ...interface{}) {}
-		logger.Crit = func(msg string, ctx ...interface{}) {}
-	}
 }
 
 // OpenStreamSync opens a QUIC stream over the QUIC session.
@@ -303,5 +248,5 @@ func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
 	logger.Debug("No path available now", "now", time.Now())
 	mpq.displayStats()
 
-	return common.NewBasicError("mpsquic: No fallback connection available.", nil)
+	return errors.New("no fallback path available")
 }
