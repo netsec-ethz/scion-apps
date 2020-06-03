@@ -28,9 +28,9 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -45,7 +45,6 @@ type pathInfo struct {
 	raddr       *snet.UDPAddr
 	path        snet.Path
 	fingerprint snet.PathFingerprint // caches path.Fingerprint()
-	rawPathKey  RawKey
 	expiry      time.Time
 	rtt         time.Duration
 	bw          int // in bps
@@ -59,12 +58,7 @@ type MPQuic struct {
 	paths        []*pathInfo
 	active       *pathInfo
 	pathResolver pathmgr.Resolver
-	revocationQ  chan keyedRevocation
-}
-
-type keyedRevocation struct {
-	key            RawKey
-	revocationInfo *scmp.InfoRevocation
+	revocationQ  chan *path_mgmt.SignedRevInfo
 }
 
 // OpenStreamSync opens a QUIC stream over the QUIC session.
@@ -85,20 +79,22 @@ func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
 			logger.Warn("Error closing QUIC session", "err", err)
 		}
 	}
-	if mpq.dispConn != nil {
-		mpq.dispConn.Close()
-	}
+	mpq.dispConn.Close()
 	return mpq.flexConn.Close()
 }
 
 // createSCMPMonitorConn opens a new connection to send/receive SCMPs on.
 // NOTE(matzf): this should not be necessary, as the regular snet.Conn uses the
 // same underlying type. We just cant get it out.
-func createSCMPMonitorConn(ctx context.Context, localIP net.IP) (net.PacketConn, error) {
+func createSCMPMonitorConn(ctx context.Context) (net.PacketConn, error) {
 	// New connection
 	// Ignore assigned port
 	disp := appnet.DefNetwork().Dispatcher
 	localIA := appnet.DefNetwork().IA
+	localIP, err := appnet.DefaultLocalIP()
+	if err != nil {
+		return nil, err
+	}
 	dispConn, _, err := disp.Register(ctx, localIA, &net.UDPAddr{IP: localIP, Port: 0}, addr.SvcNone)
 	return dispConn, err
 }
@@ -111,38 +107,20 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	ctx := context.Background()
 
 	// Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
-	revocationQ := make(chan keyedRevocation, 50)
+	revocationQ := make(chan *path_mgmt.SignedRevInfo, 50)
 
-	// XXX(matzf): this is ugly as; the SCMPHandler could be configured per connection but it's not
-	// accessible so we have to make this weird detour of creating a new Network object.
-	defNetwork := appnet.DefNetwork()
-	network := snet.NewCustomNetworkWithPR(
-		defNetwork.IA,
-		&snet.DefaultPacketDispatcherService{
-			Dispatcher: defNetwork.Dispatcher,
-			SCMPHandler: &scmpHandler{
-				revocationQ: revocationQ,
-			},
-		},
-	)
-	// Analogous to appnet.Listen(nil), but need to hand roll because we are not
-	// using the default network
-	localIP, err := appnet.DefaultLocalIP()
-	if err != nil {
-		return nil, err
-	}
-	conn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: localIP, Port: 0}, addr.SvcNone)
+	conn, err := listenWithRevHandler(ctx, &revocationHandler{revocationQ})
 	if err != nil {
 		return nil, err
 	}
 
-	dispConn, err := createSCMPMonitorConn(ctx, localIP)
+	dispConn, err := createSCMPMonitorConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// XXX(matzf): make this public on DefNetwork
-	sdConn := defNetwork.PathQuerier.(sciond.Querier).Connector
+	sdConn := appnet.DefNetwork().PathQuerier.(sciond.Querier).Connector
 	pathResolver := pathmgr.New(sdConn, pathmgr.Timers{}, 0)
 
 	pathInfos := makePathInfos(paths, raddr)
@@ -168,6 +146,29 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	return mpQuic, nil
 }
 
+// listenWithRevHandler is analogous to appnet.Listen(nil), but also sets a
+// custom revocation handler on the connection.
+func listenWithRevHandler(ctx context.Context, revHandler snet.RevocationHandler) (*snet.Conn, error) {
+
+	// this is ugly as; the revHandler could be configured per connection but
+	// it's not accessible so we have to make this weird detour of creating a new
+	// Network object.
+	defNetwork := appnet.DefNetwork()
+	network := snet.NewNetworkWithPR(
+		defNetwork.IA,
+		defNetwork.Dispatcher,
+		nil, // unused, this will go away
+		revHandler,
+	)
+	// Analogous to appnet.Listen(nil), but need to hand roll because we are not
+	// using the default network
+	localIP, err := appnet.DefaultLocalIP()
+	if err != nil {
+		return nil, err
+	}
+	return network.Listen(ctx, "udp", &net.UDPAddr{IP: localIP, Port: 0}, addr.SvcNone)
+}
+
 // makePathInfos initializes pathInfo structs for the paths
 func makePathInfos(paths []snet.Path, raddr *snet.UDPAddr) []*pathInfo {
 
@@ -178,13 +179,10 @@ func makePathInfos(paths []snet.Path, raddr *snet.UDPAddr) []*pathInfo {
 		r.Path = p.Path()
 		r.NextHop = p.OverlayNextHop()
 
-		spathKey, _ := getSpathKey(r.Path)
-
 		pi := &pathInfo{
 			raddr:       r,
 			path:        p,
 			fingerprint: p.Fingerprint(),
-			rawPathKey:  spathKey,
 			expiry:      p.Expiry(),
 			rtt:         maxDuration,
 			bw:          0,

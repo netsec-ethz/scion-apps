@@ -2,8 +2,6 @@ package mpsquic
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"math/rand"
 	"net"
 	"runtime"
@@ -15,12 +13,10 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -145,6 +141,7 @@ func writeTo(dispConn net.PacketConn, pkt *snet.Packet, ov *net.UDPAddr) error {
 
 // rcvSCMP receives SCMP messages and records the RTT for each path in mpq.
 func (mpq *MPQuic) rcvSCMP(appID uint64) {
+
 	for {
 		if mpq.dispConn == nil {
 			break
@@ -184,23 +181,14 @@ func (mpq *MPQuic) rcvSCMP(appID uint64) {
 			continue
 		}
 
-		switch scmpPld.Info.(type) {
+		switch info := scmpPld.Info.(type) {
 		case *scmp.InfoRevocation:
-			pathKey, err := getSpathKey(pkt.Path)
-			if err != nil {
-				logger.Error("Unable to map revocation to path key.", "err", err)
-				continue
-			}
-			select {
-			case mpq.revocationQ <- keyedRevocation{key: pathKey, revocationInfo: scmpPld.Info.(*scmp.InfoRevocation)}:
-				logger.Trace("Processing scmp probe packet", "Action", "Revocation queued in revocationQ channel.")
-			default:
-				logger.Trace("Ignoring scmp probe packet", "Reason", "Revocation channel full.")
-			}
+			handler := &revocationHandler{mpq.revocationQ}
+			handler.RevokeRaw(context.Background(), info.RawSRev)
 		case *scmp.InfoEcho:
 			// Calculate RTT
 			rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-			scmpID := scmpPld.Info.(*scmp.InfoEcho).Id
+			scmpID := info.Id
 			if scmpID >= appID && scmpID < appID+uint64(len(mpq.paths)) {
 				logger.Trace("Received SCMP packet", "len", pktLen, "ID", scmpID-appID)
 				mpq.paths[scmpID-appID].rtt = rtt
@@ -213,71 +201,15 @@ func (mpq *MPQuic) rcvSCMP(appID uint64) {
 	}
 }
 
-// getSpathKey returns a unique PathKey from a raw spath that can be used for map indexing.
-func getSpathKey(path *spath.Path) (pk RawKey, err error) {
-	h := sha256.New()
-	err = binary.Write(h, common.Order, path.Raw)
-	if err != nil {
-		return RawKey(""), err
-	}
-	return RawKey(h.Sum(nil)), nil
-}
-
 // processRevocations processed entries on the revocationQ channel
 func (mpq *MPQuic) processRevocations() {
-	var rev keyedRevocation
 	for {
 		if mpq.dispConn == nil {
 			break
 		}
-		rev = <-mpq.revocationQ
-		logger.Trace("Processing revocation", "Action", "Retrieved queued revocation from revocationQ channel.")
-		mpq.handleSCMPRevocation(rev.revocationInfo, rev.key)
-	}
-}
-
-// Helper type for distinguishing keys on raw spaths.
-type RawKey string
-
-// String returns the string representation of the raw bytes of a RawKey (as obtained from the hash of a spath.Path.Raw)
-func (pk RawKey) String() string {
-	return common.RawBytes(pk).String()
-}
-
-// handleSCMPRevocation handles explicit revocation notification of a link on a path being probed
-// The active path is switched if the revocation expiration is in the future and was issued for an interface on the active path.
-// If the revocation expiration is in the future, but for a backup path, then only the expiration time of the path is set to the current time.
-func (mpq *MPQuic) handleSCMPRevocation(revocation *scmp.InfoRevocation, pk RawKey) {
-	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(revocation.RawSRev)
-
-	if err != nil {
-		logger.Error("Unable to decode SignedRevInfo from SCMP InfoRevocation payload.", "err", err)
-	}
-	ri, err := signedRevInfo.RevInfo()
-	if err != nil {
-		logger.Error("Failed to decode SCMP signed revocation Info.", "err", err)
-	}
-
-	// Revoke path from sciond
-	mpq.pathResolver.RevokeRaw(context.TODO(), revocation.RawSRev)
-
-	if ri.Expiration().After(time.Now()) {
-		for i, pathInfo := range mpq.paths {
-			if pathInfo.rawPathKey == pk {
-				mpq.paths[i].expiry = time.Now()
-			}
-		}
-	} else {
-		// Ignore expired revocations
-		logger.Trace("Processing revocation", "Action", "Ignoring expired revocation.")
-	}
-
-	if pk == mpq.active.rawPathKey {
-		logger.Trace("Processing revocation", "Reason", "Revocation IS for active path.")
-		err := mpq.switchMPConn(true, false)
-		if err != nil {
-			logger.Error("Failed to switch path after path revocation.", "err", err)
-		}
+		rev := <-mpq.revocationQ
+		logger.Trace("Processing revocation", "action", "Retrieved queued revocation from revocationQ channel.")
+		mpq.handleRevocation(rev)
 	}
 }
 
