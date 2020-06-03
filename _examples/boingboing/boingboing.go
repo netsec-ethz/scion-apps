@@ -49,7 +49,6 @@ const (
 	MaxPings        = 1 << 16
 	ReqMsg          = "boing?"
 	ReplyMsg        = "boing!"
-	TSLen           = 8
 	ModeServer      = "server"
 	ModeClient      = "client"
 	nextProto       = "boingboing"
@@ -70,7 +69,6 @@ var (
 		"Timeout for the boing response")
 	interval = flag.Duration("interval", DefaultInterval, "time between boings")
 	trace    = flag.Bool("trace", false, "enables tracing of the QUIC connection")
-	quiet    = flag.Bool("q", false, "sets quiet output, only show control output. Suppresses verbose.")
 	port     = flag.Int("port", 0, "(Mandatory for server) Server port")
 	fileData []byte
 
@@ -254,7 +252,10 @@ func (c *client) Close() error {
 		_ = c.qsess.CloseWithError(errorNoError, "")
 	}
 	if c.tracer != nil {
-		exportTraces(c.tracer)
+		err := exportTraces(c.tracer)
+		if err != nil {
+			log.Debug("Error while exporting QUIC trace", "err", err)
+		}
 	}
 	return err
 }
@@ -352,14 +353,11 @@ func (s server) run() {
 }
 
 func (s server) handleClient(qsess quic.Session) {
-	var err error
-	defer qsess.CloseWithError(errorNoError, "")
 	qstream, err := qsess.AcceptStream(context.Background())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
 		return
 	}
-	defer qstream.Close()
 
 	qs := newQuicStream(qstream)
 	for {
@@ -386,6 +384,11 @@ func (s server) handleClient(qsess quic.Session) {
 			break
 		}
 		log.Info("Wrote reply", "client", qsess.RemoteAddr(), "len", replyMsg.len())
+	}
+
+	err = qstream.Close()
+	if err == nil {
+		_ = qsess.CloseWithError(errorNoError, "")
 	}
 }
 

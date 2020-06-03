@@ -33,7 +33,7 @@ setup_lint:
 
 lint:
 	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
-	golangci-lint run
+	golangci-lint run ./... ./_examples/helloworld/ ./_examples/boingboing/ ./_examples/shttp/client ./_examples/shttp/server
 
 install: all
   # Note: install everything but the examples

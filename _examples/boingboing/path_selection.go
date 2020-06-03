@@ -30,10 +30,10 @@ import (
 func parsePathIndex(index string, max int) (pathIndex uint64, err error) {
 	pathIndex, err = strconv.ParseUint(index, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("Invalid choice: '%v', %v", index, err)
+		return 0, fmt.Errorf("invalid choice: '%v', %v", index, err)
 	}
 	if int(pathIndex) > max {
-		return 0, fmt.Errorf("Invalid choice: '%v', valid indices range: [0, %v]", index, max)
+		return 0, fmt.Errorf("invalid choice: '%v', valid indices range: [0, %v]", index, max)
 	}
 	return
 }
@@ -50,7 +50,7 @@ func parsePathChoice(selection string, max int) (pathIndices []uint64, err error
 			if len(pathIndixRangeBoundaries) != 2 ||
 				pathIndixRangeBoundaries[0] == "" ||
 				pathIndixRangeBoundaries[1] == "" {
-				return nil, fmt.Errorf("Invalid path range choice: '%v'", pathIndexStr)
+				return nil, fmt.Errorf("invalid path range choice: '%v'", pathIndexStr)
 			}
 
 			pathIndexRangeStart, err := parsePathIndex(pathIndixRangeBoundaries[0], max)
@@ -75,7 +75,7 @@ func parsePathChoice(selection string, max int) (pathIndices []uint64, err error
 		}
 	}
 	if len(pathIndices) < 1 {
-		return nil, fmt.Errorf("No path selected: '%v'", selection)
+		return nil, fmt.Errorf("no path selected: '%v'", selection)
 	}
 	return pathIndices, nil
 }
