@@ -70,39 +70,7 @@ The proxy can handle two directions: From HTTP/1.1 to SCION and from SCION to HT
 
 To use the proxy, consider the proxy example in _examples. This implementation detects from the format of the `remote` and `local` argument if it should listen on SCION/HTTP/1.1 and proxy to SCION/HTTP/1.1.
 
-```Go
-local := flag.String("local", "", "The local HTTP or SCION address on which the server will be listening")
-remote := flag.String("remote", "", "The SCION or HTTP address on which the server will be requested")
-
-flag.Parse()
-
-mux := http.NewServeMux()
-
-// parseUDPAddr validates if the address is a SCION address
-// which we can use to proxy to SCION
-if _, err := snet.ParseUDPAddr(*remote); err == nil {
-	mux.Handle("/", shttp.NewSingleSCIONHostReverseProxy(*remote, nil))
-	log.Printf("Proxy to SCION remote %s\n", *remote)
-} else {
-	u, err := url.Parse(*remote)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed parse remote %s, %s", *remote, err))
-	}
-	log.Printf("Proxy to HTTP remote %s\n", *remote)
-	mux.Handle("/", httputil.NewSingleHostReverseProxy(u))
-}
-
-if lAddr, err := snet.ParseUDPAddr(*local); err == nil {
-	log.Printf("Listen on SCION %s\n", *local)
-	// ListenAndServe does not support listening on a complete SCION Address,
-	// Consequently, we only use the port (as seen in the server example)
-	log.Fatalf("%s", shttp.ListenAndServe(fmt.Sprintf(":%d", lAddr.Host.Port), mux, nil))
-} else {
-	log.Printf("Listen on HTTP %s\n", *local)
-	log.Fatalf("%s", http.ListenAndServe(*local, mux))
-}
-
-```
+Example code can be found here: [_examples/shttp/proxy](../../_examples/shttp/proxy/main.go)
 
 To proxy from SCION to HTTP/1.1, use
 `./proxy --local="19-ffcc:1:aaa,[127.0.0.1]:42424" --remote="http://192.168.0.1:8090"`

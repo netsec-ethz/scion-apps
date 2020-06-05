@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -24,7 +25,7 @@ func main() {
 	// parseUDPAddr validates if the address is a SCION address
 	// which we can use to proxy to SCION
 	if _, err := snet.ParseUDPAddr(*remote); err == nil {
-		mux.Handle("/", shttp.NewSingleSCIONHostReverseProxy(*remote, nil))
+		mux.Handle("/", shttp.NewSingleSCIONHostReverseProxy(*remote, &tls.Config{InsecureSkipVerify: true}))
 		log.Printf("Proxy to SCION remote %s\n", *remote)
 	} else {
 		u, err := url.Parse(*remote)
