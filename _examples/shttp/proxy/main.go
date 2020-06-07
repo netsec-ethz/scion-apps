@@ -25,7 +25,12 @@ func main() {
 	// parseUDPAddr validates if the address is a SCION address
 	// which we can use to proxy to SCION
 	if _, err := snet.ParseUDPAddr(*remote); err == nil {
-		mux.Handle("/", shttp.NewSingleSCIONHostReverseProxy(*remote, &tls.Config{InsecureSkipVerify: true}))
+		proxyHandler, err := shttp.NewSingleSCIONHostReverseProxy(*remote, &tls.Config{InsecureSkipVerify: true})
+		if err != nil {
+			log.Fatalf("Failed to create SCION reverse proxy %s", err)
+		}
+
+		mux.Handle("/", proxyHandler)
 		log.Printf("Proxy to SCION remote %s\n", *remote)
 	} else {
 		u, err := url.Parse(*remote)
