@@ -54,11 +54,12 @@ type pathInfo struct {
 type MPQuic struct {
 	quic.Session
 	flexConn     *flexConn
-	dispConn     net.PacketConn
+	pinger       *Pinger
 	paths        []*pathInfo
 	active       *pathInfo
 	pathResolver pathmgr.Resolver
 	revocationQ  chan *path_mgmt.SignedRevInfo
+	stop         chan struct{}
 }
 
 // OpenStreamSync opens a QUIC stream over the QUIC session.
@@ -79,24 +80,9 @@ func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
 			logger.Warn("Error closing QUIC session", "err", err)
 		}
 	}
-	mpq.dispConn.Close()
+	close(mpq.stop)
+	_ = mpq.pinger.Close()
 	return mpq.flexConn.Close()
-}
-
-// createSCMPMonitorConn opens a new connection to send/receive SCMPs on.
-// NOTE(matzf): this should not be necessary, as the regular snet.Conn uses the
-// same underlying type. We just cant get it out.
-func createSCMPMonitorConn(ctx context.Context) (net.PacketConn, error) {
-	// New connection
-	// Ignore assigned port
-	disp := appnet.DefNetwork().Dispatcher
-	localIA := appnet.DefNetwork().IA
-	localIP, err := appnet.DefaultLocalIP()
-	if err != nil {
-		return nil, err
-	}
-	dispConn, _, err := disp.Register(ctx, localIA, &net.UDPAddr{IP: localIP, Port: 0}, addr.SvcNone)
-	return dispConn, err
 }
 
 // Dial creates a monitored multiple paths connection using QUIC.
@@ -108,13 +94,14 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 
 	// Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
 	revocationQ := make(chan *path_mgmt.SignedRevInfo, 50)
+	revHandler := &revocationHandler{revocationQ}
 
-	conn, err := listenWithRevHandler(ctx, &revocationHandler{revocationQ})
+	conn, err := listenWithRevHandler(ctx, revHandler)
 	if err != nil {
 		return nil, err
 	}
 
-	dispConn, err := createSCMPMonitorConn(ctx)
+	pinger, err := newPinger(ctx, revHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +121,12 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	mpQuic := &MPQuic{
 		Session:      qsession,
 		flexConn:     flexConn,
-		dispConn:     dispConn,
+		pinger:       pinger,
 		paths:        pathInfos,
 		active:       active,
 		pathResolver: pathResolver,
 		revocationQ:  revocationQ,
+		stop:         make(chan struct{}),
 	}
 	logger.Info("Active Path", "key", active.fingerprint, "Hops", active.path.Interfaces())
 	mpQuic.monitor()
