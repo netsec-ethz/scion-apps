@@ -15,6 +15,7 @@
 package quicconn
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"time"
@@ -23,10 +24,18 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
+// ProtoSSH is the protocol string used in the tls.Config NextProtos
+const ProtoSSH = "ssh"
+
+var clientTLSConf = tls.Config{
+	InsecureSkipVerify: true,
+	NextProtos:         []string{ProtoSSH},
+}
+
 // Dial dials a new Quic session, opens a new stream in this session and
 // returns this session/stream pair as a QuicConn
 func Dial(addr string) (*QuicConn, error) {
-	session, err := appquic.Dial(addr, nil, nil)
+	session, err := appquic.Dial(addr, &clientTLSConf, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +45,7 @@ func Dial(addr string) (*QuicConn, error) {
 // New dials a new Quic session on an established socket, opens a new stream
 // in this session and returns this session/stream pair as a QuicConn
 func New(conn net.PacketConn, raddr net.Addr) (*QuicConn, error) {
-	session, err := quic.Dial(conn, raddr, "host:0", &tls.Config{InsecureSkipVerify: true}, nil)
+	session, err := quic.Dial(conn, raddr, "host:0", &clientTLSConf, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +53,7 @@ func New(conn net.PacketConn, raddr net.Addr) (*QuicConn, error) {
 }
 
 func newQuicConn(session quic.Session) (*QuicConn, error) {
-	stream, err := session.OpenStreamSync()
+	stream, err := session.OpenStreamSync(context.Background())
 	if err != nil {
 		return nil, err
 	}

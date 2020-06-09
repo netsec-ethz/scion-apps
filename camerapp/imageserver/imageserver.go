@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -66,10 +67,10 @@ var (
 	currentFilesLock sync.Mutex
 )
 
-func handleImageFiles() {
+func handleImageFiles(dir string) {
 	for {
 		// Read the directory and look for new .jpg images
-		direntries, err := ioutil.ReadDir(".")
+		direntries, err := ioutil.ReadDir(dir)
 		check(err)
 
 		for _, entry := range direntries {
@@ -85,7 +86,7 @@ func handleImageFiles() {
 			// Check if we've already read in the image
 			currentFilesLock.Lock()
 			if _, ok := currentFiles[entry.Name()]; !ok {
-				fileContents, err := ioutil.ReadFile(entry.Name())
+				fileContents, err := ioutil.ReadFile(path.Join(dir, entry.Name()))
 				check(err)
 				newFile := imageFileType{entry.Name(), uint32(entry.Size()), fileContents, time.Now()}
 				currentFiles[newFile.name] = &newFile
@@ -117,12 +118,13 @@ func main() {
 
 	// Fetch arguments from command line
 	port := flag.Uint("p", 40002, "Server Port")
+	dir := flag.String("d", ".", "Directory to serve images from")
 	flag.Parse()
 
 	udpConnection, err := appnet.ListenPort(uint16(*port))
 	check(err)
 
-	go handleImageFiles()
+	go handleImageFiles(*dir)
 
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)

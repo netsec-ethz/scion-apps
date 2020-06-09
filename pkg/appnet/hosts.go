@@ -29,7 +29,7 @@ import (
 )
 
 var addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),\[([^\]]+)\]$`)
-var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,\[[^\]]+\])):(\d+)$`)
+var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(\[[^\]]+\]|[^\]:]+))):(\d+)$`)
 
 const (
 	iaIndex = iota + 1
@@ -213,4 +213,52 @@ func addrFromString(address string) (snet.SCIONAddress, error) {
 // XXX(matzf) this would optimally be part of snet
 func addrToString(addr snet.SCIONAddress) string {
 	return fmt.Sprintf("%s,[%s]", addr.IA, addr.Host)
+}
+
+// MangleSCIONAddr mangles a SCION address string (if it is one) so it can be
+// safely used in the host part of a URL.
+func MangleSCIONAddr(address string) string {
+
+	raddr, err := snet.ParseUDPAddr(address)
+	if err != nil {
+		return address
+	}
+
+	// Turn this into [IA,IP]:port format. This is a valid host in a URI, as per
+	// the "IP-literal" case in RFC 3986, §3.2.2.
+	// Unfortunately, this is not currently compatible with snet.ParseUDPAddr,
+	// so this will have to be _unmangled_ before use.
+	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
+	if raddr.Host.Port != 0 {
+		mangledAddr += fmt.Sprintf(":%d", raddr.Host.Port)
+	}
+	return mangledAddr
+}
+
+// UnmangleSCIONAddr returns a SCION address that can be parsed with
+// with snet.ParseUDPAddr.
+// If the input is not a SCION address (e.g. a hostname), the address is
+// returned unchanged.
+// This parses the address, so that it can safely join host and port, with the
+// brackets in the right place. Yes, this means this will be parsed twice.
+//
+// Assumes that address always has a port (this is enforced by the http3
+// roundtripper code)
+func UnmangleSCIONAddr(address string) string {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || port == "" {
+		panic(fmt.Sprintf("UnmangleSCIONAddr assumes that address is of the form host:port %s", err))
+	}
+	// brackets are removed from [I-A,IP] part by SplitHostPort, so this can be
+	// parsed with ParseUDPAddr:
+	udpAddr, err := snet.ParseUDPAddr(host)
+	if err != nil {
+		return address
+	}
+	p, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		return address
+	}
+	udpAddr.Host.Port = int(p)
+	return udpAddr.String()
 }
