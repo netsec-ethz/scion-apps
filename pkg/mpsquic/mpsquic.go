@@ -56,6 +56,7 @@ type MPQuic struct {
 	paths       []*pathInfo
 	active      int
 	revocationQ chan *path_mgmt.SignedRevInfo
+	probeUpdate chan []time.Duration
 	stop        chan struct{}
 }
 
@@ -122,6 +123,7 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 		paths:       pathInfos,
 		active:      active,
 		revocationQ: revocationQ,
+		probeUpdate: make(chan []time.Duration),
 		stop:        make(chan struct{}),
 	}
 

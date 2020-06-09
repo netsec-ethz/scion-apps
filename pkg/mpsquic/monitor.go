@@ -7,6 +7,7 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -41,9 +42,7 @@ func (ms monitoredStream) Write(p []byte) (n int, err error) {
 // the paths' RTTs.
 // It manages path expiration and path change decisions.
 func (mpq *MPQuic) monitor(firstSelect time.Time) {
-	var appID uint64 = rand.Uint64()
-	go mpq.sendPings(appID)
-	go mpq.rcvPings(appID)
+	go mpq.sendPings()
 	mpq.managePaths(firstSelect)
 }
 
@@ -63,6 +62,15 @@ func (mpq *MPQuic) managePaths(firstSelect time.Time) {
 			logger.Trace("Processing revocation", "action", "Retrieved queued revocation")
 			activePathRevoked := mpq.handleRevocation(rev)
 			if activePathRevoked {
+				mpq.selectPath(selectTimer)
+			}
+		case rtts := <-mpq.probeUpdate:
+			activePathTimeout := (rtts[mpq.active] == maxDuration &&
+				mpq.paths[mpq.active].rtt < maxDuration)
+			for i := range mpq.paths {
+				mpq.paths[i].rtt = rtts[i]
+			}
+			if activePathTimeout {
 				mpq.selectPath(selectTimer)
 			}
 		case <-selectTimer.C:
@@ -96,7 +104,9 @@ func (mpq *MPQuic) selectPath(selectTimer *time.Timer) {
 }
 
 // sendPings sends SCMP echo messages on all paths at regular intervals
-func (mpq *MPQuic) sendPings(appID uint64) {
+func (mpq *MPQuic) sendPings() {
+
+	var appID uint64 = rand.Uint64()
 
 	t := time.NewTicker(echoRequestInterval)
 	defer t.Stop()
@@ -107,50 +117,21 @@ func (mpq *MPQuic) sendPings(appID uint64) {
 		case <-mpq.stop:
 			break
 		case <-t.C:
-			raddr := mpq.raddr.Copy()
+			raddrs := make([]*snet.UDPAddr, len(mpq.paths))
 			for i := range mpq.paths {
-				appnet.SetPath(raddr, mpq.paths[i].path)
-				scmpID := appID + uint64(i)
-				err := mpq.pinger.Ping(raddr, scmpID, seq)
-				if err != nil {
-					logger.Error("Error sending SCMP echo", "err", err)
-				} else {
-					logger.Trace("Sent SCMP echo", "path", i, "id", scmpID, "Seq", seq)
-				}
+				raddrs[i] = mpq.raddr.Copy()
+				appnet.SetPath(raddrs[i], mpq.paths[i].path)
 			}
+			rtts, err := mpq.pinger.PingAll(raddrs, appID, seq, echoRequestInterval)
+			if err != nil {
+				logger.Error("Error probining paths", "err", err, "errType", common.TypeOf(err))
+			} else {
+				logger.Trace("Paths pinged", "rtts", rtts, "seq", seq)
+				mpq.probeUpdate <- rtts
+			}
+
 			seq++
 		}
-	}
-}
-
-// rcvPings reads SCMP echo reply messages
-func (mpq *MPQuic) rcvPings(appID uint64) {
-	for {
-		select {
-		case <-mpq.stop:
-			break
-		default:
-			mpq.rcvPing(appID)
-		}
-	}
-}
-
-// rcvPing receives and processes one SCMP echo reply message
-func (mpq *MPQuic) rcvPing(appID uint64) {
-	reply, err := mpq.pinger.ReadReply()
-	if err != nil {
-		logger.Error("Unable to read echo reply", "err", err)
-		return
-	}
-
-	scmpID := reply.ID
-	if scmpID >= appID && scmpID < appID+uint64(len(mpq.paths)) {
-		pathID := scmpID - appID
-		logger.Trace("Received SCMP echo reply", "path", pathID, "id", scmpID, "seq", reply.Seq, "RTT", reply.RTT)
-		mpq.paths[pathID].rtt = reply.RTT
-		mpq.paths[pathID].revoked = false // if it works, it works
-	} else {
-		logger.Error("Unexpected SCMP echo reply", "id", scmpID, "appID", appID)
 	}
 }
 

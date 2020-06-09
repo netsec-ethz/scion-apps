@@ -61,6 +61,82 @@ func (p *Pinger) Close() error {
 	return p.conn.Close()
 }
 
+// PingAll sends one SCMP echo request to the given addresses and awaits before the
+// timeout. A path must be set on each address.
+// The application ID must be unique on this host. This ID is used as the base
+// ID for the IDs of the echo requests sent to the indiviudal addresses.
+// The user is responsible for choosing unique ids.
+// Returns the round trip time to each address (in input order). If no reply
+// was received before the timeout, maxDuration is returned.
+func (p *Pinger) PingAll(addrs []*snet.UDPAddr, id uint64, seq uint16,
+	timeout time.Duration) ([]time.Duration, error) {
+
+	deadline := time.Now().Add(timeout)
+	result := make(chan rttsOrErr)
+	go p.awaitReplies(len(addrs), id, seq, deadline, result)
+
+	for i, addr := range addrs {
+		err := p.Ping(addr, id+uint64(i), seq)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ret := <-result
+	return ret.rtts, ret.err
+}
+
+func (p *Pinger) awaitReplies(n int, baseID uint64, seq uint16,
+	deadline time.Time, result chan rttsOrErr) {
+
+	rtts, err := p.readReplies(n, baseID, seq, deadline)
+	result <- rttsOrErr{rtts: rtts, err: err}
+}
+
+type rttsOrErr struct {
+	rtts []time.Duration
+	err  error
+}
+
+func (p *Pinger) readReplies(n int, baseID uint64, seq uint16,
+	deadline time.Time) ([]time.Duration, error) {
+
+	rtts := make([]time.Duration, n)
+	for i := range rtts {
+		rtts[i] = maxDuration
+	}
+	nReceived := 0
+	for nReceived < n && time.Now().Before(deadline) {
+		reply, err := p.ReadReply(deadline)
+		if err != nil {
+			if isTimeout(err) {
+				break
+			}
+			return nil, err
+		}
+		if reply.ID >= baseID && reply.ID < baseID+uint64(n) &&
+			reply.Seq == seq &&
+			rtts[reply.ID-baseID] == maxDuration {
+
+			rtts[reply.ID-baseID] = reply.RTT
+			nReceived++
+		} else {
+			logger.Debug("Unexpected SCMP echo reply", "id", reply.ID, "seq", reply.Seq, "baseID", baseID)
+		}
+	}
+	return rtts, nil
+}
+
+func isTimeout(err error) bool {
+	if be, ok := err.(common.BasicError); ok {
+		err = be.Unwrap()
+	}
+	if netErr, ok := err.(net.Error); ok {
+		return netErr.Timeout()
+	}
+	return false
+}
+
 // Ping sends an SCMP echo request to the given address. A path must be set.
 // The application ID must be unique on this host. The user is responsible for
 // choosing unique ids.
@@ -89,9 +165,10 @@ func (p *Pinger) Ping(addr *snet.UDPAddr, id uint64, seq uint16) error {
 // Note: the RTT in the returned struct is determined based on the time the
 // packet is processed. If this is handled delayed, e.g. because this method is
 // not invoked immediately after sending the Ping, the returned RTT may be biased.
-func (p *Pinger) ReadReply() (EchoReply, error) {
+func (p *Pinger) ReadReply(deadline time.Time) (EchoReply, error) {
 	var pkt snet.Packet
 	var ov net.UDPAddr
+	p.conn.SetReadDeadline(deadline)
 	for {
 		// ReadFrom reads SCMP and passes it through the scmp handler.
 		// On an echo reply, the SCMP handler returns an error containing the echo reply information.
