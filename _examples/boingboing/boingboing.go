@@ -240,7 +240,7 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 
 func (c *client) Close() error {
 	var err error
-	if c.qstream != nil {
+	if c.quicStream != nil && c.qstream != nil {
 		err = c.qstream.Close()
 	}
 	if err == nil && c.qsess != nil {
@@ -261,7 +261,9 @@ func (c *client) Close() error {
 }
 
 func (c client) send() {
-	fileData = []byte(strings.Repeat("A", 1e5))
+	if fileData == nil {
+		fileData = []byte(strings.Repeat("A", 1e5))
+	}
 	for i := 0; i < *count || *count == 0; i++ {
 		if i != 0 && *interval != 0 {
 			time.Sleep(*interval)

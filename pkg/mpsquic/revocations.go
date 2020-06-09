@@ -2,7 +2,6 @@ package mpsquic
 
 import (
 	"context"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -30,10 +29,10 @@ func (h *revocationHandler) RevokeRaw(_ context.Context, rawSRevInfo common.RawB
 	}
 }
 
-// handleSCMPRevocation handles explicit revocation notification of a link on a path being probed
-// The active path is switched if the revocation expiration is in the future and was issued for an interface on the active path.
-// If the revocation expiration is in the future, but for a backup path, then only the expiration time of the path is set to the current time.
-func (mpq *MPQuic) handleRevocation(sRevInfo *path_mgmt.SignedRevInfo) {
+// handleSCMPRevocation handles explicit revocation notification of a link on a
+// path that is either being probed or actively used for the data stream.
+// Returns true iff the currently active path was revoked.
+func (mpq *MPQuic) handleRevocation(sRevInfo *path_mgmt.SignedRevInfo) bool {
 
 	// Revoke path from sciond
 	mpq.pathResolver.Revoke(context.TODO(), sRevInfo)
@@ -47,23 +46,21 @@ func (mpq *MPQuic) handleRevocation(sRevInfo *path_mgmt.SignedRevInfo) {
 	revokedInterface := sciond.PathInterface{RawIsdas: revInfo.RawIsdas,
 		IfID: common.IFIDType(revInfo.IfID)}
 
+	activePathRevoked := false
 	if revInfo.Active() == nil {
-		for _, pathInfo := range mpq.paths {
+		for i, pathInfo := range mpq.paths {
 			if matches(pathInfo.path, revokedInterface) {
-				pathInfo.expiry = time.Now()
-			}
-		}
-		if matches(mpq.active.path, revokedInterface) {
-			logger.Trace("Processing revocation", "reason", "Revocation IS for active path.")
-			err := mpq.switchMPConn(true, false)
-			if err != nil {
-				logger.Error("Failed to switch path after path revocation.", "err", err)
+				pathInfo.revoked = true
+				if i == mpq.active {
+					activePathRevoked = true
+				}
 			}
 		}
 	} else {
 		// Ignore expired revocations
 		logger.Trace("Processing revocation", "action", "Ignoring expired revocation.")
 	}
+	return activePathRevoked
 }
 
 // matches returns true if the path contains the interface described by ia/ifID

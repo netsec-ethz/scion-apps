@@ -19,7 +19,6 @@ package mpsquic
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -45,6 +44,7 @@ type pathInfo struct {
 	raddr       *snet.UDPAddr
 	path        snet.Path
 	fingerprint snet.PathFingerprint // caches path.Fingerprint()
+	revoked     bool
 	expiry      time.Time
 	rtt         time.Duration
 	bw          int // in bps
@@ -55,9 +55,10 @@ type MPQuic struct {
 	quic.Session
 	flexConn     *flexConn
 	pinger       *Pinger
-	paths        []*pathInfo
-	active       *pathInfo
 	pathResolver pathmgr.Resolver
+	policy       Policy
+	paths        []*pathInfo
+	active       int
 	revocationQ  chan *path_mgmt.SignedRevInfo
 	stop         chan struct{}
 }
@@ -91,45 +92,46 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	tlsConf *tls.Config, quicConf *quic.Config) (*MPQuic, error) {
 
 	ctx := context.Background()
-
 	// Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
 	revocationQ := make(chan *path_mgmt.SignedRevInfo, 50)
 	revHandler := &revocationHandler{revocationQ}
-
 	conn, err := listenWithRevHandler(ctx, revHandler)
 	if err != nil {
 		return nil, err
 	}
-
 	pinger, err := newPinger(ctx, revHandler)
 	if err != nil {
 		return nil, err
 	}
-
-	// XXX(matzf): make this public on DefNetwork
 	sdConn := appnet.DefNetwork().PathQuerier.(sciond.Querier).Connector
 	pathResolver := pathmgr.New(sdConn, pathmgr.Timers{}, 0)
 
+	policy := &lowestRTT{}
 	pathInfos := makePathInfos(paths, raddr)
-
-	active := pathInfos[0]
-	flexConn := newFlexConn(conn, active.raddr)
-	qsession, err := quic.Dial(flexConn, flexConn.raddr, host, tlsConf, quicConf)
+	active, nextSelectTime := policy.Select(pathInfos)
+	flexConn := newFlexConn(conn, pathInfos[active].raddr)
+	qsession, err := quic.Dial(flexConn, raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
+
 	mpQuic := &MPQuic{
 		Session:      qsession,
 		flexConn:     flexConn,
 		pinger:       pinger,
+		pathResolver: pathResolver,
+		policy:       policy,
 		paths:        pathInfos,
 		active:       active,
-		pathResolver: pathResolver,
 		revocationQ:  revocationQ,
 		stop:         make(chan struct{}),
 	}
-	logger.Info("Active Path", "key", active.fingerprint, "Hops", active.path.Interfaces())
-	mpQuic.monitor()
+	logger.Debug("Active Path",
+		"index", active,
+		"key", pathInfos[active].fingerprint,
+		"hops", pathInfos[active].path.Interfaces())
+
+	go mpQuic.monitor(nextSelectTime)
 
 	return mpQuic, nil
 }
@@ -183,15 +185,11 @@ func makePathInfos(paths []snet.Path, raddr *snet.UDPAddr) []*pathInfo {
 // displayStats logs the collected metrics for all monitored paths.
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
-		logger.Debug(fmt.Sprintf("Path %v will expire at %v.\n", i, pathInfo.expiry))
-		logger.Debug(fmt.Sprintf("Measured RTT of %v on path %v.\n", pathInfo.rtt, i))
-		logger.Debug(fmt.Sprintf("Measured approximate BW of %v Mbps on path %v.\n", pathInfo.bw/1e6, i))
+		logger.Debug(fmt.Sprintf("Path %v stats", i),
+			"expiry", pathInfo.expiry,
+			"RTT", pathInfo.rtt,
+			"approxBW [Mbps]", pathInfo.bw/1e6)
 	}
-}
-
-// policyLowerRTTMatch returns true if the path with candidate index has a lower RTT than the active path.
-func (mpq *MPQuic) policyLowerRTTMatch(candidate int) bool {
-	return mpq.paths[candidate].rtt < mpq.active.rtt
 }
 
 // updateActivePath updates the active path in a thread safe manner.
@@ -199,40 +197,6 @@ func (mpq *MPQuic) updateActivePath(newPathIndex int) {
 	// Lock the connection raddr, and update both the active path and the raddr of the FlexConn.
 	mpq.flexConn.addrMtx.Lock()
 	defer mpq.flexConn.addrMtx.Unlock()
-	mpq.active = mpq.paths[newPathIndex]
-	mpq.flexConn.setRemoteAddr(mpq.active.raddr)
-}
-
-// switchMPConn switches between different SCION paths as given by the SCION address with path structs in paths.
-// The force flag makes switching a requirement, set it when continuing to use the existing path is not an option.
-func (mpq *MPQuic) switchMPConn(force bool, filter bool) error {
-	mpq.displayStats()
-	if force {
-		// Always refresh available paths, as failing to find a fresh path leads to a hard failure
-		mpq.refreshPaths(mpq.pathResolver)
-	}
-	for i := range mpq.paths {
-		// Do not switch to identical path or to expired path
-		if mpq.flexConn.raddr != mpq.paths[i].raddr && mpq.paths[i].expiry.After(time.Now()) {
-			logger.Trace("Previous path", "path", mpq.flexConn.raddr.Path)
-			logger.Trace("New path", "path", mpq.paths[i].raddr.Path)
-			if !filter {
-				mpq.updateActivePath(i)
-				logger.Debug("Updating to path", "index", i, "path", mpq.paths[i].path.Interfaces())
-				return nil
-			}
-			if mpq.policyLowerRTTMatch(i) {
-				mpq.updateActivePath(i)
-				logger.Debug("Updating to better path", "index", i, "path", mpq.paths[i].path.Interfaces())
-				return nil
-			}
-		}
-	}
-	if !force {
-		return nil
-	}
-	logger.Debug("No path available now", "now", time.Now())
-	mpq.displayStats()
-
-	return errors.New("no fallback path available")
+	mpq.active = newPathIndex
+	mpq.flexConn.setRemoteAddr(mpq.paths[newPathIndex].raddr)
 }
