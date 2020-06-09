@@ -113,7 +113,7 @@ func choosePaths(dst addr.IA, interactive bool) ([]snet.Path, error) {
 		}
 
 		var selectedPaths []snet.Path
-		for i := range pathIndices {
+		for _, i := range pathIndices {
 			selectedPaths = append(selectedPaths, paths[i])
 		}
 		paths = selectedPaths
