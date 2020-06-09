@@ -28,8 +28,6 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -53,14 +51,13 @@ type pathInfo struct {
 // TODO(matzf): rename to Session?
 type MPQuic struct {
 	quic.Session
-	flexConn     *flexConn
-	pinger       *Pinger
-	pathResolver pathmgr.Resolver
-	policy       Policy
-	paths        []*pathInfo
-	active       int
-	revocationQ  chan *path_mgmt.SignedRevInfo
-	stop         chan struct{}
+	flexConn    *flexConn
+	pinger      *Pinger
+	policy      Policy
+	paths       []*pathInfo
+	active      int
+	revocationQ chan *path_mgmt.SignedRevInfo
+	stop        chan struct{}
 }
 
 // OpenStreamSync opens a QUIC stream over the QUIC session.
@@ -103,12 +100,14 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	if err != nil {
 		return nil, err
 	}
-	sdConn := appnet.DefNetwork().PathQuerier.(sciond.Querier).Connector
-	pathResolver := pathmgr.New(sdConn, pathmgr.Timers{}, 0)
 
 	policy := &lowestRTT{}
 	pathInfos := makePathInfos(paths, raddr)
 	active, nextSelectTime := policy.Select(pathInfos)
+	logger.Debug("Active Path",
+		"index", active,
+		"key", pathInfos[active].fingerprint,
+		"hops", pathInfos[active].path.Interfaces())
 	flexConn := newFlexConn(conn, pathInfos[active].raddr)
 	qsession, err := quic.Dial(flexConn, raddr, host, tlsConf, quicConf)
 	if err != nil {
@@ -116,20 +115,15 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	}
 
 	mpQuic := &MPQuic{
-		Session:      qsession,
-		flexConn:     flexConn,
-		pinger:       pinger,
-		pathResolver: pathResolver,
-		policy:       policy,
-		paths:        pathInfos,
-		active:       active,
-		revocationQ:  revocationQ,
-		stop:         make(chan struct{}),
+		Session:     qsession,
+		flexConn:    flexConn,
+		pinger:      pinger,
+		policy:      policy,
+		paths:       pathInfos,
+		active:      active,
+		revocationQ: revocationQ,
+		stop:        make(chan struct{}),
 	}
-	logger.Debug("Active Path",
-		"index", active,
-		"key", pathInfos[active].fingerprint,
-		"hops", pathInfos[active].path.Interfaces())
 
 	go mpQuic.monitor(nextSelectTime)
 
@@ -186,7 +180,8 @@ func makePathInfos(paths []snet.Path, raddr *snet.UDPAddr) []*pathInfo {
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
 		logger.Debug(fmt.Sprintf("Path %v stats", i),
-			"expiry", pathInfo.expiry,
+			"expiry", time.Until(pathInfo.expiry).Round(time.Second),
+			"revoked", pathInfo.revoked,
 			"RTT", pathInfo.rtt,
 			"approxBW [Mbps]", pathInfo.bw/1e6)
 	}

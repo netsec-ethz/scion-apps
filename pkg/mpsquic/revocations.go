@@ -3,6 +3,7 @@ package mpsquic
 import (
 	"context"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -24,6 +25,7 @@ func (h *revocationHandler) RevokeRaw(_ context.Context, rawSRevInfo common.RawB
 	}
 	select {
 	case h.revocationQ <- sRevInfo:
+		logger.Info("Enqueued revocation", "revInfo", sRevInfo)
 	default:
 		logger.Info("Ignoring scmp packet", "cause", "Revocation channel full.")
 	}
@@ -35,7 +37,7 @@ func (h *revocationHandler) RevokeRaw(_ context.Context, rawSRevInfo common.RawB
 func (mpq *MPQuic) handleRevocation(sRevInfo *path_mgmt.SignedRevInfo) bool {
 
 	// Revoke path from sciond
-	mpq.pathResolver.Revoke(context.TODO(), sRevInfo)
+	_, _ = appnet.DefNetwork().Sciond.RevNotification(context.TODO(), sRevInfo)
 
 	// Revoke from our own state
 	revInfo, err := sRevInfo.RevInfo()

@@ -69,3 +69,13 @@ func (c *flexConn) WriteTo(b []byte, _ net.Addr) (int, error) {
 	// Ignore param, force use of c.raddr
 	return c.Write(b)
 }
+
+func (c *flexConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	n, addr, err = c.Conn.ReadFrom(p)
+	// Ignore revocation notifications. These are handled by the revocation handler, we don't need
+	// to tell anybody else...
+	if _, ok := err.(*snet.OpError); ok {
+		err = nil
+	}
+	return
+}

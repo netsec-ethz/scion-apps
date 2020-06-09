@@ -71,6 +71,7 @@ import (
 type Network struct {
 	snet.Network
 	IA            addr.IA
+	Sciond        sciond.Connector
 	PathQuerier   snet.PathQuerier
 	Dispatcher    reliable.Dispatcher
 	hostInLocalAS net.IP
@@ -211,6 +212,7 @@ func initDefNetwork() error {
 	defNetwork = Network{
 		Network:       n,
 		IA:            localIA,
+		Sciond:        sciondConn,
 		PathQuerier:   pathQuerier,
 		Dispatcher:    dispatcher,
 		hostInLocalAS: hostInLocalAS,

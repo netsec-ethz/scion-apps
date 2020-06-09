@@ -1,14 +1,13 @@
 package mpsquic
 
 import (
-	"context"
 	"math/rand"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 
-	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const echoRequestInterval = 500 * time.Millisecond
@@ -69,7 +68,7 @@ func (mpq *MPQuic) managePaths(firstSelect time.Time) {
 		case <-selectTimer.C:
 			mpq.selectPath(selectTimer)
 		case <-refreshTimer.C:
-			mpq.refreshPaths(mpq.pathResolver)
+			mpq.refreshPaths()
 			refreshTimer.Reset(time.Until(mpq.nextPathRefresh()))
 		}
 	}
@@ -115,7 +114,7 @@ func (mpq *MPQuic) sendPings(appID uint64) {
 				if err != nil {
 					logger.Error("Error sending SCMP echo", "err", err)
 				} else {
-					logger.Trace("Sent SCMP echo", "id", scmpID, "Seq", seq)
+					logger.Trace("Sent SCMP echo", "path", i, "id", scmpID, "Seq", seq)
 				}
 			}
 			seq++
@@ -145,8 +144,8 @@ func (mpq *MPQuic) rcvPing(appID uint64) {
 
 	scmpID := reply.ID
 	if scmpID >= appID && scmpID < appID+uint64(len(mpq.paths)) {
-		logger.Trace("Received SCMP echo reply", "id", scmpID, "seq", reply.Seq, "RTT", reply.RTT)
 		pathID := scmpID - appID
+		logger.Trace("Received SCMP echo reply", "path", pathID, "id", scmpID, "seq", reply.Seq, "RTT", reply.RTT)
 		mpq.paths[pathID].rtt = reply.RTT
 		mpq.paths[pathID].revoked = false // if it works, it works
 	} else {
@@ -155,50 +154,32 @@ func (mpq *MPQuic) rcvPing(appID uint64) {
 }
 
 // refreshPaths requests sciond for updated paths
-func (mpq *MPQuic) refreshPaths(resolver pathmgr.Resolver) {
-	sciondTimeout := 3 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), sciondTimeout)
-	defer cancel()
-	localIA := appnet.DefNetwork().IA
-	syncPathMonitor, err := resolver.Watch(ctx, localIA, mpq.paths[0].raddr.IA)
+func (mpq *MPQuic) refreshPaths() {
+	freshPaths, err := appnet.QueryPaths(mpq.flexConn.raddr.IA)
 	if err != nil {
-		logger.Error("Failed to monitor paths.", "src", localIA, "dst", mpq.paths[0].raddr.IA)
+		logger.Error("Failed to query paths", "err", err)
 		return
 	}
+	freshPathSet := make(map[snet.PathFingerprint]snet.Path)
+	for _, p := range freshPaths {
+		freshPathSet[p.Fingerprint()] = p
+	}
 
-	syncPathsData := syncPathMonitor.Load()
-	for pathIndex, expiringPathInfo := range mpq.paths {
-		selectionKey := expiringPathInfo.path.Fingerprint()
-		path := syncPathsData.APS.GetAppPath(selectionKey)
-		if path.Fingerprint() != selectionKey {
-			logger.Debug("Failed to refresh path, key does not match. Retrying later.",
-				"Received", path.Fingerprint(), "Queried", selectionKey)
-			logger.Trace("Path refresh details",
-				"dst", mpq.paths[0].raddr.IA,
-				"key", selectionKey,
-				"path", expiringPathInfo.path.Interfaces())
-		} else {
-			freshExpTime := path.Expiry()
-			if freshExpTime.After(mpq.paths[pathIndex].expiry) {
-				mpq.paths[pathIndex].path = path
-
+	for _, pathInfo := range mpq.paths {
+		// Update paths for which fresh information was returned.
+		// Expired or revoked paths are missing from the fresh paths.
+		if fresh, ok := freshPathSet[pathInfo.fingerprint]; ok {
+			if fresh.Expiry().After(pathInfo.expiry) {
 				// Update the path on the remote address
-				tmpRaddr := mpq.paths[pathIndex].raddr.Copy()
-				tmpRaddr.Path = path.Path()
-				tmpRaddr.NextHop = path.OverlayNextHop()
-				mpq.paths[pathIndex].raddr = tmpRaddr
-				mpq.paths[pathIndex].path = path
-				mpq.paths[pathIndex].revoked = false
-				mpq.paths[pathIndex].expiry = mpq.paths[pathIndex].path.Expiry()
-
+				tmpRaddr := pathInfo.raddr.Copy()
+				tmpRaddr.Path = fresh.Path()
+				tmpRaddr.NextHop = fresh.OverlayNextHop()
+				pathInfo.raddr = tmpRaddr
+				pathInfo.path = fresh
+				pathInfo.revoked = false
+				pathInfo.expiry = fresh.Expiry()
 			} else {
 				logger.Debug("Refreshed path does not have later expiry. Retrying later.")
-				logger.Trace("Path refresh details",
-					"dst", mpq.paths[0].raddr.IA,
-					"key", selectionKey,
-					"path", expiringPathInfo.path.Interfaces(),
-					"currExp", mpq.paths[pathIndex].expiry,
-					"freshExp", freshExpTime)
 			}
 		}
 	}
