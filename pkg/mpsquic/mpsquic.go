@@ -37,7 +37,6 @@ const (
 
 var _ quic.Session = (*MPQuic)(nil)
 
-// XXX(matzf): redundant fields? raddr contains path, path contains fingerprint/expiry.
 type pathInfo struct {
 	path        snet.Path
 	fingerprint snet.PathFingerprint // caches path.Fingerprint()

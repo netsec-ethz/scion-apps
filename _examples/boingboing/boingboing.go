@@ -327,7 +327,7 @@ type server struct {
 // On any error, the server exits.
 func (s server) run() {
 	// Listen on SCION address
-	qsock, err := appquic.ListenPort(
+	qsock, err := mpsquic.ListenPort(
 		uint16(*port),
 		&tls.Config{
 			Certificates: appquic.GetDummyTLSCerts(),
