@@ -88,8 +88,9 @@ func (mpq *MPQuic) selectPath(selectTimer *time.Timer) {
 			"hops", mpq.paths[i].path.Interfaces())
 	}
 
-	if mpq.paths[i].expiry.Before(nextTime) {
-		nextTime = mpq.paths[i].expiry
+	expiry := mpq.paths[i].path.Expiry()
+	if expiry.Before(nextTime) {
+		nextTime = expiry
 	}
 	resetTimer(selectTimer, nextTime)
 }
@@ -106,11 +107,11 @@ func (mpq *MPQuic) sendPings(appID uint64) {
 		case <-mpq.stop:
 			break
 		case <-t.C:
+			raddr := mpq.raddr.Copy()
 			for i := range mpq.paths {
+				appnet.SetPath(raddr, mpq.paths[i].path)
 				scmpID := appID + uint64(i)
-				err := mpq.pinger.Ping(mpq.paths[i].raddr,
-					scmpID,
-					seq)
+				err := mpq.pinger.Ping(raddr, scmpID, seq)
 				if err != nil {
 					logger.Error("Error sending SCMP echo", "err", err)
 				} else {
@@ -169,15 +170,10 @@ func (mpq *MPQuic) refreshPaths() {
 		// Update paths for which fresh information was returned.
 		// Expired or revoked paths are missing from the fresh paths.
 		if fresh, ok := freshPathSet[pathInfo.fingerprint]; ok {
-			if fresh.Expiry().After(pathInfo.expiry) {
+			if fresh.Expiry().After(pathInfo.path.Expiry()) {
 				// Update the path on the remote address
-				tmpRaddr := pathInfo.raddr.Copy()
-				tmpRaddr.Path = fresh.Path()
-				tmpRaddr.NextHop = fresh.OverlayNextHop()
-				pathInfo.raddr = tmpRaddr
 				pathInfo.path = fresh
 				pathInfo.revoked = false
-				pathInfo.expiry = fresh.Expiry()
 			} else {
 				logger.Debug("Refreshed path does not have later expiry. Retrying later.")
 			}
@@ -189,8 +185,8 @@ func (mpq *MPQuic) refreshPaths() {
 func (mpq *MPQuic) earliestPathExpiry() time.Time {
 	ret := time.Now().Add(maxDuration)
 	for _, pathInfo := range mpq.paths {
-		if pathInfo.expiry.Before(ret) {
-			ret = pathInfo.expiry
+		if pathInfo.path.Expiry().Before(ret) {
+			ret = pathInfo.path.Expiry()
 		}
 	}
 	return ret

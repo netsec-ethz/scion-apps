@@ -39,11 +39,9 @@ var _ quic.Session = (*MPQuic)(nil)
 
 // XXX(matzf): redundant fields? raddr contains path, path contains fingerprint/expiry.
 type pathInfo struct {
-	raddr       *snet.UDPAddr
 	path        snet.Path
 	fingerprint snet.PathFingerprint // caches path.Fingerprint()
 	revoked     bool
-	expiry      time.Time
 	rtt         time.Duration
 	bw          int // in bps
 }
@@ -51,6 +49,7 @@ type pathInfo struct {
 // TODO(matzf): rename to Session?
 type MPQuic struct {
 	quic.Session
+	raddr       *snet.UDPAddr
 	flexConn    *flexConn
 	pinger      *Pinger
 	policy      Policy
@@ -102,13 +101,13 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	}
 
 	policy := &lowestRTT{}
-	pathInfos := makePathInfos(paths, raddr)
+	pathInfos := makePathInfos(paths)
 	active, nextSelectTime := policy.Select(pathInfos)
 	logger.Debug("Active Path",
 		"index", active,
 		"key", pathInfos[active].fingerprint,
 		"hops", pathInfos[active].path.Interfaces())
-	flexConn := newFlexConn(conn, pathInfos[active].raddr)
+	flexConn := newFlexConn(conn, raddr, pathInfos[active].path)
 	qsession, err := quic.Dial(flexConn, raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
@@ -116,6 +115,7 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 
 	mpQuic := &MPQuic{
 		Session:     qsession,
+		raddr:       raddr,
 		flexConn:    flexConn,
 		pinger:      pinger,
 		policy:      policy,
@@ -154,20 +154,15 @@ func listenWithRevHandler(ctx context.Context, revHandler snet.RevocationHandler
 }
 
 // makePathInfos initializes pathInfo structs for the paths
-func makePathInfos(paths []snet.Path, raddr *snet.UDPAddr) []*pathInfo {
+func makePathInfos(paths []snet.Path) []*pathInfo {
 
 	pathInfos := make([]*pathInfo, 0, len(paths))
 	for i, p := range paths {
 		logger.Info("Path", "index", i, "interfaces", p.Interfaces())
-		r := raddr.Copy()
-		r.Path = p.Path()
-		r.NextHop = p.OverlayNextHop()
 
 		pi := &pathInfo{
-			raddr:       r,
 			path:        p,
 			fingerprint: p.Fingerprint(),
-			expiry:      p.Expiry(),
 			rtt:         maxDuration,
 			bw:          0,
 		}
@@ -180,18 +175,15 @@ func makePathInfos(paths []snet.Path, raddr *snet.UDPAddr) []*pathInfo {
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
 		logger.Debug(fmt.Sprintf("Path %v stats", i),
-			"expiry", time.Until(pathInfo.expiry).Round(time.Second),
+			"expiry", time.Until(pathInfo.path.Expiry()).Round(time.Second),
 			"revoked", pathInfo.revoked,
 			"RTT", pathInfo.rtt,
 			"approxBW [Mbps]", pathInfo.bw/1e6)
 	}
 }
 
-// updateActivePath updates the active path in a thread safe manner.
+// updateActivePath updates the active path
 func (mpq *MPQuic) updateActivePath(newPathIndex int) {
-	// Lock the connection raddr, and update both the active path and the raddr of the FlexConn.
-	mpq.flexConn.addrMtx.Lock()
-	defer mpq.flexConn.addrMtx.Unlock()
 	mpq.active = newPathIndex
-	mpq.flexConn.setRemoteAddr(mpq.paths[newPathIndex].raddr)
+	mpq.flexConn.SetPath(mpq.paths[newPathIndex].path)
 }

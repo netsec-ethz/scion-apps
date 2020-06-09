@@ -51,10 +51,6 @@ func (*lowestRTT) Select(paths []*pathInfo) (int, time.Time) {
 	return best, time.Now().Add(lowestRTTReevaluateInterval)
 }
 
-// maxBW is a Policy that
-type maxBW struct {
-}
-
 func numHops(path snet.Path) int {
 	return len(path.Interfaces())
 }

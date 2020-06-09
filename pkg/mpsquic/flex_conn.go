@@ -18,47 +18,35 @@ import (
 	"net"
 	"sync"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-var _ net.Conn = (*flexConn)(nil)
 var _ net.PacketConn = (*flexConn)(nil)
 
 type flexConn struct {
-	*snet.Conn
+	net.PacketConn
 	raddr   *snet.UDPAddr
 	addrMtx sync.RWMutex
 }
 
 // newFlexConn returns an initialized flexConn, on which the used
 // path can be dynamically updated
-func newFlexConn(conn *snet.Conn, raddr *snet.UDPAddr) *flexConn {
+func newFlexConn(conn *snet.Conn, raddr *snet.UDPAddr, path snet.Path) *flexConn {
 	c := &flexConn{
-		Conn:  conn,
-		raddr: raddr,
+		PacketConn: conn,
+		raddr:      raddr,
 	}
+	appnet.SetPath(c.raddr, path)
 	return c
 }
 
-// SetRemoteAddr updates the remote address raddr of the flexConn
+// SetRemoteAddr updates the remote address path of the flexConn
 // connection in a thread safe manner.
-func (c *flexConn) SetRemoteAddr(raddr *snet.UDPAddr) {
+func (c *flexConn) SetPath(path snet.Path) {
 	c.addrMtx.Lock()
 	defer c.addrMtx.Unlock()
-	c.setRemoteAddr(raddr)
-}
-
-// setRemoteAddr implements the update of the remote address of the SCION connection
-func (c *flexConn) setRemoteAddr(raddr *snet.UDPAddr) {
-	c.raddr = raddr
-}
-
-// Write writes the byte slice b to the embedded SCION connection of the flexConn.
-// It returns the number of bytes written and any write error encountered.
-func (c *flexConn) Write(b []byte) (n int, err error) {
-	c.addrMtx.RLock()
-	defer c.addrMtx.RUnlock()
-	return c.Conn.WriteTo(b, c.raddr)
+	appnet.SetPath(c.raddr, path)
 }
 
 // WriteTo writes the byte slice b to the embedded SCION connection of the
@@ -67,11 +55,13 @@ func (c *flexConn) Write(b []byte) (n int, err error) {
 // any write error encountered.
 func (c *flexConn) WriteTo(b []byte, _ net.Addr) (int, error) {
 	// Ignore param, force use of c.raddr
-	return c.Write(b)
+	c.addrMtx.RLock()
+	defer c.addrMtx.RUnlock()
+	return c.PacketConn.WriteTo(b, c.raddr)
 }
 
 func (c *flexConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	n, addr, err = c.Conn.ReadFrom(p)
+	n, addr, err = c.PacketConn.ReadFrom(p)
 	// Ignore revocation notifications. These are handled by the revocation handler, we don't need
 	// to tell anybody else...
 	if _, ok := err.(*snet.OpError); ok {
