@@ -64,7 +64,7 @@ func (p *Pinger) Close() error {
 // PingAll sends one SCMP echo request to the given addresses and awaits before the
 // timeout. A path must be set on each address.
 // The application ID must be unique on this host. This ID is used as the base
-// ID for the IDs of the echo requests sent to the indiviudal addresses.
+// ID for the IDs of the echo requests sent to the individual addresses.
 // The user is responsible for choosing unique ids.
 // Returns the round trip time to each address (in input order). If no reply
 // was received before the timeout, maxDuration is returned.
@@ -168,7 +168,10 @@ func (p *Pinger) Ping(addr *snet.UDPAddr, id uint64, seq uint16) error {
 func (p *Pinger) ReadReply(deadline time.Time) (EchoReply, error) {
 	var pkt snet.Packet
 	var ov net.UDPAddr
-	p.conn.SetReadDeadline(deadline)
+	err := p.conn.SetReadDeadline(deadline)
+	if err != nil {
+		return EchoReply{}, err
+	}
 	for {
 		// ReadFrom reads SCMP and passes it through the scmp handler.
 		// On an echo reply, the SCMP handler returns an error containing the echo reply information.
