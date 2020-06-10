@@ -12,8 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package mpsquic is a prototype implementation for a QUIC/SCION "socket" with
+// Package mpsquic is a prototype implementation for a QUIC/SCION "socket" with
 // automatic, performance aware path choice.
+//
+// The most important design decision/constraint for this package is to make
+// use of an _unmodified_ QUIC implementation (lucas-clemente/quic-go).
+// The rational is that it's not realistically feasible to maintain a modified
+// fork of a QUIC implementation with the resources available.
+// As consequence of this choice, we are limited to using one SCION path at a
+// time (per session), i.e. it's not feasible to use multiple paths _concurrently_.
+//
+// Another design choice is to keep the multi-path QUIC clients compatible with
+// unmodified QUIC servers -- whether this is necessary is debatable as there
+// are not many SCION/QUIC servers, modified or unmodified.
+//
+//
+// The path selection behaviour is implemented only for clients (Dial).
+// The server part (Listen) uses a simpler mechanism which sends reply packets over
+// the path on which the last packet from the client was received.
+//
+// The client's multi-path behaviour is implemented in a sandwich around the quic-go API;
+// - on top:      interface layer that intercepts the relevant API calls
+//                so we can insert our customized types
+// - below:       the "socket" used by QUIC to send UDP packets, customized so the SCION path
+//                can be actively overridden from "outside"
+// - on the side: a monitor that actively probes available paths and chooses a "best" active path
+//                using a "pluggable" policy.
+//                The monitor reevaluates the path choice at regular time intervals, or when
+//                the probing observes drastic changes (currently: revocation or timeout for
+//                active path).
 package mpsquic
 
 import (

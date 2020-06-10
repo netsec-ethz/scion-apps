@@ -34,7 +34,7 @@ the SCION_DAEMON_ADDRESS environment variable.
 
 
 Wildcard IP Addresses
-ab
+
 snet does not currently support binding to wildcard addresses. This will hopefully be
 added soon-ish, but in the meantime, this package emulates this functionality.
 There is one restriction, that applies to hosts with multiple IP addresses in the AS:
