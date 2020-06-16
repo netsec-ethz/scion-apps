@@ -84,5 +84,5 @@ func main() {
 		}
 	})
 
-	log.Fatal(shttp.ListenAndServe(fmt.Sprintf(":%d", *port), m))
+	log.Fatal(shttp.ListenAndServe(fmt.Sprintf(":%d", *port), m, nil))
 }
