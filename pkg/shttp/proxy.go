@@ -11,8 +11,8 @@ import (
 // creating a new SCION HTTP/3 request
 func NewSingleSCIONHostReverseProxy(remote string, cliTLSCfg *tls.Config) (*httputil.ReverseProxy, error) {
 	// Enforce HTTPS, otherwise it cannot be parsed to URL
-	sUrl := MangleSCIONAddrURL(fmt.Sprintf("https://%s", remote))
-	targetURL, err := url.Parse(sUrl)
+	sURL := MangleSCIONAddrURL(fmt.Sprintf("https://%s", remote))
+	targetURL, err := url.Parse(sURL)
 	if err != nil {
 		return nil, err
 	}
