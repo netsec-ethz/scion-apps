@@ -102,7 +102,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		log.Info(test.Script + ": " + test.Desc)
 		// execute script
 		cmd := exec.Command("bash", test.Script,
-			settings.MyIA, settings.SDAddress, settings.MetAddress)
+			settings.MyIA, settings.SDAddress)
 		cmd.Dir = filepath.Dir(fp)
 		cmd.Env = append(os.Environ(), envvars...)
 		var stdout, stderr bytes.Buffer

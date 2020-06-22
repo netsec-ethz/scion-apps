@@ -78,8 +78,7 @@ type metInfo struct {
 }
 
 type sdTomlConfig struct {
-	SD      sdInfo  `toml:"sd"`
-	Metrics metInfo `toml:"metrics"`
+	SD sdInfo `toml:"sd"`
 }
 
 func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
@@ -97,7 +96,9 @@ func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
 	return config, nil
 }
 
-func getSciondByIA(ia addr.IA, sciondAddress string) (sciond.Connector, error) {
+// connect opens a connection to the scion daemon at sciondAddress or, if
+// empty, the default address.
+func connect(sciondAddress string) (sciond.Connector, error) {
 	if len(sciondAddress) == 0 {
 		sciondAddress = sciond.DefaultSCIONDAddress
 	}
@@ -151,14 +152,13 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		returnError(w, err)
 		return
 	}
-	sdAddress := config.SD.Address
 
-	sciondConn, err := getSciondByIA(localIA, sdAddress)
+	sciondConn, err := connect(config.SD.Address)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	paths, err := getPathsJSON(sciondConn, localIA, remoteIA)
+	paths, err := getPathsJSON(sciondConn, remoteIA)
 	log.Debug("PathTopoHandler:", "paths", string(paths))
 
 	// Since segments data is supplimentary to paths data, if segments data
@@ -265,9 +265,9 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPathsJSON(sciondConn sciond.Connector, srcIA, dstIA addr.IA) ([]byte, error) {
+func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 	ctx := context.Background()
-	paths, err := sciondConn.Paths(ctx, dstIA, srcIA,
+	paths, err := sciondConn.Paths(ctx, dstIA, addr.IA{},
 		sciond.PathReqFlags{PathCount: 10})
 	if err != nil {
 		return nil, err
@@ -297,20 +297,13 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) 
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	localIA, err := addr.IAFromString(CIa)
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-
 	config, err := LoadSciondConfig(options, CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	sdAddress := config.SD.Address
 
-	c, err := getSciondByIA(localIA, sdAddress)
+	c, err := connect(config.SD.Address)
 	if CheckError(err) {
 		returnError(w, err)
 		return

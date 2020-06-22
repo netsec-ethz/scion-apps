@@ -68,9 +68,8 @@ var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
 // UserSetting holds the serialized structure for persistent user settings
 type UserSetting struct {
-	MyIA       string `json:"myIa"`
-	SDAddress  string `json:"sdAddress"`
-	MetAddress string `json:"metAddress"`
+	MyIA      string `json:"myIa"`
+	SDAddress string `json:"sdAddress"`
 }
 
 type CmdOptions struct {
@@ -182,7 +181,6 @@ func WriteUserSetting(options *CmdOptions, settings *UserSetting) {
 	config, err := LoadSciondConfig(options, settings.MyIA)
 	CheckError(err)
 	settings.SDAddress = config.SD.Address
-	settings.MetAddress = config.Metrics.PromAddress
 	settingsJSON, _ := json.Marshal(settings)
 
 	log.Info("Updating...", "UserSetting", string(settingsJSON))

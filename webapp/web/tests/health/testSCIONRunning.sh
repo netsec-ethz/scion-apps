@@ -12,8 +12,8 @@ iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 
-metaddress=$(echo $3)
-echo "sciond metrics address: $metaddress"
+sdaddress=$(echo $2)
+echo "sciond address: $sdaddress"
 
 # check if "./scion.sh status" returns anything, fail if it does
 if [ $isd -ge 16 ]; then
@@ -61,14 +61,13 @@ fi
 
 check_presence /run/shm/dispatcher default.sock
 
-# check TCP sciond socket is running
-cmd="curl -v --silent -m 1 $metaddress/config"
+# check TCP sciond socket is running; split host:port for netcat
+cmd="nc -z $(echo "$sdaddress" | sed -e 's/\[\?\([^][]*\)\]\?:/\1 /')"
 echo "Running: $cmd"
-recv=$($cmd 2>&1)
-if echo "$recv" | grep -q "metrics"; then
-    echo "SCIOND responded."
+if $cmd 2>&1; then
+    echo "SCIOND is listening on $sdaddress."
 else
-    error_exit "SCIOND did not respond from $metaddress/config."
+    error_exit "SCIOND did not respond on $sdaddress."
 fi
 
 echo "Test for SCION running succeeds."
