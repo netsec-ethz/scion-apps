@@ -233,9 +233,42 @@ ul.tree li.open>ul {
 ul.tree li a {
  color: black;
  text-decoration: none;
+}
+
+.path-text {
+ color: white;
+ font-weight: bold;
  padding-left: 5px; /* background shape */
  padding-right: 5px; /* background shape */
  border-radius: 10px; /* background shape */
+}
+
+.path-title-text {
+ background-color: black;
+}
+
+.ia-select {
+ width: 120px;
+}
+
+.ia-text {
+ width: 120px;
+}
+
+.ia-addr {
+ width: 125px;
+}
+
+.ia-port {
+ width: 75px;
+}
+
+.as-args {
+ width: 200px;
+}
+
+.as-secs {
+ width: 45px;
 }
 
 ul.tree li a:before {

@@ -35,15 +35,15 @@
      </div>
      <div id="in-client" class="scion-ia">
       <span>Source</span><br> <select name="sel_cli" id="sel_cli"
-       style="width: 120px;"></select><br>IA: <input type="text"
+       class="ia-select"></select><br>IA: <input type="text"
        name="ia_cli" id="ia_cli" required placeholder="1-ff00:0:111"
-       pattern="^[0-9]+-[0-9a-fA-F_:\/]+$" style="width: 120px;"><br>Host:
+       pattern="^[0-9]+-[0-9a-fA-F_:\/]+$" class="ia-text"><br>Host:
       <input type="text" name="addr_cli" id="addr_cli" required
        placeholder="127.0.0.3"
        pattern="((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){4}$"
-       style="width: 125px;"><br>Port: <input
-       name="port_cli" id="port_cli" type="number" required
-       placeholder=30001 style="width: 75px;" min="1">
+       class="ia-addr"><br>Port: <input name="port_cli"
+       id="port_cli" type="number" required placeholder=30001
+       class="ia-port" min="1">
      </div>
     </div>
     <div id="col-center" class="column-center">
@@ -77,12 +77,10 @@
       <div id="bwtester" class="tab-pane fade in active">
 
        <span id="bwtest_text"></span><br> Interval: <input
-        name="bwtest_sec" id="bwtest_sec" type="number"
-        style="width: 45px;" min="3" max="11" value="4"> sec.
-
-       Additional Argument: <span
+        name="bwtest_sec" id="bwtest_sec" type="number" class="as-secs"
+        min="3" max="11" value="4"> sec. Additional Argument: <span
         tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_opt" name="addl_opt" style="width: 200px;">
+        type="text" id="addl_opt" name="addl_opt" class="as-args">
        </span>
 
 
@@ -222,8 +220,8 @@
        <div id="image_text"></div>
        Additional Argument: <span
         tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_optca" name="addl_optca"
-        style="width: 200px;"> </span>
+        type="text" id="addl_optca" name="addl_optca" class="as-args">
+       </span>
        <div id="images"></div>
 
       </div>
@@ -241,8 +239,8 @@
        <div id="stats_text"></div>
        Additional Argument: <span
         tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_optsa" name="addl_optsa"
-        style="width: 200px;"> </span>
+        type="text" id="addl_optsa" name="addl_optsa" class="as-args">
+       </span>
 
       </div>
 
@@ -258,11 +256,11 @@
        </div>
 
        <span id="echo_text"></span><br> Interval: <input
-        name="echo_sec" id="echo_sec" type="number" style="width: 45px;"
+        name="echo_sec" id="echo_sec" type="number" class="as-secs"
         min="1" max="10" value="1"> sec. Additional Argument: <span
         tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_optse" name="addl_optse"
-        style="width: 200px;"> </span>
+        type="text" id="addl_optse" name="addl_optse" class="as-args">
+       </span>
 
       </div>
 
@@ -279,11 +277,11 @@
 
        <span id="traceroute_text"></span><br> Interval: <input
         name="traceroute_sec" id="traceroute_sec" type="number"
-        style="width: 45px;" min="1" max="10" value="1"> sec.
+        class="as-secs" min="1" max="10" value="1"> sec.
        Additional Argument: <span
         tooltip="Use the equal sign, '=', between argument and parameter."><input
-        type="text" id="addl_opttr" name="addl_opttr"
-        style="width: 200px;"> </span>
+        type="text" id="addl_opttr" name="addl_opttr" class="as-args">
+       </span>
 
       </div>
 
@@ -301,15 +299,15 @@
      </div>
      <div id="in-server" class="scion-ia">
       <span>Destination</span><br> <select name="sel_ser"
-       id="sel_ser" style="width: 120px;"></select><br>IA: <input
+       id="sel_ser" class="ia-select"></select><br>IA: <input
        type="text" name="ia_ser" id="ia_ser" required
        placeholder="1-ff00:0:112" pattern="^[0-9]+-[0-9a-fA-F_:\/]+$"
-       style="width: 120px;"> <br>Host: <input type="text"
+       class="ia-text"> <br>Host: <input type="text"
        name="addr_ser" id="addr_ser" required placeholder="127.0.0.2"
        pattern="((^|\.)((25[0-5])|(2[0-4]\d)|(1\d\d)|([1-9]?\d))){4}$"
-       style="width: 125px;"> <br>Port: <input
-       name="port_ser" id="port_ser" type="number" required
-       placeholder=30002 style="width: 75px;" min="1">
+       class="ia-addr"> <br>Port: <input name="port_ser"
+       id="port_ser" type="number" required placeholder=30002
+       class="ia-port" min="1">
      </div>
     </div>
    </div>
@@ -411,10 +409,12 @@
     </div>
 
     <div id="as-iflist">
-     <h2>
-      Available Paths <span class='badge'>hops</span>
-     </h2>
      <input type="button" value="Update Paths" onclick="requestPaths();" />
+     <p>
+     <div>
+      <span class='path-text path-title-text badge'> Available
+       Paths</span> <span class='badge'>Hops</span>
+     </div>
      <p>
      <p id="path-info"></p>
     </div>
