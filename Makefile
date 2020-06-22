@@ -18,7 +18,7 @@ build: scion-bat \
 	scion-ssh scion-sshd \
 	example-boingboing \
 	example-helloworld \
-	example-shttp-client example-shttp-server
+	example-shttp-client example-shttp-server example-shttp-proxy
 
 clean:
 	go clean ./...
@@ -102,3 +102,7 @@ example-shttp-client:
 .PHONY: example-shttp-server
 example-shttp-server:
 	go build -o $(BIN)/$@ ./_examples/shttp/server
+
+.PHONY: example-shttp-proxy
+example-shttp-proxy:
+	go build -o $(BIN)/$@ ./_examples/shttp/proxy
