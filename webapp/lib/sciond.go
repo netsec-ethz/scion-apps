@@ -73,10 +73,6 @@ type sdInfo struct {
 	Address string `toml:"address"`
 }
 
-type metInfo struct {
-	PromAddress string `toml:"prometheus"`
-}
-
 type sdTomlConfig struct {
 	SD sdInfo `toml:"sd"`
 }
@@ -159,6 +155,10 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		return
 	}
 	paths, err := getPathsJSON(sciondConn, remoteIA)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
 	log.Debug("PathTopoHandler:", "paths", string(paths))
 
 	// Since segments data is supplimentary to paths data, if segments data

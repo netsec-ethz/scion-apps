@@ -153,7 +153,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		results[i].Reason = result
 		jsonRes, err = json.Marshal(results)
 		if CheckError(err) {
-			fmt.Fprint(w, `{ "err": %q }`, err.Error())
+			fmt.Fprintf(w, `{ "err": %q }`, err.Error())
 			return
 		}
 		log.Debug(string(jsonRes))
