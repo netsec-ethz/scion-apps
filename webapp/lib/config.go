@@ -60,9 +60,6 @@ var CMD_SCL = "slogs"
 // appsRoot is the root location of scionlab apps.
 var GOPATH = os.Getenv("GOPATH")
 
-// staticRoot for serving/writing static website
-var DEF_WEBDIR = path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp/web")
-
 // scionRoot is the root location of the scion infrastructure.
 var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
@@ -106,64 +103,80 @@ func isFlagUsed(name string) bool {
 	return found
 }
 
-func BrowseRoot(staticRoot string) string {
+// defaultAppsRoot returns the directory containing the webapp executable as
+// the default base directory for the apps resources
+func defaultAppsRoot() string {
+	exec, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return path.Dir(exec)
+}
+
+func defaultStaticRoot(appsRoot string) string {
+	return path.Join(appsRoot, "../webapp/web")
+}
+
+func defaultBrowseRoot(staticRoot string) string {
 	return path.Join(staticRoot, "data")
 }
 
-func ScionBin(scionRoot string) string {
+func defaultScionBin(scionRoot string) string {
 	return path.Join(scionRoot, "bin")
 }
 
-func ScionGen(scionRoot string) string {
+func defaultScionGen(scionRoot string) string {
 	return path.Join(scionRoot, "gen")
 }
 
-func ScionGenCache(scionRoot string) string {
+func defaultScionGenCache(scionRoot string) string {
 	return path.Join(scionRoot, "gen-cache")
 }
 
-func ScionLogs(scionRoot string) string {
+func defaultScionLogs(scionRoot string) string {
 	return path.Join(scionRoot, "logs")
 }
 
 func ParseFlags() CmdOptions {
 	addr := flag.String(CMD_ADR, listenAddrDef, "Address of server host.")
 	port := flag.Int(CMD_PRT, listenPortDef, "Port of server host.")
-	appsRoot := flag.String(CMD_ART, path.Join(GOPATH, "bin"),
+	appsRoot := flag.String(CMD_ART, defaultAppsRoot(),
 		"Path to execute the installed scionlab apps binaries")
-	staticRoot := flag.String(CMD_WEB, DEF_WEBDIR,
+	staticRoot := flag.String(CMD_WEB, defaultStaticRoot(*appsRoot),
 		"Path to read/write web server files.")
-	browseRoot := flag.String(CMD_BRT, BrowseRoot(*staticRoot),
+	browseRoot := flag.String(CMD_BRT, defaultBrowseRoot(*staticRoot),
 		"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
 	scionRoot := flag.String(CMD_SCN, DEF_SCIONDIR,
 		"Path to read SCION root directory of infrastructure")
-	scionBin := flag.String(CMD_SCB, ScionBin(*scionRoot),
+	scionBin := flag.String(CMD_SCB, defaultScionBin(*scionRoot),
 		"Path to execute SCION bin directory of infrastructure tools")
-	scionGen := flag.String(CMD_SCG, ScionGen(*scionRoot),
+	scionGen := flag.String(CMD_SCG, defaultScionGen(*scionRoot),
 		"Path to read SCION gen directory of infrastructure config")
-	scionGenCache := flag.String(CMD_SCC, ScionGenCache(*scionRoot),
+	scionGenCache := flag.String(CMD_SCC, defaultScionGenCache(*scionRoot),
 		"Path to read SCION gen-cache directory of infrastructure run-time config")
-	scionLogs := flag.String(CMD_SCL, ScionLogs(*scionRoot),
+	scionLogs := flag.String(CMD_SCL, defaultScionLogs(*scionRoot),
 		"Path to read SCION logs directory of infrastructure logging")
 	flag.Parse()
 	// recompute root args to use the proper relative defaults if undefined
-	if isFlagUsed(CMD_WEB) {
-		if !isFlagUsed(CMD_BRT) {
-			*browseRoot = BrowseRoot(*staticRoot)
-		}
+	if !isFlagUsed(CMD_WEB) {
+		*staticRoot = defaultStaticRoot(*appsRoot)
 	}
+	if !isFlagUsed(CMD_BRT) {
+		*browseRoot = defaultBrowseRoot(*staticRoot)
+	}
+
 	if isFlagUsed(CMD_SCN) {
 		if !isFlagUsed(CMD_SCB) {
-			*scionBin = ScionBin(*scionRoot)
+			*scionBin = defaultScionBin(*scionRoot)
 		}
 		if !isFlagUsed(CMD_SCG) {
-			*scionGen = ScionGen(*scionRoot)
+			*scionGen = defaultScionGen(*scionRoot)
 		}
 		if !isFlagUsed(CMD_SCC) {
-			*scionGenCache = ScionGenCache(*scionRoot)
+			*scionGenCache = defaultScionGenCache(*scionRoot)
 		}
 		if !isFlagUsed(CMD_SCL) {
-			*scionLogs = ScionLogs(*scionRoot)
+			*scionLogs = defaultScionLogs(*scionRoot)
 		}
 	}
 	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *appsRoot,
