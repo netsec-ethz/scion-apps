@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -107,14 +108,17 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 		return nil, err
 	}
 
+	logfile := fmt.Sprintf("server_%s", dst.IA.FileFmt(false))
+	startInfo := dst.IA.FileFmt(false)
+
 	ready := make(chan struct{})
 	signal := ReadySignal
 	init := true
 	// parse stdout until we have the ready signal
 	// and check the output with serverOutMatchFun.
+	sp = sai.pipeLog(logfile+".log", startInfo, sp)
 	go func() {
 		defer log.HandlePanic()
-		defer sp.Close()
 
 		var stdoutMatch bool
 		scanner := bufio.NewScanner(sp)
@@ -131,7 +135,6 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 			if sai.serverOutMatchFun != nil {
 				stdoutMatch = sai.serverOutMatchFun(stdoutMatch, line)
 			}
-			log.Debug("Server stdout", "log line", line)
 		}
 		if sai.serverOutMatchFun != nil {
 			r.stdoutMatch <- stdoutMatch
@@ -140,25 +143,10 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 		}
 	}()
 
-	var logPipeR *io.PipeReader
-	var logPipeW *io.PipeWriter
-	if sai.logDir != "" {
-		// log stderr to file
-		logPipeR, logPipeW = io.Pipe()
-		go func() {
-			sai.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), logPipeR)
-		}()
-	}
-
 	// Check the stderr with serverErrMatchFun.
+	ep = sai.pipeLog(logfile+".err", startInfo, ep)
 	go func() {
 		defer log.HandlePanic()
-		defer ep.Close()
-		defer func() {
-			if logPipeW != nil {
-				_ = logPipeW.Close()
-			}
-		}()
 		var stderrMatch bool
 		scanner := bufio.NewScanner(ep)
 		for scanner.Scan() {
@@ -173,11 +161,6 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 			}
 			if sai.serverErrMatchFun != nil {
 				stderrMatch = sai.serverErrMatchFun(stderrMatch, line)
-			}
-			log.Debug("Server stderr", "log line", line)
-			if logPipeW != nil {
-				// Propagate to file logger
-				_, _ = fmt.Fprint(logPipeW, fmt.Sprintf("%s\n", line))
 			}
 		}
 		if sai.serverErrMatchFun != nil {
@@ -230,6 +213,10 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 		return nil, err
 	}
 
+	logfile := fmt.Sprintf("client_%s", clientID(src, dst))
+	startInfo := fmt.Sprintf("%s -> %s", src.IA, dst.IA)
+
+	sp = sai.pipeLog(logfile+".log", startInfo, sp)
 	// check the output with clientOutMatchFun
 	go func() {
 		var stdoutMatch bool
@@ -242,7 +229,6 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 			if sai.clientOutMatchFun != nil {
 				stdoutMatch = sai.clientOutMatchFun(stdoutMatch, line)
 			}
-			log.Debug("Client stdout", "msg", line)
 		}
 		if sai.clientOutMatchFun != nil {
 			r.stdoutMatch <- stdoutMatch
@@ -251,23 +237,9 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 		}
 	}()
 
-	var logPipeR *io.PipeReader
-	var logPipeW *io.PipeWriter
-	if sai.logDir != "" {
-		// log stderr to file
-		logPipeR, logPipeW = io.Pipe()
-		go func() {
-			sai.writeLog("client", clientID(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), logPipeR)
-		}()
-	}
-
 	// Check the stderr with clientErrMatchFun
+	ep = sai.pipeLog(logfile+".err", startInfo, ep)
 	go func() {
-		defer func() {
-			if logPipeW != nil {
-				_ = logPipeW.Close()
-			}
-		}()
 		var stderrMatch bool
 		scanner := bufio.NewScanner(ep)
 		for scanner.Scan() {
@@ -277,11 +249,6 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 			line := scanner.Text()
 			if sai.clientErrMatchFun != nil {
 				stderrMatch = sai.clientErrMatchFun(stderrMatch, line)
-			}
-			log.Debug("Client stderr", "msg", line)
-			if logPipeW != nil {
-				// Propagate to file logger
-				_, _ = fmt.Fprint(logPipeW, fmt.Sprintf("%s\n", line))
 			}
 		}
 		if sai.clientErrMatchFun != nil {
@@ -311,7 +278,12 @@ func (sai *ScionAppsIntegration) ClientStderr(errMatch func(bool, string) bool) 
 }
 
 func (sai *ScionAppsIntegration) initLogDir(name string) error {
-	logDir, err := ioutil.TempDir("", name)
+	tmpDir := path.Join(os.TempDir(), "scion-apps-integration")
+	err := os.MkdirAll(tmpDir, 0777)
+	if err != nil {
+		log.Error("Failed to create log folder for testrun", "dir", tmpDir, "err", err)
+	}
+	logDir, err := ioutil.TempDir(tmpDir, name)
 	if err != nil {
 		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
 		return err
@@ -321,32 +293,34 @@ func (sai *ScionAppsIntegration) initLogDir(name string) error {
 	return nil
 }
 
-func (sai *ScionAppsIntegration) writeLog(name, id, startInfo string, ep io.ReadCloser) {
-	defer ep.Close()
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s_%s.log", sai.logDir, name, id),
-		os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
+func (sai *ScionAppsIntegration) pipeLog(name, startInfo string, r io.ReadCloser) io.ReadCloser {
+	if sai.logDir != "" {
+		// tee to log
+		pipeR, pipeW := io.Pipe()
+		tee := io.TeeReader(r, pipeW)
+		go func() {
+			sai.writeLog(name, startInfo, tee)
+			pipeW.Close()
+		}()
+		return pipeR
+	}
+	return r
+}
+
+func (sai *ScionAppsIntegration) writeLog(name, startInfo string, pipe io.Reader) {
+	file := path.Join(sai.logDir, name)
+	f, err := os.OpenFile(file, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.FileMode(0644))
 	if err != nil {
 		log.Error("Failed to create log file for test run (create)",
-			"name", name, "id", id, "err", err)
+			"file", file, "err", err)
 		return
 	}
 	defer f.Close()
-	// seek to end of file.
-	if _, err := f.Seek(0, 2); err != nil {
-		log.Error("Failed to create log file for test run (seek)",
-			"name", name, "id", id, "err", err)
-		return
-	}
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	_, _ = w.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Starting %s %s\n", name, startInfo)))
+	_, _ = f.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Starting %s %s\n", name, startInfo)))
 	defer func() {
-		_, _ = w.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Finished %s %s\n", name, startInfo)))
+		_, _ = f.WriteString(sintegration.WithTimestamp(fmt.Sprintf("Finished %s %s\n", name, startInfo)))
 	}()
-	scanner := bufio.NewScanner(ep)
-	for scanner.Scan() {
-		_, _ = w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
-	}
+	_, _ = io.Copy(f, pipe)
 }
 
 func clientID(src, dst *snet.UDPAddr) string {
@@ -361,14 +335,21 @@ type appsWaiter struct {
 	stderrMatch chan bool
 }
 
-func (aw *appsWaiter) Wait() (err error) {
-	_, _ = aw.Process.Wait()
+func (aw *appsWaiter) Wait() error {
+	state, err := aw.Process.Wait()
+	if err != nil {
+		return err
+	}
+	if state.ExitCode() > 0 { // Ignore servers killed by the framework
+		return fmt.Errorf("the program under test returned non-zero exit code:\n%s [exit code=%d]",
+			aw.Cmd.String(), state.ExitCode())
+	}
 	err = checkOutputMatches(aw.stdoutMatch, aw.stderrMatch)
 	if err != nil {
 		return err
 	}
 	_ = aw.Cmd.Wait()
-	return
+	return nil
 }
 
 func checkOutputMatches(stdoutRes chan bool, stderrRes chan bool) error {
@@ -404,5 +385,21 @@ func RegExp(regularExpression string) func(prev bool, line string) bool {
 			matched = false
 		}
 		return prev || matched // return true if any output line matches the expression
+	}
+}
+
+func NoPanic() func(prev bool, line string) bool {
+	return func(prev bool, line string) bool {
+		matched, err := regexp.MatchString("^.*panic: .*$", line)
+		if err != nil {
+			// invalid regexp, don't count as a match
+			return prev
+		}
+		if init, err := regexp.MatchString("^.*Registered with dispatcher.*$", line); err == nil {
+			if init {
+				return init
+			}
+		}
+		return prev && !matched
 	}
 }

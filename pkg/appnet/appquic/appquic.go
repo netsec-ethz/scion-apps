@@ -84,6 +84,7 @@ func DialAddr(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicConf *q
 	if err != nil {
 		return nil, err
 	}
+	host = appnet.MangleSCIONAddr(host)
 	session, err := quic.Dial(sconn, raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
@@ -110,6 +111,7 @@ func DialAddrEarly(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicCo
 	if err != nil {
 		return nil, err
 	}
+	host = appnet.MangleSCIONAddr(host)
 	session, err := quic.DialEarly(sconn, raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
