@@ -38,17 +38,21 @@ type Policy interface {
 type lowestRTT struct {
 }
 
-func (*lowestRTT) Select(paths []*pathInfo) (int, time.Time) {
+func (p *lowestRTT) Select(paths []*pathInfo) (int, time.Time) {
 	best := 0
 	for i := 1; i < len(paths); i++ {
-		if paths[best].revoked && !paths[i].revoked || // prefer non-revoked path
-			paths[i].rtt < paths[best].rtt ||
-			numHops(paths[i].path) < numHops(paths[best].path) {
-
+		if p.better(paths[i], paths[best]) {
 			best = i
 		}
 	}
 	return best, time.Now().Add(lowestRTTReevaluateInterval)
+}
+
+// better checks whether a is better than b under the lowestRTT policy
+func (*lowestRTT) better(a, b *pathInfo) bool {
+	return (!a.revoked && b.revoked || a.rtt < b.rtt) || // prefer non-revoked, prefer lower RTT
+		(a.revoked == b.revoked && a.rtt == b.rtt && // tie
+			numHops(a.path) < numHops(b.path)) // tie-breaker: numHops
 }
 
 func numHops(path snet.Path) int {
