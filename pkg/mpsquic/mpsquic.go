@@ -122,6 +122,12 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	if err != nil {
 		return nil, err
 	}
+	qsess, active, flexConn, err := raceDial(ctx, conn, raddr, host, paths, tlsConf, quicConf)
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("Dialed", "active", active)
+
 	pinger, err := NewPinger(ctx, revHandler)
 	if err != nil {
 		return nil, err
@@ -129,19 +135,9 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 
 	policy := &lowestRTT{}
 	pathInfos := makePathInfos(paths)
-	active, nextSelectTime := policy.Select(pathInfos)
-	logger.Debug("Active Path",
-		"index", active,
-		"key", pathInfos[active].fingerprint,
-		"hops", pathInfos[active].path.Interfaces())
-	flexConn := newFlexConn(conn, raddr, pathInfos[active].path)
-	qsession, err := quic.Dial(flexConn, raddr, host, tlsConf, quicConf)
-	if err != nil {
-		return nil, err
-	}
 
 	mpQuic := &MPQuic{
-		Session:     qsession,
+		Session:     qsess,
 		raddr:       raddr,
 		flexConn:    flexConn,
 		pinger:      pinger,
@@ -153,9 +149,63 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 		stop:        make(chan struct{}),
 	}
 
-	go mpQuic.monitor(nextSelectTime)
+	go mpQuic.monitor(time.Now().Add(lowestRTTReevaluateInterval))
 
 	return mpQuic, nil
+}
+
+// raceDial dials a quic session on every path and returns the session for
+// which the succeeded returned first.
+func raceDial(ctx context.Context, conn *snet.Conn,
+	raddr *snet.UDPAddr, host string, paths []snet.Path,
+	tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, int, *flexConn, error) {
+
+	conns := make([]*flexConn, len(paths))
+	for i, path := range paths {
+		conns[i] = newFlexConn(conn, raddr, path)
+	}
+
+	type indexedSessionOrError struct {
+		id      int
+		session quic.Session
+		err     error
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results := make(chan indexedSessionOrError)
+	for i := range paths {
+		go func(id int) {
+			sess, err := quic.DialContext(ctx, conns[id], raddr, host, tlsConf, quicConf)
+			results <- indexedSessionOrError{id, sess, err}
+		}(i)
+	}
+
+	var firstID int
+	var firstSession quic.Session
+	var errs []error
+	for range paths {
+		result := <-results
+		if result.err == nil {
+			if firstSession == nil {
+				firstSession = result.session
+				firstID = result.id
+				cancel() // abort all other Dials
+			} else {
+				// Dial succeeded without cancelling and not first? Unlucky, just close this session.
+				// XXX(matzf) wrong layer; error code is supposed to be application layer
+				_ = result.session.CloseWithError(quic.ErrorCode(0), "")
+			}
+		} else {
+			errs = append(errs, result.err)
+		}
+	}
+
+	if firstSession != nil {
+		return firstSession, firstID, conns[firstID], nil
+	} else {
+		return nil, 0, nil, errs[0] // return first error (multierr?)
+	}
 }
 
 // listenWithRevHandler is analogous to appnet.Listen(nil), but also sets a
@@ -185,8 +235,7 @@ func listenWithRevHandler(ctx context.Context, revHandler snet.RevocationHandler
 func makePathInfos(paths []snet.Path) []*pathInfo {
 
 	pathInfos := make([]*pathInfo, 0, len(paths))
-	for i, p := range paths {
-		logger.Info("Path", "index", i, "interfaces", p.Interfaces())
+	for _, p := range paths {
 
 		pi := &pathInfo{
 			path:        p,

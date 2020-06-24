@@ -90,10 +90,7 @@ func (mpq *MPQuic) selectPath(selectTimer *time.Timer) {
 	i, nextTime := mpq.policy.Select(mpq.paths)
 	if i != mpq.active {
 		mpq.updateActivePath(i)
-		logger.Debug("Changed active path",
-			"index", i,
-			"key", mpq.paths[i].fingerprint,
-			"hops", mpq.paths[i].path.Interfaces())
+		logger.Debug("Changed active path", "active", i)
 	}
 
 	expiry := mpq.paths[i].path.Expiry()
