@@ -13,6 +13,7 @@ import (
 
 const echoRequestInterval = 500 * time.Millisecond
 const pathExpiryRefreshLeadTime = 10 * time.Minute
+const pathRefreshMinInterval = 10 * time.Second
 
 var _ quic.Stream = (*monitoredStream)(nil)
 
@@ -175,7 +176,13 @@ func (mpq *MPQuic) earliestPathExpiry() time.Time {
 func (mpq *MPQuic) nextPathRefresh() time.Time {
 	expiry := mpq.earliestPathExpiry()
 	randOffset := time.Duration(rand.Intn(10)) * time.Second
-	return expiry.Add(-pathExpiryRefreshLeadTime + randOffset)
+	nextRefresh := expiry.Add(-pathExpiryRefreshLeadTime + randOffset)
+
+	earliest := time.Now().Add(pathRefreshMinInterval)
+	if nextRefresh.Before(earliest) {
+		nextRefresh = earliest
+	}
+	return nextRefresh
 }
 
 // resetTimer resets the timer, as described in godoc for time.Timer.Reset.
