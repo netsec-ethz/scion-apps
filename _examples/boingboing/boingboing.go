@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 	"time"
 
@@ -68,7 +69,7 @@ var (
 	timeout = flag.Duration("timeout", DefaultTimeout,
 		"Timeout for the boing response")
 	interval = flag.Duration("interval", DefaultInterval, "time between boings")
-	trace    = flag.Bool("trace", false, "enables tracing of the QUIC connection")
+	trace    = flag.String("trace", "", "Directory for quic traces. Enables tracing of the QUIC connection")
 	port     = flag.Int("port", 0, "(Mandatory for server) Server port")
 	fileData []byte
 
@@ -127,6 +128,11 @@ func validateFlags() {
 			}
 		} else {
 			log.Info("file argument is ignored for mode " + ModeServer)
+		}
+	}
+	if *trace != "" {
+		if stat, err := os.Stat(*trace); os.IsNotExist(err) || !stat.IsDir() {
+			LogFatal("-trace must point to a directory")
 		}
 	}
 }
@@ -191,8 +197,7 @@ func (qs quicStream) ReadMsg() (*message, error) {
 
 type client struct {
 	*quicStream
-	qsess  quic.Session
-	tracer quictrace.Tracer
+	qsess quic.Session
 }
 
 // run dials to a remote SCION address and repeatedly sends boing? messages
@@ -204,11 +209,13 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 		InsecureSkipVerify: true,
 		NextProtos:         []string{nextProto},
 	}
-	if *trace {
-		c.tracer = quictrace.NewTracer()
+
+	var tracer quictrace.Tracer
+	if *trace != "" {
+		tracer = quictrace.NewTracer()
 	}
 	quicConf := &quic.Config{
-		QuicTracer: c.tracer,
+		QuicTracer: tracer,
 	}
 	var err error
 	if remote.IA == appnet.DefNetwork().IA {
@@ -235,6 +242,14 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 		c.send()
 	}()
 	c.read()
+
+	if tracer != nil {
+		err := exportTraces(tracer, *trace)
+		if err != nil {
+			log.Debug("Error while exporting QUIC trace", "err", err)
+		}
+	}
+
 	log.Info("Client run completed")
 }
 
@@ -250,12 +265,6 @@ func (c *client) Close() error {
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
 		_ = c.qsess.CloseWithError(errorNoError, "")
-	}
-	if c.tracer != nil {
-		err := exportTraces(c.tracer)
-		if err != nil {
-			log.Debug("Error while exporting QUIC trace", "err", err)
-		}
 	}
 	return err
 }
@@ -401,19 +410,14 @@ func setSignalHandler(closer io.Closer) {
 		defer log.HandlePanic()
 		<-c
 		closer.Close()
-		os.Exit(1)
 	}()
 }
 
-func exportTraces(tracer quictrace.Tracer) error {
-	dir, err := ioutil.TempDir("", "boingboing_traces")
+func exportTraces(tracer quictrace.Tracer, dir string) error {
 	traces := tracer.GetAllTraces()
 	i := 0
 	for _, trace := range traces {
-		if err != nil {
-			return err
-		}
-		f, err := os.Create(fmt.Sprintf("%s/trace_%d.qtr", dir, i))
+		f, err := os.Create(path.Join(dir, fmt.Sprintf("trace_%d.qtr", i)))
 		if err != nil {
 			return err
 		}
