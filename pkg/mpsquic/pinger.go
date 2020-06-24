@@ -16,8 +16,6 @@ package mpsquic
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"net"
 	"time"
 
@@ -30,10 +28,16 @@ import (
 	"github.com/scionproto/scion/go/lib/topology/overlay"
 )
 
+const replyBufferCapacity = 128
+
 // Pinger sends SCMP echo requests ("pings") and receivs the corresponding SCMP echo replies.
 type Pinger struct {
-	conn  snet.PacketConn
-	laddr *snet.UDPAddr
+	// Replies are returned in the order they are received from the network,
+	// independently of the order in which the requests are sent.
+	Replies <-chan EchoReply
+	conn    snet.PacketConn
+	laddr   *snet.UDPAddr
+	stop    chan struct{}
 }
 
 // EchoReply contains information about an SCMP echo reply received from the network.
@@ -45,24 +49,39 @@ type EchoReply struct {
 }
 
 // newPinger opens a new connection to send/receive SCMP echo requests/replies on.
-func newPinger(ctx context.Context,
-	revocationHandler snet.RevocationHandler) (*Pinger, error) {
+func NewPinger(ctx context.Context, revHandler snet.RevocationHandler) (*Pinger, error) {
 
-	conn, laddr, err := listenPacketConn(ctx, &pingerSCMPHandler{revocationHandler})
+	replies := make(chan EchoReply, replyBufferCapacity)
+
+	scmpHandler := &pingerSCMPHandler{
+		revHandler: revHandler,
+		replies:    replies,
+	}
+
+	conn, laddr, err := listenPacketConn(ctx, scmpHandler)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Pinger{conn, laddr}, nil
+	p := &Pinger{
+		Replies: replies,
+		conn:    conn,
+		laddr:   laddr,
+		stop:    make(chan struct{}),
+	}
+	go p.drain()
+	return p, nil
 }
 
 // Close closes the underlying connection.
 func (p *Pinger) Close() error {
+	close(p.stop)
 	return p.conn.Close()
 }
 
-// PingAll sends one SCMP echo request to the given addresses and awaits before the
-// timeout. A path must be set on each address.
+// PingAll sends one SCMP echo request to the given addresses and awaits echo
+// replies until the timeout.
+// A path must be set on each address.
 // The application ID must be unique on this host. This ID is used as the base
 // ID for the IDs of the echo requests sent to the individual addresses.
 // The user is responsible for choosing unique ids.
@@ -71,10 +90,6 @@ func (p *Pinger) Close() error {
 func (p *Pinger) PingAll(addrs []*snet.UDPAddr, id uint64, seq uint16,
 	timeout time.Duration) ([]time.Duration, error) {
 
-	deadline := time.Now().Add(timeout)
-	result := make(chan rttsOrErr)
-	go p.awaitReplies(len(addrs), id, seq, deadline, result)
-
 	for i, addr := range addrs {
 		err := p.Ping(addr, id+uint64(i), seq)
 		if err != nil {
@@ -82,71 +97,45 @@ func (p *Pinger) PingAll(addrs []*snet.UDPAddr, id uint64, seq uint16,
 		}
 	}
 
-	ret := <-result
-	return ret.rtts, ret.err
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return p.readReplies(ctx, addrs, id, seq)
 }
 
-func (p *Pinger) awaitReplies(n int, baseID uint64, seq uint16,
-	deadline time.Time, result chan rttsOrErr) {
+func (p *Pinger) readReplies(ctx context.Context,
+	addrs []*snet.UDPAddr, baseID uint64, seq uint16) ([]time.Duration, error) {
 
-	rtts, err := p.readReplies(n, baseID, seq, deadline)
-	result <- rttsOrErr{rtts: rtts, err: err}
-}
-
-type rttsOrErr struct {
-	rtts []time.Duration
-	err  error
-}
-
-func (p *Pinger) readReplies(n int, baseID uint64, seq uint16,
-	deadline time.Time) ([]time.Duration, error) {
-
+	n := len(addrs)
 	rtts := make([]time.Duration, n)
 	for i := range rtts {
 		rtts[i] = maxDuration
 	}
 	nReceived := 0
-	for nReceived < n && time.Now().Before(deadline) {
-		reply, err := p.ReadReply(deadline)
-		if err != nil {
-			if isTimeout(err) {
-				break
-			}
-			return nil, err
-		}
-		if reply.ID >= baseID && reply.ID < baseID+uint64(n) &&
-			reply.Seq == seq &&
-			rtts[reply.ID-baseID] == maxDuration {
+	for nReceived < n {
+		select {
+		case <-ctx.Done():
+			return rtts, nil
+		case reply := <-p.Replies:
+			if reply.ID >= baseID && reply.ID < baseID+uint64(n) &&
+				reply.Seq == seq &&
+				rtts[reply.ID-baseID] == maxDuration {
 
-			rtts[reply.ID-baseID] = reply.RTT
-			nReceived++
-		} else {
-			logger.Debug("Unexpected SCMP echo reply", "id", reply.ID, "seq", reply.Seq, "baseID", baseID)
+				rtts[reply.ID-baseID] = reply.RTT
+				nReceived++
+			} else {
+				logger.Debug("Unexpected SCMP echo reply", "id", reply.ID, "seq",
+					reply.Seq, "baseID", baseID)
+			}
 		}
 	}
 	return rtts, nil
-}
-
-func isTimeout(err error) bool {
-	if be, ok := err.(common.BasicError); ok {
-		err = be.Unwrap()
-	}
-	if netErr, ok := err.(net.Error); ok {
-		return netErr.Timeout()
-	}
-	return false
 }
 
 // Ping sends an SCMP echo request to the given address. A path must be set.
 // The application ID must be unique on this host. The user is responsible for
 // choosing unique ids.
 func (p *Pinger) Ping(addr *snet.UDPAddr, id uint64, seq uint16) error {
-	pkt := newSCMPPkt(
-		p.laddr,
-		addr,
-		scmp.T_G_EchoRequest,
-		&scmp.InfoEcho{Id: id, Seq: seq},
-	)
+	pkt := newEchoRequest(p.laddr, addr, id, seq)
 	nextHop := addr.NextHop
 	if nextHop == nil && p.laddr.IA.Equal(addr.IA) {
 		nextHop = &net.UDPAddr{
@@ -158,51 +147,28 @@ func (p *Pinger) Ping(addr *snet.UDPAddr, id uint64, seq uint16) error {
 	return p.conn.WriteTo(pkt, nextHop)
 }
 
-// ReadReply receives an SCMP echo reply.
-// Replies are returned in the order they are received from the network,
-// independently of the order in which the requests are sent.
-//
-// Note: the RTT in the returned struct is determined based on the time the
-// packet is processed. If this is handled delayed, e.g. because this method is
-// not invoked immediately after sending the Ping, the returned RTT may be biased.
-func (p *Pinger) ReadReply(deadline time.Time) (EchoReply, error) {
+// drain reads packets from the connection.
+// When receiving SCMPs, this triggers the pingerScmpHandler, which registers
+// the timestamp and inserts the reply in the (buffered) channel.
+func (p *Pinger) drain() {
 	var pkt snet.Packet
 	var ov net.UDPAddr
-	err := p.conn.SetReadDeadline(deadline)
-	if err != nil {
-		return EchoReply{}, err
-	}
 	for {
-		// ReadFrom reads SCMP and passes it through the scmp handler.
-		// On an echo reply, the SCMP handler returns an error containing the echo reply information.
-		// This error makes the ReadFrom return, without reading a data packet.
-		err := p.conn.ReadFrom(&pkt, &ov)
-		var errEcho *echoError
-		if err == nil {
-			// Ignore data packets
-			continue
-		} else if errors.As(err, &errEcho) {
-			return errEcho.EchoReply, nil
-		} else {
-			return EchoReply{}, err
+		select {
+		case <-p.stop:
+			break
+		default:
+			err := p.conn.ReadFrom(&pkt, &ov)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
 
-// echoError is a pseudo-error returned on an echo reply by the pingerSCMPHandler.
-// This is not an error, but the error in SCIONPacketConn.ReadFrom is (ab-)used
-// to pass the echo information back to Pinger.ReadReply.
-type echoError struct {
-	EchoReply
-}
-
-func (e *echoError) Error() string {
-	return fmt.Sprintf("echo reply received src=%s, id=%d, seq=%d, rtt=%v",
-		e.Addr, e.ID, e.Seq, e.RTT)
-}
-
 type pingerSCMPHandler struct {
-	revocationHandler snet.RevocationHandler
+	revHandler snet.RevocationHandler
+	replies    chan<- EchoReply
 }
 
 func (h *pingerSCMPHandler) Handle(pkt *snet.Packet) error {
@@ -218,16 +184,25 @@ func (h *pingerSCMPHandler) Handle(pkt *snet.Packet) error {
 
 	switch info := pld.Info.(type) {
 	case *scmp.InfoRevocation:
-		h.revocationHandler.RevokeRaw(context.Background(), info.RawSRev)
+		h.revHandler.RevokeRaw(context.Background(), info.RawSRev)
 		return nil
 	case *scmp.InfoEcho:
-		return h.handleEcho(&pkt.Source, pkt.Path, hdr, info)
+		err := h.handleEcho(&pkt.Source, pkt.Path, hdr, info)
+		if err != nil {
+			logger.Debug("Ignoring invalid echo reply", "hdr", hdr, "src", pkt.Source, "info", info)
+		}
+		return nil
 	default:
-		logger.Debug("Ignoring scmp packet", "hdr", hdr, "src", pkt.Source)
+		logger.Debug("Ignoring scmp packet", "hdr", hdr, "src", pkt.Source, "info", info)
 		return nil
 	}
 }
 
+// handleEcho records the round trip time and inserts an EchoReply to the
+// buffered reply channel.
+// Note: the RTT in the returned struct is determined based on the time the
+// packet is processed. If this is handled delayed, e.g. because the packets
+// are not drained fast enough, the recorded RTT may be biased.
 func (h *pingerSCMPHandler) handleEcho(src *snet.SCIONAddress, path *spath.Path,
 	hdr *scmp.Hdr, info *scmp.InfoEcho) error {
 
@@ -237,14 +212,18 @@ func (h *pingerSCMPHandler) handleEcho(src *snet.SCIONAddress, path *spath.Path,
 		return err
 	}
 	addr := &snet.UDPAddr{IA: src.IA, Path: path, Host: &net.UDPAddr{IP: src.Host.IP()}}
-	return &echoError{
-		EchoReply{
-			Addr: addr,
-			ID:   info.Id,
-			Seq:  info.Seq,
-			RTT:  rtt,
-		},
+	reply := EchoReply{
+		Addr: addr,
+		ID:   info.Id,
+		Seq:  info.Seq,
+		RTT:  rtt,
 	}
+	select {
+	case h.replies <- reply:
+	default:
+		// buffer full, drop it
+	}
+	return nil
 }
 
 // listenPacketConn is analogous to appnet.Listen(nil), but creates a (low-level)
@@ -267,11 +246,12 @@ func listenPacketConn(ctx context.Context,
 	return snet.NewSCIONPacketConn(dispConn, scmpHandler), laddr, nil
 }
 
-func newSCMPPkt(src, dst *snet.UDPAddr, t scmp.Type, info scmp.Info) *snet.Packet {
+func newEchoRequest(src, dst *snet.UDPAddr, id uint64, seq uint16) *snet.Packet {
 
-	scmpMeta := scmp.Meta{InfoLen: uint8(info.Len() / common.LineLen)}
+	info := &scmp.InfoEcho{Id: id, Seq: seq}
+	meta := scmp.Meta{InfoLen: uint8(info.Len() / common.LineLen)}
 	pld := make(common.RawBytes, scmp.MetaLen+info.Len())
-	err := scmpMeta.Write(pld)
+	err := meta.Write(pld)
 	if err != nil {
 		panic(err)
 	}
@@ -279,14 +259,25 @@ func newSCMPPkt(src, dst *snet.UDPAddr, t scmp.Type, info scmp.Info) *snet.Packe
 	if err != nil {
 		panic(err)
 	}
-	scmpHdr := scmp.NewHdr(scmp.ClassType{Class: scmp.C_General, Type: t}, len(pld))
 	return &snet.Packet{
 		PacketInfo: snet.PacketInfo{
-			Source:      snet.SCIONAddress{IA: src.IA, Host: addr.HostFromIP(src.Host.IP)},
-			Destination: snet.SCIONAddress{IA: dst.IA, Host: addr.HostFromIP(dst.Host.IP)},
-			Path:        dst.Path,
-			L4Header:    scmpHdr,
-			Payload:     pld,
+			Source: snet.SCIONAddress{
+				IA:   src.IA,
+				Host: addr.HostFromIP(src.Host.IP),
+			},
+			Destination: snet.SCIONAddress{
+				IA:   dst.IA,
+				Host: addr.HostFromIP(dst.Host.IP),
+			},
+			Path: dst.Path,
+			L4Header: scmp.NewHdr(
+				scmp.ClassType{
+					Class: scmp.C_General,
+					Type:  scmp.T_G_EchoRequest,
+				},
+				len(pld),
+			),
+			Payload: pld,
 		},
 	}
 }

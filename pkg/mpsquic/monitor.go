@@ -124,7 +124,7 @@ func (mpq *MPQuic) sendPings() {
 			}
 			rtts, err := mpq.pinger.PingAll(raddrs, appID, seq, echoRequestInterval)
 			if err != nil {
-				logger.Error("Error probining paths", "err", err, "errType", common.TypeOf(err))
+				logger.Error("Error probing paths", "err", err, "errType", common.TypeOf(err))
 			} else {
 				logger.Trace("Paths pinged", "rtts", rtts, "seq", seq)
 				mpq.probeUpdate <- rtts

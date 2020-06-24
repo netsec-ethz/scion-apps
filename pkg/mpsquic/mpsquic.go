@@ -122,7 +122,7 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	if err != nil {
 		return nil, err
 	}
-	pinger, err := newPinger(ctx, revHandler)
+	pinger, err := NewPinger(ctx, revHandler)
 	if err != nil {
 		return nil, err
 	}
