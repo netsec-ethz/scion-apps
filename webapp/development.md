@@ -35,10 +35,10 @@ Webapp is a go application designed to operate a web server for purposes of visu
             * `topology.js` - utility functions to sort and order paths data
             * `location.js` - utility functions manage maps
         * `html/` - non-template HTML, mostly `map.html` that is injected into a frame
+    * `webapp.db` - SQL Lite database *(generated)* of command-line app responses, short term 24-hour lifetime.
     * `template/` - most of the site HTML, broken into pages per navbar menu
     * `tests/health/` - bash scripts and json config to run health checks
 * `webapp.go` - go main module for webapp, governing web-server, AJAX-style requests, and executing command-line apps.
-* `webapp.db` - SQL Lite database *(generated)* of command-line app responses, short term 24-hour lifetime.
 
 ## Website Features
 1. **Launch Config**: Several command line parameters allow you to define multiple locations where your SCION deployment is running and where this website should be served from and to.
