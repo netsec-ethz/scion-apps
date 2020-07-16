@@ -7,15 +7,17 @@ error_exit()
     exit 1
 }
 
-# allow IA via args, ignoring gen/ia
+# allow IA via args
 iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
-
 isd=$(echo ${iaFile} | cut -d"-" -f1)
+
+sdaddress=$(echo $2)
+echo "sciond address: $sdaddress"
 
 # check if "./scion.sh status" returns anything, fail if it does
 if [ $isd -ge 16 ]; then
-    status="$(systemctl -t service --failed | grep scion-*.service 2>&1)"
+    status="$(systemctl -t service --failed | grep scion*.service 2>&1)"
 else
     # localhost testing
     cd $SCION_ROOT
@@ -57,11 +59,15 @@ else
 fi
 }
 
-
-if [ $isd -ge 16 ]; then
-    # not used for localhost testing
-    check_presence /run/shm/sciond default.sock
-fi
 check_presence /run/shm/dispatcher default.sock
+
+# check TCP sciond socket is running; split host:port for netcat
+cmd="nc -z $(echo "$sdaddress" | sed -e 's/\[\?\([^][]*\)\]\?:/\1 /')"
+echo "Running: $cmd"
+if $cmd 2>&1; then
+    echo "SCIOND is listening on $sdaddress."
+else
+    error_exit "SCIOND did not respond on $sdaddress."
+fi
 
 echo "Test for SCION running succeeds."

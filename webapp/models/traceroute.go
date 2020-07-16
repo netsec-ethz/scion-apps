@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package models
 
@@ -345,38 +345,11 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 	}
 
 	var graphEntries []TracerouteGraph
-	var lastEntryInsertedTime int64
 
 	// Store the infos of the last hop
-	var inserted int64
-	var actualDuration int
 	var trhops []ReducedTrHopItem
-	var cmdOutput, path, errors string
 
-	for _, hop := range result {
-		if lastEntryInsertedTime == 0 {
-			lastEntryInsertedTime = hop.Inserted
-			trhops = nil
-		} else if lastEntryInsertedTime != hop.Inserted {
-			trg := TracerouteGraph{
-				Inserted:       inserted,
-				ActualDuration: actualDuration,
-				TrHops:         trhops,
-				CmdOutput:      cmdOutput,
-				Error:          errors,
-				Path:           path}
-
-			lastEntryInsertedTime = hop.Inserted
-			graphEntries = append(graphEntries, trg)
-			trhops = nil
-		}
-
-		inserted = hop.Inserted
-		actualDuration = hop.ActualDuration
-		cmdOutput = hop.CmdOutput
-		errors = hop.Error
-		path = hop.Path
-
+	for i, hop := range result {
 		rth := ReducedTrHopItem{HopIa: hop.HopIa,
 			HopAddr:   hop.HopAddr,
 			IntfID:    hop.IntfID,
@@ -384,6 +357,20 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 			RespTime2: hop.RespTime2,
 			RespTime3: hop.RespTime3}
 		trhops = append(trhops, rth)
+
+		// append hops group at the end of each group
+		if (i+1) == len(result) || result[i+1].Inserted != hop.Inserted {
+			trg := TracerouteGraph{
+				Inserted:       hop.Inserted,
+				ActualDuration: hop.ActualDuration,
+				TrHops:         trhops,
+				CmdOutput:      hop.CmdOutput,
+				Error:          hop.Error,
+				Path:           hop.Path}
+
+			graphEntries = append(graphEntries, trg)
+			trhops = nil
+		}
 	}
 
 	return graphEntries, nil

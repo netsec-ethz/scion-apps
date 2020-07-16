@@ -31,8 +31,8 @@
    "port": 30100
   },
   {
-   "name": "18-ffaa:0:1202 Attachment Point",
-   "isdas": "18-ffaa:0:1202",
+   "name": "18-ffaa:0:1206 Attachment Point",
+   "isdas": "18-ffaa:0:1206",
    "addr": "10.0.8.1",
    "port": 30100
   },
@@ -79,9 +79,9 @@
    "port": 40002
   },
   {
-   "name": "18-ffaa:0:1202 Attachment Point",
-   "isdas": "18-ffaa:0:1202",
-   "addr": "128.105.21.208",
+   "name": "18-ffaa:0:1206 Attachment Point",
+   "isdas": "18-ffaa:0:1206",
+   "addr": "128.237.153.120",
    "port": 40002
   },
   {
@@ -105,9 +105,9 @@
    "port": 40002
   },
   {
-   "name": "18-ffaa:0:1202 Attachment Point",
-   "isdas": "18-ffaa:0:1202",
-   "addr": "128.105.21.208",
+   "name": "18-ffaa:0:1206 Attachment Point",
+   "isdas": "18-ffaa:0:1206",
+   "addr": "128.237.153.120",
    "port": 40002
   },
   {

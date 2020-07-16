@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package lib
 
@@ -30,17 +30,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/BurntSushi/toml"
 	log "github.com/inconshreveable/log15"
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -52,7 +50,7 @@ var cNodes string
 var cGeoLoc string
 
 func returnError(w http.ResponseWriter, err error) {
-	fmt.Fprintf(w, `{"err":`+strconv.Quote(err.Error())+`}`)
+	fmt.Fprint(w, `{"err":`+strconv.Quote(err.Error())+`}`)
 }
 
 func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, err error) {
@@ -68,60 +66,95 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 		buffer.WriteString(fmt.Sprintf(`,"err":%s`, strconv.Quote(err.Error())))
 	}
 	buffer.WriteString(`}`)
-	fmt.Fprintf(w, buffer.String())
+	fmt.Fprint(w, buffer.String())
 }
 
-func getNetworkByIA(iaCli string) (*snet.SCIONNetwork, error) {
-	ia, err := addr.IAFromString(iaCli)
-	if CheckError(err) {
-		return nil, err
-	}
-	dispatcherPath := "/run/shm/dispatcher/default.sock"
-	sciondPath := scionutil.GetSCIONDPath(&ia)
-	if snet.DefNetwork == nil {
-		err := snet.Init(ia, sciondPath, reliable.NewDispatcherService(dispatcherPath))
-		if CheckError(err) {
-			return nil, err
-		}
-	}
-	network, err := snet.NewNetwork(ia, sciondPath,
-		reliable.NewDispatcherService(dispatcherPath))
+type sdInfo struct {
+	Address string `toml:"address"`
+}
 
+type sdTomlConfig struct {
+	SD sdInfo `toml:"sd"`
+}
+
+func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
+	ias, err := addr.IAFromString(ia)
+	if CheckError(err) {
+		fmt.Println(err)
+	}
+	tomlPath := path.Join(options.ScionGen, addr.ISDFmtPrefix+strconv.FormatUint(uint64(ias.I), 10),
+		addr.ASFmtPrefix+ias.A.FileFmt(), "endhost/sd.toml")
+
+	var config sdTomlConfig
+	if _, err := toml.DecodeFile(tomlPath, &config); err != nil {
+		fmt.Println(err)
+	}
+	return config, nil
+}
+
+// connect opens a connection to the scion daemon at sciondAddress or, if
+// empty, the default address.
+func connect(sciondAddress string) (sciond.Connector, error) {
+	if len(sciondAddress) == 0 {
+		sciondAddress = sciond.DefaultSCIONDAddress
+	}
+	sciondConn, err := sciond.NewService(sciondAddress).Connect(context.Background())
 	if CheckError(err) {
 		return nil, err
 	}
-	return network, nil
+	return sciondConn, nil
 }
 
 // sciond data sources and calls
+
+// Path holds information about the discovered path.
+type Path struct {
+	Fingerprint string
+	Hops        []Hop
+	Expiry      time.Time
+	MTU         uint16
+}
+
+// Hop represents an hop on the path.
+type Hop struct {
+	IfID common.IFIDType
+	IA   addr.IA
+}
 
 // PathTopoHandler handles requests for paths, returning results from sciond.
 func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	SIa := r.PostFormValue("ia_ser")
 	CIa := r.PostFormValue("ia_cli")
-	SAddr := r.PostFormValue("addr_ser")
-	CAddr := r.PostFormValue("addr_cli")
-	SPort, _ := strconv.Atoi(r.PostFormValue("port_ser"))
-	CPort, _ := strconv.Atoi(r.PostFormValue("port_cli"))
 
 	// src and dst must be different
 	if SIa == CIa {
 		returnError(w, errors.New("Source IA and destination IA are the same."))
 		return
 	}
-	optClient := fmt.Sprintf("%s,[%s]:%d", CIa, CAddr, CPort)
-	optServer := fmt.Sprintf("%s,[%s]:%d", SIa, SAddr, SPort)
-	clientCCAddr, _ := snet.AddrFromString(optClient)
-	serverCCAddr, _ := snet.AddrFromString(optServer)
-
-	network, err := getNetworkByIA(CIa)
+	localIA, err := addr.IAFromString(CIa)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	remoteIA, err := addr.IAFromString(SIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
 
-	paths, err := getPathsJSON(*clientCCAddr, *serverCCAddr, *network)
+	config, err := LoadSciondConfig(options, CIa)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+
+	sciondConn, err := connect(config.SD.Address)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
+	paths, err := getPathsJSON(sciondConn, remoteIA)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -130,7 +163,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 
 	// Since segments data is supplimentary to paths data, if segments data
 	// fails, provide the error, but we must still allow paths data to return.
-	segments, err := getSegmentsJSON(*clientCCAddr, options)
+	segments, err := getSegmentsJSON(localIA, options)
 	if CheckError(err) {
 		returnPathHandler(w, paths, nil, err)
 		return
@@ -140,9 +173,9 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 	returnPathHandler(w, paths, segments, err)
 }
 
-func getSegmentsJSON(local snet.Addr, options *CmdOptions) ([]byte, error) {
+func getSegmentsJSON(localIA addr.IA, options *CmdOptions) ([]byte, error) {
 	// load segments from paths database
-	var dbSrcFile = findDBFilename(local.IA, options)
+	var dbSrcFile = findDBFilename(localIA, options)
 	dbTmpFile, err := copyDBToTemp(dbSrcFile)
 	if err != nil {
 		return nil, err
@@ -183,12 +216,12 @@ func getSegmentsJSON(local snet.Addr, options *CmdOptions) ([]byte, error) {
 }
 
 func findDBFilename(ia addr.IA, options *CmdOptions) string {
-	filenames, err := filepath.Glob(filepath.Join(options.ScionGenCache, "ps*path.db"))
+	filenames, err := filepath.Glob(filepath.Join(options.ScionGenCache, "sd*.path.db"))
 	CheckError(err)
 	if len(filenames) == 1 {
 		return filenames[0]
 	}
-	pathDBFileName := fmt.Sprintf("ps%s-1.path.db", ia.FileFmt(false))
+	pathDBFileName := fmt.Sprintf("sd%s.path.db", ia.FileFmt(false))
 	return filepath.Join(options.ScionGenCache, pathDBFileName)
 }
 
@@ -232,27 +265,27 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPathsJSON(local snet.Addr, remote snet.Addr, network snet.SCIONNetwork) ([]byte, error) {
-	pathMgr := network.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sciond.PathReqFlags{})
-	if len(pathSet) == 0 {
-		return nil, fmt.Errorf("No paths from %s to %s", local.IA, remote.IA)
+func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
+	ctx := context.Background()
+	paths, err := sciondConn.Paths(ctx, dstIA, addr.IA{},
+		sciond.PathReqFlags{PathCount: 10})
+	if err != nil {
+		return nil, err
 	}
-	var appPaths []*spathmeta.AppPath
-	for _, path := range pathSet {
-		appPaths = append(appPaths, path)
+
+	var rPaths []Path
+	for _, path := range paths {
+		rpath := Path{
+			Fingerprint: path.Fingerprint().String()[:16],
+			Expiry:      path.Expiry(),
+			MTU:         path.MTU(),
+		}
+		for _, hop := range path.Interfaces() {
+			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
+		}
+		rPaths = append(rPaths, rpath)
 	}
-	sort.Slice(appPaths, func(i, j int) bool {
-		// sort by shortest # hops, then by IA/interface
-		if len(appPaths[i].Entry.Path.Interfaces) < len(appPaths[j].Entry.Path.Interfaces) {
-			return true
-		}
-		if len(appPaths[i].Entry.Path.Interfaces) > len(appPaths[j].Entry.Path.Interfaces) {
-			return false
-		}
-		return appPaths[i].Entry.String() < appPaths[j].Entry.String()
-	})
-	jsonPathInfo, err := json.Marshal(appPaths)
+	jsonPathInfo, err := json.Marshal(rPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -260,16 +293,21 @@ func getPathsJSON(local snet.Addr, remote snet.Addr, network snet.SCIONNetwork) 
 }
 
 // AsTopoHandler handles requests for AS data, returning results from sciond.
-func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
+func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	network, err := getNetworkByIA(CIa)
+	config, err := LoadSciondConfig(options, CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	c := network.Sciond()
+
+	c, err := connect(config.SD.Address)
+	if CheckError(err) {
+		returnError(w, err)
+		return
+	}
 
 	asir, err := c.ASInfo(context.Background(), addr.IA{})
 	if CheckError(err) {
@@ -305,26 +343,13 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request) {
 func TrcHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
-	raw, err := loadJSONCerts(CIa, "*.trc", options)
+	raw, err := loadJSONCerts(CIa, "*.???", options)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
 	log.Debug("TrcHandler:", "trcInfo", string(raw))
-	fmt.Fprintf(w, string(raw))
-}
-
-// CrtHandler handles requests for all local certificate data.
-func CrtHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
-	r.ParseForm()
-	CIa := r.PostFormValue("src")
-	raw, err := loadJSONCerts(CIa, "*.crt", options)
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-	log.Debug("CrtHandler:", "crtInfo", string(raw))
-	fmt.Fprintf(w, string(raw))
+	fmt.Fprint(w, string(raw))
 }
 
 func loadJSONCerts(src, pattern string, options *CmdOptions) ([]byte, error) {
@@ -368,6 +393,9 @@ func loadJSONFiles(files []string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !isJSON(raw) {
+			continue // skip non-json
+		}
 		// concat raw files...
 		if idx > 0 {
 			jsonBuf = append(jsonBuf, []byte(`, `)...)
@@ -377,6 +405,11 @@ func loadJSONFiles(files []string) ([]byte, error) {
 		idx++
 	}
 	return jsonBuf, nil
+}
+
+func isJSON(b []byte) bool {
+	var js interface{}
+	return json.Unmarshal(b, &js) == nil
 }
 
 // remote data files and services
@@ -404,7 +437,7 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("ConfigHandler:", "cached", cConfig)
 	}
-	fmt.Fprintf(w, cConfig)
+	fmt.Fprint(w, cConfig)
 }
 
 // LabelsHandler handles AS label requests, using exernal request when needed.
@@ -428,7 +461,7 @@ func LabelsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("LabelsHandler:", "cached", cLabels)
 	}
-	fmt.Fprintf(w, cLabels)
+	fmt.Fprint(w, cLabels)
 }
 
 // LocationsHandler handles AS location requests, using exernal request when needed.
@@ -452,7 +485,7 @@ func LocationsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("LocationsHandler:", "cached", cNodes)
 	}
-	fmt.Fprintf(w, cNodes)
+	fmt.Fprint(w, cNodes)
 }
 
 // GeolocateHandler handles geolocation requests, using exernal request when needed.
@@ -479,7 +512,7 @@ func GeolocateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Debug("GeolocateHandler:", "cached", cGeoLoc)
 	}
-	fmt.Fprintf(w, cGeoLoc)
+	fmt.Fprint(w, cGeoLoc)
 }
 
 func loadTestFile(testpath string) []byte {

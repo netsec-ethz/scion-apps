@@ -12,7 +12,7 @@ iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
 
 # format log file and beacons grep string (was .DEBUG)
-logfile=$SCION_LOGS/bs${iaFile}-1.log
+logfile=$SCION_LOGS/cs${iaFile}-1.log
 echo "Log: $logfile"
 
 # seek last log entry for verified PCBs (was "Successfully verified PCB")
@@ -47,4 +47,3 @@ do
 done
 
 echo "PCB verification found ${diff_ms}ms ago."
-exit $?

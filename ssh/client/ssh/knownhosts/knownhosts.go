@@ -29,7 +29,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 // See the sshd manpage
@@ -151,7 +151,7 @@ func keyEq(a, b ssh.PublicKey) bool {
 
 // IsAuthorityForHost can be used as a callback in ssh.CertChecker
 func (db *hostKeyDB) IsHostAuthority(remote ssh.PublicKey, address string) bool {
-	h, p, err := scionutils.SplitHostPort(address)
+	h, p, err := appnet.SplitHostPort(address)
 	if err != nil {
 		return false
 	}
@@ -272,7 +272,7 @@ func newHostnameMatcher(pattern string) (matcher, error) {
 		}
 
 		var err error
-		a.host, a.port, err = scionutils.SplitHostPort(p)
+		a.host, a.port, err = appnet.SplitHostPort(p)
 		if err != nil {
 			a.host = p
 			a.port = "22"
@@ -331,7 +331,7 @@ func (db *hostKeyDB) check(address string, remote net.Addr, remoteKey ssh.Public
 		return &RevokedError{Revoked: *revoked}
 	}
 
-	host, port, err := scionutils.SplitHostPort(remote.String())
+	host, port, err := appnet.SplitHostPort(remote.String())
 	if err != nil {
 		return fmt.Errorf("knownhosts: SplitHostPort(%s): %v", remote, err)
 	}
@@ -341,7 +341,7 @@ func (db *hostKeyDB) check(address string, remote net.Addr, remoteKey ssh.Public
 	}
 
 	if address != "" {
-		host, port, err := scionutils.SplitHostPort(address)
+		host, port, err := appnet.SplitHostPort(address)
 		if err != nil {
 			return fmt.Errorf("knownhosts: SplitHostPort(%s): %v", address, err)
 		}
@@ -435,7 +435,7 @@ func New(files ...string) (ssh.HostKeyCallback, error) {
 
 // Normalize normalizes an address into the form used in known_hosts
 func Normalize(address string) string {
-	host, port, err := scionutils.SplitHostPort(address)
+	host, port, err := appnet.SplitHostPort(address)
 	if err != nil {
 		host = address
 		port = "22"

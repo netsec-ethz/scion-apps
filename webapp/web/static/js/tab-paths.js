@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 var resSegs, resCore, resUp, resDown, resPath, jTopo, json_as_topo;
 var iaLabels;
@@ -248,10 +248,10 @@ function highlightNoGeoCode(src) {
         return $.inArray(el, geoLocIAs) == -1
     });
     notGeoLocIAs.forEach(function(ia) {
-        dt = "data-toggle='tooltip'";
-        t = "title='" + ia + " unknown map location'";
-        str = "<b " + dt + " " + t + ">" + ia + "*</b>";
-        $("#as-iflist li:contains(" + ia + ")").html(function(_, html) {
+        dt = `data-toggle='tooltip'`;
+        t = `title='${ia} unknown map location'`;
+        str = `<b ${dt} ${t}>${ia}*</b>`;
+        $(`#as-iflist li:contains(${ia})`).html(function(_, html) {
             return html.split(ia).join(str);
         });
     });
@@ -363,8 +363,8 @@ function formatPathJson(paths, idx) {
     if (typeof idx === 'undefined') {
         return '';
     }
-    var ent = paths[idx].Entry;
-    var hops = ent.Path.Interfaces;
+    var entry = paths[idx];
+    var hops = entry.Hops;
     var path = "[";
     for (var i = 0; i < hops.length; i += 2) {
         var prev = hops[i];
@@ -372,9 +372,9 @@ function formatPathJson(paths, idx) {
         if (i > 0) {
             path += ' ';
         }
-        path += iaRaw2Read(prev.RawIsdas) + ' ' + prev.IfID + '>' + next.IfID;
+        path += prev.IA + ' ' + prev.IfID + '>' + next.IfID;
         if (i == (hops.length - 2)) {
-            path += ' ' + iaRaw2Read(next.RawIsdas);
+            path += ' ' + next.IA;
         }
     }
     path += "]";
@@ -382,45 +382,32 @@ function formatPathJson(paths, idx) {
 }
 
 function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
-    var html = "<ul class='tree'>";
+    var html = `<ul class='tree'>`;
     for (p in paths) {
-
-        var ent = paths[p].Entry;
-        var exp = new Date(0);
-        if_ = ent.Path.Interfaces;
+        var entry = paths[p];
+        var exp = new Date(entry.Expiry);
+        if_ = entry.Hops;
         var hops = if_.length / 2;
-
-        var style = "style='background-color: "
-                + getPathColor(formatPathJson(paths, parseInt(p))) + "; '";
-        html += "<li seg-type='PATH' seg-num=" + p + "><a " + style
-                + " href='#'>PATH " + (parseInt(p) + 1)
-                + "</a> <span class='badge'>" + hops + "</span>";
-        exp.setUTCSeconds(ent.Path.ExpTime);
-        html += "<ul>";
-        html += "<li><a href='#'>Mtu: " + ent.Path.Mtu + "</a>";
-        if (ent.HostInfo.Addrs.Ipv4) {
-            html += "<li><a href='#'>Ipv4: "
-                    + ipv4Raw2Read(ent.HostInfo.Addrs.Ipv4) + "</a>";
-        }
-        if (ent.HostInfo.Addrs.Ipv6) {
-            html += "<li><a href='#'>Ipv6: "
-                    + ipv6Raw2Read(ent.HostInfo.Addrs.Ipv6) + "</a>";
-        }
-        html += "<li><a href='#'>Port: " + ent.HostInfo.Port + "</a>";
-        html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
-                + exp.toLocaleTimeString() + "</a>";
+        var hcolor = getPathColor(formatPathJson(paths, parseInt(p)));
+        var style = `style='background-color: ${hcolor}; '`;
+        html += `<li seg-type='PATH' seg-num=${p}><a href='#'>
+            <span ${style} class='path-text badge'>PATH ${parseInt(p)+1}</span>
+            </a>
+            <span class='badge'>${hops}</span>
+            <ul>
+            <li><a href='#'>MTU: ${entry.MTU}</a>
+            <li><a href='#'>Expires: ${exp.toLocaleString()}</a>`;
         for (i in if_) {
-            html += "<li><a href='#'>" + iaRaw2Read(if_[i].RawIsdas) + " ("
-                    + if_[i].IfID + ")</a>";
+            html += `<li><a href='#'>${if_[i].IA} (${if_[i].IfID})</a>`;
         }
-        html += "</ul>";
+        html += `</ul>`;
     }
     if (show_segs) {
         html += get_segment_info(csegs, "CORE");
         html += get_segment_info(usegs, "UP");
         html += get_segment_info(dsegs, "DOWN");
     }
-    html += "</ul>";
+    html += `</ul>`;
     return html;
 }
 
@@ -438,24 +425,22 @@ function getSegColor(type) {
 }
 
 function get_segment_info(segs, type) {
-    var html = "";
+    var html = ``;
     for (s in segs.if_lists) {
-        var exp = new Date(0);
-        exp.setUTCSeconds(segs.if_lists[s].expTime);
+        var exp = new Date(segs.if_lists[s].expTime);
         if_ = segs.if_lists[s].interfaces;
         var hops = if_.length / 2;
-        var style = "style='color: " + getSegColor(type) + ";'";
-        html += "<li seg-type='" + type + "' seg-num=" + s + "><a " + style
-                + " href='#'>" + type + " SEGMENT " + (parseInt(s) + 1)
-                + "</a> <span class='badge'>" + hops + "</span>";
-        html += "<ul>";
-        html += "<li><a href='#'>Expiration: " + exp.toLocaleDateString() + " "
-                + exp.toLocaleTimeString() + "</a>";
+        var style = `style='color: ${getSegColor(type)};'`;
+        html += `<li seg-type='${type}' seg-num=${s}>
+            <a ${style} href='#'>${type} SEGMENT ${parseInt(s)+1}</a>
+            <span class='badge'>${hops}</span>
+            <ul>
+            <li><a href='#'>Expires: ${exp.toLocaleString()}</a>`;
         for (i in if_) {
-            html += "<li><a href='#'>" + if_[i].ISD + "-" + if_[i].AS + " ("
-                    + if_[i].IFID + ")</a>";
+            html += `<li><a href='#'>${if_[i].ISD}-${if_[i].AS} (${if_[i].IFID})
+                </a>`;
         }
-        html += "</ul>";
+        html += `</ul>`;
     }
     return html;
 }
@@ -483,9 +468,9 @@ function get_json_seg_topo(paths, segs, src, dst) {
     var pathStr = "";
     for (p in paths) {
         pathStr += "| ";
-        var if_ = paths[p].Entry.Path.Interfaces;
+        var if_ = paths[p].Hops;
         for (i in if_) {
-            var ia = iaRaw2Read(if_[i].RawIsdas);
+            var ia = if_[i].IA;
             if (!pathIAs.includes(ia)) {
                 pathIAs.push(ia);
             }
@@ -513,7 +498,7 @@ function get_json_seg_topo(paths, segs, src, dst) {
                     + if_[if_.length - 1 - i].IfNum + " ";
         }
         // TODO: (mwfarb) this filtering logic should eventually move to Go
-        var exp = new Date(segments[s].Expiry).getTime();
+        var exp = new Date(segments[s].Expiry);
         if (exp < now) {
             // segment IAs must not be expired
             segments.splice(s, 1);
@@ -583,7 +568,7 @@ function get_json_seg_topo(paths, segs, src, dst) {
         }
         var ifaces = {};
         ifaces.interfaces = interfaces;
-        ifaces.expTime = new Date(segments[s].Expiry).getTime() / 1000;
+        ifaces.expTime = new Date(segments[s].Expiry);
         outSegs[segments[s].SegType + "_segments"].if_lists.push(ifaces);
     }
     console.debug("segments post trim:", segments.length);
@@ -602,19 +587,20 @@ function get_json_paths(paths, src, dst) {
     var json_paths = {};
     var if_lists = [];
     for (p in paths) {
-        var if_ = paths[p].Entry.Path.Interfaces;
+        var if_ = paths[p].Hops;
         var ifaces = {};
         var interfaces = [];
         for (i in if_) {
             var iface = {};
-            var ia = iaRaw2Read(if_[i].RawIsdas).split('-');
+            var ia = if_[i].IA.split('-');
             iface.IFID = if_[i].IfID;
             iface.ISD = ia[0];
             iface.AS = ia[1];
             interfaces.push(iface);
         }
         ifaces.interfaces = interfaces;
-        ifaces.expTime = paths[p].Entry.Path.ExpTime;
+        ifaces.expTime = new Date(paths[p].Expiry);
+        ifaces.MTU = paths[p].MTU;
         if_lists.push(ifaces);
     }
     json_paths.if_lists = if_lists;
@@ -678,8 +664,12 @@ function get_nonseg_links(paths, lType) {
 
 function requestPaths() {
     // make sure to get path topo after IAs are loaded
-    var form_data = $('#command-form').serializeArray();
     $("#as-error").empty();
+    if ($('#ia_cli').val().len == 0 || $('#ia_ser').val() == 0) {
+        showError("Both Source and Destination IAs are required.");
+        return;
+    }
+    var form_data = $('#command-form').serializeArray();
     $.ajax({
         url : 'getpathtopo',
         type : 'post',
@@ -717,7 +707,13 @@ function requestPaths() {
 
             // setup path config based on defaults loaded
             setupDebug();
-            ajaxConfig();
+
+            // request config/paths if none exists
+            if (!iaLabels || !iaGeoLoc || !iaLocations) {
+                ajaxConfig(); // ajaxConfig => loadPathData
+            } else {
+                loadPathData(g.src, g.dst);
+            }
 
             // path info label switches
             $('#switch_as_names').change(function() {

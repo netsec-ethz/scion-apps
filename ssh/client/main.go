@@ -1,7 +1,23 @@
+// Copyright 2020 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	golog "log"
 	"net"
 	"os"
@@ -9,21 +25,17 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/inconshreveable/log15"
 	"golang.org/x/crypto/ssh/terminal"
-
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	scionlog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
+	"github.com/scionproto/scion/go/lib/pathpol"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
+	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
-
-	log "github.com/inconshreveable/log15"
 )
 
 var (
@@ -33,9 +45,10 @@ var (
 	port          = kingpin.Flag("port", "The server's port").Default("0").Short('p').Uint16()
 	localForward  = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
 	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
-	verbose       = kingpin.Flag("verbose", "Be verbose").Short('v').Default("false").Bool()
 	configFiles   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
-	xDead         = kingpin.Flag("x-dead", "Placeholder for SCP support").Short('x').Default("false").Bool()
+	policyFile    = kingpin.Flag("policy-file", "Path to the JSON policy file").Default("").String()
+	policyName    = kingpin.Flag("policy-name", "Name of policy to be applied.").Default("").String()
+	pathSelection = kingpin.Flag("selection", "Path selection mode").Default("arbitrary").Enum("static", "arbitrary", "random", "round-robin")
 
 	// TODO: additional file paths
 	knownHostsFile = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
@@ -43,8 +56,6 @@ var (
 
 	loginName = kingpin.Flag("login-name", "Username to login with").String()
 )
-
-var clientCCAddr *snet.Addr
 
 // PromptPassword prompts the user for a password to authenticate with.
 func PromptPassword() (secret string, err error) {
@@ -115,28 +126,12 @@ func updateConfigFromFile(conf *clientconfig.ClientConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
-	scionlog.SetupLogConsole("debug")
 
 	conf := createConfig()
 
 	localUser, err := user.Current()
 	if err != nil {
 		golog.Panicf("Can't find current user: %s", err)
-	}
-
-	localhost, err := scionutil.GetLocalhost()
-	if err != nil {
-		golog.Panicf("Can't get localhost: %v", err)
-	}
-
-	err = scionutil.InitSCION(localhost)
-	if err != nil {
-		golog.Panicf("Error initializing SCION: %v", err)
-	}
-
-	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
-	if err != nil {
-		golog.Panicf("Error initializing SQUIC: %v", err)
 	}
 
 	verifyNewKeyHandler := PromptAcceptHostKey
@@ -150,8 +145,30 @@ func main() {
 	if remoteUsername == "" {
 		remoteUsername = localUser.Username
 	}
+	var policyMap pathpol.PolicyMap
+	var policy *pathpol.Policy
+	if *policyFile != "" {
+		file, err := ioutil.ReadFile(*policyFile)
+		if err != nil {
+			golog.Panicf("Cannot read policy file: %v", err)
+		}
+		err = json.Unmarshal(file, &policyMap)
+		if err != nil {
+			golog.Panicf("Cannot unmarshal policy form file: %v", err)
+		}
+		extPolicy, policyExists := policyMap[*policyName]
 
-	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler)
+		if !policyExists {
+			golog.Panicf("No policy with name %s exists", *policyName)
+		}
+		policy = extPolicy.Policy
+	}
+	appConf, err := scionutils.NewPathAppConf(policy, *pathSelection)
+	if err != nil {
+		golog.Panicf("Invalid application config: %v", err)
+	}
+
+	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler, appConf)
 	if err != nil {
 		golog.Panicf("Error creating ssh client: %v", err)
 	}

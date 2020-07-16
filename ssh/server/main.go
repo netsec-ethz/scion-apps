@@ -1,24 +1,36 @@
+// Copyright 2020 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	golog "log"
 	"os"
 	"strconv"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/netsec-ethz/scion-apps/lib/scionutil"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
 	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/server/serverconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/server/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 
 	log "github.com/inconshreveable/log15"
-
-	scionlog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 const (
@@ -27,20 +39,11 @@ const (
 
 var (
 	// Connection
-	listenAddress = kingpin.Flag("address", "SCION address to listen on").Default("").String()
-	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
+	options = kingpin.Flag("option", "Set an option").Short('o').Strings()
 
 	// Configuration file
 	configurationFile = kingpin.Flag("config-file", "SSH server configuration file").Short('f').Default("/etc/ssh/sshd_config").ExistingFile()
 )
-
-func setConfIfNot(conf *serverconfig.ServerConfig, name string, value, not interface{}) bool {
-	res, err := config.SetIfNot(conf, name, value, not)
-	if err != nil {
-		golog.Panicf("Error setting option %s to %v: %v", name, value, err)
-	}
-	return res
-}
 
 func createConfig() *serverconfig.ServerConfig {
 	conf := serverconfig.Create()
@@ -71,26 +74,9 @@ func updateConfigFromFile(conf *serverconfig.ServerConfig, pth string) {
 
 func main() {
 	kingpin.Parse()
-	scionlog.SetupLogConsole("debug")
-
 	log.Debug("Starting SCION SSH server...")
 
 	conf := createConfig()
-
-	localhost, err := scionutil.GetLocalhost()
-	if err != nil {
-		golog.Panicf("Can't get localhost: %v", err)
-	}
-
-	err = scionutil.InitSCION(localhost)
-	if err != nil {
-		golog.Panicf("Error initializing SCION: %v", err)
-	}
-
-	err = squic.Init(utils.ParsePath(conf.QUICKeyPath), utils.ParsePath(conf.QUICCertificatePath))
-	if err != nil {
-		golog.Panicf("Error initializing SQUIC: %v", err)
-	}
 
 	sshServer, err := ssh.Create(conf, version)
 	if err != nil {
@@ -103,7 +89,13 @@ func main() {
 	}
 
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
-	listener, err := scionutils.ListenSCION(uint16(port))
+	listener, err := appquic.ListenPort(
+		uint16(port),
+		&tls.Config{
+			Certificates: appquic.GetDummyTLSCerts(),
+			NextProtos:   []string{quicconn.ProtoSSH},
+		},
+		nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
@@ -111,12 +103,12 @@ func main() {
 	log.Debug("Starting to wait for connections")
 	for {
 		//TODO: Check when to close the connections
-		sess, err := listener.Accept()
+		sess, err := listener.Accept(context.Background())
 		if err != nil {
 			log.Debug("Failed to accept session: %v", err)
 			continue
 		}
-		stream, err := sess.AcceptStream()
+		stream, err := sess.AcceptStream(context.Background())
 		if err != nil {
 			log.Debug("Failed to accept incoming connection (%v)", err)
 			continue
