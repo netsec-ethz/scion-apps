@@ -3,7 +3,7 @@ Webapp AS Visualization
 
 More installation and usage information is available on the [SCION Tutorials web page for webapp](https://netsec-ethz.github.io/scion-tutorials/as_visualization/webapp/).
 
-## Webapp
+# Webapp
 Webapp is a Go application that will serve up a static web portal to make it easy to visualize and experiment with SCIONLab test apps on a virtual machine.
 
 
@@ -43,6 +43,8 @@ systemctl cat scion-webapp
 
 
 ## Development Setup/Run
+For maintenance of `webapp` details of its structure and operation can be found at [development.md](./development.md).
+
 For running `webapp` in a development environment for the SCION Infrastructure, follow the SCIONLab development install and run process at [https://github.com/netsec-ethz/scion](https://github.com/netsec-ethz/netsec-scion).
 
 Then, follow these steps to install SCIONLab Apps to run `webapp` in development.
