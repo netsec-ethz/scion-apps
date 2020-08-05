@@ -8,7 +8,8 @@ BIN = bin
 #     $GOBIN, else $GOPATH/bin, else $HOME/go/bin
 DESTDIR = $(shell set -a; eval $$( go env ); echo $${GOBIN:-$${GOPATH:-$${HOME}/go}/bin})
 
-TAGS = rains
+# HINT: build with TAGS=norains to build without rains support
+TAGS =
 
 all: lint build
 
