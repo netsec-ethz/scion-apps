@@ -94,10 +94,10 @@ func ResolveUDPAddrAt(address string, resolver Resolver) (*snet.UDPAddr, error) 
 // It will use the following sources, in the given order of precedence, to
 // resolve a name:
 //
-//	- /etc/hosts
-//	- /etc/scion/hosts
+//  - /etc/hosts
+//  - /etc/scion/hosts
 //  - RAINS, if a server is configured in /etc/scion/rains.cfg.
-//		Disabled if built with !norains.
+//    Disabled if built with !norains.
 func DefaultResolver() Resolver {
 	return ResolverList{
 		resolveEtcHosts,
