@@ -24,10 +24,14 @@ import (
 // Resolver is the interface to resolve a host name to a SCION host address.
 // Currently, this is implemented for reading a hosts file and RAINS
 type Resolver interface {
-	// Resolve finds an address for the name
+	// Resolve finds an address for the name.
+	// Returns a HostNotFoundError if the name was not found, but otherwise no
+	// error occured.
 	Resolve(name string) (*snet.SCIONAddress, error)
 }
 
+// HostNotFoundError is returned by a Resolver when the name was not found, but
+// otherwise no error occured.
 type HostNotFoundError struct {
 	Host string
 }
@@ -36,9 +40,11 @@ func (e *HostNotFoundError) Error() string {
 	return fmt.Sprintf("host not found: '%s'", e.Host)
 }
 
-type resolverList []Resolver
+// ResolverList represents a list of Resolvers that are processed in sequence
+// to return the first match.
+type ResolverList []Resolver
 
-func (resolvers resolverList) Resolve(name string) (*snet.SCIONAddress, error) {
+func (resolvers ResolverList) Resolve(name string) (*snet.SCIONAddress, error) {
 
 	var errHostNotFound *HostNotFoundError
 	for _, resolver := range resolvers {

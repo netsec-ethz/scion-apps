@@ -30,8 +30,18 @@ var (
 	resolveRains         Resolver = nil
 )
 
-var addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),\[([^\]]+)\]$`)
-var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(\[[^\]]+\]|[^\]:]+))):(\d+)$`)
+var (
+	addrRegexp     = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),\[([^\]]+)\]$`)
+	hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(\[[^\]]+\]|[^\]:]+))):(\d+)$`)
+)
+
+const (
+	addrRegexpIaIndex = 1
+	addrRegexpL3Index = 2
+
+	hostPortRegexpHostIndex = 1
+	hostPortRegexpPortIndex = 2
+)
 
 // SplitHostPort splits a host:port string into host and port variables.
 // This is analogous to net.SplitHostPort, which however refuses to handle SCION addresses.
@@ -40,7 +50,7 @@ var hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+
 func SplitHostPort(hostport string) (host, port string, err error) {
 	match := hostPortRegexp.FindStringSubmatch(hostport)
 	if match != nil {
-		return match[1], match[2], nil
+		return match[hostPortRegexpHostIndex], match[hostPortRegexpPortIndex], nil
 	}
 	return "", "", fmt.Errorf("appnet.SplitHostPort: invalid address")
 }
@@ -48,18 +58,16 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
+// If the address is in the form of a hostname, the DefaultResolver is used to
+// resolve the name.
 func ResolveUDPAddr(address string) (*snet.UDPAddr, error) {
-	defaultResolver := resolverList{
-		resolveEtcHosts,
-		resolveEtcScionHosts,
-		resolveRains,
-	}
-	return ResolveUDPAddrAt(address, defaultResolver)
+	return ResolveUDPAddrAt(address, DefaultResolver())
 }
 
-// ResolveUDPAddrAt parses the address and resolves the hostname with the given name resolver.
+// ResolveUDPAddrAt parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
+// If the address is in the form of a hostname, resolver is used to resolve the name.
 func ResolveUDPAddrAt(address string, resolver Resolver) (*snet.UDPAddr, error) {
 
 	raddr, err := snet.ParseUDPAddr(address)
@@ -80,6 +88,22 @@ func ResolveUDPAddrAt(address string, resolver Resolver) (*snet.UDPAddr, error) 
 	}
 	ia := host.IA
 	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: host.Host.IP(), Port: port}}, nil
+}
+
+// DefaultResolver returns the default name resolver, used in ResolveUDPAddr.
+// It will use the following sources, in the given order of precedence, to
+// resolve a name:
+//
+//	- /etc/hosts
+//	- /etc/scion/hosts
+//  - RAINS, if a server is configured in /etc/scion/rains.cfg.
+//		Disabled if built with !norains.
+func DefaultResolver() Resolver {
+	return ResolverList{
+		resolveEtcHosts,
+		resolveEtcScionHosts,
+		resolveRains,
+	}
 }
 
 // MangleSCIONAddr mangles a SCION address string (if it is one) so it can be
@@ -133,24 +157,24 @@ func UnmangleSCIONAddr(address string) string {
 // addrFromString parses a string to a snet.SCIONAddress
 // XXX(matzf) this would optimally be part of snet
 func addrFromString(address string) (snet.SCIONAddress, error) {
-	const iaIndex = 1
-	const l3Index = 2
 
 	parts := addrRegexp.FindStringSubmatch(address)
 	if parts == nil {
 		return snet.SCIONAddress{}, fmt.Errorf("no valid SCION address: %q", address)
 	}
-	ia, err := addr.IAFromString(parts[iaIndex])
+	ia, err := addr.IAFromString(parts[addrRegexpIaIndex])
 	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("invalid IA string: %v", parts[iaIndex])
+		return snet.SCIONAddress{},
+			fmt.Errorf("invalid IA string: %v", parts[addrRegexpIaIndex])
 	}
 	var l3 addr.HostAddr
-	if hostSVC := addr.HostSVCFromString(parts[l3Index]); hostSVC != addr.SvcNone {
+	if hostSVC := addr.HostSVCFromString(parts[addrRegexpL3Index]); hostSVC != addr.SvcNone {
 		l3 = hostSVC
 	} else {
-		l3 = addr.HostFromIPStr(parts[l3Index])
+		l3 = addr.HostFromIPStr(parts[addrRegexpL3Index])
 		if l3 == nil {
-			return snet.SCIONAddress{}, fmt.Errorf("invalid IP address string: %v", parts[l3Index])
+			return snet.SCIONAddress{},
+				fmt.Errorf("invalid IP address string: %v", parts[addrRegexpL3Index])
 		}
 	}
 	return snet.SCIONAddress{IA: ia, Host: l3}, nil
