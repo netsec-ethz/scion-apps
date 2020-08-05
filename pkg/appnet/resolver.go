@@ -26,12 +26,12 @@ import (
 type Resolver interface {
 	// Resolve finds an address for the name.
 	// Returns a HostNotFoundError if the name was not found, but otherwise no
-	// error occured.
+	// error occurred.
 	Resolve(name string) (*snet.SCIONAddress, error)
 }
 
 // HostNotFoundError is returned by a Resolver when the name was not found, but
-// otherwise no error occured.
+// otherwise no error occurred.
 type HostNotFoundError struct {
 	Host string
 }

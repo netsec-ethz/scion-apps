@@ -37,32 +37,9 @@ func TestCount(t *testing.T) {
 }
 
 func TestHostsfileResolver(t *testing.T) {
-	if resolveRains != nil {
-		fmt.Println("haz rains")
-	} else {
-		fmt.Println("no haz rains")
+	resolver := &hostsfileResolver{hostsTestFile}
 
-	}
-	testResolver(t, &hostsfileResolver{hostsTestFile})
-}
-
-func TestResolverList(t *testing.T) {
-	resolvers := resolverList{
-		&hostsfileResolver{"non_existing_hosts_file"},
-		&hostsfileResolver{hostsTestFile},
-		&hostsfileResolver{"another_non_existing_host_file"},
-	}
-	testResolver(t, resolvers)
-}
-
-// testResolver checks that exactly the names in the hosts_test_file are
-// resolved
-func testResolver(t *testing.T, resolver Resolver) {
-
-	cases := []struct {
-		name     string
-		expected *snet.SCIONAddress
-	}{
+	cases := []testCase{
 		{"host1.1", mustParse("17-ffaa:0:1,[192.168.1.1]")},
 		{"host1.2", mustParse("17-ffaa:0:1,[192.168.1.1]")},
 		{"host2", mustParse("18-ffaa:1:2,[10.0.8.10]")},
@@ -74,12 +51,62 @@ func testResolver(t *testing.T, resolver Resolver) {
 		{"dummy3", nil},
 		{"foobar", nil},
 	}
+	testResolver(t, resolver, cases)
+}
 
+func TestHostsfileResolverNonexisting(t *testing.T) {
+	resolver := &hostsfileResolver{"non_existing_hosts_file"}
+	testResolver(t, resolver, []testCase{{"something", nil}})
+}
+
+func TestResolverList(t *testing.T) {
+	primary := map[string]*snet.SCIONAddress{
+		"foo": mustParse("1-ff00:0:f00,[192.0.2.1]"),
+		"bar": mustParse("1-ff00:0:ba3,[192.0.2.1]"),
+	}
+	secondary := map[string]*snet.SCIONAddress{
+		"bar": mustParse("1-ff00:0:ba3,[2001:db8:ffff:ffff:ffff:ffff:baad:f00d]"), // shadowed by bar in primary
+		"baz": mustParse("1-ff00:0:ba5,[192.0.2.1]"),
+	}
+	resolver := ResolverList{
+		dummyResolver{primary},
+		dummyResolver{secondary},
+	}
+
+	cases := []testCase{
+		{"foo", mustParse("1-ff00:0:f00,[192.0.2.1]")},
+		{"bar", mustParse("1-ff00:0:ba3,[192.0.2.1]")},
+		{"baz", mustParse("1-ff00:0:ba5,[192.0.2.1]")},
+		{"boo", nil},
+	}
+	testResolver(t, resolver, cases)
+}
+
+type dummyResolver struct {
+	hosts map[string]*snet.SCIONAddress
+}
+
+func (r dummyResolver) Resolve(name string) (*snet.SCIONAddress, error) {
+	if h, ok := r.hosts[name]; ok {
+		return h, nil
+	} else {
+		return nil, &HostNotFoundError{Host: name}
+	}
+}
+
+type testCase struct {
+	name     string
+	expected *snet.SCIONAddress
+}
+
+func testResolver(t *testing.T, resolver Resolver, cases []testCase) {
 	for _, c := range cases {
 		actual, err := resolver.Resolve(c.name)
 		if c.expected == nil {
 			if err == nil {
 				t.Errorf("no result expected for '%s', got %v", c.name, actual)
+			} else if _, ok := err.(*HostNotFoundError); !ok {
+				t.Errorf("expected HostNotFoundError, got %v", err)
 			}
 		} else {
 			if err != nil {

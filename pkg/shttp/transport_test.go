@@ -91,16 +91,14 @@ func (r *mockResolver) Resolve(name string) (*snet.SCIONAddress, error) {
 
 func TestRoundTripper(t *testing.T) {
 
-	// host2 from hosts_test_file
-	// XXX we should reorganize this hostname resolution to allow configuring the host_tests_file
-	resolver := &mockResolver{map[string]string{"host2": "17-ffaa:0:1,[192.168.1.1]"}}
+	resolver := &mockResolver{map[string]string{"host": "1-ff00:0:1,[192.0.2.1]"}}
 
 	testCases := []struct {
 		HostPort string
 		Expected string
 	}{
-		{"host2", "17-ffaa:0:1,192.168.1.1:443"},
-		{"host2:80", "17-ffaa:0:1,192.168.1.1:80"},
+		{"host", "1-ff00:0:1,192.0.2.1:443"},
+		{"host:80", "1-ff00:0:1,192.0.2.1:80"},
 		{"1-ff00:0:110,127.0.0.1", "1-ff00:0:110,127.0.0.1:443"},
 		{"1-ff00:0:110,127.0.0.1:80", "1-ff00:0:110,127.0.0.1:80"},
 		{"1-ff00:0:110,::1", "1-ff00:0:110,[::1]:443"},
