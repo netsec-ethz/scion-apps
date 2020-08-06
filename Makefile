@@ -8,6 +8,9 @@ BIN = bin
 #     $GOBIN, else $GOPATH/bin, else $HOME/go/bin
 DESTDIR = $(shell set -a; eval $$( go env ); echo $${GOBIN:-$${GOPATH:-$${HOME}/go}/bin})
 
+# HINT: build with TAGS=norains to build without rains support
+TAGS =
+
 all: lint build
 
 build: scion-bat \
@@ -24,7 +27,7 @@ clean:
 	rm -f bin/*
 
 test: lint
-	go test -v ./...
+	go test -v -tags=$(TAGS) ./...
 
 setup_lint:
 	@# Install golangci-lint (as dumb as this looks, this is the recommended way to install)
@@ -32,7 +35,7 @@ setup_lint:
 
 lint:
 	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
-	golangci-lint run
+	golangci-lint run --build-tags=$(TAGS)
 
 install: all
   # Note: install everything but the examples
@@ -40,68 +43,68 @@ install: all
 	cp -t $(DESTDIR) $(BIN)/scion-*
 
 integration: all
-	go test -v -tags=integration ./... ./_examples/helloworld/
+	go test -v -tags=integration,$(TAGS) ./... ./_examples/helloworld/
 
 .PHONY: scion-bat
 scion-bat:
-	go build -o $(BIN)/$@ ./bat/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./bat/
 
 .PHONY: scion-bwtestclient
 scion-bwtestclient:
-	go build -o $(BIN)/$@ ./bwtester/bwtestclient/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./bwtester/bwtestclient/
 
 .PHONY: scion-bwtestserver
 scion-bwtestserver:
-	go build -o $(BIN)/$@ ./bwtester/bwtestserver/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./bwtester/bwtestserver/
 
 .PHONY: scion-imagefetcher
 scion-imagefetcher:
-	go build -o $(BIN)/$@ ./camerapp/imagefetcher/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./camerapp/imagefetcher/
 
 .PHONY: scion-imageserver
 scion-imageserver:
-	go build -o $(BIN)/$@ ./camerapp/imageserver/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./camerapp/imageserver/
 
 .PHONY: scion-netcat
 scion-netcat:
-	go build -o $(BIN)/$@ ./netcat/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./netcat/
 
 .PHONY: scion-sensorfetcher
 scion-sensorfetcher:
-	go build -o $(BIN)/$@ ./sensorapp/sensorfetcher/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./sensorapp/sensorfetcher/
 
 .PHONY: scion-sensorserver
 scion-sensorserver:
-	go build -o $(BIN)/$@ ./sensorapp/sensorserver/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./sensorapp/sensorserver/
 
 .PHONY: scion-ssh
 scion-ssh:
-	go build -o $(BIN)/$@ ./ssh/client/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ssh/client/
 
 .PHONY: scion-sshd
 scion-sshd:
-	go build -o $(BIN)/$@ ./ssh/server/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ssh/server/
 
 .PHONY: scion-webapp
 scion-webapp:
-	go build -o $(BIN)/$@ ./webapp/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./webapp/
 
 .PHONY: example-helloworld
 example-helloworld:
-	go build -o $(BIN)/$@ ./_examples/helloworld/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/helloworld/
 
 .PHONY: example-shttp-client
 example-shttp-client:
-	go build -o $(BIN)/$@ ./_examples/shttp/client
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/client
 
 .PHONY: example-shttp-server
 example-shttp-server:
-	go build -o $(BIN)/$@ ./_examples/shttp/server
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/server
 
 .PHONY: example-shttp-fileserver
 example-shttp-fileserver:
-	go build -o $(BIN)/$@ ./_examples/shttp/fileserver
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/fileserver
 
 .PHONY: example-shttp-proxy
 example-shttp-proxy:
-	go build -o $(BIN)/$@ ./_examples/shttp/proxy
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/proxy
