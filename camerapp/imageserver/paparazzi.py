@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 
-from picamera import PiCamera, Color
 from time import sleep
 from datetime import datetime
+
+try:
+    from picamera import PiCamera, Color
+except ModuleNotFoundError as ex:
+    raise ModuleNotFoundError('Module picamera not found. Please install picamera.\n'
+    'See https://picamera.readthedocs.io/en/latest/install.html\n') from ex
 
 camera = PiCamera()
 
