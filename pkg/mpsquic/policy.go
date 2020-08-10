@@ -21,6 +21,7 @@ import (
 )
 
 const lowestRTTReevaluateInterval = 1 * time.Second
+const rttDiffThreshold = 5 * time.Millisecond
 
 type Policy interface {
 	// Select lets the Policy choose a path based on the information collected in
@@ -29,7 +30,7 @@ type Policy interface {
 	// The second return value specifies a time at which this choice should be re-evaluated.
 	// Note: if the selected path is revoked or expires, the policy may be re-evaluated earlier.
 	// TODO(matzf): collect overall sessions statistics and pass to policy?
-	Select(paths []*pathInfo) (int, time.Time)
+	Select(active int, paths []*pathInfo) (int, time.Time)
 }
 
 // lowestRTT is a very simple Policy that selects the path with lowest measured
@@ -38,9 +39,12 @@ type Policy interface {
 type lowestRTT struct {
 }
 
-func (p *lowestRTT) Select(paths []*pathInfo) (int, time.Time) {
-	best := 0
-	for i := 1; i < len(paths); i++ {
+func (p *lowestRTT) Select(active int, paths []*pathInfo) (int, time.Time) {
+	best := active
+	for i := 0; i < len(paths); i++ {
+		if i == best {
+			continue
+		}
 		if p.better(paths[i], paths[best]) {
 			best = i
 		}
@@ -50,9 +54,8 @@ func (p *lowestRTT) Select(paths []*pathInfo) (int, time.Time) {
 
 // better checks whether a is better than b under the lowestRTT policy
 func (*lowestRTT) better(a, b *pathInfo) bool {
-	return (!a.revoked && b.revoked || a.rtt < b.rtt) || // prefer non-revoked, prefer lower RTT
-		(a.revoked == b.revoked && a.rtt == b.rtt && // tie
-			numHops(a.path) < numHops(b.path)) // tie-breaker: numHops
+	return !a.revoked && b.revoked || // prefer non-revoked,
+		a.rtt+rttDiffThreshold < b.rtt //  prefer lower RTT
 }
 
 func numHops(path snet.Path) int {

@@ -125,12 +125,15 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	if err != nil {
 		return nil, err
 	}
+
+	ts := time.Now()
 	qsess, active, flexConn, err := raceDial(ctx, conn, raddr, host, paths, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
-	logger.Info("Dialed", "active", active)
+	logger.Info("Dialed", "active", active, "dt", time.Since(ts))
 
+	// TODO(matzf) defer creating this
 	pinger, err := NewPinger(ctx, revHandler)
 	if err != nil {
 		return nil, err

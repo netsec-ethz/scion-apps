@@ -60,9 +60,9 @@ func (mpq *MPQuic) managePaths(firstSelect time.Time) {
 		case <-mpq.stop:
 			break
 		case rev := <-mpq.revocationQ:
-			logger.Trace("Processing revocation", "action", "Retrieved queued revocation")
 			activePathRevoked := mpq.handleRevocation(rev)
 			if activePathRevoked {
+				logger.Trace("Processed revocation for active path")
 				mpq.selectPath(selectTimer)
 			}
 		case rtts := <-mpq.probeUpdate:
@@ -86,10 +86,9 @@ func (mpq *MPQuic) managePaths(firstSelect time.Time) {
 // selectPath evaluates the path choice policy and resets the timer
 func (mpq *MPQuic) selectPath(selectTimer *time.Timer) {
 
-	mpq.displayStats()
-
-	i, nextTime := mpq.policy.Select(mpq.paths)
+	i, nextTime := mpq.policy.Select(mpq.active, mpq.paths)
 	if i != mpq.active {
+		mpq.displayStats()
 		mpq.updateActivePath(i)
 		logger.Debug("Changed active path", "active", i)
 	}
