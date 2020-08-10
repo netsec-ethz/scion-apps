@@ -33,9 +33,9 @@ type Policy interface {
 	Select(active int, paths []*pathInfo) (int, time.Time)
 }
 
-// lowestRTT is a very simple Policy that selects the path with lowest measured
-// RTT. In the absence of measured RTTs, it will return the path with fewest
-// hops.
+// lowestRTT is a very simple policy that selects the path with lowest measured
+// RTT (with some threshold, preferring the active path). In the absence of
+// measured RTTs, this will return the currently active path.
 type lowestRTT struct {
 }
 
