@@ -162,7 +162,7 @@ func (mpq *MPQuic) refreshPaths() {
 
 // earliestPathExpiry computes the earliest expiration time of any path registered in mpq.
 func (mpq *MPQuic) earliestPathExpiry() time.Time {
-	ret := time.Now().Add(maxDuration)
+	ret := maxTime
 	for _, pathInfo := range mpq.paths {
 		if pathInfo.path.Expiry().Before(ret) {
 			ret = pathInfo.path.Expiry()

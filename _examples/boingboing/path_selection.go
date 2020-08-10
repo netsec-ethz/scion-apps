@@ -46,18 +46,18 @@ func parsePathChoice(selection string, max int) (pathIndices []uint64, err error
 	for _, pathIndexStr := range pathIndicesStr {
 		if strings.Contains(pathIndexStr, "-") {
 			// Handle ranges
-			pathIndixRangeBoundaries := strings.Split(pathIndexStr, "-")
-			if len(pathIndixRangeBoundaries) != 2 ||
-				pathIndixRangeBoundaries[0] == "" ||
-				pathIndixRangeBoundaries[1] == "" {
+			pathIndexRangeBoundaries := strings.Split(pathIndexStr, "-")
+			if len(pathIndexRangeBoundaries) != 2 ||
+				pathIndexRangeBoundaries[0] == "" ||
+				pathIndexRangeBoundaries[1] == "" {
 				return nil, fmt.Errorf("invalid path range choice: '%v'", pathIndexStr)
 			}
 
-			pathIndexRangeStart, err := parsePathIndex(pathIndixRangeBoundaries[0], max)
+			pathIndexRangeStart, err := parsePathIndex(pathIndexRangeBoundaries[0], max)
 			if err != nil {
 				return nil, err
 			}
-			pathIndexRangeEnd, err := parsePathIndex(pathIndixRangeBoundaries[1], max)
+			pathIndexRangeEnd, err := parsePathIndex(pathIndexRangeBoundaries[1], max)
 			if err != nil {
 				return nil, err
 			}

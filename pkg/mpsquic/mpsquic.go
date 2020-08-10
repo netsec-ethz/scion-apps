@@ -62,6 +62,9 @@ const (
 	maxDuration time.Duration = 1<<63 - 1
 )
 
+// maxTime is the maximum usable time value (https://stackoverflow.com/a/32620397)
+var maxTime = time.Unix(1<<63-62135596801, 999999999)
+
 var _ quic.Session = (*MPQuic)(nil)
 
 type pathInfo struct {
