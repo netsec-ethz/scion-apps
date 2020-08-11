@@ -16,8 +16,6 @@ package mpsquic
 
 import (
 	"time"
-
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const lowestRTTReevaluateInterval = 1 * time.Second
@@ -56,8 +54,4 @@ func (p *lowestRTT) Select(active int, paths []*pathInfo) (int, time.Time) {
 func (*lowestRTT) better(a, b *pathInfo) bool {
 	return !a.revoked && b.revoked || // prefer non-revoked,
 		a.rtt < b.rtt-rttDiffThreshold //  prefer lower RTT
-}
-
-func numHops(path snet.Path) int {
-	return len(path.Interfaces())
 }
