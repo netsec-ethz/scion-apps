@@ -26,6 +26,8 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func TestMangleSCIONAddrURL(t *testing.T) {
@@ -70,18 +72,33 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 	}
 }
 
+type mockResolver struct {
+	table map[string]string
+}
+
+func (r *mockResolver) Resolve(name string) (*snet.SCIONAddress, error) {
+	address, ok := r.table[name]
+	if !ok {
+		return nil, &appnet.HostNotFoundError{Host: name}
+	} else {
+		a, err := snet.ParseUDPAddr(address)
+		if err != nil {
+			panic(fmt.Sprintf("test input must parse %s", err))
+		}
+		return &snet.SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)}, nil
+	}
+}
+
 func TestRoundTripper(t *testing.T) {
 
-	// host2 from hosts_test_file
-	// XXX we should reorganize this hostname resolution to allow configuring the host_tests_file
-	_ = appnet.AddHost("host2", "17-ffaa:0:1,[192.168.1.1]")
+	resolver := &mockResolver{map[string]string{"host": "1-ff00:0:1,[192.0.2.1]"}}
 
 	testCases := []struct {
 		HostPort string
 		Expected string
 	}{
-		{"host2", "17-ffaa:0:1,192.168.1.1:443"},
-		{"host2:80", "17-ffaa:0:1,192.168.1.1:80"},
+		{"host", "1-ff00:0:1,192.0.2.1:443"},
+		{"host:80", "1-ff00:0:1,192.0.2.1:80"},
 		{"1-ff00:0:110,127.0.0.1", "1-ff00:0:110,127.0.0.1:443"},
 		{"1-ff00:0:110,127.0.0.1:80", "1-ff00:0:110,127.0.0.1:80"},
 		{"1-ff00:0:110,::1", "1-ff00:0:110,[::1]:443"},
@@ -97,7 +114,7 @@ func TestRoundTripper(t *testing.T) {
 	var expected string
 	testDial := func(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
 		unmangled := appnet.UnmangleSCIONAddr(address)
-		resolvedAddr, err := appnet.ResolveUDPAddr(unmangled)
+		resolvedAddr, err := appnet.ResolveUDPAddrAt(unmangled, resolver)
 		if err != nil {
 			t.Fatalf("unexpected error when resolving address '%s' in roundtripper: %s", unmangled, err)
 		}

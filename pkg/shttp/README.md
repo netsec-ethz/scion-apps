@@ -17,13 +17,7 @@ Then, make requests as usual:
 ```Go
 resp, err := client.Get("http://server:8080/download")
 ```
-Hostnames are resolved by parsing the `/etc/hosts` file. Known hosts can be added by adding lines like this:
-
-```
-# The following lines are SCION hosts
-17-ffaa:1:10,[10.0.8.100]	host1
-18-ffaa:0:11,[10.0.8.120]	host2
-```
+Hostnames are resolved by parsing the `/etc/hosts` file or by a RAINS lookup (see [Hostnames](../../README.md#Hostnames)).
 
 ### The Server is a full HTTP/2 server designed to work similar to the standard net/http implementation. It supports:
 

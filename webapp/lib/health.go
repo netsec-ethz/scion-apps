@@ -59,13 +59,13 @@ type ResHealthCheck struct {
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, ia string) {
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, settings UserSetting) {
 	hcResFp := path.Join(options.StaticRoot, resFileHealthCheck)
 	// read specified tests from json definition
 	fp := path.Join(options.StaticRoot, defFileHealthCheck)
 	raw, err := ioutil.ReadFile(fp)
 	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		fmt.Fprint(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
@@ -81,7 +81,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	var tests DefTests
 	err = json.Unmarshal([]byte(raw), &tests)
 	if CheckError(err) {
-		fmt.Fprintf(w, `{ "err": "`+err.Error()+`" }`)
+		fmt.Fprint(w, `{ "err": "`+err.Error()+`" }`)
 		return
 	}
 
@@ -101,7 +101,8 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		pass := true
 		log.Info(test.Script + ": " + test.Desc)
 		// execute script
-		cmd := exec.Command("bash", test.Script, ia)
+		cmd := exec.Command("bash", test.Script,
+			settings.MyIA, settings.SDAddress)
 		cmd.Dir = filepath.Dir(fp)
 		cmd.Env = append(os.Environ(), envvars...)
 		var stdout, stderr bytes.Buffer
@@ -160,6 +161,6 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		CheckError(err)
 	}
 
-	// ensure all escaped correctly before writing to printf formatter
-	fmt.Fprintf(w, string(jsonRes))
+	// ensure all escaped correctly before writing to output
+	fmt.Fprint(w, string(jsonRes))
 }

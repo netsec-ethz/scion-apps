@@ -672,7 +672,7 @@ function drawTitle(title, color, expTime) {
             .style("text-weight", "bold").style("fill", color).text(title);
 
     if (expTime) {
-        remain = (expTime * 1000) - Date.now();
+        remain = expTime.getTime() - Date.now();
         var days = Math.floor(remain / yearMs);
         var hours = Math.floor((remain % yearMs) / hourMs);
         var minutes = Math.floor((remain % hourMs) / minuteMs);
