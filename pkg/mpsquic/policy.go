@@ -55,7 +55,7 @@ func (p *lowestRTT) Select(active int, paths []*pathInfo) (int, time.Time) {
 // better checks whether a is better than b under the lowestRTT policy
 func (*lowestRTT) better(a, b *pathInfo) bool {
 	return !a.revoked && b.revoked || // prefer non-revoked,
-		a.rtt+rttDiffThreshold < b.rtt //  prefer lower RTT
+		a.rtt < b.rtt-rttDiffThreshold //  prefer lower RTT
 }
 
 func numHops(path snet.Path) int {
