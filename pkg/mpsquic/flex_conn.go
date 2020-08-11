@@ -35,7 +35,7 @@ type flexConn struct {
 func newFlexConn(conn *snet.Conn, raddr *snet.UDPAddr, path snet.Path) *flexConn {
 	c := &flexConn{
 		PacketConn: conn,
-		raddr:      raddr,
+		raddr:      raddr.Copy(),
 	}
 	appnet.SetPath(c.raddr, path)
 	return c
