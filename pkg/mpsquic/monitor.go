@@ -13,6 +13,8 @@ import (
 
 const echoRequestInterval = 500 * time.Millisecond
 const pathExpiryRefreshLeadTime = 10 * time.Minute
+
+// pathRefreshMinInterval is the minimum delay between two path refreshs
 const pathRefreshMinInterval = 10 * time.Second
 
 var _ quic.Stream = (*monitoredStream)(nil)
@@ -177,9 +179,12 @@ func (mpq *MPQuic) nextPathRefresh() time.Time {
 	randOffset := time.Duration(rand.Intn(10)) * time.Second
 	nextRefresh := expiry.Add(-pathExpiryRefreshLeadTime + randOffset)
 
-	earliest := time.Now().Add(pathRefreshMinInterval)
-	if nextRefresh.Before(earliest) {
-		nextRefresh = earliest
+	// if are still paths that expire very soon (or have already expired), we
+	// still wait a little bit until the next refresh. Otherwise, failing refresh
+	// of an expired path would make us refresh continuously.
+	earliestAllowed := time.Now().Add(pathRefreshMinInterval)
+	if nextRefresh.Before(earliestAllowed) {
+		return earliestAllowed
 	}
 	return nextRefresh
 }
