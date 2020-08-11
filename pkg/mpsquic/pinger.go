@@ -30,7 +30,7 @@ import (
 
 const replyBufferCapacity = 128
 
-// Pinger sends SCMP echo requests ("pings") and receivs the corresponding SCMP echo replies.
+// Pinger sends SCMP echo requests ("pings") and receives the corresponding SCMP echo replies.
 type Pinger struct {
 	// Replies are returned in the order they are received from the network,
 	// independently of the order in which the requests are sent.
