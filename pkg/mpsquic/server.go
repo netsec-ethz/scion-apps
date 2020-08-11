@@ -58,7 +58,7 @@ func newReturnPathConn(conn *snet.Conn) *returnPathConn {
 
 func (c *returnPathConn) ReadFrom(p []byte) (int, net.Addr, error) {
 	n, addr, err := c.PacketConn.ReadFrom(p)
-	for _, ok := err.(*snet.OpError); ok; {
+	for _, ok := err.(*snet.OpError); err != nil && ok; {
 		n, addr, err = c.PacketConn.ReadFrom(p)
 	}
 	if err == nil {
