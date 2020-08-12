@@ -18,6 +18,7 @@
 package shttp
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
 	"net/http"
@@ -27,7 +28,7 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/netsec-ethz/scion-apps/pkg/mpsquic"
 )
 
 // RoundTripper extends the http.RoundTripper interface with a Close
@@ -81,9 +82,24 @@ func (t *roundTripper) Close() (err error) {
 	return err
 }
 
+type earlySessionHack struct {
+	quic.Session
+}
+
+func (*earlySessionHack) HandshakeComplete() context.Context {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	cancel()
+	return ctx
+}
+
 // dial is the Dial function used in RoundTripper
 func dial(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
-	return appquic.DialEarly(appnet.UnmangleSCIONAddr(address), tlsCfg, cfg)
+	sess, err := mpsquic.Dial(address, tlsCfg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &earlySessionHack{sess}, nil
 }
 
 var scionAddrURLRegexp = regexp.MustCompile(

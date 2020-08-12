@@ -47,7 +47,9 @@ func main() {
 	// Make a get request
 	start := time.Now()
 	query := fmt.Sprintf("https://%s/hello", *serverAddrStr)
-	resp, err := c.Get(shttp.MangleSCIONAddrURL(query))
+	q := shttp.MangleSCIONAddrURL(query)
+	fmt.Println(q)
+	resp, err := c.Get(q)
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
 	}
@@ -57,21 +59,23 @@ func main() {
 	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp)
 
-	start = time.Now()
-	query = fmt.Sprintf("https://%s/form", *serverAddrStr)
-	resp, err = c.Post(
-		shttp.MangleSCIONAddrURL(query),
-		"application/x-www-form-urlencoded",
-		strings.NewReader("surname=threepwood&firstname=guybrush"),
-	)
-	if err != nil {
-		log.Fatal("POST request failed: ", err)
-	}
-	defer resp.Body.Close()
-	end = time.Now()
+	for {
+		start = time.Now()
+		query = fmt.Sprintf("https://%s/form", *serverAddrStr)
+		resp, err = c.Post(
+			shttp.MangleSCIONAddrURL(query),
+			"application/x-www-form-urlencoded",
+			strings.NewReader("surname=threepwood&firstname=guybrush"),
+		)
+		if err != nil {
+			log.Fatal("POST request failed: ", err)
+		}
+		defer resp.Body.Close()
+		end = time.Now()
 
-	log.Printf("POST request succeeded in %v seconds", end.Sub(start).Seconds())
-	printResponse(resp)
+		//log.Printf("POST request succeeded in %v seconds", end.Sub(start).Seconds())
+		//printResponse(resp)
+	}
 }
 
 func printResponse(resp *http.Response) {

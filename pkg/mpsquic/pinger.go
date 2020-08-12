@@ -116,12 +116,11 @@ func (p *Pinger) readReplies(ctx context.Context,
 		case <-ctx.Done():
 			return rtts, nil
 		case reply := <-p.Replies:
-			if reply.ID >= baseID && reply.ID < baseID+uint64(n) &&
-				reply.Seq == seq &&
-				rtts[reply.ID-baseID] == maxDuration {
-
-				rtts[reply.ID-baseID] = reply.RTT
-				nReceived++
+			if reply.ID >= baseID && reply.ID < baseID+uint64(n) {
+				if reply.Seq == seq && rtts[reply.ID-baseID] == maxDuration {
+					rtts[reply.ID-baseID] = reply.RTT
+					nReceived++
+				}
 			} else {
 				logger.Debug("Unexpected SCMP echo reply", "id", reply.ID, "seq",
 					reply.Seq, "baseID", baseID)

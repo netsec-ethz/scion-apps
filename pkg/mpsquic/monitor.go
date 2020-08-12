@@ -1,7 +1,9 @@
 package mpsquic
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
@@ -125,13 +127,28 @@ func (mpq *MPQuic) sendPings() {
 			if err != nil {
 				logger.Error("Error probing paths", "err", err, "errType", common.TypeOf(err))
 			} else {
-				logger.Trace("Paths pinged", "rtts", rtts, "seq", seq)
+				logger.Trace("Paths pinged", "seq", seq, "rtts", fmtRTTs(rtts))
 				mpq.probeUpdate <- rtts
 			}
 
 			seq++
 		}
 	}
+}
+
+func fmtRTTs(rtts []time.Duration) string {
+	var str strings.Builder
+	for i, rtt := range rtts {
+		rttStr := "-"
+		if rtt < maxDuration {
+			rttStr = fmt.Sprintf("%3dms", rtt.Milliseconds())
+		}
+		fmt.Fprintf(&str, "{%d: %s}", i, rttStr)
+		if i+1 < len(rtts) {
+			str.WriteString(", ")
+		}
+	}
+	return str.String()
 }
 
 // refreshPaths requests sciond for updated paths

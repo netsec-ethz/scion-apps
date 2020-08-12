@@ -223,7 +223,7 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 		// an existing path. Easy fallback, use normal appquic.
 		c.qsess, err = appquic.DialAddr(remote, "host:0", tlsConf, quicConf)
 	} else {
-		c.qsess, err = mpsquic.Dial(remote, "host:0", paths, tlsConf, quicConf)
+		c.qsess, err = mpsquic.DialAddr(remote, "host:0", paths, tlsConf, quicConf)
 	}
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)

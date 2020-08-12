@@ -30,12 +30,21 @@ import (
 //
 // The underlying connection implicitly sends reply packets via the path over which the last packet for a client (identified by IA,IP:Port) was received.
 func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
-	sconn, err := appnet.ListenPort(port)
+
+	conn, err := PacketListen(&net.UDPAddr{Port: int(port)}, quicConfig)
 	if err != nil {
 		return nil, err
 	}
-	conn := newReturnPathConn(sconn, quicConfig)
 	return quic.Listen(conn, tlsConf, quicConfig)
+}
+
+// PacketListen creates a wrapped packet conn for QUIC listening. ugh
+func PacketListen(addr *net.UDPAddr, quicConfig *quic.Config) (net.PacketConn, error) {
+	sconn, err := appnet.Listen(addr)
+	if err != nil {
+		return nil, err
+	}
+	return newReturnPathConn(sconn, quicConfig), nil
 }
 
 // returnPathConn is a wrapper for a snet.Conn which sends reply packets via

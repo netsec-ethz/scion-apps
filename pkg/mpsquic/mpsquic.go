@@ -112,35 +112,65 @@ func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
 	return mpq.flexConn.Close()
 }
 
-// Dial creates a monitored multiple paths connection using QUIC.
+func Dial(remote string, tlsConf *tls.Config, quicConf *quic.Config) (*MPQuic, error) {
+
+	t0 := time.Now()
+	raddr, err := appnet.ResolveUDPAddr(appnet.UnmangleSCIONAddr(remote))
+	if err != nil {
+		return nil, err
+	}
+
+	paths, err := appnet.QueryPaths(raddr.IA)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := DialAddr(raddr, remote, paths, tlsConf, quicConf)
+	t1 := time.Now()
+	fmt.Println("Dial time", t1.Sub(t0))
+	return s, err
+}
+
+// DialAddr creates a monitored multiple paths connection using QUIC.
 // It returns a MPQuic struct if a opening a QUIC session over the initial SCION path succeeded.
-func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
+func DialAddr(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	tlsConf *tls.Config, quicConf *quic.Config) (*MPQuic, error) {
 
+	t0 := time.Now()
 	ctx := context.Background()
-	// Buffered channel, we can buffer up to 1 revocation per 20ms for 1s.
-	revocationQ := make(chan *path_mgmt.SignedRevInfo, 50)
+	// Buffered channel, we can buffer up to 1 revocation per 20ms for 1s per path.
+	revocationQ := make(chan *path_mgmt.SignedRevInfo, 50*len(paths))
 	revHandler := &revocationHandler{revocationQ}
 	conn, err := listenWithRevHandler(ctx, revHandler)
 	if err != nil {
 		return nil, err
 	}
+	tn := time.Now()
+	logger.Info("Initialized conn", "dt", tn.Sub(t0))
+	tp := tn
 
-	ts := time.Now()
 	qsess, active, flexConn, err := raceDial(ctx, conn, raddr, host, paths, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
-	logger.Info("Dialed", "active", active, "dt", time.Since(ts))
+	tn = time.Now()
+	logger.Info("Dialed", "active", active, "dt", tn.Sub(tp), "dt0", tn.Sub(t0))
+	tp = tn
 
 	// TODO(matzf) defer creating this
 	pinger, err := NewPinger(ctx, revHandler)
 	if err != nil {
 		return nil, err
 	}
+	tn = time.Now()
+	logger.Info("Initialized pinger", "dt", tn.Sub(tp), "dt0", tn.Sub(t0))
+	tp = tn
 
 	policy := &lowestRTT{}
 	pathInfos := makePathInfos(paths)
+	tn = time.Now()
+	logger.Info("Initialized path infos", "dt", tn.Sub(tp), "dt0", tn.Sub(t0))
+	tp = tn
 
 	mpQuic := &MPQuic{
 		Session:     qsess,
@@ -154,8 +184,14 @@ func Dial(raddr *snet.UDPAddr, host string, paths []snet.Path,
 		probeUpdate: make(chan []time.Duration),
 		stop:        make(chan struct{}),
 	}
+	tn = time.Now()
+	logger.Info("Initialized session", "dt", tn.Sub(tp), "dt0", tn.Sub(t0))
+	tp = tn
 
 	go mpQuic.monitor(time.Now().Add(lowestRTTReevaluateInterval))
+	tn = time.Now()
+	logger.Info("Started monitor", "dt", tn.Sub(tp), "dt0", tn.Sub(t0))
+	tp = tn
 
 	return mpQuic, nil
 }
@@ -170,6 +206,8 @@ func raceDial(ctx context.Context, conn *snet.Conn,
 	for i, path := range paths {
 		conns[i] = newFlexConn(conn, raddr, path)
 	}
+
+	logger.Info("Racing handshake over paths", "n", len(paths))
 
 	type indexedSessionOrError struct {
 		id      int
@@ -187,11 +225,18 @@ func raceDial(ctx context.Context, conn *snet.Conn,
 		}(i)
 	}
 
+	t0 := time.Now()
+	var tFirst, tLast time.Time
 	var firstID int
 	var firstSession quic.Session
 	var errs []error
-	for range paths {
+	for i := range paths {
 		result := <-results
+		if i == 0 {
+			tFirst = time.Now()
+		} else if i == len(paths)-1 {
+			tLast = time.Now()
+		}
 		if result.err == nil {
 			if firstSession == nil {
 				firstSession = result.session
@@ -206,6 +251,8 @@ func raceDial(ctx context.Context, conn *snet.Conn,
 			errs = append(errs, result.err)
 		}
 	}
+
+	fmt.Println("time:", tFirst.Sub(t0), tLast.Sub(t0))
 
 	if firstSession != nil {
 		return firstSession, firstID, conns[firstID], nil
