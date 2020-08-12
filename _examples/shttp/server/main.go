@@ -36,7 +36,7 @@ func main() {
 	m.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
 		// Status 200 OK will be set implicitly
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(`Oh, hello!`))
+		_, _ = w.Write([]byte(`Oh, hello!`))
 	})
 
 	// handler that responds with an image file
@@ -73,7 +73,11 @@ func main() {
 	// POST handler that responds by parsing form values and returns them as string
 	m.HandleFunc("/form", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			r.ParseForm()
+			err := r.ParseForm()
+			if err != nil {
+				http.Error(w, "invalid form data", http.StatusBadRequest)
+				return
+			}
 			w.Header().Set("Content-Type", "text/plain")
 			fmt.Fprint(w, "received following data:\n")
 			for s := range r.PostForm {

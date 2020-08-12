@@ -48,7 +48,7 @@ func ChoosePathInteractive(dst addr.IA) (snet.Path, error) {
 
 	fmt.Printf("Available paths to %v\n", dst)
 	for i, path := range paths {
-		fmt.Printf("[%2d] %s\n", i, fmt.Sprintf("%s", path))
+		fmt.Printf("[%2d] %s\n", i, path)
 	}
 
 	var selectedPath snet.Path

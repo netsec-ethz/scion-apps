@@ -71,7 +71,9 @@ import (
 type Network struct {
 	snet.Network
 	IA            addr.IA
+	Sciond        sciond.Connector
 	PathQuerier   snet.PathQuerier
+	Dispatcher    reliable.Dispatcher
 	hostInLocalAS net.IP
 }
 
@@ -133,7 +135,7 @@ func Listen(listen *net.UDPAddr) (*snet.Conn, error) {
 		listen = &net.UDPAddr{}
 	}
 	if listen.IP == nil || listen.IP.IsUnspecified() {
-		localIP, err := defaultLocalIP()
+		localIP, err := DefaultLocalIP()
 		if err != nil {
 			return nil, err
 		}
@@ -161,15 +163,15 @@ func resolveLocal(raddr *snet.UDPAddr) (net.IP, error) {
 		nextHop := raddr.NextHop.IP
 		return addrutil.ResolveLocal(nextHop)
 	}
-	return defaultLocalIP()
+	return DefaultLocalIP()
 }
 
-// defaultLocalIP returns _a_ IP of this host in the local AS.
+// DefaultLocalIP returns _a_ IP of this host in the local AS.
 //
 // The purpose of this function is to workaround not being able to bind to
 // wildcard addresses in snet.
 // See note on wildcard addresses in the package documentation.
-func defaultLocalIP() (net.IP, error) {
+func DefaultLocalIP() (net.IP, error) {
 	return addrutil.ResolveLocal(DefNetwork().hostInLocalAS)
 }
 
@@ -207,7 +209,14 @@ func initDefNetwork() error {
 		pathQuerier,
 		sciond.RevHandler{Connector: sciondConn},
 	)
-	defNetwork = Network{Network: n, IA: localIA, PathQuerier: pathQuerier, hostInLocalAS: hostInLocalAS}
+	defNetwork = Network{
+		Network:       n,
+		IA:            localIA,
+		Sciond:        sciondConn,
+		PathQuerier:   pathQuerier,
+		Dispatcher:    dispatcher,
+		hostInLocalAS: hostInLocalAS,
+	}
 	return nil
 }
 
