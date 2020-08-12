@@ -112,8 +112,39 @@ func QueryPaths(ia addr.IA) ([]snet.Path, error) {
 		if err != nil || len(paths) == 0 {
 			return nil, err
 		}
+		paths = filterDuplicates(paths)
 		return paths, nil
 	}
+}
+
+// filterDuplicates filters paths with identical sequence of interfaces.
+// These duplicates occur because sciond may return the same "effective" path with
+// different short-cut "upstream" parts.
+// We don't need these duplicates, they are identical for our purposes; we simply pick
+// the one with latest expiry.
+func filterDuplicates(paths []snet.Path) []snet.Path {
+
+	set := make(map[snet.PathFingerprint]int)
+	for i := range paths {
+		fingerprint := paths[i].Fingerprint() // Fingerprint is a hash of p.Interfaces()
+		e, dupe := set[fingerprint]
+		if !dupe || paths[e].Expiry().Before(paths[i].Expiry()) {
+			set[fingerprint] = i
+		}
+	}
+
+	// filter, keep paths in input order:
+	kept := make(map[int]struct{})
+	for _, p := range set {
+		kept[p] = struct{}{}
+	}
+	filtered := make([]snet.Path, 0, len(set))
+	for i := range paths {
+		if _, ok := kept[i]; ok {
+			filtered = append(filtered, paths[i])
+		}
+	}
+	return filtered
 }
 
 func pathSelection(paths []snet.Path, pathAlgo int) snet.Path {
