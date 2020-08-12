@@ -86,7 +86,7 @@ func (c *returnPathConn) ReadFrom(p []byte) (int, net.Addr, error) {
 		shortHeaderConnIDLen := 4 // from quic config
 		serverConnID, err := parseDestConnectionID(p, shortHeaderConnIDLen)
 		if err == nil {
-			clientConnID, _ = c.clientConnIDs[serverConnID]
+			clientConnID = c.clientConnIDs[serverConnID]
 		}
 	}
 	saddr := &udpAddrEx{
@@ -170,7 +170,7 @@ func parseDestConnectionID(data []byte, shortHeaderConnIDLen int) (connectionID,
 }
 
 // parseSrcConnectionID parses the source connection ID of a packet.
-// The source connection ID is only availabe on long header packets.
+// The source connection ID is only available on long header packets.
 func parseSrcConnectionID(data []byte) (connectionID, error) {
 	if len(data) == 0 {
 		return connectionID{}, io.EOF
