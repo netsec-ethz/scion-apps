@@ -124,21 +124,21 @@ func QueryPaths(ia addr.IA) ([]snet.Path, error) {
 // the one with latest expiry.
 func filterDuplicates(paths []snet.Path) []snet.Path {
 
-	set := make(map[snet.PathFingerprint]int)
+	chosenPath := make(map[snet.PathFingerprint]int)
 	for i := range paths {
 		fingerprint := paths[i].Fingerprint() // Fingerprint is a hash of p.Interfaces()
-		e, dupe := set[fingerprint]
+		e, dupe := chosenPath[fingerprint]
 		if !dupe || paths[e].Expiry().Before(paths[i].Expiry()) {
-			set[fingerprint] = i
+			chosenPath[fingerprint] = i
 		}
 	}
 
 	// filter, keep paths in input order:
 	kept := make(map[int]struct{})
-	for _, p := range set {
+	for _, p := range chosenPath {
 		kept[p] = struct{}{}
 	}
-	filtered := make([]snet.Path, 0, len(set))
+	filtered := make([]snet.Path, 0, len(kept))
 	for i := range paths {
 		if _, ok := kept[i]; ok {
 			filtered = append(filtered, paths[i])
