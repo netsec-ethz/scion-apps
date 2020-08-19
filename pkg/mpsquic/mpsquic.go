@@ -140,13 +140,9 @@ func DialAddr(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	// Buffered channel, we can buffer up to 1 revocation per 20ms for 1s per path.
 	revocationQ := make(chan *path_mgmt.SignedRevInfo, 50*len(paths))
 	revHandler := &revocationHandler{revocationQ}
-	conn, err := listenWithRevHandler(ctx, revHandler)
-	if err != nil {
-		return nil, err
-	}
 
 	ts := time.Now()
-	qsess, active, flexConn, err := raceDial(ctx, conn, raddr, host, paths, tlsConf, quicConf)
+	qsess, active, flexConn, err := raceDial(ctx, revHandler, raddr, host, paths, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}
@@ -181,12 +177,16 @@ func DialAddr(raddr *snet.UDPAddr, host string, paths []snet.Path,
 
 // raceDial dials a quic session on every path and returns the session for
 // which the succeeded returned first.
-func raceDial(ctx context.Context, conn *snet.Conn,
+func raceDial(ctx context.Context, revHandler snet.RevocationHandler,
 	raddr *snet.UDPAddr, host string, paths []snet.Path,
 	tlsConf *tls.Config, quicConf *quic.Config) (quic.Session, int, *flexConn, error) {
 
 	conns := make([]*flexConn, len(paths))
 	for i, path := range paths {
+		conn, err := listenWithRevHandler(ctx, revHandler)
+		if err != nil {
+			return nil, 0, nil, err
+		}
 		conns[i] = newFlexConn(conn, raddr, path)
 	}
 
@@ -227,6 +227,14 @@ func raceDial(ctx context.Context, conn *snet.Conn,
 			errs = append(errs, result.err)
 		}
 	}
+
+	/*
+		for i := range conns {
+			if i != firstID || firstSession != nil {
+				conns[i].Close()
+			}
+		}
+	*/
 
 	if firstSession != nil {
 		return firstSession, firstID, conns[firstID], nil
