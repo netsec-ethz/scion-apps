@@ -114,7 +114,6 @@ func (mpq *MPQuic) CloseWithError(code quic.ErrorCode, desc string) error {
 
 func Dial(remote string, tlsConf *tls.Config, quicConf *quic.Config) (*MPQuic, error) {
 
-	t0 := time.Now()
 	raddr, err := appnet.ResolveUDPAddr(appnet.UnmangleSCIONAddr(remote))
 	if err != nil {
 		return nil, err
@@ -125,9 +124,9 @@ func Dial(remote string, tlsConf *tls.Config, quicConf *quic.Config) (*MPQuic, e
 		return nil, err
 	}
 
+	paths = demoFilterPaths(paths)
+
 	s, err := DialAddr(raddr, remote, paths, tlsConf, quicConf)
-	t1 := time.Now()
-	fmt.Println("Dial time", t1.Sub(t0))
 	return s, err
 }
 
@@ -146,7 +145,8 @@ func DialAddr(raddr *snet.UDPAddr, host string, paths []snet.Path,
 	if err != nil {
 		return nil, err
 	}
-	logger.Info("Dialed", "active", active, "dt", time.Since(ts))
+	fmt.Println("Dialed", "num paths:", len(paths), "active:", active, "dt:", time.Since(ts))
+	demoDisplayPaths(paths, active)
 
 	// TODO(matzf) defer creating this
 	pinger, err := NewPinger(ctx, revHandler)
@@ -286,11 +286,21 @@ func makePathInfos(paths []snet.Path) []*pathInfo {
 // displayStats logs the collected metrics for all monitored paths.
 func (mpq *MPQuic) displayStats() {
 	for i, pathInfo := range mpq.paths {
-		logger.Debug(fmt.Sprintf("Path %v stats", i),
-			"expiry", time.Until(pathInfo.path.Expiry()).Round(time.Second),
-			"revoked", pathInfo.revoked,
-			"RTT", pathInfo.rtt,
-			"approxBW [Mbps]", pathInfo.bw/1e6)
+		rttStr := "-"
+		if pathInfo.rtt > 0 && pathInfo.rtt < maxDuration {
+			rttStr = fmt.Sprintf("%3dms", pathInfo.rtt.Milliseconds())
+		}
+		f := ""
+		if i == mpq.active {
+			f = " [active]"
+		}
+		fmt.Printf("Path %9s%2d: RTT %s\n", f, i, rttStr)
+		/*logger.Debug(fmt.Sprintf("Path %v", i),
+		"expiry", time.Until(pathInfo.path.Expiry()).Round(time.Second),
+		"revoked", pathInfo.revoked,
+		"RTT", rttStr,
+		"approxBW [Mbps]", pathInfo.bw/1e6)
+		*/
 	}
 }
 
@@ -298,4 +308,160 @@ func (mpq *MPQuic) displayStats() {
 func (mpq *MPQuic) updateActivePath(newPathIndex int) {
 	mpq.active = newPathIndex
 	mpq.flexConn.SetPath(mpq.paths[newPathIndex].path)
+}
+
+func demoDisplayPaths(paths []snet.Path, active int) {
+
+	for i, p := range paths {
+		desc := demoPathDescription(p)
+		f := ""
+		if i == active {
+			f = " [active]"
+		}
+
+		fmt.Printf("Path %2d%9s: %s\n", i, f, desc)
+	}
+}
+
+func demoPathDescription(path snet.Path) string {
+	asLat := mustParseIA("17-ffaa:0:1110")
+	asLoss := mustParseIA("17-ffaa:0:1111")
+	asBW := mustParseIA("17-ffaa:0:1112")
+	snippets := map[pathInterface]string{
+		{asLat, 1}:  "low latency",
+		{asLat, 2}:  "mid latency",
+		{asLat, 3}:  "high latency",
+		{asLoss, 4}: "no loss",
+		{asLoss, 5}: "low loss",
+		{asLoss, 6}: "intermittent",
+		{asBW, 4}:   "low bw",
+		{asBW, 5}:   "mid bw",
+		{asBW, 6}:   "high bw",
+	}
+
+	desc := ""
+	ifaces := path.Interfaces()
+	for i, iface := range ifaces {
+		if snippet, ok := snippets[pathInterface{iface.IA(), uint64(iface.ID())}]; ok {
+			if desc != "" {
+				desc += ", "
+			}
+			desc += snippet
+		} else if name, ok := demoASNames[iface.IA().String()]; ok && (i == 0 || i%2 == 1) {
+			if desc != "" {
+				desc += " > "
+			}
+			desc += name
+		}
+	}
+	return desc
+}
+
+var demoASNames = map[string]string{
+	"16-ffaa:0:1001": "AWS Frankfurt",
+	"16-ffaa:0:1002": "AWS Ireland",
+	"16-ffaa:0:1003": "AWS US N. Virginia",
+	"16-ffaa:0:1004": "AWS US Ohio",
+	"16-ffaa:0:1005": "AWS US Oregon",
+	"16-ffaa:0:1006": "AWS Japan",
+	"16-ffaa:0:1007": "AWS Singapore",
+	"16-ffaa:0:1008": "AWS Oregon non-core",
+	"16-ffaa:0:1009": "AWS Frankfurt non-core",
+	"17-ffaa:0:1101": "SCMN",
+	"17-ffaa:0:1102": "ETHZ",
+	"17-ffaa:0:1103": "SWITCHEngine Zurich",
+	"17-ffaa:0:1107": "ETHZ-AP",
+	"17-ffaa:0:1108": "SWITCH",
+	"18-ffaa:0:1201": "CMU",
+	"18-ffaa:0:1203": "Columbia",
+	"18-ffaa:0:1204": "ISG Toronto",
+	"18-ffaa:0:1206": "CMU AP",
+	"19-ffaa:0:1301": "Magdeburg core",
+	"19-ffaa:0:1302": "GEANT",
+	"19-ffaa:0:1303": "Magdeburg AP",
+	"19-ffaa:0:1304": "FR@Linode",
+	"19-ffaa:0:1305": "SIDN",
+	"19-ffaa:0:1306": "Deutsche Telekom",
+	"19-ffaa:0:1307": "TW Wien",
+	"19-ffaa:0:1309": "Valencia",
+	"19-ffaa:0:130a": "IMDEA Madrid",
+	"19-ffaa:0:130b": "DFN",
+	"19-ffaa:0:130c": "Grid5000",
+	"19-ffaa:0:130d": "Aalto University",
+	"19-ffaa:0:130e": "Aalto University II",
+	"19-ffaa:0:130f": "Centria UAS Finland",
+	"20-ffaa:0:1401": "KISTI Daejeon",
+	"20-ffaa:0:1402": "KISTI Seoul",
+	"20-ffaa:0:1403": "KAIST",
+	"20-ffaa:0:1404": "KU",
+	"21-ffaa:0:1501": "KDDI",
+	"22-ffaa:0:1601": "NTU",
+	"23-ffaa:0:1701": "NUS",
+	"25-ffaa:0:1901": "THU",
+	"25-ffaa:0:1902": "CUHK",
+	"26-ffaa:0:2001": "KREONET2 Worldwide",
+}
+
+func demoFilterPaths(paths []snet.Path) []snet.Path {
+
+	asLat := mustParseIA("17-ffaa:0:1110")
+	asLoss := mustParseIA("17-ffaa:0:1111")
+	asBW := mustParseIA("17-ffaa:0:1112")
+
+	exclusionRules := [][]pathInterface{
+		{{asBW, 4}},               // avoid 200kbps link
+		{{asBW, 5}},               //    "  2Mbps
+		{{asLat, 1}, {asLoss, 4}}, // allow use of low latency links only in combination with intermittent 100% lossy link (at remaining interface 6)
+		{{asLat, 1}, {asLoss, 5}},
+		{{asLat, 2}, {asLoss, 4}},
+		{{asLat, 2}, {asLoss, 5}},
+	}
+
+	filtered := make([]snet.Path, 0, len(paths))
+	for _, p := range paths {
+		// match no exclusion rules
+		excluded := false
+		for _, rule := range exclusionRules {
+			if containsAllInterfaces(p, rule) {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
+// containsAllInterfaces returns true if path contains all interfaces in interface list
+func containsAllInterfaces(path snet.Path, ifaceList []pathInterface) bool {
+	ifaceSet := pathInterfaceSet(path)
+	for _, iface := range ifaceList {
+		if _, exists := ifaceSet[iface]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+func pathInterfaceSet(path snet.Path) map[pathInterface]struct{} {
+	set := make(map[pathInterface]struct{})
+	for _, iface := range path.Interfaces() {
+		set[pathInterface{iface.IA(), uint64(iface.ID())}] = struct{}{}
+	}
+	return set
+}
+
+type pathInterface struct {
+	ia addr.IA
+	id uint64
+}
+
+func mustParseIA(iaStr string) addr.IA {
+	ia, err := addr.IAFromString(iaStr)
+	if err != nil {
+		panic(err)
+	}
+	return ia
 }

@@ -23,11 +23,13 @@ import (
 	"net/http"
 
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	scionlog "github.com/scionproto/scion/go/lib/log"
 )
 
 func main() {
 	port := flag.Uint("p", 443, "port the server listens on")
 	flag.Parse()
+	_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "crit"}})
 
 	handler := http.FileServer(http.Dir(""))
 	log.Fatal(shttp.ListenAndServe(fmt.Sprintf(":%d", *port), withLogger(handler), nil))

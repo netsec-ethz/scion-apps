@@ -37,6 +37,7 @@ import (
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	scionlog "github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -121,6 +122,7 @@ func parsePrintOption(s string) {
 }
 
 func main() {
+	_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "crit"}})
 
 	args := flag.Args()
 	if len(args) > 0 {

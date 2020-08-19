@@ -39,11 +39,8 @@ type lowestRTT struct {
 
 func (p *lowestRTT) Select(active int, paths []*pathInfo) (int, time.Time) {
 	best := active
-	for i := 0; i < len(paths); i++ {
-		if i == best {
-			continue
-		}
-		if p.better(paths[i], paths[best]) {
+	for i := range paths {
+		if i != best && p.better(paths[i], paths[best]) {
 			best = i
 		}
 	}
@@ -52,6 +49,8 @@ func (p *lowestRTT) Select(active int, paths []*pathInfo) (int, time.Time) {
 
 // better checks whether a is better than b under the lowestRTT policy
 func (*lowestRTT) better(a, b *pathInfo) bool {
-	return !a.revoked && b.revoked || // prefer non-revoked,
-		a.rtt < b.rtt-rttDiffThreshold //  prefer lower RTT
+	/*return !a.revoked && b.revoked || // prefer non-revoked,
+	a.rtt < b.rtt-rttDiffThreshold //  prefer lower RTT
+	*/
+	return a.rtt < b.rtt-rttDiffThreshold //  prefer lower RTT
 }

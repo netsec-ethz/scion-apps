@@ -25,9 +25,9 @@ func (h *revocationHandler) RevokeRaw(_ context.Context, rawSRevInfo common.RawB
 	}
 	select {
 	case h.revocationQ <- sRevInfo:
-		logger.Info("Enqueued revocation", "revInfo", sRevInfo)
+		logger.Trace("Enqueued revocation", "revInfo", sRevInfo)
 	default:
-		logger.Info("Ignoring scmp packet", "cause", "Revocation channel full.")
+		logger.Trace("Ignoring scmp packet", "cause", "Revocation channel full.")
 	}
 }
 

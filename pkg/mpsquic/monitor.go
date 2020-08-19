@@ -13,7 +13,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-const echoRequestInterval = 500 * time.Millisecond
+const echoRequestInterval = 250 * time.Millisecond
 const pathExpiryRefreshLeadTime = 10 * time.Minute
 
 // pathRefreshMinInterval is the minimum delay between two path refreshs
@@ -92,9 +92,9 @@ func (mpq *MPQuic) selectPath(selectTimer *time.Timer) {
 
 	i, nextTime := mpq.policy.Select(mpq.active, mpq.paths)
 	if i != mpq.active {
-		mpq.displayStats()
 		mpq.updateActivePath(i)
-		logger.Debug("Changed active path", "active", i)
+		fmt.Println("\nChanged active path:")
+		mpq.displayStats()
 	}
 
 	expiry := mpq.paths[i].path.Expiry()

@@ -19,18 +19,20 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	scionlog "github.com/scionproto/scion/go/lib/log"
 )
 
 func main() {
 	serverAddrStr := flag.String("s", "", "Server address (<ISD-AS,[IP]> or <hostname>, optionally with appended <:port>)")
 	flag.Parse()
+	_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "crit"}})
+
+	//mpsquic.SetBasicLogging()
 
 	if len(*serverAddrStr) == 0 {
 		flag.Usage()
@@ -44,52 +46,20 @@ func main() {
 	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
 	defer c.Transport.(shttp.RoundTripper).Close()
 
-	// Make a get request
-	start := time.Now()
-	query := fmt.Sprintf("https://%s/hello", *serverAddrStr)
-	q := shttp.MangleSCIONAddrURL(query)
-	fmt.Println(q)
-	resp, err := c.Get(q)
-	if err != nil {
-		log.Fatal("GET request failed: ", err)
-	}
-	defer resp.Body.Close()
-	end := time.Now()
-
-	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
-	printResponse(resp)
-
-	for {
-		start = time.Now()
-		query = fmt.Sprintf("https://%s/form", *serverAddrStr)
-		resp, err = c.Post(
-			shttp.MangleSCIONAddrURL(query),
-			"application/x-www-form-urlencoded",
-			strings.NewReader("surname=threepwood&firstname=guybrush"),
-		)
-		if err != nil {
-			log.Fatal("POST request failed: ", err)
+	resources := []string{"welcome.html", "style.css", "favicon.ico", "topology.png"}
+	//resources := []string{"cosmos-laundromat-2015_1k.mp4"}
+	baseURL := shttp.MangleSCIONAddrURL("https://" + *serverAddrStr + "/")
+	for _, r := range resources {
+		url := baseURL + r
+		start := time.Now()
+		resp, err := c.Get(url)
+		dt := time.Since(start)
+		if err == nil {
+			b, _ := ioutil.ReadAll(resp.Body)
+			s := float64(len(b)) / 1024.0
+			fmt.Printf("GET %s: %d %s (%.1fKB, %s)\n", url, resp.StatusCode, resp.Status, s, dt)
+		} else {
+			fmt.Printf("GET %s: %v\n", url, err)
 		}
-		defer resp.Body.Close()
-		end = time.Now()
-
-		//log.Printf("POST request succeeded in %v seconds", end.Sub(start).Seconds())
-		//printResponse(resp)
 	}
-}
-
-func printResponse(resp *http.Response) {
-	fmt.Println("\n***Printing Response***")
-	fmt.Println("Status: ", resp.Status)
-	fmt.Println("Protocol:", resp.Proto)
-	fmt.Println("Content-Length: ", resp.ContentLength)
-	fmt.Println("Content-Type: ", resp.Header.Get("Content-Type"))
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Print(err)
-	}
-	if len(body) != 0 {
-		fmt.Println("Body: ", string(body))
-	}
-	fmt.Print("\n\n")
 }

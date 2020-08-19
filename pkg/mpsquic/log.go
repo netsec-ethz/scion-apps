@@ -54,12 +54,14 @@ func initLogging(baseLogger log.Logger) {
 // SetBasicLogging sets mpsquic logging to only write to os.Stdout and os.Stderr
 func SetBasicLogging() {
 	if logger != nil {
-		logger.Trace = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Debug = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Info = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Warn = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
-		logger.Error = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx) }
-		logger.Crit = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v", msg, ctx) }
+		//logger.Trace = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
+		//logger.Debug = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }
+		logger.Trace = func(msg string, ctx ...interface{}) {}
+		logger.Debug = func(msg string, ctx ...interface{}) {}
+		logger.Info = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v\n", msg, ctx) }
+		logger.Warn = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v\n", msg, ctx) }
+		logger.Error = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v\n", msg, ctx) }
+		logger.Crit = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stderr, "%v\t%v\n", msg, ctx) }
 	}
 }
 
