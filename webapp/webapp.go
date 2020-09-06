@@ -123,13 +123,13 @@ func setRemote(remote *string) {
 			log.Crit("Failed to create SCION reverse proxy %s", err)
 		}
 
-		log.Info("Proxy to SCION remote %s\n", *remote)
+		fmt.Printf("Proxy to SCION remote %s\n", *remote)
 	} else {
 		u, err := url.Parse(*remote)
 		if err != nil {
 			log.Crit(fmt.Sprintf("Failed parse remote %s, %s", *remote, err))
 		}
-		log.Info("Proxy to HTTP remote %s\n", *remote)
+		fmt.Printf("Proxy to HTTP remote %s\n", *remote)
 		proxy = httputil.NewSingleHostReverseProxy(u)
 	}
 }
@@ -272,7 +272,7 @@ func initServeHandlers() {
 	http.HandleFunc("/gettrc", getTrcInfoHandler)
 
 	http.HandleFunc("/__proxy/setconfig", setProxyConfig)
-	http.HandleFunc("/__proxy", proxyWrapper)
+	http.HandleFunc("/__proxy/", proxyWrapper)
 }
 
 func logRequestHandler(handler http.Handler) http.Handler {

@@ -33,9 +33,9 @@ setup_lint:
 	@# Install golangci-lint (as dumb as this looks, this is the recommended way to install)
 	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $$(go env GOPATH)/bin v1.26.0
 
-lint:
-	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
-	golangci-lint run --build-tags=$(TAGS)
+# lint:
+#	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
+#	golangci-lint run --build-tags=$(TAGS)
 
 install: all
   # Note: install everything but the examples

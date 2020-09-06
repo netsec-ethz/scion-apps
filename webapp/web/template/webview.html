@@ -84,7 +84,7 @@ function openStream(remote) {
         }),
         timeout : 10000,
         success : function(data, textStatus, jqXHR) {
-          document.getElementById('webview').src = 'http://localhost:8000/__proxy/' + sContext; //remote;
+          document.getElementById('webview').src = 'http://localhost:8000/__proxy' + sContext; //remote;
         },
         error : function(jqXHR, textStatus, errorThrown) {
             console.error(this.url + ' ' + textStatus + ': ' + errorThrown);
