@@ -18,7 +18,7 @@ This page provides a searchbar for SCION HTTP URLs, which are accessed via a SCI
     <img src="img_avatar.png" alt="Avatar" style="width:100%">
     <div class="container">
       <h4><b>DVB-T2 Live Stream</b></h4>
-      <p onclick="openStream('https://19-ffaa:1:bcc,[141.44.25.152]:9001/bysid/769')">Open Stream</p>
+      <p onclick="openLiveStream('https://19-ffaa:1:bcc,[127.0.0.1]:9001/bysid/769', 'DVB-T2 Live Stream')">Open Stream</p>
     </div>
   </div>
 </div>
@@ -44,12 +44,14 @@ function download(filename, text) {
     }
 
   function openLiveStream(remote, title) {
-    var str="#EXTM3U\n#EXTINF:5000,$title\n$target";
-    var target = 'http://localhost:8000/__proxy' + sContext;
 
     var sRemotesIndex = getPosition(remote, '/', 3);
     var sRemote = remote.substring(0, sRemotesIndex);
     var sContext = remote.substring(sRemotesIndex, remote.length);
+
+    var str="#EXTM3U\n#EXTINF:5000,$title\n$target";
+    var target = 'http://localhost:8000/__proxy' + sContext;
+
     str = str.replace('$title', title);
     str = str.replace('$target', target);
 
@@ -58,7 +60,7 @@ function download(filename, text) {
           type : 'post',
           dataType : "text",
           data : JSON.stringify({
-              "remote" : sRemote
+              "remote" : sRemote.replace('https://','')
           }),
           timeout : 10000,
           success : function(data, textStatus, jqXHR) {

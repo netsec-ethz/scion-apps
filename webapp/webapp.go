@@ -111,6 +111,7 @@ func setProxyConfig(wr http.ResponseWriter, r *http.Request) {
 }
 
 func proxyWrapper(rw http.ResponseWriter, req *http.Request) {
+	req.URL.Path = strings.Replace(req.URL.Path, "__proxy/", "", 1)
 	proxy.ServeHTTP(rw, req)
 }
 
@@ -118,7 +119,7 @@ func setRemote(remote *string) {
 	// parseUDPAddr validates if the address is a SCION address
 	// which we can use to proxy to SCION
 	if _, err := snet.ParseUDPAddr(*remote); err == nil {
-		proxy, err = shttp.NewSingleSCIONHostReverseProxy(*remote, &tls.Config{InsecureSkipVerify: true})
+		proxy, err = shttp.NewSingleSCIONHostReverseProxy(*remote, &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"H3-22"}})
 		if err != nil {
 			log.Crit("Failed to create SCION reverse proxy %s", err)
 		}
