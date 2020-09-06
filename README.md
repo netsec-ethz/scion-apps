@@ -8,8 +8,9 @@ sudo add-apt-repository ppa:longsleep/golang-backports
 sudo apt update
 sudo apt install golang-go
 
-mkdir -p go/src/github.com/
-cd go/src/github.com/
+mkdir -p go/src/github.com/martenwallewein/
+cd go/src/github.com/martenwallewein/
+# go get github.com/martenwallewein/scion-apps/...
 git clone https://github.com/martenwallewein/scion-apps.git
 cd scion-apps
 git checkout feature/scion-webview
