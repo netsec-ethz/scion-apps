@@ -18,12 +18,15 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -38,6 +41,9 @@ import (
 	lib "github.com/netsec-ethz/scion-apps/webapp/lib"
 	model "github.com/netsec-ethz/scion-apps/webapp/models"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
+
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var settings lib.UserSetting
@@ -81,6 +87,52 @@ type Page struct {
 }
 
 var options lib.CmdOptions
+
+var proxy *httputil.ReverseProxy
+
+// Can be overwritte by api calls
+type ProxyConfig struct {
+	Remote string `json:"remote"`
+}
+
+//TODO: Thread safe/Routine safe
+func setProxyConfig(wr http.ResponseWriter, r *http.Request) {
+	var newConfig ProxyConfig
+
+	// Try to decode the request body into the struct. If there is an error,
+	// respond to the client with the error message and a 400 status code.
+	err := json.NewDecoder(r.Body).Decode(&newConfig)
+	if err != nil {
+		http.Error(wr, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	setRemote(&newConfig.Remote)
+}
+
+func proxyWrapper(rw http.ResponseWriter, req *http.Request) {
+	proxy.ServeHTTP(rw, req)
+}
+
+func setRemote(remote *string) {
+	// parseUDPAddr validates if the address is a SCION address
+	// which we can use to proxy to SCION
+	if _, err := snet.ParseUDPAddr(*remote); err == nil {
+		proxy, err = shttp.NewSingleSCIONHostReverseProxy(*remote, &tls.Config{InsecureSkipVerify: true})
+		if err != nil {
+			log.Crit("Failed to create SCION reverse proxy %s", err)
+		}
+
+		log.Info("Proxy to SCION remote %s\n", *remote)
+	} else {
+		u, err := url.Parse(*remote)
+		if err != nil {
+			log.Crit(fmt.Sprintf("Failed parse remote %s, %s", *remote, err))
+		}
+		log.Info("Proxy to HTTP remote %s\n", *remote)
+		proxy = httputil.NewSingleHostReverseProxy(u)
+	}
+}
 
 func ensurePath(srcpath, staticDir string) string {
 	dir := path.Join(srcpath, staticDir)
@@ -218,6 +270,9 @@ func initServeHandlers() {
 	http.HandleFunc("/getpathtopo", getPathInfoHandler)
 	http.HandleFunc("/getastopo", getAsTopoHandler)
 	http.HandleFunc("/gettrc", getTrcInfoHandler)
+
+	http.HandleFunc("/__proxy/setconfig", setProxyConfig)
+	http.HandleFunc("/__proxy", proxyWrapper)
 }
 
 func logRequestHandler(handler http.Handler) http.Handler {
