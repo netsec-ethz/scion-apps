@@ -45,7 +45,7 @@ function download(filename, text) {
 
   function openLiveStream(remote, title) {
     var str="#EXTM3U\n#EXTINF:5000,$title\n$target";
-    var target = 'http://localhost:9001/' + sContext;
+    var target = 'http://localhost:8000/__proxy' + sContext;
 
     var sRemotesIndex = getPosition(remote, '/', 3);
     var sRemote = remote.substring(0, sRemotesIndex);
@@ -54,7 +54,7 @@ function download(filename, text) {
     str = str.replace('$target', target);
 
     $.ajax({
-          url : 'http://localhost:9001/__api/setconfig',
+          url : 'http://localhost:8000/__proxy/setconfig',
           type : 'post',
           dataType : "text",
           data : JSON.stringify({
@@ -76,7 +76,7 @@ function openStream(remote) {
   var sContext = remote.substring(sRemotesIndex, remote.length);
   
   $.ajax({
-        url : 'http://localhost:9001/__api/setconfig',
+        url : 'http://localhost:8000/__proxy/setconfig',
         type : 'post',
         dataType : "text",
         data : JSON.stringify({
@@ -84,7 +84,7 @@ function openStream(remote) {
         }),
         timeout : 10000,
         success : function(data, textStatus, jqXHR) {
-          document.getElementById('webview').src = 'http://localhost:9001/' + sContext; //remote;
+          document.getElementById('webview').src = 'http://localhost:8000/__proxy/' + sContext; //remote;
         },
         error : function(jqXHR, textStatus, errorThrown) {
             console.error(this.url + ' ' + textStatus + ': ' + errorThrown);
@@ -100,7 +100,7 @@ function loadSCIONUrl(target) {
 	var sContext = remote.substring(sRemotesIndex, remote.length);
 
     $.ajax({
-        url : 'http://localhost:9001/__api/setconfig',
+        url : 'http://localhost:8000/__proxy/setconfig',
         type : 'post',
         dataType : "text",
         data : JSON.stringify({
@@ -108,7 +108,7 @@ function loadSCIONUrl(target) {
         }),
         timeout : 10000,
         success : function(data, textStatus, jqXHR) {
-          document.getElementById('webview').src = 'http://localhost:9001/' + sContext; //remote;
+          document.getElementById('webview').src = 'http://localhost:8000/__proxy/' + sContext; //remote;
         },
         error : function(jqXHR, textStatus, errorThrown) {
             console.error(this.url + ' ' + textStatus + ': ' + errorThrown);

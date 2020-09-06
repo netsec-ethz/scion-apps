@@ -1,4 +1,4 @@
-module github.com/netsec-ethz/scion-apps
+module github.com/martenwallewein/scion-apps
 
 go 1.13
 

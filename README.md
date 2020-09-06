@@ -1,5 +1,25 @@
 # scion-apps
 
+## Webview installation
+
+```sh
+sudo apt-get install -y apt-transport-https libpam0g-dev
+sudo add-apt-repository ppa:longsleep/golang-backports
+sudo apt update
+sudo apt install golang-go
+
+mkdir -p go/src/github.com/
+cd go/src/github.com/
+git clone https://github.com/martenwallewein/scion-apps.git
+cd scion-apps
+git checkout feature/scion-webview
+
+# make setup_lint curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
+export PATH=$PATH:$(go env GOPATH)/bin
+make
+make install
+```
+
 This repo contains demo applications using the SCION protocol.
 
 The applications are written in Go, with some supporting code in Python. A SCION Internet connection (for instance via SCIONLab) is required to run these applications.
