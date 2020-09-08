@@ -18,7 +18,7 @@ This page provides a searchbar for SCION HTTP URLs, which are accessed via a SCI
   <div class="cards">
     <div class="card">
       <img src="https://docs.scionlab.org/favicon.ico" alt="Avatar" style="width:100%">
-      <div class="container">
+      <div class="text-container">
         <h4><b>DVB-T2 Live Stream</b></h4>
         <p class="link" onclick="openLiveStream('https://19-ffaa:1:bcc,[127.0.0.1]:9001/bysid/769', 'DVB-T2 Live Stream')">Open Stream</p>
       </div>
@@ -34,7 +34,7 @@ function getPosition(string, subString, index) {
 function back() {
   showTabs = true;
   $('#webview').hide();
-  $('#tags').show();
+  $('#tabs').show();
 }
 
 function download(filename, text) {
@@ -61,7 +61,7 @@ function download(filename, text) {
     str = str.replace('$target', target);
 
     $.ajax({
-          url : 'http://' + window.location.hostname + '/__proxy/setconfig',
+          url : 'http://' + window.location.hostname + ':8000/__proxy/setconfig',
           type : 'post',
           dataType : "text",
           data : JSON.stringify({
@@ -93,7 +93,7 @@ function loadSCIONUrl(target) {
         timeout : 10000,
         success : function(data, textStatus, jqXHR) {
           $('#webview').show();
-          $('#tags').hide();
+          $('#tabs').hide();
           document.getElementById('webview').src = 'http://' + window.location.hostname + ':8000/__proxy/' + sContext; //remote;
         },
         error : function(jqXHR, textStatus, errorThrown) {
