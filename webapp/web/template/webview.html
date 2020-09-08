@@ -7,13 +7,13 @@ This page provides a searchbar for SCION HTTP URLs, which are accessed via a SCI
  isplayed in an iFrame on this page.
  <br />
  <br />
-<button id="webviewload" onclick="back()">BACK</button>
+<button id="webviewload" onclick="back()">Home</button>
 <input id="webviewinput" placeholder="https://19:1:ffaa[127.0.0.1]:8000" style="width: 800px">
 <button id="webviewload" onclick="loadSCIONUrl()">GO</button>
 </div>
 
-<iframe id="webview" src="about:blank" width="1600" height="900" frameborder="0" ></iframe>
-<div class="sb-default-tabs">
+<iframe id="webview" src="about:blank" width="1600" height="900" frameborder="0" style="display: none;"></iframe>
+<div id="tabs" class="sb-default-tabs" style="display: block;">
   <div class="card">
     <img src="img_avatar.png" alt="Avatar" style="width:100%">
     <div class="container">
@@ -23,13 +23,15 @@ This page provides a searchbar for SCION HTTP URLs, which are accessed via a SCI
   </div>
 </div>
 <script>
-showTabs = false;
+showTabs = true;
 function getPosition(string, subString, index) {
   return string.split(subString, index).join(subString).length;
 }
   
 function back() {
   showTabs = true;
+  $('#webview').hide();
+  $('#tags').show();
 }
 
 function download(filename, text) {
@@ -49,14 +51,14 @@ function download(filename, text) {
     var sRemote = remote.substring(0, sRemotesIndex);
     var sContext = remote.substring(sRemotesIndex, remote.length);
 
-    var str="#EXTM3U\n#EXTINF:5000,$title\n$target";
-    var target = 'http://localhost:8000/__proxy' + sContext;
+    var str="#EXTM3U\n#EXTINF:5000,$title\n$target"; 
+    var target = 'http://' + window.location.hostname + ':8000/__proxy' + sContext;
 
     str = str.replace('$title', title);
     str = str.replace('$target', target);
 
     $.ajax({
-          url : 'http://localhost:8000/__proxy/setconfig',
+          url : 'http://' + window.location.hostname + '/__proxy/setconfig',
           type : 'post',
           dataType : "text",
           data : JSON.stringify({
@@ -72,37 +74,14 @@ function download(filename, text) {
       }); 
   }
 
-function openStream(remote) {
-  var sRemotesIndex = getPosition(remote, '/', 3);
-	var sRemote = remote.substring(0, sRemotesIndex);
-  var sContext = remote.substring(sRemotesIndex, remote.length);
-  
-  $.ajax({
-        url : 'http://localhost:8000/__proxy/setconfig',
-        type : 'post',
-        dataType : "text",
-        data : JSON.stringify({
-            "remote" : sRemote
-        }),
-        timeout : 10000,
-        success : function(data, textStatus, jqXHR) {
-          document.getElementById('webview').src = 'http://localhost:8000/__proxy' + sContext; //remote;
-        },
-        error : function(jqXHR, textStatus, errorThrown) {
-            console.error(this.url + ' ' + textStatus + ': ' + errorThrown);
-        },
-    });
-
-}
-
 function loadSCIONUrl(target) {
     var remote = target || $('#webviewinput').val();
     var sRemotesIndex = getPosition(remote, '/', 3);
 	var sRemote = remote.substring(0, sRemotesIndex);
 	var sContext = remote.substring(sRemotesIndex, remote.length);
-
+    showTabs = false;
     $.ajax({
-        url : 'http://localhost:8000/__proxy/setconfig',
+        url : 'http://' + window.location.hostname + ':8000/__proxy/setconfig',
         type : 'post',
         dataType : "text",
         data : JSON.stringify({
@@ -110,7 +89,9 @@ function loadSCIONUrl(target) {
         }),
         timeout : 10000,
         success : function(data, textStatus, jqXHR) {
-          document.getElementById('webview').src = 'http://localhost:8000/__proxy/' + sContext; //remote;
+          $('#webview').show();
+          $('#tags').hide();
+          document.getElementById('webview').src = 'http://' + window.location.hostname + ':8000/__proxy/' + sContext; //remote;
         },
         error : function(jqXHR, textStatus, errorThrown) {
             console.error(this.url + ' ' + textStatus + ': ' + errorThrown);
