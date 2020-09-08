@@ -14,11 +14,14 @@ This page provides a searchbar for SCION HTTP URLs, which are accessed via a SCI
 
 <iframe id="webview" src="about:blank" width="1600" height="900" frameborder="0" style="display: none;"></iframe>
 <div id="tabs" class="sb-default-tabs" style="display: block;">
-  <div class="card">
-    <img src="img_avatar.png" alt="Avatar" style="width:100%">
-    <div class="container">
-      <h4><b>DVB-T2 Live Stream</b></h4>
-      <p onclick="openLiveStream('https://19-ffaa:1:bcc,[127.0.0.1]:9001/bysid/769', 'DVB-T2 Live Stream')">Open Stream</p>
+  <h3>Trending:</h3>
+  <div class="cards">
+    <div class="card">
+      <img src="https://docs.scionlab.org/favicon.ico" alt="Avatar" style="width:100%">
+      <div class="container">
+        <h4><b>DVB-T2 Live Stream</b></h4>
+        <p class="link" onclick="openLiveStream('https://19-ffaa:1:bcc,[127.0.0.1]:9001/bysid/769', 'DVB-T2 Live Stream')">Open Stream</p>
+      </div>
     </div>
   </div>
 </div>

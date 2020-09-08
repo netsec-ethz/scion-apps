@@ -16,7 +16,7 @@ cd scion-apps
 git checkout feature/scion-webview
 
 # make setup_lint curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
-export PATH=$PATH:$(go env GOPATH)/bin
+# export PATH=$PATH:$(go env GOPATH)/bin
 # make
 # make install
 cd webapp

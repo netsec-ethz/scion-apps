@@ -236,3 +236,7 @@ img {
   .container {
     padding: 2px 16px;
   }
+
+.cards {
+    display: flex;
+}
