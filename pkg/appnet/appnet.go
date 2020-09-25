@@ -201,10 +201,9 @@ func initDefNetwork() error {
 		return err
 	}
 	pathQuerier := sciond.Querier{Connector: sciondConn, IA: localIA}
-	n := snet.NewNetworkWithPR(
+	n := snet.NewNetwork(
 		localIA,
 		dispatcher,
-		pathQuerier,
 		sciond.RevHandler{Connector: sciondConn},
 	)
 	defNetwork = Network{Network: n, IA: localIA, PathQuerier: pathQuerier, hostInLocalAS: hostInLocalAS}
@@ -261,7 +260,7 @@ func isSocket(mode os.FileMode) bool {
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
 func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}

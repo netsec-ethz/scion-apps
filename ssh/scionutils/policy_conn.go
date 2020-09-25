@@ -170,7 +170,7 @@ func queryPathsFiltered(ia addr.IA, policy *pathpol.Policy) ([]snet.Path, error)
 
 	pathSet := make(pathpol.PathSet)
 	for _, path := range paths {
-		pathSet[path.Fingerprint()] = path
+		pathSet[snet.Fingerprint(path)] = path
 	}
 	policy.Filter(pathSet)
 	filterPathSlice(&paths, pathSet)
@@ -183,7 +183,7 @@ func filterPathSlice(paths *[]snet.Path, pathSet pathpol.PathSet) {
 	// Nasty "idiomatic" slice filtering: https://stackoverflow.com/a/50183212
 	filtered := (*paths)[:0]
 	for _, p := range *paths {
-		if _, ok := pathSet[p.Fingerprint()]; ok {
+		if _, ok := pathSet[snet.Fingerprint(p)]; ok {
 			filtered = append(filtered, p)
 		}
 	}

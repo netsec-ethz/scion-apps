@@ -39,7 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // Configuations to save. Zeroing out any of these placeholders will cause the
@@ -267,18 +267,20 @@ func removeAllDir(dirName string) {
 
 func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 	ctx := context.Background()
-	paths, err := sciondConn.Paths(ctx, dstIA, addr.IA{},
-		sciond.PathReqFlags{PathCount: 10})
+	paths, err := sciondConn.Paths(ctx, dstIA, addr.IA{}, sciond.PathReqFlags{})
 	if err != nil {
 		return nil, err
+	}
+	if len(paths) > 10 {
+		paths = paths[:10]
 	}
 
 	var rPaths []Path
 	for _, path := range paths {
 		rpath := Path{
-			Fingerprint: path.Fingerprint().String()[:16],
-			Expiry:      path.Expiry(),
-			MTU:         path.MTU(),
+			Fingerprint: snet.Fingerprint(path).String()[:16],
+			Expiry:      path.Metadata().Expiry(),
+			MTU:         path.Metadata().MTU(),
 		}
 		for _, hop := range path.Interfaces() {
 			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
@@ -325,9 +327,8 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) 
 	ijsonInfo, _ := json.Marshal(ifirs)
 	log.Debug("AsTopoHandler:", "ijsonInfo", string(ijsonInfo))
 
-	svcirs, err := c.SVCInfo(context.Background(), []proto.ServiceType{
-		proto.ServiceType_bs, proto.ServiceType_ps, proto.ServiceType_cs,
-		proto.ServiceType_sb, proto.ServiceType_sig, proto.ServiceType_ds})
+	svcirs, err := c.SVCInfo(context.Background(), []addr.HostSVC{
+		addr.SvcDS, addr.SvcCS, addr.SvcSB, addr.SvcSIG, addr.SvcHPS})
 	if CheckError(err) {
 		returnError(w, err)
 		return

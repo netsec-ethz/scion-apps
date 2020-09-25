@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -49,21 +50,18 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 	// traverse the segments to ensure even number of inferfaces in hops
 	var err error
 	var theseg *seg.PathSegment
-	theseg, err = seg.NewSegFromRaw(common.RawBytes(packedSeg))
+	theseg, err = pathdb.UnpackSegment(common.RawBytes(packedSeg))
 	if CheckError(err) {
 		panic(err)
 	}
 	var interfaces []asIface
 	for _, ase := range theseg.ASEntries {
-		hop, err := ase.HopEntries[0].HopField()
-		if CheckError(err) {
-			panic(err)
+		hof := ase.HopEntry.HopField
+		if hof.ConsIngress > 0 {
+			interfaces = append(interfaces, newASIface(ase.Local.I, ase.Local.A, common.IFIDType(hof.ConsIngress)))
 		}
-		if hop.ConsIngress > 0 {
-			interfaces = append(interfaces, newASIface(ase.IA().I, ase.IA().A, hop.ConsIngress))
-		}
-		if hop.ConsEgress > 0 {
-			interfaces = append(interfaces, newASIface(ase.IA().I, ase.IA().A, hop.ConsEgress))
+		if hof.ConsEgress > 0 {
+			interfaces = append(interfaces, newASIface(ase.Local.I, ase.Local.A, common.IFIDType(hof.ConsEgress)))
 		}
 	}
 	return segment{SegType: segType.String(), Src: addr.IA{I: srcI, A: srcA}, Dst: addr.IA{I: dstI, A: dstA},

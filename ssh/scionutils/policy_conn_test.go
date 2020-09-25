@@ -122,10 +122,11 @@ type mockPath struct {
 func (p *mockPath) Fingerprint() snet.PathFingerprint {
 	return snet.PathFingerprint(strconv.Itoa(p.id))
 }
-func (p *mockPath) OverlayNextHop() *net.UDPAddr     { return nil }
+func (p *mockPath) UnderlayNextHop() *net.UDPAddr    { return nil }
 func (p *mockPath) Path() *spath.Path                { return nil }
 func (p *mockPath) Interfaces() []snet.PathInterface { return nil }
 func (p *mockPath) Destination() addr.IA             { return addr.IA{} }
+func (p *mockPath) Metadata() snet.PathMetadata      { return p }
 func (p *mockPath) MTU() uint16                      { return 0 }
 func (p *mockPath) Expiry() time.Time                { return time.Time{} }
 func (p *mockPath) Copy() snet.Path                  { return &mockPath{id: p.id} }

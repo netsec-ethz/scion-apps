@@ -93,7 +93,7 @@ func Init(name string) (err error) {
 
 	// Wrap call
 	_ = os.Chdir(projectRoot)
-	err = sintegration.Init(name)
+	err = sintegration.Init()
 	// restore pwd
 	_ = os.Chdir(pwd)
 
@@ -226,7 +226,7 @@ func connSciond(ctx context.Context, sciondAddress string) (sciond.Connector, er
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
 func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	bsAddr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	bsAddr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}

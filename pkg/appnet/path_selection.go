@@ -87,7 +87,7 @@ func SetPath(addr *snet.UDPAddr, path snet.Path) {
 		addr.NextHop = nil
 	} else {
 		addr.Path = path.Path()
-		addr.NextHop = path.OverlayNextHop()
+		addr.NextHop = path.UnderlayNextHop()
 	}
 }
 
@@ -126,9 +126,9 @@ func filterDuplicates(paths []snet.Path) []snet.Path {
 
 	chosenPath := make(map[snet.PathFingerprint]int)
 	for i := range paths {
-		fingerprint := paths[i].Fingerprint() // Fingerprint is a hash of p.Interfaces()
+		fingerprint := snet.Fingerprint(paths[i]) // Fingerprint is a hash of paths[i].Interfaces()
 		e, dupe := chosenPath[fingerprint]
-		if !dupe || paths[e].Expiry().Before(paths[i].Expiry()) {
+		if !dupe || paths[e].Metadata().Expiry().Before(paths[i].Metadata().Expiry()) {
 			chosenPath[fingerprint] = i
 		}
 	}
@@ -197,7 +197,7 @@ func selectShortestPath(paths []snet.Path) (selectedPath snet.Path, metric float
 func selectLargestMTUPath(paths []snet.Path) (selectedPath snet.Path, metric float64) {
 	// Selects path with largest MTU
 	for _, path := range paths {
-		if selectedPath == nil || path.MTU() > selectedPath.MTU() {
+		if selectedPath == nil || path.Metadata().MTU() > selectedPath.Metadata().MTU() {
 			selectedPath = path
 		}
 	}
@@ -208,5 +208,5 @@ func selectLargestMTUPath(paths []snet.Path) (selectedPath snet.Path, metric flo
 		result = 1 / (1 + math.Exp(-tilt*(mtu-midpoint)))
 		return result
 	}
-	return selectedPath, metricFn(selectedPath.MTU())
+	return selectedPath, metricFn(selectedPath.Metadata().MTU())
 }
