@@ -68,13 +68,13 @@ jobs:
       - run:
           name: Configure and start local SCION AS
           command: |
-            export PYTHONPATH=~/scion/python/
             cd ~/scion
+            export PYTHONPATH=python/:.
 
             # Generate Tiny.topo
             printf '#!/bin/bash\necho "0.0.0.0"' > tools/docker-ip # Some hackery to make topo scripts run
             # Use IPv4 addresses for this test
-            python/topology/generator.py -c ./topology/Tiny4.topo
+            python/topology/generator.py -c ./topology/tiny4.topo
             # Link the gen directory containing sciond_addresses.json and as_list.json
             ln -s ~/scion/gen /home/circleci/project/gen
             # Generate gen-certs
