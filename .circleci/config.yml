@@ -58,7 +58,7 @@ jobs:
           name: Build SCION services and install python3 dependencies
           command: |
             cd ~/scion
-            for service in "border" "cs" "godispatcher" "sciond" "tools/scion-pki"; do
+            for service in "border" "cs" "dispatcher" "scion-pki" "sciond"; do
               go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
             done
 
