@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/BurntSushi/toml v0.3.1
-	github.com/alangpierce/go-forceexport v0.0.0-20160317203124-8f1d6941cd75 // indirect
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/bclicn/color v0.0.0-20180711051946-108f2023dc84
 	github.com/inconshreveable/log15 v0.0.0-20180818164646-67afb5ed74ec
