@@ -383,6 +383,8 @@ github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb
 github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da/go.mod h1:gi+0XIa01GRL2eRQVjQkKGqKF3SF9vZR/HnPullcV2E=
 github.com/scionproto/scion v0.5.1-0.20200925081908-c8b0d56ce587 h1:RE4Lo353HTitgJWvHO4egwPZq1/2R9Kua6Wy6ShWUWc=
 github.com/scionproto/scion v0.5.1-0.20200925081908-c8b0d56ce587/go.mod h1:KhdYz2zmK7wVuIatB7jTM14dUVyZGw7gvhjAbVr7dqk=
+github.com/scionproto/scion v0.5.1-0.20200930154518-962ca855d460 h1:81IzD7dG2YdWTPnFF77ZmFMaoDUA7l/eZSwtqId2LE0=
+github.com/scionproto/scion v0.5.1-0.20200930154518-962ca855d460/go.mod h1:KhdYz2zmK7wVuIatB7jTM14dUVyZGw7gvhjAbVr7dqk=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
 github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=

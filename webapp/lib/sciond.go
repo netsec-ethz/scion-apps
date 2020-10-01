@@ -283,7 +283,7 @@ func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 			MTU:         path.Metadata().MTU(),
 		}
 		for _, hop := range path.Interfaces() {
-			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
+			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA, IfID: hop.ID})
 		}
 		rPaths = append(rPaths, rpath)
 	}

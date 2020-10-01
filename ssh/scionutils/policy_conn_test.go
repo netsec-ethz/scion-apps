@@ -96,8 +96,8 @@ func TestPolicyConn_FilterPathSlice(t *testing.T) {
 
 	paths := makePaths(5)
 	pathSet := make(pathpol.PathSet)
-	pathSet[snet.Fingerprint(paths[1])] = nil
-	pathSet[snet.Fingerprint(paths[3])] = nil
+	pathSet[snet.Fingerprint(paths[1])] = paths[1]
+	pathSet[snet.Fingerprint(paths[3])] = paths[3]
 
 	expected := []snet.Path{paths[1], paths[3]}
 
@@ -124,7 +124,7 @@ func (p *mockPath) UnderlayNextHop() *net.UDPAddr    { return nil }
 func (p *mockPath) Path() *spath.Path                { return nil }
 func (p *mockPath) Interfaces() []snet.PathInterface { return p.interfaces }
 func (p *mockPath) Destination() addr.IA             { return addr.IA{} }
-func (p *mockPath) Metadata() snet.PathMetadata      { return p }
+func (p *mockPath) Metadata() snet.PathMetadata      { return nil }
 func (p *mockPath) MTU() uint16                      { return 0 }
 func (p *mockPath) Expiry() time.Time                { return time.Time{} }
 func (p *mockPath) Copy() snet.Path                  { return nil }
@@ -140,14 +140,7 @@ func makePaths(num int) []snet.Path {
 func makePath(id int) snet.Path {
 	return &mockPath{
 		interfaces: []snet.PathInterface{
-			&mockPathInterface{id: common.IFIDType(id)},
+			{ID: common.IFIDType(id)},
 		},
 	}
 }
-
-type mockPathInterface struct {
-	id common.IFIDType
-}
-
-func (i mockPathInterface) ID() common.IFIDType { return i.id }
-func (i mockPathInterface) IA() addr.IA         { return addr.IA{} }
