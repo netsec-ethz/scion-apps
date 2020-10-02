@@ -31,9 +31,9 @@ jobs:
             - "/go/pkg"
 
   integration:
-    docker:
-      - image: circleci/golang:1.13-stretch
-    resource_class: medium
+    machine:
+      image: ubuntu-1604:202007-01
+
     steps:
       - checkout
       # The following step are shared with netsec-ethz/rains
