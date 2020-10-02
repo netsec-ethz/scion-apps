@@ -82,7 +82,7 @@ jobs:
             openssl genrsa -out "gen-certs/tls.key" 2048
             openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
 
-            sudo mkdir /run/shm -m 777
+            # sudo mkdir /run/shm -m 777
 
             # Start all AS Tiny.topo
             supervisor/supervisor.sh reload
