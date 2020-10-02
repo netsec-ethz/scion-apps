@@ -49,11 +49,11 @@ jobs:
             git clone ${scion_repo} ~/scion
             cd ~/scion
             git checkout --quiet ${scion_commit}
-      - restore_cache:
-          keys:
-            - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
-            - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-
-            - v1-pkg-cache-
+      #- restore_cache:
+      #    keys:
+      #      - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+      #      - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-
+      #      - v1-pkg-cache-
       - run:
           name: Build SCION services and install python3 dependencies
           command: |
