@@ -91,8 +91,7 @@ jobs:
           name: Prepare integration test
           command: |
             # Handle the two special ones
-            make setup_lint
-            echo 'export PATH=$PATH:$GOPATH/bin' >> $BASH_ENV
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $HOME/bin v1.31.0
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
       - run:
           name: Integration tests
