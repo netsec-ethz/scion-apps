@@ -195,7 +195,7 @@ var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
 func getSCIONDAddress(ia addr.IA) (addr string, err error) {
 	// Wrap library call
 	_ = os.Chdir(projectRoot)
-	addr, err = sintegration.GetSCIONDAddress(sintegration.SCIONDAddressesFile, ia)
+	addr, err = sintegration.GetSCIONDAddress(sintegration.GenFile(sintegration.SCIONDAddressesFile), ia)
 	// restore pwd
 	_ = os.Chdir(pwd)
 
