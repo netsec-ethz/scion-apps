@@ -92,6 +92,7 @@ jobs:
           command: |
             # Handle the two special ones
             make setup_lint
+            echo 'export PATH=$PATH:$GOPATH/bin' >> $BASH_ENV
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
       - run:
           name: Integration tests
