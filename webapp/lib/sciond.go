@@ -271,9 +271,6 @@ func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(paths) > 10 {
-		paths = paths[:10]
-	}
 
 	var rPaths []Path
 	for _, path := range paths {
