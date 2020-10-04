@@ -334,7 +334,7 @@ func appsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func webviewHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "webview", &Page{Title: "SCION WebView", MyIA: settings.MyIA})
+	display(w, "webview", &Page{Title: "SCION HTTP", MyIA: settings.MyIA})
 }
 
 func astopoHandler(w http.ResponseWriter, r *http.Request) {

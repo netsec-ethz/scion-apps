@@ -2,9 +2,8 @@
 
 <div class="content">
 
- <h2>SCION Webview</h2>
-This page provides a searchbar for SCION HTTP URLs, which are accessed via a SCION HTTP proxy and the result is
- isplayed in an iFrame on this page.
+ <h2>SCION HTTP</h2>
+This page provides some default SCION HTTP endpoints and a searchbar for SCION HTTP URLs, to provide easy access to those resources. 
  <br />
  <br />
 <button id="webviewload" onclick="back()">Home</button>
@@ -80,15 +79,15 @@ function download(filename, text) {
 function loadSCIONUrl(target) {
     var remote = target || $('#webviewinput').val();
     var sRemotesIndex = getPosition(remote, '/', 3);
-	var sRemote = remote.substring(0, sRemotesIndex);
-	var sContext = remote.substring(sRemotesIndex, remote.length);
+    var sRemote = remote.substring(0, sRemotesIndex);
+    var sContext = remote.substring(sRemotesIndex, remote.length);
     showTabs = false;
     $.ajax({
         url : 'http://' + window.location.hostname + ':8000/__proxy/setconfig',
         type : 'post',
         dataType : "text",
         data : JSON.stringify({
-            "remote" : sRemote
+            "remote" : sRemote.replace('https://','')
         }),
         timeout : 10000,
         success : function(data, textStatus, jqXHR) {
