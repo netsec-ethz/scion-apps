@@ -1,32 +1,5 @@
 # scion-apps
 
-## Webview installation
-Since webapp requires CGO_ENABLED and (for sqlite), the glibc of the build system needs to be the same version as on the target system to run webapp. Consequently, we recommend building the scion-apps from source on the target system.
-
-Use the followint guide to test the DVB-T2 Video streaming over SCION.
-```sh
-# Install go
-sudo apt-get install -y apt-transport-https libpam0g-dev
-sudo add-apt-repository ppa:longsleep/golang-backports
-sudo apt update
-sudo apt install golang-go
-
-# Setup repo
-mkdir -p go/src/github.com/martenwallewein/
-cd go/src/github.com/martenwallewein/
-git clone https://github.com/martenwallewein/scion-apps.git
-cd scion-apps
-git checkout feature/scion-webview
-
-# Build and run webapp
-cd webapp
-go build webapp.go
-./webapp -p 8000 -srvroot=./web -a 0.0.0.0
-```
-With http://localhost:8000 the webapp can be accessed, move to the webview tab and click on "open stream" on the DVB-T2 stream card. It sould open a dialog to choose a program to open. The program has to support H.265 codec and must be able to open m3u playlists. We recommend vlc player to open the stream.
-
---- 
-
 This repo contains demo applications using the SCION protocol.
 
 The applications are written in Go, with some supporting code in Python. A SCION Internet connection (for instance via SCIONLab) is required to run these applications.
