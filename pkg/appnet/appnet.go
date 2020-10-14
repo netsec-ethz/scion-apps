@@ -206,11 +206,17 @@ func initDefNetwork() error {
 		return err
 	}
 	pathQuerier := sciond.Querier{Connector: sciondConn, IA: localIA}
-	n := snet.NewNetwork(
-		localIA,
-		dispatcher,
-		sciond.RevHandler{Connector: sciondConn},
-	)
+	n := &snet.SCIONNetwork{
+		LocalIA: localIA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: dispatcher,
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: sciond.RevHandler{Connector: sciondConn},
+			},
+			Version2: true,
+		},
+		Version2: true,
+	}
 	defNetwork = Network{Network: n, IA: localIA, PathQuerier: pathQuerier, hostInLocalAS: hostInLocalAS}
 	return nil
 }

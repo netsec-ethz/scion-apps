@@ -58,7 +58,7 @@ jobs:
           name: Build SCION services and install python3 dependencies
           command: |
             cd ~/scion
-            for service in "border" "cs" "dispatcher" "scion-pki" "sciond"; do
+            for service in "posix-router" "cs" "dispatcher" "scion-pki" "sciond"; do
               go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
             done
 
@@ -71,18 +71,15 @@ jobs:
             cd ~/scion
             export PYTHONPATH=python/:.
 
-            # Generate Tiny.topo
+            # Generate tiny4.topo
             printf '#!/bin/bash\necho "0.0.0.0"' > tools/docker-ip # Some hackery to make topo scripts run
             # Use IPv4 addresses for this test
             python3 python/topology/generator.py -c ./topology/tiny4.topo
             # Link the gen directory containing sciond_addresses.json and as_list.json
             ln -s ~/scion/gen /home/circleci/project/gen
-            # Generate gen-certs
-            mkdir gen-certs gen-cache
-            openssl genrsa -out "gen-certs/tls.key" 2048
-            openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
+            mkdir gen-cache
 
-            # Start all AS Tiny.topo
+            # Start all AS tiny4.topo
             supervisor/supervisor.sh reload
             supervisor/supervisor.sh start all
       - run:
