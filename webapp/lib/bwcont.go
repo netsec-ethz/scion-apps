@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package lib
 
@@ -30,8 +30,6 @@ import (
 	model "github.com/netsec-ethz/scion-apps/webapp/models"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
-
-var logBufLen = 1024
 
 // results data extraction regex
 var reSCHdr = `(?i:s->c results)`
@@ -53,7 +51,7 @@ var reSPath = `(?i:path=*)"(.*?)"`
 // ExtractBwtestRespData will parse cmd line output from bwtester for adding BwTestItem fields.
 func ExtractBwtestRespData(resp string, d *model.BwTestItem, start time.Time) {
 	// store duration in ms
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 	d.ActualDuration = int(diff.Nanoseconds() / 1e6)
 
 	// store current epoch in ms
@@ -177,27 +175,27 @@ func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	}
 	log.Debug("Requested data:", "bwTestResults", bwTestResults)
 
-	bwtestsJSON, err := json.Marshal(bwTestResults)
+	bwtestsJSON, err := formatGraphResults(bwTestResults, active)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	jsonBuf := []byte(`{ "graph": ` + string(bwtestsJSON))
+	fmt.Fprint(w, bwtestsJSON)
+}
+
+func formatGraphResults(v interface{}, active bool) (string, error) {
+	testsJSON, err := json.Marshal(v)
+	if CheckError(err) {
+		return "", err
+	}
+	jsonBuf := []byte(`{ "graph": ` + string(testsJSON))
 	json := []byte(`, "active": ` + strconv.FormatBool(active))
 	jsonBuf = append(jsonBuf, json...)
 	jsonBuf = append(jsonBuf, []byte(`}`)...)
 
-	// ensure % if any, is escaped correctly before writing to printf formatter
-	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
-}
-
-func removeOuterQuotes(s string) string {
-	if len(s) >= 2 {
-		if c := s[len(s)-1]; s[0] == c && (c == '"' || c == '\'') {
-			return s[1 : len(s)-1]
-		}
-	}
-	return s
+	// ensure % if any, is escaped correctly before writing to output
+	jsonStr := strings.Replace(string(jsonBuf), "%", "%%", -1)
+	return jsonStr, nil
 }
 
 // WriteCmdCsv appends the cmd data (bwtest or echo) in csv-format to srcpath.

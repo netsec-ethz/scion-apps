@@ -70,8 +70,7 @@
                     clearInterval(healthInterval);
                     var now = new Date();
                     $("#test-complete").text(
-                            "Check last completed " + now.toLocaleDateString()
-                                    + " " + now.toLocaleTimeString() + ".");
+                            `Check last completed ${now.toLocaleString()}.`);
                 }
             },
             error : function(jqXHR, textStatus, errorThrown) {

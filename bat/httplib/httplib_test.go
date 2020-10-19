@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// XXX(matzf): these tests rely on external services and at least one of the
+// tests (TestToJson) is currently broken because the service returns a
+// different value than expected.
+// There is not much value in running these tests for our fork anyway, so skip
+// them.
+// +build test-bat-httplib
+
 package httplib
 
 import (

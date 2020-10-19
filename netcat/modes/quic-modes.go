@@ -10,20 +10,23 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 package modes
 
 import (
+	"context"
+	"crypto/tls"
 	"io"
 	golog "log"
 
-	quic "github.com/lucas-clemente/quic-go"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 
 	log "github.com/inconshreveable/log15"
 )
+
+const nextProto = "netcat"
 
 type sessConn struct {
 	sess   quic.Session
@@ -44,7 +47,7 @@ func (conn *sessConn) Close() error {
 		return err
 	}
 
-	err = conn.sess.Close()
+	err = conn.sess.CloseWithError(quic.ErrorCode(0), "")
 	if err != nil {
 		return err
 	}
@@ -53,22 +56,28 @@ func (conn *sessConn) Close() error {
 }
 
 // DoListenQUIC listens on a QUIC socket
-func DoListenQUIC(localAddr *snet.Addr) chan io.ReadWriteCloser {
-	listener, err := squic.ListenSCION(nil, localAddr, &quic.Config{KeepAlive: true})
+func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
+	listener, err := appquic.ListenPort(
+		port,
+		&tls.Config{
+			Certificates: appquic.GetDummyTLSCerts(),
+			NextProtos:   []string{nextProto}},
+		&quic.Config{KeepAlive: true},
+	)
 	if err != nil {
-		golog.Panicf("Can't listen on address %v: %v", localAddr, err)
+		golog.Panicf("Can't listen on port %d: %v", port, err)
 	}
 
 	conns := make(chan io.ReadWriteCloser)
 	go func() {
 		for {
-			sess, err := listener.Accept()
+			sess, err := listener.Accept(context.Background())
 			if err != nil {
 				log.Crit("Can't accept listener: %v", err)
 				continue
 			}
 
-			stream, err := sess.AcceptStream()
+			stream, err := sess.AcceptStream(context.Background())
 			if err != nil {
 				log.Crit("Can't accept stream: %v", err)
 				continue
@@ -87,13 +96,20 @@ func DoListenQUIC(localAddr *snet.Addr) chan io.ReadWriteCloser {
 }
 
 // DoDialQUIC dials with a QUIC socket
-func DoDialQUIC(localAddr, remoteAddr *snet.Addr) io.ReadWriteCloser {
-	sess, err := squic.DialSCION(nil, localAddr, remoteAddr, &quic.Config{KeepAlive: true})
+func DoDialQUIC(remoteAddr string) io.ReadWriteCloser {
+	sess, err := appquic.Dial(
+		remoteAddr,
+		&tls.Config{
+			InsecureSkipVerify: true,
+			NextProtos:         []string{nextProto},
+		},
+		&quic.Config{KeepAlive: true},
+	)
 	if err != nil {
 		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)
 	}
 
-	stream, err := sess.OpenStreamSync()
+	stream, err := sess.OpenStreamSync(context.Background())
 	if err != nil {
 		golog.Panicf("Can't open stream: %v", err)
 	}

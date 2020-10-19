@@ -29,19 +29,19 @@ The packet contents are filled with a Pseudo-Random Generator (PRG) based on AES
 
 The wireline protocol is as follows:
 * 'N' new bwtest request
-  	> Request: 'N', encoded bwtest parameters client->server, encoded bwtest parameters server->client
-	> 
-	> Success response: 'N', 0
-	> 
-	> Failure response: 'N', number of seconds to wait until next request is sent
+  > Request: 'N', encoded bwtest parameters client->server, encoded bwtest parameters server->client
+  > 
+  > Success response: 'N', 0
+  > 
+  > Failure response: 'N', number of seconds to wait until next request is sent
 * 'R' result request
-  	> Request: 'R', encoded client sending PRG key
-	>
-	> Success response: 'R', 0, encoded result data
-	>
-	> Not ready response: 'R', number of seconds to wait until result should be ready by
-	>
-	> Not found response: 'R', 127
+  > Request: 'R', encoded client sending PRG key
+  >
+  > Success response: 'R', 0, encoded result data
+  >
+  > Not ready response: 'R', number of seconds to wait until result should be ready by
+  >
+  > Not found response: 'R', 127
 
 ## bwtestclient
 

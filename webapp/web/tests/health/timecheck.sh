@@ -2,7 +2,7 @@
 # test will fail for non-zero exit and/or bytes in stderr
 
 # define threshold
-min_sec=15
+min_sec=10
 
 echo "Checking time using google.com now:"
 tl=$(date '+%s')

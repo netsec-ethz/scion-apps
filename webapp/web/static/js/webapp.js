@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 // https://github.com/jquery/jquery
 // https://github.com/d3/d3
@@ -69,12 +69,13 @@ var dial_prop_text = {
 };
 
 // instruction information
-var bwText = 'Dial values can be typed, edited, clicked, or scrolled to change.';
+var bwText = 'Bandwidth test dial values can be typed, edited, clicked, or scrolled to change.';
 var imageText = 'Execute camerapp to retrieve an image.';
 var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
-var echoText = 'Execute echo to measure response time.';
+var echoText = 'Execute echo to measure response time overall.';
+var tracerouteText = 'Execute traceroute to measure response time between hops.';
 
 window.onbeforeunload = function(event) {
     // detect window close to end continuous test if any
@@ -147,7 +148,7 @@ function handleSwitchTabs() {
     var activeApp = $('.nav-tabs .active > a').attr('name');
     var isCont = (activeApp == "bwtester" || activeApp == "echo" || activeApp == "traceroute");
     enableContControls(isCont);
-    // show/hide graphs for bwtester
+    // show/hide graphs for continuous
     showOnlyConsoleGraphs(activeApp);
     var checked = $('#switch_cont').prop('checked');
     if (checked && !isCont) {
@@ -512,8 +513,6 @@ function requestTraceRouteByTime(form_data) {
                     console.info('continuous traceroute', 'duration:',
                             d.graph[i].ActualDuration, 'ms');
                     lastTimeBwDb = Math.max(lastTimeBwDb, d.graph[i].Inserted);
-                    // use the time the test began
-                    var time = d.graph[i].Inserted - d.graph[i].ActualDuration;
 
                     // TODO (mwfarb): implement traceroute graph
 
@@ -650,6 +649,10 @@ function removeOldPoints(series, lastTime, draw) {
     }
 }
 
+function getHopsString(pathLine) {
+    return pathLine.match("\\[.*]")
+}
+
 function updateBwGraph(data, time) {
     updateBwChart(chartCS, data.cs, time);
     updateBwChart(chartSC, data.sc, time);
@@ -664,7 +667,7 @@ function updateBwChart(chart, dataDir, time) {
     // do not shift points since we manually remove before this
     var draw = false;
     var shift = false;
-    var color = getPathColor(dataDir.path.match("\\[.*]"));
+    var color = getPathColor(getHopsString(dataDir.path));
     if (dataDir.error) {
         chart.series[0].addPoint({
             x : time,
@@ -700,7 +703,7 @@ function updatePingGraph(chart, data, time) {
     // do not shift points since we manually remove before this
     var draw = false;
     var shift = false;
-    var color = getPathColor(data.path.match("\\[.*]"))
+    var color = getPathColor(getHopsString(data.path));
     if (data.error || data.loss > 0 || data.responseTime <= 0) {
         var error = 'Command terminated.';
         if (data.loss > 0) {
@@ -744,7 +747,7 @@ function command(continuous) {
     });
     if (activeApp == "bwtester" || activeApp == "echo"
             || activeApp == "traceroute") {
-        // add extra bwtester options required
+        // add extra continuous options required
         form_data.push({
             name : "continuous",
             value : continuous
@@ -792,19 +795,20 @@ function command(continuous) {
             console.info(activeApp, 'duration:', duration, 'ms');
             handleEndCmdDisplay(resp);
         }
-        if (activeApp == "camerapp") {
+        switch (activeApp) {
+        case "camerapp":
             // check for new images once, on command complete
             handleImageResponse(resp);
-        } else if (activeApp == "bwtester") {
+            break;
+        case "bwtester":
+        case "echo":
+        case "traceroute":
             // check for usable data for graphing
             handleContResponse(resp, continuous, startTime);
-        } else if (activeApp == "echo") {
-            // check for usable data for graphing
-            handleContResponse(resp, continuous, startTime);
-        } else if (activeApp == "traceroute") {
-            handleContResponse(resp, continuous, startTime);
-        } else {
+            break;
+        default:
             handleGeneralResponse();
+            break;
         }
     }).fail(function(error) {
         showError(error.responseJSON);
@@ -1023,6 +1027,7 @@ function setDefaults() {
     $('#bwtest_text').text(bwText);
     $('#bwgraphs_text').text(bwgraphsText);
     $('#echo_text').text(echoText);
+    $('#traceroute_text').text(tracerouteText);
 
     onchange_radio('cs', 'size');
     onchange_radio('sc', 'size');

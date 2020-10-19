@@ -237,15 +237,38 @@ ul.tree li a {
 
 .path-text {
  color: white;
+ font-weight: bold;
  padding-left: 5px; /* background shape */
  padding-right: 5px; /* background shape */
  border-radius: 10px; /* background shape */
 }
 
-.latency-text {
- color: purple;
- position: absolute;
- right: 0;
+.path-title-text {
+ background-color: black;
+}
+
+.ia-select {
+ width: 120px;
+}
+
+.ia-text {
+ width: 120px;
+}
+
+.ia-addr {
+ width: 125px;
+}
+
+.ia-port {
+ width: 75px;
+}
+
+.as-args {
+ width: 200px;
+}
+
+.as-secs {
+ width: 45px;
 }
 
 ul.tree li a:before {

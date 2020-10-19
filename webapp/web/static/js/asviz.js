@@ -414,13 +414,15 @@ function updateNodeSelected(isSelected, selected) {
 }
 
 var svc_pre = {
-    0 : "unset",
-    1 : "bs",
-    2 : "ps",
-    3 : "cs",
-    4 : "sb",
-    5 : "sig",
-    6 : "ds",
+    0 : "unset", // Not set
+    1 : "bs", // Beacon service
+    2 : "ps", // Path service
+    3 : "cs", // Certificate service
+    4 : "sb", // SIBRA service
+    5 : "ds", // Discovery service
+    6 : "br", // Border router
+    7 : "sig", // SCION-IP gateway
+    8 : "hps", // Hidden Path service
 };
 
 var svc_service = {
@@ -431,6 +433,8 @@ var svc_service = {
     4 : "SIBRA",
     5 : "GATEWAY",
     6 : "DISCOVERY",
+    7 : "SIG",
+    8 : "HIDDEN PATH",
 };
 
 function get_json_as_topo(data, width, height) {
@@ -472,11 +476,11 @@ function get_json_as_topo(data, width, height) {
             snode.name = svc_pre[st] + iaf + "-" + (parseInt(h) + 1);
             snode.service = svc_service[st];
             snode.ttl = sinfos[s].Ttl;
-            if (hinfos[h].Addrs.Ipv4) {
-                snode.ipv4 = ipv4Raw2Read(hinfos[h].Addrs.Ipv4);
+            if (hinfos[h].Addrs.IPv4) {
+                snode.ipv4 = ipv4Raw2Read(hinfos[h].Addrs.IPv4);
             }
-            if (hinfos[h].Addrs.Ipv6) {
-                snode.ipv6 = ipv6Raw2Read(hinfos[h].Addrs.Ipv6);
+            if (hinfos[h].Addrs.IPv6) {
+                snode.ipv6 = ipv6Raw2Read(hinfos[h].Addrs.IPv6);
             }
             snode.port = hinfos[h].Port;
             snode.type = "service";
@@ -495,32 +499,23 @@ function get_json_as_topo(data, width, height) {
     // have multiple interfaces
     gidx += 1;
     var brs = {};
-    var iinfos = data.if_info.RawEntries;
+    var iinfos = data.if_info;
     for (i in iinfos) {
-        var ipv4, ipv6, port;
-        if (iinfos[i].HostInfo.Addrs.Ipv4) {
-            ipv4 = ipv4Raw2Read(iinfos[i].HostInfo.Addrs.Ipv4);
-        }
-        if (iinfos[i].HostInfo.Addrs.Ipv6) {
-            ipv6 = ipv6Raw2Read(iinfos[i].HostInfo.Addrs.Ipv6);
-        }
-        port = iinfos[i].HostInfo.Port;
+        ipv4 = iinfos[i].IP;
+        port = iinfos[i].Port;
+        zone = iinfos[i].Zone;
 
-        var brkey = ipv4 + "-" + ipv6 + "-" + port;
+        var brkey = ipv4 + "-" + port + "-" + zone;
         if (!brs.hasOwnProperty(brkey)) {
             // ifinfo: add all interface BR nodes
             var snode = {};
             brs[brkey] = "br" + iaf + "-" + (Object.keys(brs).length + 1);
             snode.name = brs[brkey];
             snode.service = "BORDER";
-            if (iinfos[i].HostInfo.Addrs.Ipv4) {
-                snode.ipv4 = ipv4;
-            }
-            if (iinfos[i].HostInfo.Addrs.Ipv6) {
-                snode.ipv6 = ipv6;
-            }
+            snode.ipv4 = ipv4;
             snode.port = port;
-            snode.if_id = iinfos[i].IfID;
+            snode.if_id = ""; // no longer in if_info in sciond
+            snode.zone = zone;
             snode.type = "router";
             snode.group = gidx;
             nodes.push(snode);
@@ -534,7 +529,7 @@ function get_json_as_topo(data, width, height) {
 
         // ifinfo: add all interface dest AS nodes
         var lnode = {};
-        lnode.name = "(" + iinfos[i].IfID + ")";
+        lnode.name = "(" + iinfos[i].IP + ")";
         lnode.service = "ISD-AS";
         lnode.type = "interface";
         lnode.link_type = "parent";

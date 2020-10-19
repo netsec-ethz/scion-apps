@@ -10,7 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.package main
+// limitations under the License.
 
 // NOTE: Webapp relies on SCION's configuration for some of its functionality.
 // If the topology changes, webapp should be restarted as well.
@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -41,37 +40,6 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// GOPATH is the root of the GOPATH environment (in development).
-var GOPATH = os.Getenv("GOPATH")
-
-// browseRoot is browse-only, consider security (def: cwd)
-var browseRoot = flag.String("r", ".",
-	"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
-
-// staticRoot for serving/writing static data
-var staticRoot = flag.String("srvroot", path.Join(GOPATH, "src/github.com/netsec-ethz/scion-apps/webapp/web"),
-	"Path to read/write web server files.")
-
-// appsRoot is the root location of scionlab apps.
-var appsRoot = flag.String("sabin", path.Join(GOPATH, "bin"),
-	"Path to execute the installed scionlab apps binaries")
-
-// scionRoot is the root location of the scion infrastructure.
-var scionRoot = flag.String("sroot", path.Join(GOPATH, "src/github.com/scionproto/scion"),
-	"Path to read SCION root directory of infrastructure")
-var scionBin = flag.String("sbin", path.Join(*scionRoot, "bin"),
-	"Path to execute SCION bin directory of infrastructure tools")
-var scionGen = flag.String("sgen", path.Join(*scionRoot, "gen"),
-	"Path to read SCION gen directory of infrastructure config")
-var scionGenCache = flag.String("sgenc", path.Join(*scionRoot, "gen-cache"),
-	"Path to read SCION gen-cache directory of infrastructure run-time config")
-var scionLogs = flag.String("slogs", path.Join(*scionRoot, "logs"),
-	"Path to read SCION logs directory of infrastructure logging")
-
-var addr = flag.String("a", "127.0.0.1", "Address of server host.")
-var port = flag.Int("p", 8000, "Port of server host.")
-var cmdBufLen = 1024
-var browserAddr = "127.0.0.1"
 var settings lib.UserSetting
 var id = "webapp"
 
@@ -121,6 +89,7 @@ func ensurePath(srcpath, staticDir string) string {
 	}
 	return dir
 }
+
 func checkPath(dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		CheckError(err)
@@ -128,11 +97,13 @@ func checkPath(dir string) {
 }
 
 func main() {
-	flag.Parse()
-	options = lib.CmdOptions{*staticRoot, *browseRoot, *appsRoot, *scionRoot, *scionBin, *scionGen, *scionGenCache, *scionLogs}
+	options = lib.ParseFlags()
+
 	// correct static files are required for the app to serve them, else fail
 	if _, err := os.Stat(path.Join(options.StaticRoot, "static")); os.IsNotExist(err) {
-		log.Error("-s flag must be set with local repo: scion-apps/webapp/web")
+		repo := "https://github.com/netsec-ethz/scion-apps/tree/master/webapp/web"
+		msg := "-%s flag must be set with installed static website from repo: %s"
+		log.Error(fmt.Sprintf(msg, lib.CMD_WEB, repo))
 		CheckFatal(err)
 		return
 	}
@@ -185,11 +156,11 @@ func main() {
 	appsBuildCheck("traceroute")
 
 	initServeHandlers()
-	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", browserAddr, *port))
+	log.Info(fmt.Sprintf("Browser access: at http://%s:%d.", options.Addr, options.Port))
 	checkPath(options.BrowseRoot)
 	log.Info("File browser root:", "root", options.BrowseRoot)
-	log.Info(fmt.Sprintf("Listening on %s:%d...", *addr, *port))
-	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *addr, *port), logRequestHandler(http.DefaultServeMux))
+	log.Info(fmt.Sprintf("Listening on %s:%d...", options.Addr, options.Port))
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", options.Addr, options.Port), logRequestHandler(http.DefaultServeMux))
 	CheckFatal(err)
 }
 
@@ -209,7 +180,7 @@ func initLocalIaOptions() {
 			settings.MyIA = ""
 		}
 	}
-	lib.WriteUserSetting(&options, settings)
+	lib.WriteUserSetting(&options, &settings)
 }
 
 func initServeHandlers() {
@@ -244,7 +215,7 @@ func initServeHandlers() {
 	http.HandleFunc("/locations", lib.LocationsHandler)
 	http.HandleFunc("/geolocate", lib.GeolocateHandler)
 	http.HandleFunc("/getpathtopo", getPathInfoHandler)
-	http.HandleFunc("/getastopo", lib.AsTopoHandler)
+	http.HandleFunc("/getastopo", getAsTopoHandler)
 	http.HandleFunc("/gettrc", getTrcInfoHandler)
 }
 
@@ -368,7 +339,6 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 // d could be either model.BwTestItem, model.EchoItem or model.TracerouteItem
 func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
-	var isdCli int
 	installpath := getClientLocationBin(appSel)
 	log.Info(fmt.Sprintf("App tag is %s...", appSel))
 	switch appSel {
@@ -378,9 +348,8 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
-		optClient := fmt.Sprintf("-c=%s,[%s]:%d", d.CIa, d.CAddr, d.CPort)
 		optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
-		command = append(command, installpath, optServer, optClient)
+		command = append(command, installpath, optServer)
 		if appSel == "bwtester" {
 			bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
 				d.CSPackets, d.CSBandwidth)
@@ -388,7 +357,6 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 				d.SCPackets, d.SCBandwidth)
 			command = append(command, bwCS, bwSC)
 		}
-		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
 
 	case "echo":
 		d, ok := dOrinial.(model.EchoItem)
@@ -397,13 +365,13 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			return nil
 		}
 		optApp := "echo"
-		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optCount := fmt.Sprintf("-c=%d", d.Count)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
 		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
-		command = append(command, installpath, optApp, optRemote, optLocal, optCount, optTimeout, optInterval)
-		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
+		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
+		command = append(command, installpath,
+			optApp, optRemote, optCount, optTimeout, optInterval, optSciond)
 
 	case "traceroute":
 		d, ok := dOrinial.(model.TracerouteItem)
@@ -412,20 +380,15 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			return nil
 		}
 		optApp := "tr"
-		optLocal := fmt.Sprintf("-local=%s,[%s]", d.CIa, d.CAddr)
 		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
-		command = append(command, installpath, optApp, optRemote, optLocal, optTimeout)
-		isdCli, _ = strconv.Atoi(strings.Split(d.CIa, "-")[0])
+		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
+		command = append(command, installpath, optApp, optRemote, optTimeout, optSciond)
 	}
 
 	if len(pathStr) > 0 {
 		// if path choice provided, use interactive mode
 		command = append(command, "-i")
-	}
-	if isdCli < 16 {
-		// -sciondFromIA is better for localhost testing, with test isds
-		command = append(command, "-sciondFromIA")
 	}
 	return command
 }
@@ -439,7 +402,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	interval, _ := strconv.Atoi(r.PostFormValue("interval"))
 	count, _ := strconv.Atoi(r.PostFormValue("count"))
 	if appSel == "" {
-		fmt.Fprintf(w, "Unknown SCION client app. Is one selected?")
+		fmt.Fprint(w, "Unknown SCION client app. Is one selected?")
 		return
 	}
 	if continuous || contCmdActive {
@@ -547,6 +510,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request, pathStr string) {
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = getClientCwd(appSel)
+	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+settings.SDAddress)
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
@@ -600,11 +564,11 @@ func getClientLocationBin(app string) string {
 	var binname string
 	switch app {
 	case "sensorapp":
-		binname = path.Join(options.AppsRoot, "sensorfetcher")
+		binname = path.Join(options.AppsRoot, "scion-sensorfetcher")
 	case "camerapp":
-		binname = path.Join(options.AppsRoot, "imagefetcher")
+		binname = path.Join(options.AppsRoot, "scion-imagefetcher")
 	case "bwtester":
-		binname = path.Join(options.AppsRoot, "bwtestclient")
+		binname = path.Join(options.AppsRoot, "scion-bwtestclient")
 	case "echo", "traceroute":
 		binname = path.Join(options.ScionBin, "scmp")
 	}
@@ -734,7 +698,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, &options, settings.MyIA)
+	lib.HealthCheckHandler(w, r, &options, settings)
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
@@ -751,7 +715,7 @@ func getTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handles locating most recent image formatting it for graphic display in response.
 func findImageHandler(w http.ResponseWriter, r *http.Request) {
-	lib.FindImageHandler(w, r, &options, browserAddr, *port)
+	lib.FindImageHandler(w, r, &options)
 }
 
 func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {
@@ -766,6 +730,10 @@ func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
 	lib.PathTopoHandler(w, r, &options)
 }
 
+func getAsTopoHandler(w http.ResponseWriter, r *http.Request) {
+	lib.AsTopoHandler(w, r, &options)
+}
+
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
 	lib.GetNodesHandler(w, r, &options)
 }
@@ -773,7 +741,7 @@ func getNodesHandler(w http.ResponseWriter, r *http.Request) {
 func getIAsHandler(w http.ResponseWriter, r *http.Request) {
 	// in:nil, out:list[ias]
 	iasJSON, _ := json.Marshal(localIAs)
-	fmt.Fprintf(w, string(iasJSON))
+	fmt.Fprint(w, string(iasJSON))
 }
 
 func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -783,7 +751,7 @@ func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
 	settings.MyIA = myIa
 
 	// save myIA to file
-	lib.WriteUserSetting(&options, settings)
+	lib.WriteUserSetting(&options, &settings)
 	lib.GenClientNodeDefaults(&options, settings.MyIA)
 	log.Info("IA set:", "myIa", settings.MyIA)
 }
