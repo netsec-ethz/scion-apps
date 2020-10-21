@@ -246,8 +246,6 @@ github.com/lunixbochs/vtclean v1.0.0/go.mod h1:pHhQNgMf3btfWnGBVipUOjRYhoOsdGqdm
 github.com/lyft/protoc-gen-validate v0.0.13/go.mod h1:XbGvPuh87YZc5TdIa2/I4pLk0QoUACkjt2znoq26NVQ=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mailru/easyjson v0.0.0-20190312143242-1de009706dbe/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
-github.com/marcfrei/rains v0.1.1-0.20201014091116-416eae15ff2e h1:6f45iNXaSL1PTMt4N8UkI+Lh19KXbVd+ACopd2LnwEo=
-github.com/marcfrei/rains v0.1.1-0.20201014091116-416eae15ff2e/go.mod h1:/NJ2hhRv8JEKNy/JZwP39NMY3BC6mNc3VsdccH4Ctxs=
 github.com/marcfrei/rains v0.1.1-0.20201020093042-6f44c1169307 h1:bKvmqcg/oVDKn3MWqEkzoqibLcJJ3Mmg6KZUx6OB2p8=
 github.com/marcfrei/rains v0.1.1-0.20201020093042-6f44c1169307/go.mod h1:TrcSKEL0Qa646536VawEcl8gMCyZQFLbCMcnLat2CNs=
 github.com/marten-seemann/qpack v0.1.0 h1:/0M7lkda/6mus9B8u34Asqm8ZhHAAt9Ho0vniNuVSVg=
@@ -381,8 +379,6 @@ github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
 github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da/go.mod h1:gi+0XIa01GRL2eRQVjQkKGqKF3SF9vZR/HnPullcV2E=
-github.com/scionproto/scion v0.5.1-0.20201013103126-ce18d0dd7958 h1:+j4CNx75IwlZ0tNMq9JQq+6y+9hAEF2OaFBEH4+telo=
-github.com/scionproto/scion v0.5.1-0.20201013103126-ce18d0dd7958/go.mod h1:cyxTrcfdpryxeHiEV8E8ysNOjMkCRmfCbd/DwTpqg14=
 github.com/scionproto/scion v0.5.1-0.20201020080617-fff17e097ea3 h1:HCyk29WzjjCY6Y/Co4F5iIeLGB62EHJwR2Oq+Ps1K0k=
 github.com/scionproto/scion v0.5.1-0.20201020080617-fff17e097ea3/go.mod h1:Y/NXCFWj4QWnuHydL/lmQ+ETmcG3Iz5TCtRbRnLRY0Q=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
@@ -675,8 +671,6 @@ gopkg.in/fsnotify.v1 v1.4.7 h1:xOHLXZwVvI9hhs+cLKq5+I5onOuwQLhQwiu63xxlHs4=
 gopkg.in/fsnotify.v1 v1.4.7/go.mod h1:Tz8NjZHkW78fSQdbUxIjBTcgA1z1m8ZHf0WmKUhAMys=
 gopkg.in/gcfg.v1 v1.2.3/go.mod h1:yesOnuUOFQAhST5vPY4nbZsb/huCgGGXlipJsBn0b3o=
 gopkg.in/inf.v0 v0.9.1/go.mod h1:cWUDdTG/fYaXco+Dcufb5Vnc6Gp2YChqWtbxRZE0mXw=
-gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2 h1:pqzOumCQ6icMR4sIIYRe2w7xCERvcPOFx22W9jSRsWg=
-gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2/go.mod h1:WJaLhyHHEQFOgwIxu/SJxvUHJA18glYsMETBTMIySTY=
 gopkg.in/resty.v1 v1.12.0/go.mod h1:mDo4pnntr5jdWRML875a/NmxYqAlA73dVijT2AXvQQo=
 gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 h1:uRGJdciOHaEIrze2W8Q3AKkepLTh2hOroT7a+7czfdQ=
 gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7/go.mod h1:dt/ZhP58zS4L8KSrWDmTeBkI65Dw0HsyUHuEVlX15mw=

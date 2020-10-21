@@ -29,10 +29,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	sintegration "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+
+	"github.com/netsec-ethz/scion-apps/pkg/integration/sintegration"
 )
 
 var _ sintegration.Integration = (*ScionAppsIntegration)(nil)
@@ -182,7 +183,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 }
 
 func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
-	src, dst *snet.UDPAddr) (*sintegration.BinaryWaiter, error) {
+	src, dst *snet.UDPAddr) (sintegration.Waiter, error) {
 
 	sciondAddr, err := getSCIONDAddress(src.IA)
 	if err != nil {
@@ -258,8 +259,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 		}
 	}()
 
-	// return r, r.Start()
-	return nil, err
+	return r, r.Start()
 }
 
 func (sai *ScionAppsIntegration) ServerStdout(outMatch func(bool, string) bool) {

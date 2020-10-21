@@ -27,10 +27,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	sintegration "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+
+	"github.com/netsec-ethz/scion-apps/pkg/integration/sintegration"
 )
 
 const (
@@ -156,7 +157,7 @@ func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTi
 		for i, conn := range pairs {
 			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
 			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
-			if err := sintegration.RunClient(in, conn, clientTimeout, nil); err != nil {
+			if err := sintegration.RunClient(in, conn, clientTimeout); err != nil {
 				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
 				return err
 			}
