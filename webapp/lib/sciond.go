@@ -96,7 +96,7 @@ func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
 // empty, the default address.
 func connect(sciondAddress string) (sciond.Connector, error) {
 	if len(sciondAddress) == 0 {
-		sciondAddress = sciond.DefaultSCIONDAddress
+		sciondAddress = sciond.DefaultAPIAddress
 	}
 	sciondConn, err := sciond.NewService(sciondAddress).Connect(context.Background())
 	if CheckError(err) {

@@ -206,17 +206,11 @@ func initDefNetwork() error {
 		return err
 	}
 	pathQuerier := sciond.Querier{Connector: sciondConn, IA: localIA}
-	n := &snet.SCIONNetwork{
-		LocalIA: localIA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: dispatcher,
-			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: sciond.RevHandler{Connector: sciondConn},
-			},
-			Version2: true,
-		},
-		Version2: true,
-	}
+	n := snet.NewNetwork(
+		localIA,
+		dispatcher,
+		sciond.RevHandler{Connector: sciondConn},
+	)
 	defNetwork = Network{Network: n, IA: localIA, PathQuerier: pathQuerier, hostInLocalAS: hostInLocalAS}
 	return nil
 }
@@ -224,7 +218,7 @@ func initDefNetwork() error {
 func findSciond(ctx context.Context) (sciond.Connector, error) {
 	address, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
 	if !ok {
-		address = sciond.DefaultSCIONDAddress
+		address = sciond.DefaultAPIAddress
 	}
 	sciondConn, err := sciond.NewService(address).Connect(ctx)
 	if err != nil {

@@ -182,7 +182,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 }
 
 func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
-	src, dst *snet.UDPAddr) (sintegration.Waiter, error) {
+	src, dst *snet.UDPAddr) (*sintegration.BinaryWaiter, error) {
 
 	sciondAddr, err := getSCIONDAddress(src.IA)
 	if err != nil {
@@ -258,7 +258,8 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 		}
 	}()
 
-	return r, r.Start()
+	// return r, r.Start()
+	return nil, err
 }
 
 func (sai *ScionAppsIntegration) ServerStdout(outMatch func(bool, string) bool) {

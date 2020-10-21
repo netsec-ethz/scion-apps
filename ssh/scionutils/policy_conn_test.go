@@ -140,7 +140,7 @@ func makePaths(num int) []snet.Path {
 func makePath(id int) snet.Path {
 	return &mockPath{
 		interfaces: []snet.PathInterface{
-			{ID: common.IFIDType(id)},
+			{ID: common.IFIDType(id)}, //nolint
 		},
 	}
 }
