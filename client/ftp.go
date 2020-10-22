@@ -5,6 +5,7 @@ package ftp
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/textproto"
@@ -37,7 +38,7 @@ type ServerConn struct {
 	extended      bool
 	blockSize     int
 	logger        logger.Logger
-	selector      scion.PathSelector
+	cert          tls.Certificate
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -53,7 +54,6 @@ type dialOptions struct {
 	location    *time.Location
 	debugOutput io.Writer
 	blockSize   int
-	selector    scion.PathSelector
 }
 
 // Entry describes a file and is returned by List().
@@ -86,11 +86,6 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		maxChunkSize = 500
 	}
 
-	selector := do.selector
-	if selector == nil {
-		selector = scion.DefaultPathSelector
-	}
-
 	conn, err := scion.DialAddr(local, remote)
 	if err != nil {
 		return nil, err
@@ -119,7 +114,6 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		remote:    remoteHost,
 		logger:    &logger.StdLogger{},
 		blockSize: maxChunkSize,
-		selector:  selector,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)
@@ -192,14 +186,6 @@ func DialWithDebugOutput(w io.Writer) DialOption {
 func DialWithBlockSize(blockSize int) DialOption {
 	return DialOption{func(do *dialOptions) {
 		do.blockSize = blockSize
-	}}
-}
-
-// DialWithPathSelector sets the selector to be used. The default (DefaultPathSelector) just picks
-// the first path
-func DialWithPathSelector(selector scion.PathSelector) DialOption {
-	return DialOption{func(do *dialOptions) {
-		do.selector = selector
 	}}
 }
 

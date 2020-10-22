@@ -3,9 +3,9 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/elwin/scionFTP/scion"
 	"io"
 	"log"
 	"os"
@@ -17,8 +17,13 @@ import (
 )
 
 func main() {
+	cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+	if err != nil {
+		log.Fatalf("could not load key-pair: %s", err.Error())
+	}
 	app := App{
-		ctx: context.Background(),
+		ctx:  context.Background(),
+		cert: cert,
 	}
 
 	app.cmd = commandMap{
@@ -44,6 +49,8 @@ type commandMap map[string]func([]string)
 
 var (
 	local    = flag.String("local", "", "Local hostname (e.g. 1-ff00:0:110,[127.0.0.1]:4000")
+	certFile = flag.String("cert", "", "TLS certificate file")
+	keyFile  = flag.String("key", "", "TLS private key file")
 	interval = time.Duration(15 * time.Second) // Interval for Keep-Alive
 )
 
@@ -51,6 +58,9 @@ func init() {
 	flag.Parse()
 	if *local == "" {
 		log.Fatalf("Please set the local address with -local")
+	}
+	if *certFile == "" || *keyFile == "" {
+		log.Fatalf("Please specify public/private key files to use with -cert and -key")
 	}
 }
 
@@ -60,6 +70,7 @@ type App struct {
 	cmd    commandMap
 	ctx    context.Context
 	cancel context.CancelFunc
+	cert   tls.Certificate
 }
 
 func (app *App) print(a interface{}) {
@@ -109,8 +120,6 @@ func (app *App) connect(args []string) {
 	}
 
 	app.conn = conn
-
-	app.conn.SetPathSelector(scion.NewRotator(10).PathSelector)
 
 	ctx, cancel := context.WithCancel(app.ctx)
 	app.cancel = cancel

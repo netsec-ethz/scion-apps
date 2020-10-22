@@ -64,7 +64,7 @@ func (conn *Conn) NewListener() (*scion.Listener, error) {
 
 	for i := 0; i < listenerRetries; i++ {
 
-		listener, err = scion.Listen(conn.server.Hostname + ":0")
+		listener, err = scion.Listen(conn.server.Hostname+":0", conn.server.Certificate)
 		if err == nil {
 			break
 		}

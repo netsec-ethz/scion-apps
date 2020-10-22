@@ -18,11 +18,6 @@ import (
 	"github.com/elwin/scionFTP/socket"
 )
 
-// Only used for testing to make our life easier, shouldn't really be here
-func (c *ServerConn) SetPathSelector(selector scion.PathSelector) {
-	c.selector = selector
-}
-
 // Login authenticates the scionftp with specified user and password.
 //
 // "anonymous"/"anonymous" is a common user/password scheme for FTP servers

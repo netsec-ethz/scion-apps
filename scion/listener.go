@@ -17,19 +17,15 @@ type Listener struct {
 	Address
 }
 
-func Listen(address string) (*Listener, error) {
+func Listen(address string, cert *tls.Certificate) (*Listener, error) {
 	addr, err := ConvertAddress(address)
 	if err != nil {
 		return nil, err
 	}
 
-	cert, err := tls.LoadX509KeyPair(PEMPATH, KEYPATH)
-	if err != nil {
-		return nil, fmt.Errorf("could not load key-pair: %s", err.Error())
-	}
 	tlsConfig := &tls.Config{
 		NextProtos:   []string{"scionftp"},
-		Certificates: []tls.Certificate{cert},
+		Certificates: []tls.Certificate{*cert},
 	}
 
 	listener, err := appquic.ListenPort(addr.Port(), tlsConfig, nil)

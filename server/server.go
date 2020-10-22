@@ -7,6 +7,7 @@ package server
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -39,12 +40,14 @@ type Opts struct {
 
 	// The port that the FTP should listen on. Optional, defaults to 3000. In
 	// a production environment you will probably want to change this to 21.
-	Port int
+	Port uint16
 
 	WelcomeMessage string
 
 	// A logger implementation, if nil the StdLogger is used
 	Logger logger.Logger
+
+	Certificate *tls.Certificate
 }
 
 // Server is the root of your FTP application. You should instantiate one
@@ -104,6 +107,8 @@ func serverOptsWithDefaults(opts *Opts) *Opts {
 		newOpts.Logger = opts.Logger
 	}
 
+	newOpts.Certificate = opts.Certificate
+
 	return &newOpts
 }
 
@@ -128,7 +133,7 @@ func NewServer(opts *Opts) *Server {
 	opts = serverOptsWithDefaults(opts)
 	s := new(Server)
 	s.Opts = opts
-	s.listenTo = opts.Hostname + ":" + strconv.Itoa(opts.Port)
+	s.listenTo = opts.Hostname + ":" + strconv.Itoa(int(opts.Port))
 	s.logger = opts.Logger
 	return s
 }
@@ -166,7 +171,7 @@ func (server *Server) ListenAndServe() error {
 	var err error
 	var curFeats = featCmds
 
-	listener, err = scion.Listen(server.listenTo)
+	listener, err = scion.Listen(server.listenTo, server.Certificate)
 
 	if err != nil {
 		return err

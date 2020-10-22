@@ -7,6 +7,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"log"
 
@@ -16,11 +17,13 @@ import (
 
 func main() {
 	var (
-		root = flag.String("root", "", "Root directory to serve")
-		user = flag.String("user", "admin", "Username for login")
-		pass = flag.String("pass", "123456", "Password for login")
-		port = flag.Int("port", 2121, "Port")
-		host = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
+		root     = flag.String("root", "", "Root directory to serve")
+		user     = flag.String("user", "admin", "Username for login")
+		pass     = flag.String("pass", "123456", "Password for login")
+		port     = flag.Uint("port", 2121, "Port")
+		host     = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
+		certFile = flag.String("cert", "", "TLS certificate file")
+		keyFile  = flag.String("key", "", "TLS private key file")
 	)
 	flag.Parse()
 	if *root == "" {
@@ -36,17 +39,27 @@ func main() {
 		Perm:     server.NewSimplePerm("user", "group"),
 	}
 
+	if *certFile == "" || *keyFile == "" {
+		log.Fatalf("Please specify public/private key files to use with -cert and -key")
+	}
+
+	cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+	if err != nil {
+		log.Fatalf("could not load key-pair: %s", err.Error())
+	}
+
 	opts := &server.Opts{
-		Factory:  factory,
-		Port:     *port,
-		Hostname: *host,
-		Auth:     &server.SimpleAuth{Name: *user, Password: *pass},
+		Factory:     factory,
+		Port:        uint16(*port),
+		Hostname:    *host,
+		Auth:        &server.SimpleAuth{Name: *user, Password: *pass},
+		Certificate: &cert,
 	}
 
 	log.Printf("Starting ftp server on %v:%v", opts.Hostname, opts.Port)
 	log.Printf("Username %v, Password %v", *user, *pass)
-	server := server.NewServer(opts)
-	err := server.ListenAndServe()
+	srv := server.NewServer(opts)
+	err = srv.ListenAndServe()
 	if err != nil {
 		log.Fatal("Error starting server:", err)
 	}
