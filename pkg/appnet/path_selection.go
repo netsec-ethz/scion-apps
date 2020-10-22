@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // metrics for path selection
@@ -83,7 +84,7 @@ func ChoosePathByMetric(pathAlgo int, dst addr.IA) (snet.Path, error) {
 // SetPath is a helper function to set the path on an snet.UDPAddr
 func SetPath(addr *snet.UDPAddr, path snet.Path) {
 	if path == nil {
-		addr.Path = nil
+		addr.Path = spath.Path{}
 		addr.NextHop = nil
 	} else {
 		addr.Path = path.Path()

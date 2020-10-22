@@ -109,7 +109,7 @@ func Dial(address string) (*snet.Conn, error) {
 // This is all that snet currently provides, we'll need to add a layer on top
 // that updates the paths in case they expire or are revoked.
 func DialAddr(raddr *snet.UDPAddr) (*snet.Conn, error) {
-	if raddr.Path == nil {
+	if raddr.Path.IsEmpty() {
 		err := SetDefaultPath(raddr)
 		if err != nil {
 			return nil, err

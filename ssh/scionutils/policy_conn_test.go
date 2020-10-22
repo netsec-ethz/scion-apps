@@ -18,7 +18,6 @@ import (
 	"net"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -121,12 +120,10 @@ type mockPath struct {
 }
 
 func (p *mockPath) UnderlayNextHop() *net.UDPAddr    { return nil }
-func (p *mockPath) Path() *spath.Path                { return nil }
+func (p *mockPath) Path() spath.Path                 { return spath.Path{} }
 func (p *mockPath) Interfaces() []snet.PathInterface { return p.interfaces }
 func (p *mockPath) Destination() addr.IA             { return addr.IA{} }
 func (p *mockPath) Metadata() snet.PathMetadata      { return nil }
-func (p *mockPath) MTU() uint16                      { return 0 }
-func (p *mockPath) Expiry() time.Time                { return time.Time{} }
 func (p *mockPath) Copy() snet.Path                  { return nil }
 
 func makePaths(num int) []snet.Path {
