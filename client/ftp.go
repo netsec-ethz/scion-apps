@@ -91,7 +91,7 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		selector = scion.DefaultPathSelector
 	}
 
-	conn, err := scion.DialAddr(local, remote, selector)
+	conn, err := scion.DialAddr(local, remote)
 	if err != nil {
 		return nil, err
 	}

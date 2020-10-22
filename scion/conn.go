@@ -13,7 +13,7 @@ type Connection struct {
 	local, remote Address
 }
 
-func NewSQuicConnection(stream quic.Stream, local, remote Address) *Connection {
+func NewAppQuicConnection(stream quic.Stream, local, remote Address) *Connection {
 	return &Connection{stream, local, remote}
 }
 

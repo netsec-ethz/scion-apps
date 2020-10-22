@@ -42,9 +42,6 @@ func main() {
 
 type commandMap map[string]func([]string)
 
-
-
-
 var (
 	local    = flag.String("local", "", "Local hostname (e.g. 1-ff00:0:110,[127.0.0.1]:4000")
 	interval = time.Duration(15 * time.Second) // Interval for Keep-Alive
@@ -108,6 +105,7 @@ func (app *App) connect(args []string) {
 	conn, err := ftp.Dial(*local, args[0])
 	if err != nil {
 		app.print(err)
+		return
 	}
 
 	app.conn = conn

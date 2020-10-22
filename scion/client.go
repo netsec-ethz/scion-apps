@@ -3,35 +3,38 @@ package scion
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"io"
 	"os"
 	"strconv"
 	"sync"
 
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/squic"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
-func Dial(local, remote Address, selector PathSelector) (*Connection, error) {
+func DialAddr(localAddr, remoteAddr string) (*Connection, error) {
 
-	err := initNetwork(local)
+	local, err := ConvertAddress(localAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	err = setupPath(local.Addr(), remote.Addr(), selector)
+	remote, err := ConvertAddress(remoteAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	l := local.Addr()
-	r := remote.Addr()
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"scionftp"},
+	}
 
-	session, err := squic.DialSCION(nil, &l, &r, nil)
+	session, err := appquic.Dial(remoteAddr, tlsConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to dial %s: %s", remote, err)
 	}
@@ -54,22 +57,7 @@ func Dial(local, remote Address, selector PathSelector) (*Connection, error) {
 		return nil, err
 	}
 
-	return NewSQuicConnection(stream, local, remote), nil
-}
-
-func DialAddr(localAddr, remoteAddr string, selector PathSelector) (*Connection, error) {
-
-	local, err := ConvertAddress(localAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	remote, err := ConvertAddress(remoteAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	return Dial(local, remote, selector)
+	return NewAppQuicConnection(stream, local, remote), nil
 }
 
 func sendHandshake(rw io.ReadWriter) error {
@@ -83,42 +71,56 @@ func sendHandshake(rw io.ReadWriter) error {
 	return nil
 }
 
-func setupPath(local, remote snet.Addr, selector PathSelector) error {
-	if !remote.IA.Eq(local.IA) {
-		pathEntry := choosePath(local, remote, selector)
-		if pathEntry == nil {
+func setupPath(local, remote snet.UDPAddr, selector PathSelector) error {
+	if !remote.IA.Equal(local.IA) {
+		path, err := choosePath(local, remote, selector)
+		if err != nil {
+			return err
+		}
+		if path == nil {
 			return fmt.Errorf("no paths available to remote destination")
 		}
-		remote.Path = spath.New(pathEntry.Path.FwdPath)
-		remote.Path.InitOffsets()
-		remote.NextHop, _ = pathEntry.HostInfo.Overlay()
+		remote.Path = (*path).Path()
+		if err := remote.Path.InitOffsets(); err != nil {
+			return err
+		}
+		remote.NextHop = (*path).OverlayNextHop()
 	}
 
 	return nil
 }
 
-func choosePath(local, remote snet.Addr, selector PathSelector) *sciond.PathReplyEntry {
-	var paths []*sciond.PathReplyEntry
+func choosePath(local, remote snet.UDPAddr, selector PathSelector) (*snet.Path, error) {
+	var paths []*snet.Path
 
-	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
+	sciondConn, err := sciond.NewService(sciond.DefaultSCIONDAddress).Connect(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	pathMgr := pathmgr.New(sciondConn, pathmgr.Timers{}, 1)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sciond.PathReqFlags{
+		PathCount: 1,
+		Refresh:   false,
+		Hidden:    false,
+	})
 
 	if len(pathSet) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	for _, p := range pathSet {
-		paths = append(paths, p.Entry)
+		paths = append(paths, &p)
 	}
 
 	selected := selector(paths)
 	fmt.Println(selected)
-	return selected
+	return selected, nil
 }
 
-type PathSelector func([]*sciond.PathReplyEntry) *sciond.PathReplyEntry
+type PathSelector func([]*snet.Path) *snet.Path
 
-func DefaultPathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+func DefaultPathSelector(paths []*snet.Path) *snet.Path {
 	return paths[0]
 }
 
@@ -128,10 +130,10 @@ func NewStaticSelector() *StaticSelector {
 
 type StaticSelector struct {
 	sync.Mutex
-	path *sciond.PathReplyEntry
+	path *snet.Path
 }
 
-func (selector *StaticSelector) PathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+func (selector *StaticSelector) PathSelector(paths []*snet.Path) *snet.Path {
 	selector.Lock()
 	defer selector.Unlock()
 	if selector.path == nil {
@@ -176,7 +178,7 @@ func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEn
 
 type Rotator struct {
 	max, current int
-	paths        []*sciond.PathReplyEntry
+	paths        []*snet.Path
 	sync.Mutex
 }
 
@@ -198,7 +200,7 @@ func (r *Rotator) GetNumberOfUsedPaths() int {
 	}
 }
 
-func (r *Rotator) PathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+func (r *Rotator) PathSelector(paths []*snet.Path) *snet.Path {
 	r.Lock()
 	defer r.Unlock()
 

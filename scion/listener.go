@@ -1,13 +1,15 @@
 package scion
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/scionproto/scion/go/lib/snet/squic"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
 type Listener struct {
@@ -21,13 +23,16 @@ func Listen(address string) (*Listener, error) {
 		return nil, err
 	}
 
-	err = initNetwork(addr)
+	cert, err := tls.LoadX509KeyPair(PEMPATH, KEYPATH)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not load key-pair: %s", err.Error())
+	}
+	tlsConfig := &tls.Config{
+		NextProtos:   []string{"scionftp"},
+		Certificates: []tls.Certificate{cert},
 	}
 
-	tmpAddr := addr.Addr()
-	listener, err := squic.ListenSCION(nil, &tmpAddr, nil)
+	listener, err := appquic.ListenPort(addr.Port(), tlsConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen: %s", err)
 	}
@@ -51,9 +56,9 @@ func (listener *Listener) Close() error {
 
 func (listener *Listener) Accept() (*Connection, error) {
 
-	session, err := listener.quicListener.Accept()
+	session, err := listener.quicListener.Accept(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("couldn't accept SQUIC connection: %s", err)
+		return nil, fmt.Errorf("couldn't accept APPQUIC connection: %s", err)
 	}
 
 	remote := session.RemoteAddr().String()
@@ -64,14 +69,14 @@ func (listener *Listener) Accept() (*Connection, error) {
 		return nil, err
 	}
 
-	stream, err := session.AcceptStream()
+	stream, err := session.AcceptStream(context.Background())
 
 	err = receiveHandshake(stream)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSQuicConnection(stream, listener.Address, remoteAddr), nil
+	return NewAppQuicConnection(stream, listener.Address, remoteAddr), nil
 }
 
 func receiveHandshake(rw io.ReadWriter) error {

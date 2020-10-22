@@ -1,68 +1,66 @@
 package scion
 
 import (
+	"context"
 	"fmt"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
-	"os/user"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/snet/squic"
-
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var initialize sync.Once
+var defNetwork *snet.SCIONNetwork
 
 const (
-	KEYPATH = "/go/src/github.com/scionproto/scion/gen-certs/tls.key"
-	PEMPATH = "/go/src/github.com/scionproto/scion/gen-certs/tls.pem"
+	KEYPATH = "/etc/scion/gen-certs/tls.key"
+	PEMPATH = "/etc/scion/gen-certs/tls.pem"
 )
 
-func initNetwork(local Address) error {
-	log.SetupLogConsole("info")
+func initNetwork(local Address) (*snet.SCIONNetwork, error) {
+	log.Setup(log.Config{})
 
 	var err error
 	initialize.Do(func() {
-		if snet.DefNetwork == nil {
-
-			err := initSciond(local)
-			if err != nil {
-				err = fmt.Errorf("failed to initialize SCION: %s", err)
-				return
-			}
-		}
-
-		user, err := user.Current()
+		var (
+			sciondConn sciond.Connector
+			localIA    addr.IA
+		)
+		sciondConn, err = initSciond(local)
 		if err != nil {
+			err = fmt.Errorf("failed to initialize SCION: %s", err)
 			return
 		}
 
-		err = squic.Init(user.HomeDir + KEYPATH, user.HomeDir + PEMPATH)
+		localIA, err = sciondConn.LocalIA(context.Background())
 		if err != nil {
-			err = fmt.Errorf("failed to initilaze SQUIC: %s", err)
 			return
 		}
-
+		pathQuerier := sciond.Querier{Connector: sciondConn, IA: localIA}
+		defNetwork = snet.NewNetworkWithPR(
+			localIA,
+			reliable.NewDispatcher(reliable.DefaultDispPath),
+			pathQuerier,
+			sciond.RevHandler{Connector: sciondConn},
+		)
 	})
 
-	return err
+	return defNetwork, err
 }
 
-func initSciond(local Address) error {
+func initSciond(local Address) (sciond.Connector, error) {
 	lcl := local.Addr()
 
-	sock := sciond.GetDefaultSCIONDPath(nil)
-	dispatcher := ""
-
 	// Try with default socket
-	err := snet.Init(lcl.IA, sock, dispatcher)
+	sciondConn, err := sciond.NewService(sciond.DefaultSCIONDAddress).Connect(context.Background())
 	if err == nil {
-		return nil
+		return sciondConn, nil
 	}
 
 	// Try with socket for IA
 	// Required when used in lcl topology with multiple sockets
-	sock = sciond.GetDefaultSCIONDPath(&lcl.IA)
-	return snet.Init(lcl.IA, sock, dispatcher)
+	return sciond.NewService(sciond.GetDefaultSCIONDAddress(&lcl.IA)).Connect(context.Background())
 }
