@@ -363,8 +363,10 @@ func (c *ServerConn) RetrFrom(path string, offset uint64) (*Response, error) {
 	return &Response{conn: conn, c: c}, nil
 }
 
-func (c *ServerConn) RetrHercules(remotePath, localPath string, herculesConfig *string) error {
-	herculesBinary := "/home/vagrant/hercules/hercules" // TODO use appropriate executable
+func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, herculesConfig *string) error {
+	if herculesBinary == "" {
+		return fmt.Errorf("you need to specify -hercules to use this feature")
+	}
 	args := []string{
 		"-o", localPath,
 	}
@@ -395,8 +397,10 @@ func (c *ServerConn) RetrHercules(remotePath, localPath string, herculesConfig *
 	code, msg, err := c.cmd(226, "RETR_HERCULES %s", remotePath)
 	if code != 226 {
 		err2 := cmd.Process.Kill()
-		if err != nil {
+		if err2 != nil {
 			return fmt.Errorf("transfer failed: %s\ncould not stop Hercules: %s", err, err2)
+		} else {
+			return fmt.Errorf("transfer failed: %s", err)
 		}
 	} else {
 		err := cmd.Wait()

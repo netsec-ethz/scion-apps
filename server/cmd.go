@@ -782,12 +782,17 @@ func (cmd commandRetrHercules) RequireAuth() bool {
 }
 
 func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
-	herculesBinary := "/home/vagrant/hercules/hercules" // TODO use appropriate executable
+	if conn.server.HerculesBinary == "" {
+		_, err := conn.writeMessage(502, "Command not implemented")
+		if err != nil {
+			log.Printf("could not send response: %s", err)
+		}
+		return
+	}
 	// TODO check file access as unprivileged user
 	path := conn.buildPath(param)
 	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode)")
 
-	log.Printf("send %s", path)
 	args := []string{
 		"-t", conn.server.RootPath + path,
 	}
@@ -807,7 +812,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}
 	args = append(args, "-i", iface)
 
-	command := exec.Command(herculesBinary, args...)
+	command := exec.Command(conn.server.HerculesBinary, args...)
 	command.Stderr = os.Stderr
 	command.Stdout = os.Stdout
 
@@ -817,11 +822,11 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 
 	if err != nil {
 		// TODO better error handling
-		_, err = conn.writeMessageMultiline(551, fmt.Sprintf("Hercules returned an error"))
+		_, err = conn.writeMessage(551, "Hercules returned an error")
 		log.Printf("could not execute Hercules: %s", err)
 	} else {
 		// TODO check if correct code
-		_, err = conn.writeMessageMultiline(226, fmt.Sprintf("Hercules transfer complete"))
+		_, err = conn.writeMessage(226, "Hercules transfer complete")
 		if err != nil {
 			log.Printf("%s", err)
 		}

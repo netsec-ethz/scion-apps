@@ -27,8 +27,7 @@ func Version() string {
 type Opts struct {
 	// The factory that will be used to create a new FTPDriver instance for
 	// each scionftp connection. This is a mandatory option.
-	Factory  DriverFactory
-	RootPath string
+	Factory DriverFactory
 
 	Auth Auth
 
@@ -49,6 +48,10 @@ type Opts struct {
 	Logger logger.Logger
 
 	Certificate *tls.Certificate
+
+	// Hercules binary for RETR_HERCULES feature
+	HerculesBinary string
+	RootPath       string
 }
 
 // Server is the root of your FTP application. You should instantiate one
@@ -87,7 +90,6 @@ func serverOptsWithDefaults(opts *Opts) *Opts {
 		newOpts.Port = opts.Port
 	}
 	newOpts.Factory = opts.Factory
-	newOpts.RootPath = opts.RootPath
 	if opts.Name == "" {
 		newOpts.Name = "Go FTP Server"
 	} else {
@@ -110,6 +112,8 @@ func serverOptsWithDefaults(opts *Opts) *Opts {
 	}
 
 	newOpts.Certificate = opts.Certificate
+	newOpts.HerculesBinary = opts.HerculesBinary
+	newOpts.RootPath = opts.RootPath
 
 	return &newOpts
 }

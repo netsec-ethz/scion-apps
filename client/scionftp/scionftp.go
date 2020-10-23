@@ -17,7 +17,8 @@ import (
 
 func main() {
 	app := App{
-		ctx: context.Background(),
+		ctx:            context.Background(),
+		herculesBinary: *hercules,
 	}
 
 	app.cmd = commandMap{
@@ -45,6 +46,7 @@ type commandMap map[string]func([]string)
 
 var (
 	local    = flag.String("local", "", "Local hostname (e.g. 1-ff00:0:110,[127.0.0.1]:4000")
+	hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified")
 	interval = time.Duration(15 * time.Second) // Interval for Keep-Alive
 )
 
@@ -56,11 +58,12 @@ func init() {
 }
 
 type App struct {
-	conn   *ftp.ServerConn
-	out    io.Writer
-	cmd    commandMap
-	ctx    context.Context
-	cancel context.CancelFunc
+	conn           *ftp.ServerConn
+	out            io.Writer
+	cmd            commandMap
+	ctx            context.Context
+	cancel         context.CancelFunc
+	herculesBinary string
 }
 
 func (app *App) print(a interface{}) {
@@ -283,8 +286,7 @@ func (app *App) retrHercules(args []string) {
 		config = &args[2]
 	}
 
-	app.print("Not implemented yet...")
-	err := app.conn.RetrHercules(args[0], args[1], config)
+	err := app.conn.RetrHercules(app.herculesBinary, args[0], args[1], config)
 	if err != nil {
 		app.print(err)
 	}

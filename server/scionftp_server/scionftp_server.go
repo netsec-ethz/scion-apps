@@ -24,6 +24,7 @@ func main() {
 		host     = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
 		certFile = flag.String("cert", "", "TLS certificate file")
 		keyFile  = flag.String("key", "", "TLS private key file")
+		hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified")
 	)
 	flag.Parse()
 	if *root == "" {
@@ -49,12 +50,13 @@ func main() {
 	}
 
 	opts := &server.Opts{
-		Factory:     factory,
-		RootPath:    *root,
-		Port:        uint16(*port),
-		Hostname:    *host,
-		Auth:        &server.SimpleAuth{Name: *user, Password: *pass},
-		Certificate: &cert,
+		Factory:        factory,
+		Port:           uint16(*port),
+		Hostname:       *host,
+		Auth:           &server.SimpleAuth{Name: *user, Password: *pass},
+		Certificate:    &cert,
+		HerculesBinary: *hercules,
+		RootPath:       *root,
 	}
 
 	log.Printf("Starting ftp server on %v:%v", opts.Hostname, opts.Port)
