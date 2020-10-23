@@ -44,7 +44,6 @@ func DialAddr(localAddr, remoteAddr string) (*Connection, error) {
 		return nil, fmt.Errorf("unable to open stream: %s", err)
 	}
 
-	fmt.Println(session.LocalAddr())
 	_, port, err := ParseCompleteAddress(session.LocalAddr().String())
 	if err != nil {
 		return nil, err

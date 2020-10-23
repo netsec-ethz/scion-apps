@@ -7,6 +7,8 @@ package server
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -28,52 +30,54 @@ type commandMap map[string]Command
 
 var (
 	commands = commandMap{
-		"ADAT": commandAdat{},
-		"ALLO": commandAllo{},
-		"APPE": commandAppe{},
-		"CDUP": commandCdup{},
-		"CWD":  commandCwd{},
-		"CCC":  commandCcc{},
-		"CONF": commandConf{},
-		"DELE": commandDele{},
-		"ENC":  commandEnc{},
-		"EPRT": commandEprt{},
-		"EPSV": commandEpsv{},
-		"FEAT": commandFeat{},
-		"LIST": commandList{},
-		"LPRT": commandLprt{},
-		"NLST": commandNlst{},
-		"MDTM": commandMdtm{},
-		"MIC":  commandMic{},
-		"MKD":  commandMkd{},
-		"MODE": commandMode{},
-		"NOOP": commandNoop{},
-		"OPTS": commandOpts{},
-		"PASS": commandPass{},
-		"PASV": commandPasv{},
-		"PBSZ": commandPbsz{},
-		"PORT": commandPort{},
-		"PROT": commandProt{},
-		"PWD":  commandPwd{},
-		"QUIT": commandQuit{},
-		"RETR": commandRetr{},
-		"REST": commandRest{},
-		"RNFR": commandRnfr{},
-		"RNTO": commandRnto{},
-		"RMD":  commandRmd{},
-		"SIZE": commandSize{},
-		"STOR": commandStor{},
-		"STRU": commandStru{},
-		"SYST": commandSyst{},
-		"TYPE": commandType{},
-		"USER": commandUser{},
-		"XCUP": commandCdup{},
-		"XCWD": commandCwd{},
-		"XMKD": commandMkd{},
-		"XPWD": commandPwd{},
-		"XRMD": commandRmd{},
-		"SPAS": commandSpas{},
-		"ERET": commandEret{},
+		"ADAT":          commandAdat{},
+		"ALLO":          commandAllo{},
+		"APPE":          commandAppe{},
+		"CDUP":          commandCdup{},
+		"CWD":           commandCwd{},
+		"CCC":           commandCcc{},
+		"CONF":          commandConf{},
+		"DELE":          commandDele{},
+		"ENC":           commandEnc{},
+		"EPRT":          commandEprt{},
+		"EPSV":          commandEpsv{},
+		"FEAT":          commandFeat{},
+		"LIST":          commandList{},
+		"LPRT":          commandLprt{},
+		"NLST":          commandNlst{},
+		"MDTM":          commandMdtm{},
+		"MIC":           commandMic{},
+		"MKD":           commandMkd{},
+		"MODE":          commandMode{},
+		"NOOP":          commandNoop{},
+		"OPTS":          commandOpts{},
+		"PASS":          commandPass{},
+		"PASV":          commandPasv{},
+		"PBSZ":          commandPbsz{},
+		"PORT":          commandPort{},
+		"PROT":          commandProt{},
+		"PWD":           commandPwd{},
+		"QUIT":          commandQuit{},
+		"RETR":          commandRetr{},
+		"RETR_HERCULES": commandRetrHercules{},
+		"REST":          commandRest{},
+		"RNFR":          commandRnfr{},
+		"RNTO":          commandRnto{},
+		"RMD":           commandRmd{},
+		"SIZE":          commandSize{},
+		"STOR":          commandStor{},
+		"STOR_HERCULES": commandStorHercules{},
+		"STRU":          commandStru{},
+		"SYST":          commandSyst{},
+		"TYPE":          commandType{},
+		"USER":          commandUser{},
+		"XCUP":          commandCdup{},
+		"XCWD":          commandCwd{},
+		"XMKD":          commandMkd{},
+		"XPWD":          commandPwd{},
+		"XRMD":          commandRmd{},
+		"SPAS":          commandSpas{},
+		"ERET":          commandEret{},
 	}
 )
 
@@ -231,6 +235,7 @@ func init() {
 }
 
 func (cmd commandFeat) Execute(conn *Conn, param string) {
+	// TODO list Hercules as a feature
 	conn.writeMessageMultiline(211, conn.server.feats)
 }
 
@@ -762,6 +767,67 @@ func (cmd commandRetr) Execute(conn *Conn, param string) {
 	}
 }
 
+type commandRetrHercules struct{}
+
+func (cmd commandRetrHercules) IsExtend() bool {
+	return false
+}
+
+func (cmd commandRetrHercules) RequireParam() bool {
+	return true
+}
+
+func (cmd commandRetrHercules) RequireAuth() bool {
+	return true
+}
+
+func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
+	herculesBinary := "/home/vagrant/hercules/hercules" // TODO use appropriate executable
+	// TODO check file access as unprivileged user
+	path := conn.buildPath(param)
+	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode)")
+
+	log.Printf("send %s", path)
+	args := []string{
+		"-t", conn.server.RootPath + path,
+	}
+
+	localAddr := conn.conn.LocalAddr().(scion.Address).Addr()
+	localAddr.Host.Port = 10000 // TODO use adequate port
+	remoteAddr := conn.conn.RemoteAddr().(scion.Address).Addr()
+	remoteAddr.Host.Port = 10000 // TODO get port from HERCULES_PORT
+	args = append(args, "-l", localAddr.String())
+	args = append(args, "-d", remoteAddr.String())
+
+	iface, err := scion.FindInterfaceName(localAddr.Host.IP)
+	if err != nil {
+		// TODO return error
+		log.Printf("could not find interface: %s", err)
+		return
+	}
+	args = append(args, "-i", iface)
+
+	command := exec.Command(herculesBinary, args...)
+	command.Stderr = os.Stderr
+	command.Stdout = os.Stdout
+
+	log.Printf("run Hercules: %s", command)
+	err = command.Run()
+	// TODO return 150 ?
+
+	if err != nil {
+		// TODO better error handling
+		_, err = conn.writeMessageMultiline(551, fmt.Sprintf("Hercules returned an error"))
+		log.Printf("could not execute Hercules: %s", err)
+	} else {
+		// TODO check if correct code
+		_, err = conn.writeMessageMultiline(226, fmt.Sprintf("Hercules transfer complete"))
+		if err != nil {
+			log.Printf("%s", err)
+		}
+	}
+}
+
 type commandRest struct{}
 
 func (cmd commandRest) IsExtend() bool {
@@ -1058,6 +1124,30 @@ func (cmd commandStor) Execute(conn *Conn, param string) {
 	} else {
 		conn.writeMessage(450, fmt.Sprint("error during transfer: ", err))
 	}
+}
+
+type commandStorHercules struct{}
+
+func (cmd commandStorHercules) IsExtend() bool {
+	return false
+}
+
+func (cmd commandStorHercules) RequireParam() bool {
+	return true
+}
+
+func (cmd commandStorHercules) RequireAuth() bool {
+	return true
+}
+
+func (cmd commandStorHercules) Execute(conn *Conn, param string) {
+	targetPath := conn.buildPath(param)
+	_, err := conn.writeMessageMultiline(150, fmt.Sprintf("Command not yet available\r\n%s", targetPath))
+	if err != nil {
+		log.Printf("%s", err)
+	}
+	// TODO check access as unprivileged
+	// TODO start hercules to fetch file
 }
 
 // commandStru responds to the STRU FTP command.

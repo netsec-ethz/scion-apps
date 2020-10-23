@@ -30,15 +30,16 @@ const (
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
 type ServerConn struct {
-	options       *dialOptions
-	conn          *textproto.Conn
-	local, remote string            // local and remote address (without port!)
-	features      map[string]string // Server capabilities discovered at runtime
-	mlstSupported bool
-	extended      bool
-	blockSize     int
-	logger        logger.Logger
-	cert          tls.Certificate
+	options               *dialOptions
+	conn                  *textproto.Conn
+	local, remote         string // local and remote address (without port!)
+	localAddr, remoteAddr scion.Address
+	features              map[string]string // Server capabilities discovered at runtime
+	mlstSupported         bool
+	extended              bool
+	blockSize             int
+	logger                logger.Logger
+	cert                  tls.Certificate
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -107,13 +108,15 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	}
 
 	c := &ServerConn{
-		options:   do,
-		features:  make(map[string]string),
-		conn:      textproto.NewConn(sourceConn),
-		local:     localHost,
-		remote:    remoteHost,
-		logger:    &logger.StdLogger{},
-		blockSize: maxChunkSize,
+		options:    do,
+		features:   make(map[string]string),
+		conn:       textproto.NewConn(sourceConn),
+		local:      localHost,
+		remote:     remoteHost,
+		localAddr:  conn.LocalAddress(),
+		remoteAddr: conn.RemoteAddress(),
+		logger:     &logger.StdLogger{},
+		blockSize:  maxChunkSize,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)

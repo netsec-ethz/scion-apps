@@ -27,7 +27,8 @@ func Version() string {
 type Opts struct {
 	// The factory that will be used to create a new FTPDriver instance for
 	// each scionftp connection. This is a mandatory option.
-	Factory DriverFactory
+	Factory  DriverFactory
+	RootPath string
 
 	Auth Auth
 
@@ -86,6 +87,7 @@ func serverOptsWithDefaults(opts *Opts) *Opts {
 		newOpts.Port = opts.Port
 	}
 	newOpts.Factory = opts.Factory
+	newOpts.RootPath = opts.RootPath
 	if opts.Name == "" {
 		newOpts.Name = "Go FTP Server"
 	} else {

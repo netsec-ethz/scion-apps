@@ -35,7 +35,9 @@ func main() {
 		"pwd":     app.pwd,
 		"mode":    app.mode,
 		"get":     app.retr,
+		"geth":    app.retrHercules,
 		"put":     app.stor,
+		"puth":    app.storHercules,
 		"mkdir":   app.mkdir,
 		"quit":    app.quit,
 	}
@@ -282,6 +284,25 @@ func (app *App) retr(args []string) {
 	}
 }
 
+func (app *App) retrHercules(args []string) {
+	if len(args) < 2 || len(args) > 3 {
+		app.print("Must supply one argument for source and one for destination; optionally supply a Hercules config file")
+		return
+	}
+
+	var config *string = nil
+	if len(args) == 3 {
+		config = &args[2]
+	}
+
+	app.print("Not implemented yet...")
+	err := app.conn.RetrHercules(args[0], args[1], config)
+	if err != nil {
+		app.print(err)
+	}
+	return
+}
+
 func (app *App) stor(args []string) {
 	if len(args) != 2 {
 		app.print("Must supply one argument for source and one for destination")
@@ -298,6 +319,11 @@ func (app *App) stor(args []string) {
 	if err != nil {
 		app.print(err)
 	}
+}
+
+func (app *App) storHercules(args []string) {
+	app.print("Not implemented yet...")
+	return
 }
 
 func (app *App) quit(args []string) {

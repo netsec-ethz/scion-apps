@@ -50,6 +50,7 @@ func main() {
 
 	opts := &server.Opts{
 		Factory:     factory,
+		RootPath:    *root,
 		Port:        uint16(*port),
 		Hostname:    *host,
 		Auth:        &server.SimpleAuth{Name: *user, Password: *pass},
