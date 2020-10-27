@@ -371,18 +371,23 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		"-o", localPath,
 	}
 	if herculesConfig != nil {
-		log.Printf("Currently ignoring Hercules config, sorry.")
+		args = append(args, "-c", *herculesConfig)
 	} else {
-		// TODO respect Hercules config
+		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
 	}
-	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
-	args = append(args, "-l", c.local+":10000") // TODO use adequate port
+	port, err := scion.AllocateUdpPort(c.remoteAddr.String())
+	if err != nil {
+		return fmt.Errorf("could not get data connection port: %s", err.Error())
+	}
+	args = append(args, "-l", fmt.Sprintf("%s:%d", c.local, port))
 
 	iface, err := scion.FindInterfaceName(c.localAddr.Addr().Host.IP)
 	if err != nil {
 		return err
 	}
 	args = append(args, "-i", iface)
+
+	code, msg, err := c.cmd(320, "HERCULES_PORT %d", port)
 
 	cmd := exec.Command(herculesBinary, args...)
 	cmd.Stderr = os.Stderr
@@ -394,8 +399,9 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		return fmt.Errorf("could not start Hercules: %s", err)
 	}
 
-	code, msg, err := c.cmd(226, "RETR_HERCULES %s", remotePath)
-	if code != 226 {
+	code, msg, err = c.cmd(150, "RETR_HERCULES %s", remotePath)
+	log.Printf("%s", msg)
+	if code != 150 {
 		err2 := cmd.Process.Kill()
 		if err2 != nil {
 			return fmt.Errorf("transfer failed: %s\ncould not stop Hercules: %s", err, err2)
@@ -403,12 +409,21 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 			return fmt.Errorf("transfer failed: %s", err)
 		}
 	} else {
-		err := cmd.Wait()
+		_, msg, err := c.conn.ReadResponse(226)
+		log.Printf("%s", msg)
+		if err != nil {
+			err2 := cmd.Process.Kill()
+			if err2 != nil {
+				return fmt.Errorf("transfer failed: %s\ncould not stop Hercules: %s", err, err2)
+			} else {
+				return fmt.Errorf("transfer failed: %s", err)
+			}
+		}
+		err = cmd.Wait()
 		if err != nil {
 			return fmt.Errorf("error during transfer: %s", err)
 		}
 	}
-	log.Printf("%s", msg)
 	return err
 }
 

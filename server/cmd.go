@@ -42,6 +42,7 @@ var (
 		"EPRT":          commandEprt{},
 		"EPSV":          commandEpsv{},
 		"FEAT":          commandFeat{},
+		"HERCULES_PORT": commandHerculesPort{},
 		"LIST":          commandList{},
 		"LPRT":          commandLprt{},
 		"NLST":          commandNlst{},
@@ -393,6 +394,33 @@ func (cmd commandEpsv) Execute(conn *Conn, param string) {
 	}
 	conn.dataConn = socket2.NewScionSocket(socket)
 
+}
+
+// commandHerculesPort responds to the ALLO FTP command.
+//
+// This is essentially a ping from the scionftp so we just respond with an
+// basic OK message.
+type commandHerculesPort struct{}
+
+func (cmd commandHerculesPort) IsExtend() bool {
+	return false
+}
+
+func (cmd commandHerculesPort) RequireParam() bool {
+	return true
+}
+
+func (cmd commandHerculesPort) RequireAuth() bool {
+	return true
+}
+
+func (cmd commandHerculesPort) Execute(conn *Conn, param string) {
+	port, err := strconv.ParseUint(param, 10, 16)
+	if err != nil {
+		conn.writeMessage(529, "Invalid port number")
+	}
+	conn.herculesPort = uint16(port)
+	conn.writeMessage(320, "Ok")
 }
 
 // commandList responds to the LIST FTP command. It allows the speedtest_client to retreive
@@ -783,10 +811,7 @@ func (cmd commandRetrHercules) RequireAuth() bool {
 
 func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	if conn.server.HerculesBinary == "" {
-		_, err := conn.writeMessage(502, "Command not implemented")
-		if err != nil {
-			log.Printf("could not send response: %s", err)
-		}
+		conn.writeOrLog(502, "Command not implemented")
 		return
 	}
 	// TODO check file access as unprivileged user
@@ -797,17 +822,23 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 		"-t", conn.server.RootPath + path,
 	}
 
+	port, err := scion.AllocateUdpPort(conn.conn.LocalAddr().String())
+	if err != nil {
+		log.Printf("could not allocate port: %s", err.Error())
+		conn.writeOrLog(425, "Can't open data connection")
+		return
+	}
 	localAddr := conn.conn.LocalAddr().(scion.Address).Addr()
-	localAddr.Host.Port = 10000 // TODO use adequate port
+	localAddr.Host.Port = int(port)
 	remoteAddr := conn.conn.RemoteAddr().(scion.Address).Addr()
-	remoteAddr.Host.Port = 10000 // TODO get port from HERCULES_PORT
+	remoteAddr.Host.Port = int(conn.herculesPort)
 	args = append(args, "-l", localAddr.String())
 	args = append(args, "-d", remoteAddr.String())
 
 	iface, err := scion.FindInterfaceName(localAddr.Host.IP)
 	if err != nil {
-		// TODO return error
 		log.Printf("could not find interface: %s", err)
+		conn.writeOrLog(425, "Can't open data connection")
 		return
 	}
 	args = append(args, "-i", iface)
@@ -816,20 +847,20 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	command.Stderr = os.Stderr
 	command.Stdout = os.Stdout
 
+	_, err = conn.writeMessage(150, "Data transfer starting via Hercules")
+	if err != nil {
+		log.Printf("could not write response: %s", err.Error())
+		return
+	}
+
 	log.Printf("run Hercules: %s", command)
 	err = command.Run()
-	// TODO return 150 ?
-
 	if err != nil {
-		// TODO better error handling
-		_, err = conn.writeMessage(551, "Hercules returned an error")
+		// TODO improve error handling
 		log.Printf("could not execute Hercules: %s", err)
+		conn.writeOrLog(551, "Hercules returned an error")
 	} else {
-		// TODO check if correct code
-		_, err = conn.writeMessage(226, "Hercules transfer complete")
-		if err != nil {
-			log.Printf("%s", err)
-		}
+		conn.writeOrLog(226, "Hercules transfer complete")
 	}
 }
 

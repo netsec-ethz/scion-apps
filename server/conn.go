@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -34,6 +35,7 @@ type Conn struct {
 	dataConn      socket.DataSocket
 	driver        Driver
 	auth          Auth
+	herculesPort  uint16
 	logger        logger.Logger
 	server        *Server
 	sessionID     string
@@ -159,6 +161,13 @@ func (conn *Conn) writeMessage(code int, message string) (wrote int, err error) 
 	wrote, err = conn.controlWriter.WriteString(line)
 	conn.controlWriter.Flush()
 	return
+}
+
+func (conn *Conn) writeOrLog(code int, message string) {
+	_, err := conn.writeMessage(code, message)
+	if err != nil {
+		log.Printf("Could not write message (%d %s): %s", code, message, err)
+	}
 }
 
 // writeMessage will send a standard FTP response back to the scionftp.
