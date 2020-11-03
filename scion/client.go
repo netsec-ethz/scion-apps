@@ -17,16 +17,16 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-func DialAddr(localAddr, remoteAddr string) (*Connection, error) {
+func DialAddr(localAddr, remoteAddr string) (*Connection, *Connection, error) {
 
 	local, err := ConvertAddress(localAddr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	remote, err := ConvertAddress(remoteAddr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tlsConfig := &tls.Config{
@@ -36,27 +36,37 @@ func DialAddr(localAddr, remoteAddr string) (*Connection, error) {
 
 	session, err := appquic.Dial(remoteAddr, tlsConfig, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to dial %s: %s", remote, err)
+		return nil, nil, fmt.Errorf("unable to dial %s: %s", remote, err)
 	}
 
 	stream, err := session.OpenStream()
 	if err != nil {
-		return nil, fmt.Errorf("unable to open stream: %s", err)
+		return nil, nil, fmt.Errorf("unable to open stream: %s", err)
+	}
+
+	keepAliveStream, err := session.OpenStream()
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to open stream: %s", err)
 	}
 
 	_, port, err := ParseCompleteAddress(session.LocalAddr().String())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	local.port = port
 
 	err = sendHandshake(stream)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return NewAppQuicConnection(stream, local, remote), nil
+	err = sendHandshake(keepAliveStream)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return NewAppQuicConnection(stream, local, remote), NewAppQuicConnection(keepAliveStream, local, remote), nil
 }
 
 func sendHandshake(rw io.ReadWriter) error {

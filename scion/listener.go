@@ -50,11 +50,11 @@ func (listener *Listener) Close() error {
 	return listener.quicListener.Close()
 }
 
-func (listener *Listener) Accept() (*Connection, error) {
+func (listener *Listener) Accept() (*Connection, *Connection, error) {
 
 	session, err := listener.quicListener.Accept(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("couldn't accept APPQUIC connection: %s", err)
+		return nil, nil, fmt.Errorf("couldn't accept APPQUIC connection: %s", err)
 	}
 
 	remote := session.RemoteAddr().String()
@@ -62,17 +62,25 @@ func (listener *Listener) Accept() (*Connection, error) {
 
 	remoteAddr, err := ConvertAddress(remote)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	stream, err := session.AcceptStream(context.Background())
 
+	// TODO deal with clients that only open one stream
+	kStream, err := session.AcceptStream(context.Background())
+
 	err = receiveHandshake(stream)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return NewAppQuicConnection(stream, listener.Address, remoteAddr), nil
+	err = receiveHandshake(kStream)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return NewAppQuicConnection(stream, listener.Address, remoteAddr), NewAppQuicConnection(kStream, listener.Address, remoteAddr), nil
 }
 
 func receiveHandshake(rw io.ReadWriter) error {

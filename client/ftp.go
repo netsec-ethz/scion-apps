@@ -32,6 +32,7 @@ const (
 type ServerConn struct {
 	options               *dialOptions
 	conn                  *textproto.Conn
+	keepAliveConn         *textproto.Conn
 	local, remote         string // local and remote address (without port!)
 	localAddr, remoteAddr scion.Address
 	features              map[string]string // Server capabilities discovered at runtime
@@ -87,7 +88,7 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		maxChunkSize = 500
 	}
 
-	conn, err := scion.DialAddr(local, remote)
+	conn, kc, err := scion.DialAddr(local, remote)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +96,11 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	var sourceConn io.ReadWriteCloser = conn
 	if do.debugOutput != nil {
 		sourceConn = newDebugWrapper(conn, do.debugOutput)
+	}
+
+	var sourceKConn io.ReadWriteCloser = kc
+	if do.debugOutput != nil {
+		sourceKConn = newDebugWrapper(kc, do.debugOutput)
 	}
 
 	localHost, _, err := scion.ParseAddress(local)
@@ -108,15 +114,16 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 	}
 
 	c := &ServerConn{
-		options:    do,
-		features:   make(map[string]string),
-		conn:       textproto.NewConn(sourceConn),
-		local:      localHost,
-		remote:     remoteHost,
-		localAddr:  conn.LocalAddress(),
-		remoteAddr: conn.RemoteAddress(),
-		logger:     &logger.StdLogger{},
-		blockSize:  maxChunkSize,
+		options:       do,
+		features:      make(map[string]string),
+		conn:          textproto.NewConn(sourceConn),
+		keepAliveConn: textproto.NewConn(sourceKConn),
+		local:         localHost,
+		remote:        remoteHost,
+		localAddr:     conn.LocalAddress(),
+		remoteAddr:    conn.RemoteAddress(),
+		logger:        &logger.StdLogger{},
+		blockSize:     maxChunkSize,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)

@@ -166,9 +166,14 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			go func(i int) {
 				defer wg.Done()
 
-				conn, err := scion.DialAddr(c.local+":0", addrs[i])
+				conn, kConn, err := scion.DialAddr(c.local+":0", addrs[i])
 				if err != nil {
 					log.Fatalf("failed to connect: %s", err)
+				}
+
+				err = kConn.Close() // don't need keep-alive for data connections
+				if err != nil {
+					log.Fatalf("failed to close keep alive connection: %s", err)
 				}
 
 				sockets[i] = socket.NewScionSocket(conn)
@@ -188,9 +193,14 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 		local := c.local + ":0"
 		remote := c.remote + ":" + strconv.Itoa(port)
 
-		conn, err := scion.DialAddr(local, remote)
+		conn, kConn, err := scion.DialAddr(local, remote)
 		if err != nil {
 			return nil, err
+		}
+
+		err = kConn.Close() // don't need keep-alive for data connections
+		if err != nil {
+			log.Fatalf("failed to close keep alive connection: %s", err)
 		}
 
 		return socket.NewScionSocket(conn), nil
@@ -537,7 +547,12 @@ func (c *ServerConn) RemoveDir(path string) error {
 // NOOP has no effects and is usually used to prevent the remote FTP server to
 // close the otherwise idle connection.
 func (c *ServerConn) NoOp() error {
-	_, _, err := c.cmd(StatusCommandOK, "NOOP")
+	_, err := c.keepAliveConn.Cmd("NOOP")
+	if err != nil {
+		return err
+	}
+
+	_, _, err = c.keepAliveConn.ReadResponse(StatusCommandOK)
 	return err
 }
 

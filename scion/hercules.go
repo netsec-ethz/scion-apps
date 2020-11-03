@@ -65,5 +65,21 @@ func AllocateUdpPort(remoteAddress string) (uint16, error) {
 		return 0, err
 	}
 
+	// TODO get rid of this
+	kStream, err := session.OpenStream()
+	if err != nil {
+		return 0, fmt.Errorf("unable to open stream: %s", err)
+	}
+
+	err = sendHandshake(kStream)
+	if err != nil {
+		return 0, err
+	}
+
+	err = kStream.Close()
+	if err != nil {
+		return 0, err
+	}
+
 	return port, nil
 }

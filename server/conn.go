@@ -29,26 +29,29 @@ const (
 )
 
 type Conn struct {
-	conn          net.Conn
-	controlReader *bufio.Reader
-	controlWriter *bufio.Writer
-	dataConn      socket.DataSocket
-	driver        Driver
-	auth          Auth
-	herculesPort  uint16
-	logger        logger.Logger
-	server        *Server
-	sessionID     string
-	namePrefix    string
-	reqUser       string
-	user          string
-	renameFrom    string
-	lastFilePos   int64
-	appendData    bool
-	closed        bool
-	extended      bool
-	parallelism   int
-	blockSize     int
+	conn            net.Conn
+	controlReader   *bufio.Reader
+	controlWriter   *bufio.Writer
+	keepALiveConn   net.Conn
+	keepAliveReader *bufio.Reader
+	keepAliveWriter *bufio.Writer
+	dataConn        socket.DataSocket
+	driver          Driver
+	auth            Auth
+	herculesPort    uint16
+	logger          logger.Logger
+	server          *Server
+	sessionID       string
+	namePrefix      string
+	reqUser         string
+	user            string
+	renameFrom      string
+	lastFilePos     int64
+	appendData      bool
+	closed          bool
+	extended        bool
+	parallelism     int
+	blockSize       int
 }
 
 func (conn *Conn) LoginUser() string {
@@ -117,9 +120,42 @@ func (conn *Conn) Serve() {
 	conn.logger.Print(conn.sessionID, "Connection Terminated")
 }
 
+// ServeKeepAlive starts an endless loop that only accepts and responds to NOOP
+// commands. A scionftp client can send keep alive packets using the separate
+// stream to avoid race conditions on the primary stream during data transfers.
+func (conn *Conn) ServeKeepAlive() {
+	conn.logger.Print(conn.sessionID, "Keep-Alive Stream Established")
+	// read commands
+	for {
+		line, err := conn.keepAliveReader.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				conn.logger.Print(conn.sessionID, fmt.Sprint("read error:", err))
+			}
+
+			break
+		}
+		command := strings.ToUpper(strings.Trim(line, "\r\n"))
+		if command != "NOOP" {
+			conn.writeMessage(550, "Got non-NOOP on keep-alive stream")
+		} else {
+			_, _ = conn.keepAliveWriter.WriteString("200 OK\r\n")
+			conn.keepAliveWriter.Flush()
+		}
+		// QUIT command closes connection, break to avoid error on reading from
+		// closed socket
+		if conn.closed == true {
+			break
+		}
+	}
+	conn.Close()
+	conn.logger.Print(conn.sessionID, "Keep-Alive Stream Terminated")
+}
+
 // Close will manually close this connection, even if the scionftp isn't ready.
 func (conn *Conn) Close() {
 	conn.conn.Close()
+	conn.keepALiveConn.Close()
 	conn.closed = true
 	if conn.dataConn != nil {
 		conn.dataConn.Close()
