@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/lucas-clemente/quic-go"
 	"io"
 	"log"
 	"net"
@@ -32,7 +33,7 @@ type Conn struct {
 	conn            net.Conn
 	controlReader   *bufio.Reader
 	controlWriter   *bufio.Writer
-	keepALiveConn   net.Conn
+	keepAliveConn   net.Conn
 	keepAliveReader *bufio.Reader
 	keepAliveWriter *bufio.Writer
 	dataConn        socket.DataSocket
@@ -120,6 +121,13 @@ func (conn *Conn) Serve() {
 	conn.logger.Print(conn.sessionID, "Connection Terminated")
 }
 
+func (conn *Conn) AddKeepAliveConn(stream *quic.Stream) {
+	keepAliveConn := scion.NewAppQuicConnection(*stream, conn.conn.LocalAddr().(scion.Address), conn.conn.RemoteAddr().(scion.Address))
+	conn.keepAliveConn = keepAliveConn
+	conn.keepAliveReader = bufio.NewReader(keepAliveConn)
+	conn.keepAliveWriter = bufio.NewWriter(keepAliveConn)
+}
+
 // ServeKeepAlive starts an endless loop that only accepts and responds to NOOP
 // commands. A scionftp client can send keep alive packets using the separate
 // stream to avoid race conditions on the primary stream during data transfers.
@@ -155,7 +163,9 @@ func (conn *Conn) ServeKeepAlive() {
 // Close will manually close this connection, even if the scionftp isn't ready.
 func (conn *Conn) Close() {
 	conn.conn.Close()
-	conn.keepALiveConn.Close()
+	if conn.keepAliveConn != nil {
+		conn.keepAliveConn.Close()
+	}
 	conn.closed = true
 	if conn.dataConn != nil {
 		conn.dataConn.Close()

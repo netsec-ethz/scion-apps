@@ -166,14 +166,9 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			go func(i int) {
 				defer wg.Done()
 
-				conn, kConn, err := scion.DialAddr(c.local+":0", addrs[i])
+				conn, _, err := scion.DialAddr(c.local+":0", addrs[i], false)
 				if err != nil {
 					log.Fatalf("failed to connect: %s", err)
-				}
-
-				err = kConn.Close() // don't need keep-alive for data connections
-				if err != nil {
-					log.Fatalf("failed to close keep alive connection: %s", err)
 				}
 
 				sockets[i] = socket.NewScionSocket(conn)
@@ -193,14 +188,9 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 		local := c.local + ":0"
 		remote := c.remote + ":" + strconv.Itoa(port)
 
-		conn, kConn, err := scion.DialAddr(local, remote)
+		conn, _, err := scion.DialAddr(local, remote, false)
 		if err != nil {
 			return nil, err
-		}
-
-		err = kConn.Close() // don't need keep-alive for data connections
-		if err != nil {
-			log.Fatalf("failed to close keep alive connection: %s", err)
 		}
 
 		return socket.NewScionSocket(conn), nil

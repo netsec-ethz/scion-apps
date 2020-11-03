@@ -50,7 +50,7 @@ func (listener *Listener) Close() error {
 	return listener.quicListener.Close()
 }
 
-func (listener *Listener) Accept() (*Connection, *Connection, error) {
+func (listener *Listener) Accept() (*Connection, *quic.Session, error) {
 
 	session, err := listener.quicListener.Accept(context.Background())
 	if err != nil {
@@ -65,22 +65,25 @@ func (listener *Listener) Accept() (*Connection, *Connection, error) {
 		return nil, nil, err
 	}
 
-	stream, err := session.AcceptStream(context.Background())
+	stream, err := AcceptStream(&session)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	// TODO deal with clients that only open one stream
-	kStream, err := session.AcceptStream(context.Background())
+	return NewAppQuicConnection(stream, listener.Address, remoteAddr), &session, nil
+}
+
+func AcceptStream(session *quic.Session) (quic.Stream, error) {
+	stream, err := (*session).AcceptStream(context.Background())
+	if err != nil {
+		return nil, err
+	}
 
 	err = receiveHandshake(stream)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	err = receiveHandshake(kStream)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return NewAppQuicConnection(stream, listener.Address, remoteAddr), NewAppQuicConnection(kStream, listener.Address, remoteAddr), nil
+	return stream, nil
 }
 
 func receiveHandshake(rw io.ReadWriter) error {

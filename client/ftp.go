@@ -88,7 +88,7 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		maxChunkSize = 500
 	}
 
-	conn, kc, err := scion.DialAddr(local, remote)
+	conn, kConn, err := scion.DialAddr(local, remote, true)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		sourceConn = newDebugWrapper(conn, do.debugOutput)
 	}
 
-	var sourceKConn io.ReadWriteCloser = kc
+	var sourceKConn io.ReadWriteCloser = kConn
 	if do.debugOutput != nil {
-		sourceKConn = newDebugWrapper(kc, do.debugOutput)
+		sourceKConn = newDebugWrapper(kConn, do.debugOutput)
 	}
 
 	localHost, _, err := scion.ParseAddress(local)

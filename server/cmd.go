@@ -387,12 +387,11 @@ func (cmd commandEpsv) Execute(conn *Conn, param string) {
 	msg := fmt.Sprintf("Entering Extended Passive Mode (|||%d|)", listener.Port())
 	conn.writeMessage(229, msg)
 
-	socket, kSocket, err := listener.Accept()
+	socket, _, err := listener.Accept()
 	if err != nil {
 		conn.writeMessage(426, "Connection closed, failed to open data connection")
 		return
 	}
-	_ = kSocket.Close() // don't need keep-alive stream for data connections
 	conn.dataConn = socket2.NewScionSocket(socket)
 
 }
@@ -1345,7 +1344,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 	conn.writeMessageMultiline(229, line)
 
 	for i := range listener {
-		connection, kConnection, err := listener[i].Accept()
+		connection, _, err := listener[i].Accept()
 		if err != nil {
 			conn.writeMessage(426, "Connection closed, failed to open data connection")
 
@@ -1355,7 +1354,6 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 			}
 			return
 		}
-		_ = kConnection.Close() // don't need keep-alive stream for data connections
 		sockets[i] = socket2.NewScionSocket(connection)
 	}
 

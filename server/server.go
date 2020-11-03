@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/lucas-clemente/quic-go"
 	"net"
 	"strconv"
 
@@ -148,15 +149,12 @@ func NewServer(opts *Opts) *Server {
 // an active net.TCPConn. The TCP connection should already be open before
 // it is handed to this functions. driver is an instance of FTPDriver that
 // will handle all auth and persistence details.
-func (server *Server) newConn(tcpConn net.Conn, tcpKConn net.Conn, driver Driver) *Conn {
+func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 	c := new(Conn)
 	c.namePrefix = "/"
 	c.conn = tcpConn
 	c.controlReader = bufio.NewReader(tcpConn)
 	c.controlWriter = bufio.NewWriter(tcpConn)
-	c.keepALiveConn = tcpKConn
-	c.keepAliveReader = bufio.NewReader(tcpKConn)
-	c.keepAliveWriter = bufio.NewWriter(tcpKConn)
 	c.driver = driver
 	c.auth = server.Auth
 	c.server = server
@@ -201,7 +199,7 @@ func (server *Server) Serve(l *scion.Listener) error {
 	server.ctx, server.cancel = context.WithCancel(context.Background())
 	sessionID := ""
 	for {
-		conn, kConn, err := server.listener.Accept()
+		conn, session, err := server.listener.Accept()
 		if err != nil {
 			select {
 			case <-server.ctx.Done():
@@ -217,14 +215,25 @@ func (server *Server) Serve(l *scion.Listener) error {
 		driver, err := server.Factory.NewDriver()
 		if err != nil {
 			server.logger.Printf(sessionID, "Error creating driver, aborting scionftp connection: %v", err)
-			kConn.Close()
 			conn.Close()
 		} else {
-			ftpConn := server.newConn(conn, kConn, driver)
+			ftpConn := server.newConn(conn, driver)
 			go ftpConn.Serve()
-			go ftpConn.ServeKeepAlive()
+			go acceptKeepAlive(session, ftpConn)
 		}
 	}
+}
+
+func acceptKeepAlive(session *quic.Session, ftpConn *Conn) {
+	stream, err := scion.AcceptStream(session)
+	if err != nil {
+		if ne, ok := err.(net.Error); !ok || !ne.Timeout() {
+			ftpConn.logger.Printf(ftpConn.sessionID, "could not accept keep alive stream: %s", err)
+		}
+		return
+	}
+	ftpConn.AddKeepAliveConn(&stream)
+	ftpConn.ServeKeepAlive()
 }
 
 // Shutdown will gracefully stop a server. Already connected clients will retain their connections

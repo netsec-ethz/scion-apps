@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
+	"github.com/lucas-clemente/quic-go"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"io"
 	"os"
@@ -17,7 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-func DialAddr(localAddr, remoteAddr string) (*Connection, *Connection, error) {
+func DialAddr(localAddr, remoteAddr string, openKeepAlive bool) (*Connection, *Connection, error) {
 
 	local, err := ConvertAddress(localAddr)
 	if err != nil {
@@ -39,16 +40,6 @@ func DialAddr(localAddr, remoteAddr string) (*Connection, *Connection, error) {
 		return nil, nil, fmt.Errorf("unable to dial %s: %s", remote, err)
 	}
 
-	stream, err := session.OpenStream()
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to open stream: %s", err)
-	}
-
-	keepAliveStream, err := session.OpenStream()
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to open stream: %s", err)
-	}
-
 	_, port, err := ParseCompleteAddress(session.LocalAddr().String())
 	if err != nil {
 		return nil, nil, err
@@ -56,17 +47,35 @@ func DialAddr(localAddr, remoteAddr string) (*Connection, *Connection, error) {
 
 	local.port = port
 
+	stream, err := AddStream(&session)
+	if err != nil {
+		return nil, nil, err
+	}
+	conn := NewAppQuicConnection(*stream, local, remote)
+
+	var kConn *Connection = nil
+	if openKeepAlive {
+		kStream, err := AddStream(&session)
+		if err != nil {
+			return nil, nil, err
+		}
+		kConn = NewAppQuicConnection(*kStream, local, remote)
+	}
+
+	return conn, kConn, nil
+}
+
+func AddStream(session *quic.Session) (*quic.Stream, error) {
+	stream, err := (*session).OpenStream()
+	if err != nil {
+		return nil, fmt.Errorf("unable to open stream: %s", err)
+	}
+
 	err = sendHandshake(stream)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	err = sendHandshake(keepAliveStream)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return NewAppQuicConnection(stream, local, remote), NewAppQuicConnection(keepAliveStream, local, remote), nil
+	return &stream, nil
 }
 
 func sendHandshake(rw io.ReadWriter) error {
