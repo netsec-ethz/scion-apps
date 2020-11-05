@@ -6,13 +6,13 @@ package server
 
 import (
 	"fmt"
+	"github.com/elwin/scionFTP/mode"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
-
-	"github.com/elwin/scionFTP/mode"
+	"time"
 
 	"github.com/elwin/scionFTP/scion"
 
@@ -817,6 +817,12 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	// TODO check file access as unprivileged user
 	path := conn.buildPath(param)
 	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode)")
+
+	if !conn.server.herculesLock.tryLockTimeout(5 * time.Second) {
+		conn.writeOrLog(425, "All Hercules units busy - please try again later")
+		return
+	}
+	defer conn.server.herculesLock.unlock()
 
 	args := []string{
 		"-t", conn.server.RootPath + path,

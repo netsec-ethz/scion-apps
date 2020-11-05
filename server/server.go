@@ -61,12 +61,13 @@ type Opts struct {
 // Always use the NewServer() method to create a new Server.
 type Server struct {
 	*Opts
-	listenTo string
-	logger   logger.Logger
-	listener *scion.Listener
-	ctx      context.Context
-	cancel   context.CancelFunc
-	feats    string
+	listenTo     string
+	logger       logger.Logger
+	listener     *scion.Listener
+	ctx          context.Context
+	cancel       context.CancelFunc
+	feats        string
+	herculesLock lock
 }
 
 // ErrServerClosed is returned by ListenAndServe() or Serve() when a shutdown
@@ -142,6 +143,7 @@ func NewServer(opts *Opts) *Server {
 	s.Opts = opts
 	s.listenTo = opts.Hostname + ":" + strconv.Itoa(int(opts.Port))
 	s.logger = opts.Logger
+	s.herculesLock = makeLock()
 	return s
 }
 

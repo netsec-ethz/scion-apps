@@ -387,7 +387,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 	}
 	args = append(args, "-i", iface)
 
-	code, msg, err := c.cmd(320, "HERCULES_PORT %d", port)
+	code, _, err := c.cmd(320, "HERCULES_PORT %d", port)
 
 	cmd := exec.Command(herculesBinary, args...)
 	cmd.Stderr = os.Stderr
@@ -399,8 +399,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		return fmt.Errorf("could not start Hercules: %s", err)
 	}
 
-	code, msg, err = c.cmd(150, "RETR_HERCULES %s", remotePath)
-	log.Printf("%s", msg)
+	code, _, err = c.cmd(150, "RETR_HERCULES %s", remotePath)
 	if code != 150 {
 		err2 := cmd.Process.Kill()
 		if err2 != nil {
