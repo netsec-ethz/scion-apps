@@ -181,9 +181,12 @@ func (server *Server) ListenAndServe() error {
 	var curFeats = featCmds
 
 	listener, err = scion.Listen(server.listenTo, server.Certificate)
-
 	if err != nil {
 		return err
+	}
+
+	if server.HerculesBinary != "" {
+		curFeats += " RETR_HERCULES\n"
 	}
 	server.feats = fmt.Sprintf(feats, curFeats)
 

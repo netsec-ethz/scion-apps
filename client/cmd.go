@@ -363,6 +363,10 @@ func (c *ServerConn) RetrFrom(path string, offset uint64) (*Response, error) {
 	return &Response{conn: conn, c: c}, nil
 }
 
+func (c *ServerConn) IsRetrHerculesSupported() bool {
+	return c.retrHerculesSupported
+}
+
 func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, herculesConfig *string) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
@@ -459,6 +463,10 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
 
 	return err
+}
+
+func (c *ServerConn) IsStorHerculesSupported() bool {
+	return c.storHerculesSupported
 }
 
 // Rename renames a file on the remote FTP server.

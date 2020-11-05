@@ -236,7 +236,6 @@ func init() {
 }
 
 func (cmd commandFeat) Execute(conn *Conn, param string) {
-	// TODO list Hercules as a feature
 	conn.writeMessageMultiline(211, conn.server.feats)
 }
 

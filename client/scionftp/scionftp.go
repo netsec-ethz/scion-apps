@@ -114,6 +114,14 @@ func (app *App) connect(args []string) {
 
 	app.conn = conn
 
+	if app.conn.IsRetrHerculesSupported() && app.conn.IsStorHerculesSupported() {
+		app.print("This server supports Hercules up- and downloads, try geth or puth for faster file transfers.")
+	} else if app.conn.IsRetrHerculesSupported() {
+		app.print("This server supports Hercules downloads, try geth for faster file transfers.")
+	} else if app.conn.IsStorHerculesSupported() {
+		app.print("This server supports Hercules uploads, try puth for faster file transfers.")
+	}
+
 	ctx, cancel := context.WithCancel(app.ctx)
 	app.cancel = cancel
 
