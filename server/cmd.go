@@ -825,6 +825,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	defer conn.server.herculesLock.unlock()
 
 	args := []string{
+		conn.server.HerculesBinary,
 		"-t", conn.server.RootPath + path,
 	}
 
@@ -849,7 +850,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}
 	args = append(args, "-i", iface)
 
-	command := exec.Command(conn.server.HerculesBinary, args...)
+	command := exec.Command("sudo", args...)
 	command.Stderr = os.Stderr
 	command.Stdout = os.Stdout
 

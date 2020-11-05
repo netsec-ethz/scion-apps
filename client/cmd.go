@@ -368,6 +368,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		return fmt.Errorf("you need to specify -hercules to use this feature")
 	}
 	args := []string{
+		herculesBinary,
 		"-o", localPath,
 	}
 	if herculesConfig != nil {
@@ -389,7 +390,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 
 	code, _, err := c.cmd(320, "HERCULES_PORT %d", port)
 
-	cmd := exec.Command(herculesBinary, args...)
+	cmd := exec.Command("sudo", args...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 
