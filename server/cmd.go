@@ -814,8 +814,16 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 		conn.writeOrLog(502, "Command not implemented")
 		return
 	}
-	// TODO check file access as unprivileged user
-	path := conn.buildPath(param)
+
+	// check file access as unprivileged user
+	path := conn.server.RootPath + conn.buildPath(param)
+	f, err := os.Open(path)
+	if err != nil {
+		conn.writeOrLog(551, "File not available for download")
+		return
+	}
+	defer f.Close()
+
 	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode)")
 
 	if !conn.server.herculesLock.tryLockTimeout(5 * time.Second) {
@@ -826,7 +834,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 
 	args := []string{
 		conn.server.HerculesBinary,
-		"-t", conn.server.RootPath + path,
+		"-t", path,
 	}
 
 	port, err := scion.AllocateUdpPort(conn.conn.LocalAddr().String())
