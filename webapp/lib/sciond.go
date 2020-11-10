@@ -276,10 +276,10 @@ func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 	for _, path := range paths {
 		rpath := Path{
 			Fingerprint: snet.Fingerprint(path).String()[:16],
-			Expiry:      path.Metadata().Expiry(),
-			MTU:         path.Metadata().MTU(),
+			Expiry:      path.Metadata().Expiry,
+			MTU:         path.Metadata().MTU,
 		}
-		for _, hop := range path.Interfaces() {
+		for _, hop := range path.Metadata().Interfaces {
 			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA, IfID: hop.ID})
 		}
 		rPaths = append(rPaths, rpath)
