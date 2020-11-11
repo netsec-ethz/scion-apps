@@ -172,8 +172,7 @@ func queryPathsFiltered(ia addr.IA, policy *pathpol.Policy) ([]snet.Path, error)
 	for _, path := range paths {
 		pathSet[path.Fingerprint()] = path
 	}
-	policy.Filter(pathSet)
-	filterPathSlice(&paths, pathSet)
+	filterPathSlice(&paths, policy.Filter(pathSet))
 	return paths, nil
 }
 
