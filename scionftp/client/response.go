@@ -3,7 +3,7 @@ package ftp
 import (
 	"time"
 
-	"github.com/elwin/scionFTP/socket"
+	"github.com/netsec-ethz/scion-apps/scionftp/socket"
 )
 
 // Response represents a data-connection

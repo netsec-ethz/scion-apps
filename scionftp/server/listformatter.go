@@ -28,10 +28,10 @@ func (formatter listFormatter) Short() []byte {
 func (formatter listFormatter) Detailed() []byte {
 	var buf bytes.Buffer
 	for _, file := range formatter {
-		fmt.Fprintf(&buf, file.Mode().String())
+		fmt.Fprint(&buf, file.Mode().String())
 		fmt.Fprintf(&buf, " 1 %s %s ", file.Owner(), file.Group())
-		fmt.Fprintf(&buf, lpad(strconv.FormatInt(file.Size(), 10), 12))
-		fmt.Fprintf(&buf, file.ModTime().Format(" Jan _2 15:04 "))
+		fmt.Fprint(&buf, lpad(strconv.FormatInt(file.Size(), 10), 12))
+		fmt.Fprint(&buf, file.ModTime().Format(" Jan _2 15:04 "))
 		fmt.Fprintf(&buf, "%s\r\n", file.Name())
 	}
 	return buf.Bytes()

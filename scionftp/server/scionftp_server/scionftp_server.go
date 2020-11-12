@@ -11,8 +11,8 @@ import (
 	"flag"
 	"log"
 
-	filedriver "github.com/elwin/scionFTP/file-driver"
-	"github.com/elwin/scionFTP/server"
+	filedriver "github.com/netsec-ethz/scion-apps/scionftp/file-driver"
+	"github.com/netsec-ethz/scion-apps/scionftp/server"
 )
 
 func main() {

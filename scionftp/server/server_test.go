@@ -19,7 +19,7 @@ import (
 )
 
 func runServer(t *testing.T, execute func()) {
-	os.MkdirAll("./testdata", os.ModePerm)
+	assert.NoError(t, os.MkdirAll("./testdata", os.ModePerm))
 
 	var perm = server.NewSimplePerm("test", "test")
 	opt := &server.ServerOpts{
@@ -118,7 +118,7 @@ func TestConnect(t *testing.T) {
 }
 
 func TestServe(t *testing.T) {
-	os.MkdirAll("./testdata", os.ModePerm)
+	assert.NoError(t, os.MkdirAll("./testdata", os.ModePerm))
 
 	var perm = server.NewSimplePerm("test", "test")
 

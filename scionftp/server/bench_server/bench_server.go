@@ -10,8 +10,8 @@ import (
 	"flag"
 	"log"
 
-	filedriver "github.com/elwin/scionFTP/file-driver"
-	"github.com/elwin/scionFTP/server"
+	filedriver "github.com/netsec-ethz/scion-apps/scionftp/file-driver"
+	"github.com/netsec-ethz/scion-apps/scionftp/server"
 )
 
 const (
@@ -34,7 +34,7 @@ func main() {
 
 	opts := &server.Opts{
 		Factory:  factory,
-		Port:     *port,
+		Port:     uint16(*port),
 		Hostname: *host,
 		Auth:     &server.SimpleAuth{Name: username, Password: password},
 	}

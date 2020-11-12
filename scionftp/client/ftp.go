@@ -5,15 +5,15 @@ package ftp
 
 import (
 	"context"
-	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
 	"time"
 
-	"github.com/elwin/scionFTP/scion"
+	"github.com/netsec-ethz/scion-apps/scionftp/scion"
 
-	"github.com/elwin/scionFTP/logger"
+	"github.com/netsec-ethz/scion-apps/scionftp/logger"
 )
 
 // EntryType describes the different types of an Entry.
@@ -42,7 +42,6 @@ type ServerConn struct {
 	extended              bool
 	blockSize             int
 	logger                logger.Logger
-	cert                  tls.Certificate
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -77,12 +76,6 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 
 	if do.location == nil {
 		do.location = time.UTC
-	}
-
-	ctx := do.context
-
-	if ctx == nil {
-		ctx = context.Background()
 	}
 
 	maxChunkSize := do.blockSize
@@ -130,14 +123,18 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 
 	_, _, err = c.conn.ReadResponse(StatusReady)
 	if err != nil {
-		c.Quit()
-		return nil, err
+		if err2 := c.Quit(); err2 != nil {
+			return nil, fmt.Errorf("could not read response: %s\nand could not close connection: %s", err, err2)
+		}
+		return nil, fmt.Errorf("could not read response: %s", err)
 	}
 
 	err = c.feat()
 	if err != nil {
-		c.Quit()
-		return nil, err
+		if err2 := c.Quit(); err2 != nil {
+			return nil, fmt.Errorf("could execute FEAT: %s\nand could not close connection: %s", err, err2)
+		}
+		return nil, fmt.Errorf("could execute FEAT: %s", err)
 	}
 
 	if _, mlstSupported := c.features["MLST"]; mlstSupported {

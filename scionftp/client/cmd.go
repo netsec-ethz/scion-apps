@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	mode2 "github.com/elwin/scionFTP/mode"
-	"github.com/elwin/scionFTP/scion"
+	mode2 "github.com/netsec-ethz/scion-apps/scionftp/mode"
+	"github.com/netsec-ethz/scion-apps/scionftp/scion"
 
-	"github.com/elwin/scionFTP/socket"
+	"github.com/netsec-ethz/scion-apps/scionftp/socket"
 )
 
 // Login authenticates the scionftp with specified user and password.
@@ -219,24 +219,24 @@ func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...inter
 	if offset != 0 {
 		_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return nil, err
 		}
 	}
 
 	_, err = c.conn.Cmd(format, args...)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	code, msg, err := c.conn.ReadResponse(-1)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	if code != StatusAlreadyOpen && code != StatusAboutToSend {
-		conn.Close()
+		_ = conn.Close()
 		return nil, &textproto.Error{Code: code, Msg: msg}
 	}
 
@@ -251,7 +251,7 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	}
 
 	r := &Response{conn: conn, c: c}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -283,7 +283,7 @@ func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 	}
 
 	r := &Response{conn: conn, c: c}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	scanner := bufio.NewScanner(r)
 	now := time.Now()
@@ -380,7 +380,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 	} else {
 		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
 	}
-	port, err := scion.AllocateUdpPort(c.remoteAddr.String())
+	port, err := scion.AllocateUDPPort(c.remoteAddr.String())
 	if err != nil {
 		return fmt.Errorf("could not get data connection port: %s", err.Error())
 	}
@@ -392,7 +392,10 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 	}
 	args = append(args, "-i", iface)
 
-	code, _, err := c.cmd(320, "HERCULES_PORT %d", port)
+	_, _, err = c.cmd(320, "HERCULES_PORT %d", port)
+	if err != nil {
+		return err
+	}
 
 	cmd := exec.Command("sudo", args...)
 	cmd.Stderr = os.Stderr
@@ -404,7 +407,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		return fmt.Errorf("could not start Hercules: %s", err)
 	}
 
-	code, _, err = c.cmd(150, "RETR_HERCULES %s", remotePath)
+	code, _, err := c.cmd(150, "RETR_HERCULES %s", remotePath)
 	if code != 150 {
 		err2 := cmd.Process.Kill()
 		if err2 != nil {
@@ -459,7 +462,7 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 		fmt.Printf("Wrote %d bytes\n", n)
 	}
 
-	conn.Close() // Needs to be before the statement below, otherwise deadlocks
+	_ = conn.Close() // Needs to be before the statement below, otherwise deadlocks
 	_, _, err = c.conn.ReadResponse(StatusClosingDataConnection)
 
 	return err
@@ -563,7 +566,7 @@ func (c *ServerConn) Logout() error {
 // Quit issues a QUIT FTP command to properly close the connection from the
 // remote FTP server.
 func (c *ServerConn) Quit() error {
-	c.conn.Cmd("QUIT")
+	_, _ = c.conn.Cmd("QUIT")
 	return c.conn.Close()
 }
 

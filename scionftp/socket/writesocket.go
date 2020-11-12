@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/elwin/scionFTP/striping"
+	"github.com/netsec-ethz/scion-apps/scionftp/striping"
 )
 
 type WriterSocket struct {

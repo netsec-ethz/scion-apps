@@ -14,9 +14,9 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/elwin/scionFTP/scion"
+	"github.com/netsec-ethz/scion-apps/scionftp/scion"
 
-	"github.com/elwin/scionFTP/logger"
+	"github.com/netsec-ethz/scion-apps/scionftp/logger"
 )
 
 // Version returns the library version

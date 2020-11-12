@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"errors"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"net"
@@ -48,20 +49,18 @@ func newFtpMock(t *testing.T, address string) (*ftpMock, error) {
 func (mock *ftpMock) listen(t *testing.T) {
 	// Listen for an incoming connection.
 	conn, err := mock.listener.Accept()
-	if err != nil {
-		t.Errorf("can not accept: %s", err)
-		return
-	}
+	assert.NoError(t, err)
 
 	// Do not accept incoming connections anymore
-	mock.listener.Close()
+	err = mock.listener.Close()
+	assert.NoError(t, err)
 
 	mock.Add(1)
 	defer mock.Done()
-	defer conn.Close()
+	defer func() { assert.NoError(t, conn.Close()) }()
 
 	mock.proto = textproto.NewConn(conn)
-	mock.proto.Writer.PrintfLine("220 FTP Server ready.")
+	assert.NoError(t, mock.proto.Writer.PrintfLine("220 FTP Server ready."))
 
 	for {
 		fullCommand, _ := mock.proto.ReadLine()
@@ -74,127 +73,130 @@ func (mock *ftpMock) listen(t *testing.T) {
 		// At least one command must have a multiline response
 		switch cmdParts[0] {
 		case "FEAT":
-			mock.proto.Writer.PrintfLine("211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n SIZE\r\n211 End")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("211-Features:\r\n FEAT\r\n PASV\r\n EPSV\r\n SIZE\r\n211 End"))
 		case "USER":
 			if cmdParts[1] == "anonymous" {
-				mock.proto.Writer.PrintfLine("331 Please send your password")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("331 Please send your password"))
 			} else {
-				mock.proto.Writer.PrintfLine("530 This FTP server is anonymous only")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("530 This FTP server is anonymous only"))
 			}
 		case "PASS":
-			mock.proto.Writer.PrintfLine("230-Hey,\r\nWelcome to my FTP\r\n230 Access granted")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("230-Hey,\r\nWelcome to my FTP\r\n230 Access granted"))
 		case "TYPE":
-			mock.proto.Writer.PrintfLine("200 Type set ok")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("200 Type set ok"))
 		case "CWD":
 			if cmdParts[1] == "missing-dir" {
-				mock.proto.Writer.PrintfLine("550 %s: No such file or directory", cmdParts[1])
+				assert.NoError(t, mock.proto.Writer.PrintfLine("550 %s: No such file or directory", cmdParts[1]))
 			} else {
-				mock.proto.Writer.PrintfLine("250 Directory successfully changed.")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("250 Directory successfully changed."))
 			}
 		case "DELE":
-			mock.proto.Writer.PrintfLine("250 File successfully removed.")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("250 File successfully removed."))
 		case "MKD":
-			mock.proto.Writer.PrintfLine("257 Directory successfully created.")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("257 Directory successfully created."))
 		case "RMD":
 			if cmdParts[1] == "missing-dir" {
-				mock.proto.Writer.PrintfLine("550 No such file or directory")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("550 No such file or directory"))
 			} else {
-				mock.proto.Writer.PrintfLine("250 Directory successfully removed.")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("250 Directory successfully removed."))
 			}
 		case "PWD":
-			mock.proto.Writer.PrintfLine("257 \"/incoming\"")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("257 \"/incoming\""))
 		case "CDUP":
-			mock.proto.Writer.PrintfLine("250 CDUP command successful")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("250 CDUP command successful"))
 		case "SIZE":
 			if cmdParts[1] == "magic-file" {
-				mock.proto.Writer.PrintfLine("213 42")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("213 42"))
 			} else {
-				mock.proto.Writer.PrintfLine("550 Could not get file size.")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("550 Could not get file size."))
 			}
 		case "PASV":
 			p, err := mock.listenDataConn()
 			if err != nil {
-				mock.proto.Writer.PrintfLine("451 %s.", err)
+				assert.NoError(t, mock.proto.Writer.PrintfLine("451 %s.", err))
 				break
 			}
 
 			p1 := int(p / 256)
 			p2 := p % 256
 
-			mock.proto.Writer.PrintfLine("227 Entering Passive Mode (127,0,0,1,%d,%d).", p1, p2)
+			assert.NoError(t, mock.proto.Writer.PrintfLine("227 Entering Passive Mode (127,0,0,1,%d,%d).", p1, p2))
 		case "EPSV":
 			p, err := mock.listenDataConn()
 			if err != nil {
-				mock.proto.Writer.PrintfLine("451 %s.", err)
+				assert.NoError(t, mock.proto.Writer.PrintfLine("451 %s.", err))
 				break
 			}
-			mock.proto.Writer.PrintfLine("229 Entering Extended Passive Mode (|||%d|)", p)
+			assert.NoError(t, mock.proto.Writer.PrintfLine("229 Entering Extended Passive Mode (|||%d|)", p))
 		case "STOR":
 			if mock.dataConn == nil {
-				mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused"))
 				break
 			}
-			mock.proto.Writer.PrintfLine("150 please send")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("150 please send"))
 			mock.recvDataConn()
 		case "LIST":
 			if mock.dataConn == nil {
-				mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused"))
 				break
 			}
 
 			mock.dataConn.Wait()
-			mock.proto.Writer.PrintfLine("150 Opening ASCII mode data connection for file list")
-			mock.dataConn.conn.Write([]byte("-rw-r--r--   1 ftp      wheel           0 Jan 29 10:29 lo"))
-			mock.proto.Writer.PrintfLine("226 Transfer complete")
-			mock.closeDataConn()
+			assert.NoError(t, mock.proto.Writer.PrintfLine("150 Opening ASCII mode data connection for file list"))
+			_, err = mock.dataConn.conn.Write([]byte("-rw-r--r--   1 ftp      wheel           0 Jan 29 10:29 lo"))
+			assert.NoError(t, err)
+			assert.NoError(t, mock.proto.Writer.PrintfLine("226 Transfer complete"))
+			_ = mock.closeDataConn()
 		case "NLST":
 			if mock.dataConn == nil {
-				mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused"))
 				break
 			}
 
 			mock.dataConn.Wait()
-			mock.proto.Writer.PrintfLine("150 Opening ASCII mode data connection for file list")
-			mock.dataConn.conn.Write([]byte("/incoming"))
-			mock.proto.Writer.PrintfLine("226 Transfer complete")
-			mock.closeDataConn()
+			assert.NoError(t, mock.proto.Writer.PrintfLine("150 Opening ASCII mode data connection for file list"))
+			_, err = mock.dataConn.conn.Write([]byte("/incoming"))
+			assert.NoError(t, err)
+			assert.NoError(t, mock.proto.Writer.PrintfLine("226 Transfer complete"))
+			assert.NoError(t, mock.closeDataConn())
 		case "RETR":
 			if mock.dataConn == nil {
-				mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("425 Unable to build data connection: Connection refused"))
 				break
 			}
 
 			mock.dataConn.Wait()
-			mock.proto.Writer.PrintfLine("150 Opening ASCII mode data connection for file list")
-			mock.dataConn.conn.Write([]byte(testData[mock.rest:]))
+			assert.NoError(t, mock.proto.Writer.PrintfLine("150 Opening ASCII mode data connection for file list"))
+			_, err = mock.dataConn.conn.Write([]byte(testData[mock.rest:]))
+			assert.NoError(t, err)
 			mock.rest = 0
-			mock.proto.Writer.PrintfLine("226 Transfer complete")
-			mock.closeDataConn()
+			assert.NoError(t, mock.proto.Writer.PrintfLine("226 Transfer complete"))
+			assert.NoError(t, mock.closeDataConn())
 		case "RNFR":
-			mock.proto.Writer.PrintfLine("350 File or directory exists, ready for destination name")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("350 File or directory exists, ready for destination name"))
 		case "RNTO":
-			mock.proto.Writer.PrintfLine("250 Rename successful")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("250 Rename successful"))
 		case "REST":
 			if len(cmdParts) != 2 {
-				mock.proto.Writer.PrintfLine("500 wrong number of arguments")
+				assert.NoError(t, mock.proto.Writer.PrintfLine("500 wrong number of arguments"))
 				break
 			}
 			rest, err := strconv.Atoi(cmdParts[1])
 			if err != nil {
-				mock.proto.Writer.PrintfLine("500 REST: %s", err)
+				assert.NoError(t, mock.proto.Writer.PrintfLine("500 REST: %s", err))
 				break
 			}
 			mock.rest = rest
-			mock.proto.Writer.PrintfLine("350 Restarting at %s. Send STORE or RETRIEVE to initiate transfer", cmdParts[1])
+			assert.NoError(t, mock.proto.Writer.PrintfLine("350 Restarting at %s. Send STORE or RETRIEVE to initiate transfer", cmdParts[1]))
 		case "NOOP":
-			mock.proto.Writer.PrintfLine("200 NOOP ok.")
+			_ = mock.proto.Writer.PrintfLine("200 NOOP ok.")
 		case "REIN":
-			mock.proto.Writer.PrintfLine("220 Logged out")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("220 Logged out"))
 		case "QUIT":
-			mock.proto.Writer.PrintfLine("221 Goodbye.")
+			assert.NoError(t, mock.proto.Writer.PrintfLine("221 Goodbye."))
 			return
 		default:
-			mock.proto.Writer.PrintfLine("500 Unknown command %s.", cmdParts[0])
+			assert.NoError(t, mock.proto.Writer.PrintfLine("500 Unknown command %s.", cmdParts[0]))
 		}
 	}
 }
@@ -225,7 +227,9 @@ func (d *mockDataConn) Close() (err error) {
 }
 
 func (mock *ftpMock) listenDataConn() (int64, error) {
-	mock.closeDataConn()
+	if err := mock.closeDataConn(); err != nil {
+		return 0, err
+	}
 
 	l, err := net.Listen("tcp", mock.address+":0")
 	if err != nil {
@@ -270,9 +274,9 @@ func (mock *ftpMock) listenDataConn() (int64, error) {
 
 func (mock *ftpMock) recvDataConn() {
 	mock.dataConn.Wait()
-	io.Copy(ioutil.Discard, mock.dataConn.conn)
-	mock.proto.Writer.PrintfLine("226 Transfer Complete")
-	mock.closeDataConn()
+	_, _ = io.Copy(ioutil.Discard, mock.dataConn.conn)
+	_ = mock.proto.Writer.PrintfLine("226 Transfer Complete")
+	_ = mock.closeDataConn()
 }
 
 func (mock *ftpMock) Addr() string {
@@ -281,7 +285,7 @@ func (mock *ftpMock) Addr() string {
 
 // Closes the listening socket
 func (mock *ftpMock) Close() {
-	mock.listener.Close()
+	_ = mock.listener.Close()
 }
 
 // Helper to return a scionftp connected to a mock server
@@ -292,7 +296,7 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 	}
 	defer mock.Close()
 
-	c, err := Dial(mock.Addr(), options...)
+	c, err := Dial(mock.Addr(), addr, options...)
 	if err != nil {
 		t.Fatal(err)
 	}

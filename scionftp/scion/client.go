@@ -2,12 +2,10 @@ package scion
 
 import (
 	"bufio"
-	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"io"
 	"os"
 	"strconv"
@@ -82,58 +80,9 @@ func sendHandshake(rw io.ReadWriter) error {
 
 	msg := []byte{200}
 
-	binary.Write(rw, binary.BigEndian, msg)
+	return binary.Write(rw, binary.BigEndian, msg)
 
 	// log.Debug("Sent handshake", "msg", msg)
-
-	return nil
-}
-
-func setupPath(local, remote snet.UDPAddr, selector PathSelector) error {
-	if !remote.IA.Equal(local.IA) {
-		path, err := choosePath(local, remote, selector)
-		if err != nil {
-			return err
-		}
-		if path == nil {
-			return fmt.Errorf("no paths available to remote destination")
-		}
-		remote.Path = (*path).Path()
-		if err := remote.Path.InitOffsets(); err != nil {
-			return err
-		}
-		remote.NextHop = (*path).OverlayNextHop()
-	}
-
-	return nil
-}
-
-func choosePath(local, remote snet.UDPAddr, selector PathSelector) (*snet.Path, error) {
-	var paths []*snet.Path
-
-	sciondConn, err := sciond.NewService(sciond.DefaultSCIONDAddress).Connect(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	pathMgr := pathmgr.New(sciondConn, pathmgr.Timers{}, 1)
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sciond.PathReqFlags{
-		PathCount: 1,
-		Refresh:   false,
-		Hidden:    false,
-	})
-
-	if len(pathSet) == 0 {
-		return nil, nil
-	}
-
-	for _, p := range pathSet {
-		paths = append(paths, &p)
-	}
-
-	selected := selector(paths)
-	fmt.Println(selected)
-	return selected, nil
 }
 
 type PathSelector func([]*snet.Path) *snet.Path
@@ -187,7 +136,7 @@ func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEn
 		if err == nil && int(index) < len(paths) {
 			break
 		}
-		fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n",
+		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n",
 			len(paths))
 	}
 

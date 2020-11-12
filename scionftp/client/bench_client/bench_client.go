@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/elwin/scionFTP/scion"
+	"github.com/netsec-ethz/scion-apps/scionftp/scion"
 
-	"github.com/elwin/scionFTP/mode"
+	"github.com/netsec-ethz/scion-apps/scionftp/mode"
 
-	ftp "github.com/elwin/scionFTP/client"
+	ftp "github.com/netsec-ethz/scion-apps/scionftp/client"
 )
 
 var (
@@ -94,7 +94,7 @@ func run() error {
 	static := scion.NewStaticSelector()
 	selection := []scion.PathSelector{static.PathSelector, rotator.PathSelector}
 
-	var tests []*test
+	var tests = make([]*test, 0)
 	for _, m := range extended {
 		for _, payload := range payloads {
 			if m == mode.Stream {
@@ -137,15 +137,21 @@ func run() error {
 	fmt.Printf("%d Testcases\n", len(tests))
 
 	conn, err := ftp.Dial(*client, *remote)
-	defer conn.Quit()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = conn.Quit() }()
 	if err = conn.Login("admin", "123456"); err != nil {
 		return err
 	}
 
 	// Warm-up
-	conn.SetPathSelector(rotator.PathSelector)
-	conn.Mode(mode.ExtendedBlockMode)
-	conn.SetRetrOpts(8, 4096)
+	if err = conn.Mode(mode.ExtendedBlockMode); err != nil {
+		return err
+	}
+	if err = conn.SetRetrOpts(8, 4096); err != nil {
+		return err
+	}
 	response, err := conn.Retr(strconv.Itoa(tests[0].payload * sizeUnit))
 	if err != nil {
 		log.Fatal("failed to retrieve file", err)
@@ -154,7 +160,9 @@ func run() error {
 		if err != nil {
 			log.Fatal("failed to copy data", err)
 		}
-		response.Close()
+		if err = response.Close(); err != nil {
+			return err
+		}
 	}
 
 	for i, test := range tests {
@@ -163,7 +171,6 @@ func run() error {
 
 		rotator.Reset(maxPaths)
 		static.Reset()
-		conn.SetPathSelector(test.selector)
 
 		err = conn.Mode(test.mode)
 		if err != nil {
@@ -190,7 +197,9 @@ func run() error {
 		if int(n) != test.payload*sizeUnit {
 			return fmt.Errorf("failed to read correct number of bytes, expected %d but got %d", test.payload*sizeUnit, n)
 		}
-		response.Close()
+		if err = response.Close(); err != nil {
+			return err
+		}
 
 		test.duration += time.Since(start)
 

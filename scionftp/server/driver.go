@@ -56,6 +56,6 @@ type Driver interface {
 	GetFile(string, int64) (int64, io.ReadCloser, error)
 
 	// params  - destination path, an io.Reader containing the file data
-	// returns - the number of bytes writen and the first error encountered while writing, if any.
+	// returns - the number of bytes written and the first error encountered while writing, if any.
 	PutFile(string, io.Reader, bool) (int64, error)
 }

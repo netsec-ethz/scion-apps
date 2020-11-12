@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	ftp "github.com/elwin/scionFTP/client"
+	ftp "github.com/netsec-ethz/scion-apps/scionftp/client"
 )
 
 func main() {
@@ -184,7 +184,6 @@ func (app *App) cd(args []string) {
 	err := app.conn.ChangeDir(args[0])
 	if err != nil {
 		app.print(err)
-		return
 	}
 }
 
@@ -197,7 +196,6 @@ func (app *App) mkdir(args []string) {
 	err := app.conn.MakeDir(args[0])
 	if err != nil {
 		app.print(err)
-		return
 	}
 }
 
@@ -298,7 +296,6 @@ func (app *App) retrHercules(args []string) {
 	if err != nil {
 		app.print(err)
 	}
-	return
 }
 
 func (app *App) stor(args []string) {
@@ -321,7 +318,6 @@ func (app *App) stor(args []string) {
 
 func (app *App) storHercules(args []string) {
 	app.print("Not implemented yet...")
-	return
 }
 
 func (app *App) quit(args []string) {

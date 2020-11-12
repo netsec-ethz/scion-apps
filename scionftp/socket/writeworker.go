@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/elwin/scionFTP/striping"
+	"github.com/netsec-ethz/scion-apps/scionftp/striping"
 	"github.com/scionproto/scion/go/lib/log"
 )
 

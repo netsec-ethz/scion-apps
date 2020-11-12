@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"bytes"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/textproto"
 	"strings"
@@ -78,8 +79,8 @@ func testConn(t *testing.T, disableEPSV bool) {
 		if string(buf) != testData {
 			t.Errorf("'%s'", buf)
 		}
-		r.Close()
-		r.Close() // test we can close two times
+		assert.NoError(t, r.Close())
+		assert.NoError(t, r.Close()) // test we can close two times
 	}
 
 	// Read with deadline
@@ -87,14 +88,14 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if err != nil {
 		t.Error(err)
 	} else {
-		r.SetDeadline(time.Now())
+		assert.NoError(t, r.SetDeadline(time.Now()))
 		_, err := ioutil.ReadAll(r)
 		if err == nil {
 			t.Error("deadline should have caused error")
 		} else if !strings.HasSuffix(err.Error(), "i/o timeout") {
 			t.Error(err)
 		}
-		r.Close()
+		assert.NoError(t, r.Close())
 	}
 
 	// Read with offset
@@ -110,7 +111,7 @@ func testConn(t *testing.T, disableEPSV bool) {
 		if string(buf) != expected {
 			t.Errorf("read %q, expected %q", buf, expected)
 		}
-		r.Close()
+		assert.NoError(t, r.Close())
 	}
 
 	fileSize, err := c.FileSize("magic-file")
@@ -183,34 +184,15 @@ func testConn(t *testing.T, disableEPSV bool) {
 	}
 }
 
-// TestConnect tests the legacy Connect function
-func TestConnect(t *testing.T) {
-	mock, err := newFtpMock(t, "127.0.0.1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer mock.Close()
-
-	c, err := Connect(mock.Addr())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := c.Quit(); err != nil {
-		t.Fatal(err)
-	}
-	mock.Wait()
-}
-
 func TestTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c, err := DialTimeout("localhost:2121", 1*time.Second)
+	c, err := DialTimeout("localhost:4000", "localhost:2121", 1*time.Second)
 	if err == nil {
 		t.Fatal("expected timeout, got nil error")
-		c.Quit()
+		_ = c.Quit()
 	}
 }
 
@@ -221,11 +203,11 @@ func TestWrongLogin(t *testing.T) {
 	}
 	defer mock.Close()
 
-	c, err := DialTimeout(mock.Addr(), 5*time.Second)
+	c, err := DialTimeout("localhost:4000", mock.Addr(), 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Quit()
+	defer func() { assert.NoError(t, c.Quit()) }()
 
 	err = c.Login("zoo2Shia", "fei5Yix9")
 	if err == nil {

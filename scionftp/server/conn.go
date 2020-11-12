@@ -18,10 +18,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/elwin/scionFTP/scion"
+	"github.com/netsec-ethz/scion-apps/scionftp/scion"
 
-	"github.com/elwin/scionFTP/logger"
-	"github.com/elwin/scionFTP/socket"
+	"github.com/netsec-ethz/scion-apps/scionftp/logger"
+	"github.com/netsec-ethz/scion-apps/scionftp/socket"
 )
 
 const (
@@ -99,7 +99,10 @@ func newSessionID() string {
 func (conn *Conn) Serve() {
 	conn.logger.Print(conn.sessionID, "Connection Established")
 	// send welcome
-	conn.writeMessage(220, conn.server.WelcomeMessage)
+	_, err := conn.writeMessage(220, conn.server.WelcomeMessage)
+	if err != nil {
+		conn.logger.Print(conn.sessionID, fmt.Sprint("write error:", err))
+	}
 	// read commands
 	for {
 		line, err := conn.controlReader.ReadString('\n')
@@ -113,7 +116,7 @@ func (conn *Conn) Serve() {
 		conn.receiveLine(line)
 		// QUIT command closes connection, break to avoid error on reading from
 		// closed socket
-		if conn.closed == true {
+		if conn.closed {
 			break
 		}
 	}
@@ -145,14 +148,14 @@ func (conn *Conn) ServeKeepAlive() {
 		}
 		command := strings.ToUpper(strings.Trim(line, "\r\n"))
 		if command != "NOOP" {
-			conn.writeMessage(550, "Got non-NOOP on keep-alive stream")
+			_, _ = conn.writeMessage(550, "Got non-NOOP on keep-alive stream")
 		} else {
 			_, _ = conn.keepAliveWriter.WriteString("200 OK\r\n")
-			conn.keepAliveWriter.Flush()
+			_ = conn.keepAliveWriter.Flush()
 		}
 		// QUIT command closes connection, break to avoid error on reading from
 		// closed socket
-		if conn.closed == true {
+		if conn.closed {
 			break
 		}
 	}
@@ -162,13 +165,13 @@ func (conn *Conn) ServeKeepAlive() {
 
 // Close will manually close this connection, even if the scionftp isn't ready.
 func (conn *Conn) Close() {
-	conn.conn.Close()
+	_ = conn.conn.Close()
 	if conn.keepAliveConn != nil {
-		conn.keepAliveConn.Close()
+		_ = conn.keepAliveConn.Close()
 	}
 	conn.closed = true
 	if conn.dataConn != nil {
-		conn.dataConn.Close()
+		_ = conn.dataConn.Close()
 		conn.dataConn = nil
 	}
 }
@@ -180,13 +183,13 @@ func (conn *Conn) receiveLine(line string) {
 	conn.logger.PrintCommand(conn.sessionID, command, param)
 	cmdObj := commands[strings.ToUpper(command)]
 	if cmdObj == nil {
-		conn.writeMessage(500, "Command not found")
+		_, _ = conn.writeMessage(500, "Command not found")
 		return
 	}
 	if cmdObj.RequireParam() && param == "" {
-		conn.writeMessage(553, "action aborted, required param missing")
+		_, _ = conn.writeMessage(553, "action aborted, required param missing")
 	} else if cmdObj.RequireAuth() && conn.user == "" {
-		conn.writeMessage(530, "not logged in")
+		_, _ = conn.writeMessage(530, "not logged in")
 	} else {
 		cmdObj.Execute(conn, param)
 	}
@@ -205,7 +208,9 @@ func (conn *Conn) writeMessage(code int, message string) (wrote int, err error) 
 	conn.logger.PrintResponse(conn.sessionID, code, message)
 	line := fmt.Sprintf("%d %s\r\n", code, message)
 	wrote, err = conn.controlWriter.WriteString(line)
-	conn.controlWriter.Flush()
+	if err == nil {
+		err = conn.controlWriter.Flush()
+	}
 	return
 }
 
@@ -221,7 +226,9 @@ func (conn *Conn) writeMessageMultiline(code int, message string) (wrote int, er
 	conn.logger.PrintResponse(conn.sessionID, code, message)
 	line := fmt.Sprintf("%d-%s\r\n%d END\r\n", code, message, code)
 	wrote, err = conn.controlWriter.WriteString(line)
-	conn.controlWriter.Flush()
+	if err == nil {
+		err = conn.controlWriter.Flush()
+	}
 	return
 }
 
@@ -260,26 +267,28 @@ func (conn *Conn) buildPath(filename string) (fullPath string) {
 func (conn *Conn) sendOutofbandData(data []byte) {
 	bytes := len(data)
 	if conn.dataConn != nil {
-		conn.dataConn.Write(data)
-		conn.dataConn.Close()
+		_, _ = conn.dataConn.Write(data)
+		_ = conn.dataConn.Close()
 		conn.dataConn = nil
 	}
 	message := "Closing data connection, sent " + strconv.Itoa(bytes) + " bytes"
-	conn.writeMessage(226, message)
+	_, _ = conn.writeMessage(226, message)
 }
 
 func (conn *Conn) sendOutofBandDataWriter(data io.ReadCloser) error {
 	conn.lastFilePos = 0
 	bytes, err := io.Copy(conn.dataConn, data)
 	if err != nil {
-		conn.dataConn.Close()
+		err = conn.dataConn.Close()
 		conn.dataConn = nil
 		return err
 	}
 	message := "Closing data connection, sent " + strconv.Itoa(int(bytes)) + " bytes"
-	conn.writeMessage(226, message)
-	conn.dataConn.Close()
+	_, err = conn.writeMessage(226, message)
+	if err == nil {
+		err = conn.dataConn.Close()
+	}
 	conn.dataConn = nil
 
-	return nil
+	return err
 }

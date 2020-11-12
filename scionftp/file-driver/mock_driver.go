@@ -1,4 +1,4 @@
-package file_driver
+package filedriver
 
 import (
 	"crypto/rand"
@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/elwin/scionFTP/server"
+	"github.com/netsec-ethz/scion-apps/scionftp/server"
 )
 
 var _ server.Driver = &MockDriver{}

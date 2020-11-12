@@ -109,8 +109,7 @@ func TestParseUnsupportedListLine(t *testing.T) {
 		_, err := parseListLine(lt.line, now, time.UTC)
 		if err == nil {
 			t.Errorf("parseListLine(%v) expected to fail", lt.line)
-		}
-		if err != lt.err {
+		} else if err != lt.err {
 			t.Errorf("parseListLine(%v) expected to fail with error: '%s'; was: '%s'", lt.line, lt.err.Error(), err.Error())
 		}
 	}
@@ -136,7 +135,9 @@ func TestSettime(t *testing.T) {
 
 	for _, test := range tests {
 		entry := &Entry{}
-		entry.setTime(strings.Fields(test.line), now, time.UTC)
+		if err := entry.setTime(strings.Fields(test.line), now, time.UTC); err != nil {
+			t.Error(err)
+		}
 
 		if !entry.Time.Equal(test.expected) {
 			t.Errorf("setTime(%v).Time = %v, want %v", test.line, entry.Time, test.expected)

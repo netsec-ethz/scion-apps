@@ -34,7 +34,7 @@ func FindInterfaceName(localAddr net.IP) (string, error) {
 	return "", fmt.Errorf("could not find interface with address %s", localAddr)
 }
 
-func AllocateUdpPort(remoteAddress string) (uint16, error) {
+func AllocateUDPPort(remoteAddress string) (uint16, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"scionftp"},
