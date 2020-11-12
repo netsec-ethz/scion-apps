@@ -9,6 +9,7 @@ import (
 	"net/textproto"
 	"os"
 	"os/exec"
+	"os/user"
 	"strconv"
 	"strings"
 	"sync"
@@ -367,6 +368,24 @@ func (c *ServerConn) IsRetrHerculesSupported() bool {
 	return c.retrHerculesSupported
 }
 
+func ownFile(file string) error {
+	usr, err := user.Current()
+	if err != nil {
+		return err
+	}
+
+	args := []string{
+		"chown",
+		fmt.Sprintf("%s:%s", usr.Uid, usr.Gid),
+		file,
+	}
+
+	cmd := exec.Command("sudo", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
+}
+
 func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, herculesConfig *string) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
@@ -429,9 +448,10 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		err = cmd.Wait()
 		if err != nil {
 			return fmt.Errorf("error during transfer: %s", err)
+		} else {
+			return ownFile(localPath)
 		}
 	}
-	return err
 }
 
 // Stor issues a STOR FTP command to store a file to the remote FTP server.
