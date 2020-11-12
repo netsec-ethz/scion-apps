@@ -18,10 +18,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/scion"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/logger"
-	"github.com/netsec-ethz/scion-apps/scionftp/socket"
+	"github.com/netsec-ethz/scion-apps/ftp/logger"
+	"github.com/netsec-ethz/scion-apps/ftp/socket"
 )
 
 const (

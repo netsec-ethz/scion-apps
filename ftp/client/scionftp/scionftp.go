@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	ftp "github.com/netsec-ethz/scion-apps/scionftp/client"
+	ftp "github.com/netsec-ethz/scion-apps/ftp/client"
 )
 
 func main() {

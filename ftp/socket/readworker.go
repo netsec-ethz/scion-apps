@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/striping"
+	"github.com/netsec-ethz/scion-apps/ftp/striping"
 )
 
 // A ReadWorker should be dispatched and runs until it

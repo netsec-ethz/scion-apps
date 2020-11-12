@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/scion"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/mode"
+	"github.com/netsec-ethz/scion-apps/ftp/mode"
 
-	ftp "github.com/netsec-ethz/scion-apps/scionftp/client"
+	ftp "github.com/netsec-ethz/scion-apps/ftp/client"
 )
 
 var (

@@ -3,7 +3,7 @@ package socket
 import (
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/scion"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 )
 
 // DataSocket describes a data socket is used to send non-control data between the scionftp and

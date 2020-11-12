@@ -6,7 +6,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/scionftp/mode"
+	"github.com/netsec-ethz/scion-apps/ftp/mode"
 	"log"
 	"os"
 	"os/exec"
@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/scion"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 
-	socket2 "github.com/netsec-ethz/scion-apps/scionftp/socket"
+	socket2 "github.com/netsec-ethz/scion-apps/ftp/socket"
 )
 
 type Command interface {

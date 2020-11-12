@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	mode2 "github.com/netsec-ethz/scion-apps/scionftp/mode"
-	"github.com/netsec-ethz/scion-apps/scionftp/scion"
+	mode2 "github.com/netsec-ethz/scion-apps/ftp/mode"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/socket"
+	"github.com/netsec-ethz/scion-apps/ftp/socket"
 )
 
 // Login authenticates the scionftp with specified user and password.

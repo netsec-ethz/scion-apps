@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/server"
+	"github.com/netsec-ethz/scion-apps/ftp/server"
 )
 
 var _ server.Driver = &FileDriver{}

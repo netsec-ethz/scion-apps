@@ -92,11 +92,11 @@ scion-webapp:
 
 .PHONY: scion-ftp
 scion-ftp:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./scionftp/client/scionftp/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/client/scionftp/
 
 .PHONY: scion-ftpserver
 scion-ftpserver:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./scionftp/server/scionftp_server/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/server/scionftp_server/
 
 .PHONY: example-helloworld
 example-helloworld:

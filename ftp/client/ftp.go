@@ -11,9 +11,9 @@ import (
 	"net/textproto"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/scion"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 
-	"github.com/netsec-ethz/scion-apps/scionftp/logger"
+	"github.com/netsec-ethz/scion-apps/ftp/logger"
 )
 
 // EntryType describes the different types of an Entry.
