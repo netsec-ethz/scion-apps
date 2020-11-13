@@ -21,31 +21,31 @@ func (driver *MockDriver) Init(*server.Conn) {
 }
 
 func (driver *MockDriver) Stat(string) (server.FileInfo, error) {
-	panic("not impemented for mock driver")
+	panic("not implemented for mock driver")
 }
 
 func (driver *MockDriver) ChangeDir(string) error {
-	panic("not impemented for mock driver")
+	panic("not implemented for mock driver")
 }
 
 func (driver *MockDriver) ListDir(string, func(server.FileInfo) error) error {
-	panic("not impemented for mock driver")
+	panic("not implemented for mock driver")
 }
 
 func (driver *MockDriver) DeleteDir(string) error {
-	panic("not impemented for mock driver")
+	panic("not implemented for mock driver")
 }
 
 func (driver *MockDriver) DeleteFile(string) error {
-	panic("not impemented for mock driver")
+	panic("not implemented for mock driver")
 }
 
 func (driver *MockDriver) Rename(string, string) error {
-	panic("not impemented for mock driver")
+	panic("not implemented for mock driver")
 }
 
 func (driver *MockDriver) MakeDir(string) error {
-	panic("not impemented for mock driver")
+	panic("not implemented for mock driver")
 }
 
 func (driver *MockDriver) GetFile(path string, offset int64) (int64, io.ReadCloser, error) {
