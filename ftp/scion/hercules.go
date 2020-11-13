@@ -7,6 +7,8 @@ import (
 	"net"
 )
 
+var ErrNoFileSystem = fmt.Errorf("driver is not backed by a filesystem")
+
 func FindInterfaceName(localAddr net.IP) (string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {

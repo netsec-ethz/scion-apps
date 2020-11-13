@@ -58,4 +58,11 @@ type Driver interface {
 	// params  - destination path, an io.Reader containing the file data
 	// returns - the number of bytes written and the first error encountered while writing, if any.
 	PutFile(string, io.Reader, bool) (int64, error)
+
+	// This function is only required to support the Hercules subsystem.
+	// params  - path
+	// returns - valid path in the filesystem to use with the Hercules subsystem
+	//         - scion.ErrNoFileSystem, if the driver is not backed by a filesystem (and thus, cannot support the
+	//           Hercules subsystem)
+	RealPath(path string) (string, error)
 }

@@ -3,6 +3,7 @@ package filedriver
 import (
 	"crypto/rand"
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -14,6 +15,10 @@ import (
 var _ server.Driver = &MockDriver{}
 
 type MockDriver struct {
+}
+
+func (driver *MockDriver) RealPath(path string) (string, error) {
+	return "", scion.ErrNoFileSystem
 }
 
 func (driver *MockDriver) Init(*server.Conn) {

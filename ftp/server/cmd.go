@@ -5,6 +5,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"github.com/netsec-ethz/scion-apps/ftp/mode"
 	"log"
@@ -815,7 +816,16 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}
 
 	// check file access as unprivileged user
-	path := conn.server.RootPath + conn.buildPath(param)
+	path, err := conn.driver.RealPath(conn.buildPath(param))
+	if err != nil {
+		if errors.Is(err, scion.ErrNoFileSystem) {
+			conn.writeOrLog(502, "Command not implemented")
+		} else {
+			log.Printf("driver.RealPath returned unexpected error: %s", err.Error())
+			conn.writeOrLog(551, "File not available for download")
+		}
+		return
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		conn.writeOrLog(551, "File not available for download")
