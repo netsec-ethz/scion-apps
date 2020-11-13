@@ -23,6 +23,9 @@ type DataSocket interface {
 
 	// Set deadline associated with connection (scionftp)
 	SetDeadline(t time.Time) error
+
+	LocalAddress() scion.Address
+	RemoteAddress() scion.Address
 }
 
 var _ DataSocket = &ScionSocket{}

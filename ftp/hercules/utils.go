@@ -2,7 +2,7 @@ package hercules
 
 import (
 	"fmt"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion-apps/ftp/scion"
 	"net"
 	"os"
 	"os/exec"
@@ -38,8 +38,8 @@ func findInterfaceName(localAddr net.IP) (string, error) {
 	return "", fmt.Errorf("could not find interface with address %s", localAddr)
 }
 
-func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAddress snet.UDPAddr) ([]string, error) {
-	iface, err := findInterfaceName(localAddress.Host.IP)
+func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAddress scion.Address) ([]string, error) {
+	iface, err := findInterfaceName(localAddress.Addr().Host.IP)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAdd
 	return args, nil
 }
 
-func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress, remoteAddress snet.UDPAddr, file string) (*exec.Cmd, error) {
+func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress, remoteAddress scion.Address, file string) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, l
 	return exec.Command("sudo", args...), nil
 }
 
-func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress snet.UDPAddr, file string) (*exec.Cmd, error) {
+func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress scion.Address, file string) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress)
 	if err != nil {
 		return nil, err

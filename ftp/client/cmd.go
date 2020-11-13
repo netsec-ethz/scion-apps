@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/textproto"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -375,19 +374,14 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 	if herculesConfig == nil {
 		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
 	}
-	port, err := scion.AllocateUDPPort(c.remoteAddr.String())
-	if err != nil {
-		return fmt.Errorf("could not get data connection port: %s", err.Error())
-	}
-	localAddr := c.localAddr.Addr()
-	localAddr.Host.Port = int(port)
 
-	_, _, err = c.cmd(320, "HERCULES_PORT %d", port)
+	sock, err := c.openDataConn()
 	if err != nil {
 		return err
 	}
+	defer func() { _ = sock.Close() }()
 
-	cmd, err := hercules.PrepareHerculesRecvCommand(herculesBinary, herculesConfig, localAddr, localPath)
+	cmd, err := hercules.PrepareHerculesRecvCommand(herculesBinary, herculesConfig, sock.LocalAddress(), localPath)
 	if err != nil {
 		return err
 	}
@@ -400,8 +394,8 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		return fmt.Errorf("could not start Hercules: %s", err)
 	}
 
-	code, _, err := c.cmd(150, "RETR_HERCULES %s", remotePath)
-	if code != 150 {
+	code, _, err := c.cmd(StatusAboutToSend, "RETR_HERCULES %s", remotePath)
+	if code != StatusAboutToSend {
 		err2 := cmd.Process.Kill()
 		if err2 != nil {
 			return fmt.Errorf("transfer failed: %s\ncould not stop Hercules: %s", err, err2)
@@ -409,7 +403,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 			return fmt.Errorf("transfer failed: %s", err)
 		}
 	} else {
-		_, msg, err := c.conn.ReadResponse(226)
+		_, msg, err := c.conn.ReadResponse(StatusClosingDataConnection)
 		log.Printf("%s", msg)
 		if err != nil {
 			err2 := cmd.Process.Kill()
@@ -466,8 +460,6 @@ func (c *ServerConn) IsStorHerculesSupported() bool {
 	return c.storHerculesSupported
 }
 
-var matchHerculesPortRegex = regexp.MustCompile(`port\s+(\d+)`)
-
 func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string, herculesConfig *string) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
@@ -475,31 +467,19 @@ func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string, 
 	if herculesConfig == nil {
 		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
 	}
-	localPort, err := scion.AllocateUDPPort(c.remoteAddr.String())
-	if err != nil {
-		return fmt.Errorf("could not get data connection port: %s", err.Error())
-	}
-	localAddr := c.localAddr.Addr()
-	localAddr.Host.Port = int(localPort)
 
-	code, msg, err := c.cmd(150, "STOR_HERCULES %s", remotePath)
-	if code != 150 {
+	sock, err := c.openDataConn()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = sock.Close() }()
+
+	code, _, err := c.cmd(StatusAlreadyOpen, "STOR_HERCULES %s", remotePath)
+	if code != StatusAlreadyOpen {
 		return fmt.Errorf("transfer failed: %s", err)
 	}
 
-	// parse remote port from response
-	matches := matchHerculesPortRegex.FindStringSubmatch(msg)
-	if matches == nil {
-		return fmt.Errorf("could not parse port from response \"%s\"", msg)
-	}
-	remotePort, err := strconv.ParseUint(matches[1], 10, 16)
-	if err != nil {
-		return fmt.Errorf("could not parse port number from \"%s\"", matches[1])
-	}
-	remoteAddr := c.remoteAddr.Addr()
-	remoteAddr.Host.Port = int(remotePort)
-
-	cmd, err := hercules.PrepareHerculesSendCommand(herculesBinary, herculesConfig, localAddr, remoteAddr, localPath)
+	cmd, err := hercules.PrepareHerculesSendCommand(herculesBinary, herculesConfig, sock.LocalAddress(), sock.RemoteAddress(), localPath)
 	if err != nil {
 		return err
 	}
@@ -512,7 +492,7 @@ func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string, 
 		return fmt.Errorf("could not start Hercules: %s", err)
 	}
 
-	_, msg, err = c.conn.ReadResponse(226)
+	_, msg, err := c.conn.ReadResponse(StatusClosingDataConnection)
 	log.Printf("%s", msg)
 	if err != nil {
 		err2 := cmd.Process.Kill()

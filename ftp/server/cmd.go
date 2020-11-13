@@ -44,7 +44,6 @@ var (
 		"EPRT":          commandEprt{},
 		"EPSV":          commandEpsv{},
 		"FEAT":          commandFeat{},
-		"HERCULES_PORT": commandHerculesPort{},
 		"LIST":          commandList{},
 		"LPRT":          commandLprt{},
 		"NLST":          commandNlst{},
@@ -395,33 +394,6 @@ func (cmd commandEpsv) Execute(conn *Conn, param string) {
 	}
 	conn.dataConn = socket2.NewScionSocket(socket)
 
-}
-
-// commandHerculesPort responds to the ALLO FTP command.
-//
-// This is essentially a ping from the scionftp so we just respond with an
-// basic OK message.
-type commandHerculesPort struct{}
-
-func (cmd commandHerculesPort) IsExtend() bool {
-	return false
-}
-
-func (cmd commandHerculesPort) RequireParam() bool {
-	return true
-}
-
-func (cmd commandHerculesPort) RequireAuth() bool {
-	return true
-}
-
-func (cmd commandHerculesPort) Execute(conn *Conn, param string) {
-	port, err := strconv.ParseUint(param, 10, 16)
-	if err != nil {
-		_, _ = conn.writeMessage(529, "Invalid port number")
-	}
-	conn.herculesPort = uint16(port)
-	_, _ = conn.writeMessage(320, "Ok")
 }
 
 // commandList responds to the LIST FTP command. It allows the speedtest_client to retrieve
@@ -816,6 +788,16 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 		return
 	}
 
+	if conn.dataConn == nil {
+		log.Print("No data connection open")
+		conn.writeOrLog(425, "Can't open data connection")
+		return
+	}
+	defer func() {
+		_ = conn.dataConn.Close()
+		conn.dataConn = nil
+	}()
+
 	// check file access as unprivileged user
 	path, err := conn.driver.RealPath(conn.buildPath(param))
 	if err != nil {
@@ -842,18 +824,13 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}
 	defer conn.server.herculesLock.unlock()
 
-	port, err := scion.AllocateUDPPort(conn.conn.LocalAddr().String())
-	if err != nil {
-		log.Printf("could not allocate port: %s", err.Error())
-		conn.writeOrLog(425, "Can't open data connection")
-		return
-	}
-	localAddr := conn.conn.LocalAddr().(scion.Address).Addr()
-	localAddr.Host.Port = int(port)
-	remoteAddr := conn.conn.RemoteAddr().(scion.Address).Addr()
-	remoteAddr.Host.Port = int(conn.herculesPort)
-
-	command, err := hercules.PrepareHerculesSendCommand(conn.server.HerculesBinary, nil, localAddr, remoteAddr, path)
+	command, err := hercules.PrepareHerculesSendCommand(
+		conn.server.HerculesBinary,
+		nil,
+		conn.dataConn.LocalAddress(),
+		conn.dataConn.RemoteAddress(),
+		path,
+	)
 	if err != nil {
 		log.Printf("could not run hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
@@ -862,7 +839,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	command.Stderr = os.Stderr
 	command.Stdout = os.Stdout
 
-	_, err = conn.writeMessage(150, "Data transfer starting via Hercules")
+	_, err = conn.writeMessage(150, "File status okay; about to open data connection.")
 	if err != nil {
 		log.Printf("could not write response: %s", err.Error())
 		return
@@ -1197,6 +1174,16 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 		return
 	}
 
+	if conn.dataConn == nil {
+		log.Print("No data connection open")
+		conn.writeOrLog(425, "Can't open data connection")
+		return
+	}
+	defer func() {
+		_ = conn.dataConn.Close()
+		conn.dataConn = nil
+	}()
+
 	// check file access as unprivileged user
 	path, err := conn.driver.RealPath(conn.buildPath(param))
 	if err != nil {
@@ -1237,16 +1224,7 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 	}
 	defer conn.server.herculesLock.unlock()
 
-	port, err := scion.AllocateUDPPort(conn.conn.LocalAddr().String())
-	if err != nil {
-		log.Printf("could not allocate port: %s", err.Error())
-		conn.writeOrLog(425, "Can't open data connection")
-		return
-	}
-	localAddr := conn.conn.LocalAddr().(scion.Address).Addr()
-	localAddr.Host.Port = int(port)
-
-	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, nil, localAddr, path)
+	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, nil, conn.dataConn.LocalAddress(), path)
 	if err != nil {
 		log.Printf("could not start hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
@@ -1255,7 +1233,7 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 	command.Stderr = os.Stderr
 	command.Stdout = os.Stdout
 
-	_, err = conn.writeMessage(150, fmt.Sprintf("Hercules accepts data on port %d", port))
+	_, err = conn.writeMessage(125, "Data connection already open; transfer starting.")
 	if err != nil {
 		log.Printf("could not write response: %s", err.Error())
 		return

@@ -39,7 +39,6 @@ type Conn struct {
 	dataConn        socket.DataSocket
 	driver          Driver
 	auth            Auth
-	herculesPort    uint16
 	logger          logger.Logger
 	server          *Server
 	sessionID       string
