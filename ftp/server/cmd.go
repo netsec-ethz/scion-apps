@@ -7,12 +7,13 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/ftp/hercules"
 	"github.com/netsec-ethz/scion-apps/ftp/mode"
 	"log"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/ftp/scion"
@@ -818,7 +819,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	// check file access as unprivileged user
 	path, err := conn.driver.RealPath(conn.buildPath(param))
 	if err != nil {
-		if errors.Is(err, scion.ErrNoFileSystem) {
+		if errors.Is(err, hercules.ErrNoFileSystem) {
 			conn.writeOrLog(502, "Command not implemented")
 		} else {
 			log.Printf("driver.RealPath returned unexpected error: %s", err.Error())
@@ -841,11 +842,6 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}
 	defer conn.server.herculesLock.unlock()
 
-	args := []string{
-		conn.server.HerculesBinary,
-		"-t", path,
-	}
-
 	port, err := scion.AllocateUDPPort(conn.conn.LocalAddr().String())
 	if err != nil {
 		log.Printf("could not allocate port: %s", err.Error())
@@ -856,18 +852,13 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	localAddr.Host.Port = int(port)
 	remoteAddr := conn.conn.RemoteAddr().(scion.Address).Addr()
 	remoteAddr.Host.Port = int(conn.herculesPort)
-	args = append(args, "-l", localAddr.String())
-	args = append(args, "-d", remoteAddr.String())
 
-	iface, err := scion.FindInterfaceName(localAddr.Host.IP)
+	command, err := hercules.PrepareHerculesSendCommand(conn.server.HerculesBinary, nil, localAddr, remoteAddr, path)
 	if err != nil {
-		log.Printf("could not find interface: %s", err)
+		log.Printf("could not run hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
 		return
 	}
-	args = append(args, "-i", iface)
-
-	command := exec.Command("sudo", args...)
 	command.Stderr = os.Stderr
 	command.Stdout = os.Stdout
 
@@ -1201,13 +1192,89 @@ func (cmd commandStorHercules) RequireAuth() bool {
 }
 
 func (cmd commandStorHercules) Execute(conn *Conn, param string) {
-	targetPath := conn.buildPath(param)
-	_, err := conn.writeMessageMultiline(150, fmt.Sprintf("Command not yet available\r\n%s", targetPath))
-	if err != nil {
-		log.Printf("%s", err)
+	if conn.server.HerculesBinary == "" {
+		conn.writeOrLog(502, "Command not implemented")
+		return
 	}
-	// TODO check access as unprivileged
-	// TODO start hercules to fetch file
+
+	// check file access as unprivileged user
+	path, err := conn.driver.RealPath(conn.buildPath(param))
+	if err != nil {
+		if errors.Is(err, hercules.ErrNoFileSystem) {
+			conn.writeOrLog(502, "Command not implemented")
+		} else {
+			log.Printf("driver.RealPath returned unexpected error: %s", err.Error())
+			conn.writeOrLog(551, "File not available for writing")
+			log.Printf("hum %s", err)
+		}
+		return
+	}
+	unlinkOnFailure := false
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		f, err = os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+		unlinkOnFailure = true
+	}
+	if err != nil {
+		conn.writeOrLog(551, "File not available for writing")
+		return
+	}
+	defer func() {
+		_ = f.Close()
+		if err != nil && !unlinkOnFailure {
+			err = syscall.Unlink(path)
+			if err != nil {
+				log.Printf("could not delete file: %s", err)
+			}
+		}
+	}()
+
+	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode)")
+
+	if !conn.server.herculesLock.tryLockTimeout(5 * time.Second) {
+		conn.writeOrLog(425, "All Hercules units busy - please try again later")
+		return
+	}
+	defer conn.server.herculesLock.unlock()
+
+	port, err := scion.AllocateUDPPort(conn.conn.LocalAddr().String())
+	if err != nil {
+		log.Printf("could not allocate port: %s", err.Error())
+		conn.writeOrLog(425, "Can't open data connection")
+		return
+	}
+	localAddr := conn.conn.LocalAddr().(scion.Address).Addr()
+	localAddr.Host.Port = int(port)
+
+	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, nil, localAddr, path)
+	if err != nil {
+		log.Printf("could not start hercules: %s", err)
+		conn.writeOrLog(425, "Can't open data connection")
+		return
+	}
+	command.Stderr = os.Stderr
+	command.Stdout = os.Stdout
+
+	_, err = conn.writeMessage(150, fmt.Sprintf("Hercules accepts data on port %d", port))
+	if err != nil {
+		log.Printf("could not write response: %s", err.Error())
+		return
+	}
+
+	log.Printf("run Hercules: %s", command)
+	err = command.Run()
+	if err != nil {
+		// TODO improve error handling
+		log.Printf("could not execute Hercules: %s", err)
+		conn.writeOrLog(551, "Hercules returned an error")
+	} else {
+		conn.writeOrLog(226, "Hercules transfer complete")
+		unlinkOnFailure = false
+		err = hercules.OwnFile(path)
+		if err != nil {
+			log.Printf("could not own file: %s", err)
+		}
+	}
 }
 
 // commandStru responds to the STRU FTP command.

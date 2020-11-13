@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/ftp/hercules"
 	"io"
 	"log"
 	"net/textproto"
 	"os"
-	"os/exec"
-	"os/user"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -368,55 +368,29 @@ func (c *ServerConn) IsRetrHerculesSupported() bool {
 	return c.retrHerculesSupported
 }
 
-func ownFile(file string) error {
-	usr, err := user.Current()
-	if err != nil {
-		return err
-	}
-
-	args := []string{
-		"chown",
-		fmt.Sprintf("%s:%s", usr.Uid, usr.Gid),
-		file,
-	}
-
-	cmd := exec.Command("sudo", args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	return cmd.Run()
-}
-
 func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, herculesConfig *string) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
 	}
-	args := []string{
-		herculesBinary,
-		"-o", localPath,
-	}
-	if herculesConfig != nil {
-		args = append(args, "-c", *herculesConfig)
-	} else {
+	if herculesConfig == nil {
 		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
 	}
 	port, err := scion.AllocateUDPPort(c.remoteAddr.String())
 	if err != nil {
 		return fmt.Errorf("could not get data connection port: %s", err.Error())
 	}
-	args = append(args, "-l", fmt.Sprintf("%s:%d", c.local, port))
-
-	iface, err := scion.FindInterfaceName(c.localAddr.Addr().Host.IP)
-	if err != nil {
-		return err
-	}
-	args = append(args, "-i", iface)
+	localAddr := c.localAddr.Addr()
+	localAddr.Host.Port = int(port)
 
 	_, _, err = c.cmd(320, "HERCULES_PORT %d", port)
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("sudo", args...)
+	cmd, err := hercules.PrepareHerculesRecvCommand(herculesBinary, herculesConfig, localAddr, localPath)
+	if err != nil {
+		return err
+	}
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 
@@ -449,7 +423,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, 
 		if err != nil {
 			return fmt.Errorf("error during transfer: %s", err)
 		} else {
-			return ownFile(localPath)
+			return hercules.OwnFile(localPath)
 		}
 	}
 }
@@ -490,6 +464,70 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 
 func (c *ServerConn) IsStorHerculesSupported() bool {
 	return c.storHerculesSupported
+}
+
+var matchHerculesPortRegex = regexp.MustCompile(`port\s+(\d+)`)
+
+func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string, herculesConfig *string) error {
+	if herculesBinary == "" {
+		return fmt.Errorf("you need to specify -hercules to use this feature")
+	}
+	if herculesConfig == nil {
+		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
+	}
+	localPort, err := scion.AllocateUDPPort(c.remoteAddr.String())
+	if err != nil {
+		return fmt.Errorf("could not get data connection port: %s", err.Error())
+	}
+	localAddr := c.localAddr.Addr()
+	localAddr.Host.Port = int(localPort)
+
+	code, msg, err := c.cmd(150, "STOR_HERCULES %s", remotePath)
+	if code != 150 {
+		return fmt.Errorf("transfer failed: %s", err)
+	}
+
+	// parse remote port from response
+	matches := matchHerculesPortRegex.FindStringSubmatch(msg)
+	if matches == nil {
+		return fmt.Errorf("could not parse port from response \"%s\"", msg)
+	}
+	remotePort, err := strconv.ParseUint(matches[1], 10, 16)
+	if err != nil {
+		return fmt.Errorf("could not parse port number from \"%s\"", matches[1])
+	}
+	remoteAddr := c.remoteAddr.Addr()
+	remoteAddr.Host.Port = int(remotePort)
+
+	cmd, err := hercules.PrepareHerculesSendCommand(herculesBinary, herculesConfig, localAddr, remoteAddr, localPath)
+	if err != nil {
+		return err
+	}
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	log.Printf("run Hercules: %s", cmd)
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("could not start Hercules: %s", err)
+	}
+
+	_, msg, err = c.conn.ReadResponse(226)
+	log.Printf("%s", msg)
+	if err != nil {
+		err2 := cmd.Process.Kill()
+		if err2 != nil {
+			return fmt.Errorf("transfer failed: %s\ncould not stop Hercules: %s", err, err2)
+		} else {
+			return fmt.Errorf("transfer failed: %s", err)
+		}
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("error during transfer: %s", err)
+	} else {
+		return hercules.OwnFile(localPath)
+	}
 }
 
 // Rename renames a file on the remote FTP server.

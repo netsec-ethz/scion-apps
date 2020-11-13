@@ -317,7 +317,21 @@ func (app *App) stor(args []string) {
 }
 
 func (app *App) storHercules(args []string) {
-	app.print("Not implemented yet...")
+	if len(args) < 2 || len(args) > 3 {
+		app.print("Must supply one argument for source and one for destination; optionally supply a Hercules config file")
+		return
+	}
+
+	var config *string = nil
+	if len(args) == 3 {
+		config = &args[2]
+	}
+
+	err := app.conn.StorHercules(app.herculesBinary, args[0], args[1], config)
+	if err != nil {
+		app.print(err)
+	}
+
 }
 
 func (app *App) quit(args []string) {

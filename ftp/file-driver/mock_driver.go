@@ -3,7 +3,7 @@ package filedriver
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/ftp/scion"
+	"github.com/netsec-ethz/scion-apps/ftp/hercules"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -18,7 +18,7 @@ type MockDriver struct {
 }
 
 func (driver *MockDriver) RealPath(path string) (string, error) {
-	return "", scion.ErrNoFileSystem
+	return "", hercules.ErrNoFileSystem
 }
 
 func (driver *MockDriver) Init(*server.Conn) {

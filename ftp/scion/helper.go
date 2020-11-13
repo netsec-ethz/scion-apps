@@ -85,3 +85,11 @@ func (addr Address) String() string {
 func (addr Address) Network() string {
 	return "???"
 }
+
+func NewAddress(host string, port uint16, addr snet.UDPAddr) Address {
+	return Address{
+		host,
+		port,
+		addr,
+	}
+}
