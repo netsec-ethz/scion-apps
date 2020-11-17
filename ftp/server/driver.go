@@ -4,7 +4,12 @@
 
 package server
 
-import "io"
+import (
+	"fmt"
+	"io"
+)
+
+var ErrNoFileSystem = fmt.Errorf("driver is not backed by a filesystem")
 
 // DriverFactory is a driver factory to create driver. For each scionftp that connects to the server, a new FTPDriver is required.
 // Create an implementation if this interface and provide it to FTPServer.

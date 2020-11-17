@@ -801,7 +801,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	// check file access as unprivileged user
 	path, err := conn.driver.RealPath(conn.buildPath(param))
 	if err != nil {
-		if errors.Is(err, hercules.ErrNoFileSystem) {
+		if errors.Is(err, ErrNoFileSystem) {
 			conn.writeOrLog(502, "Command not implemented")
 		} else {
 			log.Printf("driver.RealPath returned unexpected error: %s", err.Error())
@@ -1187,12 +1187,11 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 	// check file access as unprivileged user
 	path, err := conn.driver.RealPath(conn.buildPath(param))
 	if err != nil {
-		if errors.Is(err, hercules.ErrNoFileSystem) {
+		if errors.Is(err, ErrNoFileSystem) {
 			conn.writeOrLog(502, "Command not implemented")
 		} else {
 			log.Printf("driver.RealPath returned unexpected error: %s", err.Error())
 			conn.writeOrLog(551, "File not available for writing")
-			log.Printf("hum %s", err)
 		}
 		return
 	}
