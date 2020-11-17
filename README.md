@@ -70,7 +70,7 @@ When running multiple local ASes, e.g. during development, the address of the
 sciond corresponding to the desired AS needs to be specified in the
 `SCION_DAEMON_ADDRESS` environment variable.
 In this case, the different sciond addresses can be found in their
-corresponding `sd.toml` configuration files in the `gen/ISDx/ASy/endhost`
+corresponding `sd.toml` configuration files in the `gen/ASx`
 directory, or summarized in the file `gen/sciond_addresses.json`.
 
 
