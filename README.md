@@ -42,11 +42,11 @@ sudo apt install scion-apps-*
     make setup_lint
     ```
     
-1. Run `make` build all projects (and run linters). Run `make -j` to use multiple jobs to build.
-   
-1. Run `make test` to 
+1. Run `make` to build all projects (and run linters). Run `make -j` to use multiple jobs to build.
 
-1. Run `make install` to build all projects and install into `$GOPATH/bin`
+1. Run `make test` to run the linters and unit tests.
+
+1. Run `make install` to build all projects and install into `$GOPATH/bin`.
 
 
 ### Running:
@@ -59,12 +59,12 @@ started.
 #### Environment
 
 The dispatcher and sciond sockets are assumed to be at default locations, but
-this can be overriden using environment variables:
+this can be overridden using environment variables:
 
 		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
 		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
-This is convenient for the normal use case of running a the endhost stack for a
+This is convenient for the normal use case of running the endhost stack for a
 single SCION AS.
 When running multiple local ASes, e.g. during development, the address of the
 sciond corresponding to the desired AS needs to be specified in the
@@ -92,13 +92,14 @@ resolver, in the form `<ISD>-<AS>,[<IP>]`.
 
 ## bat
 
-bat is a CLI cURL-like tool for testing, debugging, and generally interacting with HTTP servers over SCION/QUIC. Documentation of the code is available in the [README.md](bat/README.md)
+bat is a cURL-like tool for testing, debugging, and generally interacting with HTTP servers over SCION/QUIC. Documentation of the code is available in the [README.md](bat/README.md).
 
 Installation and usage information is available on the [SCION Tutorials web page for bat](https://docs.scionlab.org/content/apps/bat.html).
 
+
 ## camerapp
 
-Camerapp contains image fetcher and server applications, using the SCION network. Documentation of the code is available in the [README.md](https://github.com/netsec-ethz/scion-apps/blob/master/camerapp/README.md)
+Camerapp contains image fetcher and server applications, using the SCION network. Documentation of the code is available in the [README.md](https://github.com/netsec-ethz/scion-apps/blob/master/camerapp/README.md).
 
 Installation and usage information is available on the [SCION Tutorials web page for camerapp](https://docs.scionlab.org/content/apps/access_camera.html).
 
