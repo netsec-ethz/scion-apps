@@ -12,17 +12,20 @@ Client:
 go run helloworld.go -remote 17-ffaa:1:a,[127.0.0.1]:1234
 ```
 
-Replace `17-ffaa:1:a` with your local AS address printed by the server.
+Replace `17-ffaa:1:a` with the address of the AS in which the server is running.
 
 ## Walkthrough:
 
 This SCION application is very simple, and it demonstrates what is needed to send data using SCION:
 
-1. Parse addresses from string to binary structures.
-2. Initialize the SCION library.
-3. Obtain a path manager.
-4. Obtain paths from source to destination.
-5. Obtain a connection using one of these paths.
-6. Use that connection to send the data.
+1. Validate command-line arguments.
 
-You can find these items in the comments of the code.
+Server:
+2. Open listener connection (appnet.ListenPort).
+3. Read packets from connection.
+4. Close listener connection.
+
+Client:
+2. Open client connection (appnet.Dial).
+3. Write packet to connection.
+4. Close client connection.
