@@ -13,7 +13,7 @@ git clone https://github.com/netsec-ethz/scion-apps.git
 cd scion-apps
 ```
 
-### Simple file server example:
+### Generic file server example
 
 Build `example-shttp-fileserver`:
 
@@ -27,7 +27,7 @@ Run `example-shttp-fileserver`:
 bin/example-shttp-fileserver
 ```
 
-See [Environment](../../README.md#Environment) on how to set the dispatcher and sciond environment variables.
+See '[Environment](../../README.md#Environment)' on how to set the dispatcher and sciond environment variables.
 
 Build `scion-bat` as a client for `example-shttp-fileserver`:
 
@@ -64,7 +64,7 @@ curl -v http://127.0.0.1:8080/
 (Or navigate to http://127.0.0.1:8080/ in a web browser.)
 
 
-### Simple server example:
+### Simple server example
 
 Run `example-shttp-server`:
 
@@ -73,9 +73,7 @@ cd _examples/shttp/server
 go run .
 ```
 
-Access `example-shttp-server` with `scion-bat`:
-
-Open new shell in the scion-apps repository and enter
+Open new shell in the scion-apps repository and access `example-shttp-server` with `scion-bat`:
 
 ```
 bin/scion-bat 17-ffaa:1:a,[127.0.0.1]:443/hello
