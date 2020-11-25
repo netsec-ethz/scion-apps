@@ -60,7 +60,7 @@ if err != nil {
 where `local` is the local (UDP)-address of the server.
 
 ### Proxy combines the client and server implementation
-The proxy can handle two directions: From HTTP/1.1 to SCION and from SCION to HTTP/1.1. It's idea is to make resources provided over HTTP accessible over the SCION network. 
+The proxy can handle two directions: From HTTP/1.1 to SCION and from SCION to HTTP/1.1. Its idea is to make resources provided over HTTP accessible over the SCION network. 
 
 To use the proxy, consider the proxy example in _examples. This implementation detects from the format of the `remote` and `local` argument if it should listen on SCION/HTTP/1.1 and proxy to SCION/HTTP/1.1.
 
