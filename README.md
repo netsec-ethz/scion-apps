@@ -17,7 +17,7 @@ sudo apt install scion-apps-*
 
 ### Build:
 
-1. Install go 1.13
+1. Install go 1.14
 
     See e.g. https://github.com/golang/go/wiki/Ubuntu
 
