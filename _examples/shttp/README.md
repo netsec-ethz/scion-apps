@@ -2,7 +2,7 @@
 
 This directory contains small example applications that show how HTTP/3 over SCION/QUIC can be used for servers, proxies, and clients.
 
-See also [package shttp](../../pkg/shttp/README.md).
+See also the package [shttp](../../pkg/shttp/README.md).
 
 ### Preparation:
 
@@ -35,7 +35,7 @@ Build `scion-bat` as a client for `example-shttp-fileserver`:
 make scion-bat
 ```
 
-See also [bat](../../bat/README.md).
+See also the application [bat](../../bat/README.md).
 
 Access `example-shttp-fileserver` with `scion-bat`:
 
