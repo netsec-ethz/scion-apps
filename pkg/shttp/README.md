@@ -1,6 +1,6 @@
 # HTTP over SCION/QUIC
 
-This package contains a client/server implementation of HTTP/2 over SCION/QUIC as well as a proxy implementation to proxy HTTP/2 requests over SCION to HTTP/1.1 and vice versa.
+This package contains a client/server implementation of HTTP/3 over SCION/QUIC as well as a proxy implementation to proxy HTTP/3 requests over SCION to HTTP/1.1 and vice versa.
 
 ### The Client is a standard net/http client with a custom RoundTripper implementation.
 
@@ -19,7 +19,7 @@ resp, err := client.Get("http://server:8080/download")
 ```
 Hostnames are resolved by parsing the `/etc/hosts` file or by a RAINS lookup (see [Hostnames](../../README.md#Hostnames)).
 
-### The Server is a full HTTP/2 server designed to work similar to the standard net/http implementation. It supports:
+### The Server is a full HTTP/3 server designed to work similar to the standard net/http implementation. It supports:
 
 * concurrent handling of clients
 * standard net/http handlers
