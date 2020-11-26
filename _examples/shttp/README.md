@@ -1,8 +1,8 @@
 # Examples for HTTP over SCION/QUIC
 
-This directory contains small example applications that show how HTTP/3 over SCION/QUIC can be used for servers, proxies, and clients.
+This directory contains small example programs that show how HTTP/3 over SCION/QUIC can be used for servers, proxies, and clients.
 
-See also the package [shttp](../../pkg/shttp/README.md).
+See also the package [shttp](../../pkg/shttp/README.md) for the underlaying library code.
 
 ### Preparation:
 
@@ -27,7 +27,7 @@ Run `example-shttp-fileserver`:
 bin/example-shttp-fileserver
 ```
 
-See '[Environment](../../README.md#Environment)' on how to set the dispatcher and sciond environment variables.
+See '[Environment](../../README.md#Environment)' on how to set the dispatcher and sciond environment variables in the server's AS.
 
 Build `scion-bat` as a client for `example-shttp-fileserver`:
 
@@ -35,13 +35,15 @@ Build `scion-bat` as a client for `example-shttp-fileserver`:
 make scion-bat
 ```
 
-See also the application [bat](../../bat/README.md).
+See also the application '[bat](../../bat/README.md)' for more details on the cURL-like CLI tool `scion-bat`.
 
 Access `example-shttp-fileserver` with `scion-bat`:
 
 ```
 bin/scion-bat 17-ffaa:1:a,[127.0.0.1]:443/
 ```
+
+Replace '17-ffaa:1:a' with your server's ISD and AS numbers and see '[Environment](../../README.md#Environment)' on how to set the dispatcher and sciond environment variables in the client's (or proxy's) AS.
 
 Build `example-shttp-proxy` to provide `example-shttp-fileserver` functionality via HTTP:
 
@@ -63,17 +65,18 @@ curl -v http://127.0.0.1:8080/
 
 (Or navigate to http://127.0.0.1:8080/ in a web browser.)
 
+`example-shttp-proxy` can also be used as a proxy from SCION to HTTP/1.1, from SCION to SCION, and from HTTP/1.1 to HTTP/1.1. See package [shttp](../../pkg/shttp/README.md) for more details.
 
-### Simple server example
+### Simple shttp-based server example
 
-Run `example-shttp-server`:
+Open a shell in the root of the scion-apps repository and run `example-shttp-server`:
 
 ```
 cd _examples/shttp/server
 go run .
 ```
 
-Open new shell in the scion-apps repository and access `example-shttp-server` with `scion-bat`:
+Open a new shell in the scion-apps repository and access `example-shttp-server` with `scion-bat`:
 
 ```
 bin/scion-bat 17-ffaa:1:a,[127.0.0.1]:443/hello
