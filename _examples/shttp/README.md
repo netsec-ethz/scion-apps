@@ -1,10 +1,10 @@
 # Examples for HTTP over SCION/QUIC
 
-This directory contains small example programs that show how HTTP/3 over SCION/QUIC can be used for servers, proxies, and clients.
+This directory contains small example programs that show how HTTP can be used over SCION/QUIC for servers, proxies, and clients.
 
 See also the package [shttp](../../pkg/shttp/README.md) for the underlaying library code.
 
-### Preparation:
+### Preparation
 
 Clone the repository netsec-ethz/scion-apps:
 
@@ -65,7 +65,7 @@ curl -v http://127.0.0.1:8080/
 
 (Or navigate to http://127.0.0.1:8080/ in a web browser.)
 
-`example-shttp-proxy` can also be used as a proxy from SCION to HTTP/1.1, from SCION to SCION, and from HTTP/1.1 to HTTP/1.1. See package [shttp](../../pkg/shttp/README.md) for more details.
+`example-shttp-proxy` can also be used as a proxy from SCION to HTTP, from SCION to SCION, and from HTTP to HTTP. See package [shttp](../../pkg/shttp/README.md) for more details.
 
 ### Simple shttp-based server example
 
@@ -127,7 +127,7 @@ curl http://127.0.0.1:8080/json
 or
 
 ```
-curl -v -d foo=bar http://127.0.0.1:8080/form
+curl -d foo=bar http://127.0.0.1:8080/form
 ```
 
 And, finally, to see the cute dog picture:
