@@ -13,11 +13,11 @@ require (
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.1.0
-	github.com/scionproto/scion v0.5.1-0.20201123160718-573a657ce3b1
+	github.com/scionproto/scion v0.5.1-0.20201127155956-87d03e12e29b
 	github.com/smartystreets/goconvey v1.6.4
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
-replace github.com/netsec-ethz/rains => github.com/marcfrei/rains v0.1.1-0.20201124083232-770ed5b4ad6e
+replace github.com/netsec-ethz/rains => github.com/marcfrei/rains v0.1.1-0.20201130142343-5b94340201f0
