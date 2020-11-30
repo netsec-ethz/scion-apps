@@ -255,8 +255,8 @@ github.com/lunixbochs/vtclean v1.0.0/go.mod h1:pHhQNgMf3btfWnGBVipUOjRYhoOsdGqdm
 github.com/lyft/protoc-gen-validate v0.0.13/go.mod h1:XbGvPuh87YZc5TdIa2/I4pLk0QoUACkjt2znoq26NVQ=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mailru/easyjson v0.0.0-20190312143242-1de009706dbe/go.mod h1:C1wdFJiN94OJF2b5HbByQZoLdCWB1Yqtg26g4irojpc=
-github.com/marcfrei/rains v0.1.1-0.20201124083232-770ed5b4ad6e h1:xcyd3R2bzrtY+F0v1BniHbxPZ5Ngdit/3T3mFMy2Ea0=
-github.com/marcfrei/rains v0.1.1-0.20201124083232-770ed5b4ad6e/go.mod h1:CJSp1HI63rfjojeeIPOf6IHX45z44jHJUGSrB6fPz7g=
+github.com/marcfrei/rains v0.1.1-0.20201130142343-5b94340201f0 h1:AXCV623c9Dn1FyaYEK4BMSRvx5zwie47t3uehvKJarw=
+github.com/marcfrei/rains v0.1.1-0.20201130142343-5b94340201f0/go.mod h1:/+Nr1QQahuYm2IRZ49Dqnck2YIAnPawDRylOso3Tf1c=
 github.com/marten-seemann/qpack v0.1.0 h1:/0M7lkda/6mus9B8u34Asqm8ZhHAAt9Ho0vniNuVSVg=
 github.com/marten-seemann/qpack v0.1.0/go.mod h1:LFt1NU/Ptjip0C2CPkhimBz5CGE3WGDAUWqna+CNTrI=
 github.com/marten-seemann/qpack v0.2.1 h1:jvTsT/HpCn2UZJdP+UUB53FfUUgeOyG5K1ns0OJOGVs=
@@ -402,8 +402,8 @@ github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
 github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da/go.mod h1:gi+0XIa01GRL2eRQVjQkKGqKF3SF9vZR/HnPullcV2E=
-github.com/scionproto/scion v0.5.1-0.20201123160718-573a657ce3b1 h1:5XCkfL5n3V54CPmVRI0vZUnDNtopsvWnj45ZrhS3HoY=
-github.com/scionproto/scion v0.5.1-0.20201123160718-573a657ce3b1/go.mod h1:Y/NXCFWj4QWnuHydL/lmQ+ETmcG3Iz5TCtRbRnLRY0Q=
+github.com/scionproto/scion v0.5.1-0.20201127155956-87d03e12e29b h1:50wsndQiggwoF8oHWgVXmPZEeTThfvR5JbC0dbveVzU=
+github.com/scionproto/scion v0.5.1-0.20201127155956-87d03e12e29b/go.mod h1:Y/NXCFWj4QWnuHydL/lmQ+ETmcG3Iz5TCtRbRnLRY0Q=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
 github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
