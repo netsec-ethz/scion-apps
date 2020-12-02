@@ -91,7 +91,7 @@ This configuration file needs to contain the SCION address of the RAINS
 resolver, in the form `<ISD>-<AS>,[<IP>]`.
 
 
-## Simple examples
+## _examples
 
 The directory _examples contains a minimal "hello, world" application using SCION that sends one packet from a client to a server. The directory also contains small example programs that show how HTTP can be used over SCION/QUIC for servers, proxies, and clients.
 
@@ -107,7 +107,7 @@ Installation and usage information is available on the [SCION Tutorials web page
 
 ## bwtester
 
-The bandwidth testing application `bwtester` enables a variety of bandwidth tests on the SCION network. Documentation of the code and protocol are described in the [bwtester README](bwtester/README.md).
+The bandwidth testing application bwtester enables a variety of bandwidth tests on the SCION network. Documentation of the code and protocol are described in the [bwtester README](bwtester/README.md).
 
 Installation and usage information is available on the [SCION Tutorials web page for bwtester](https://docs.scionlab.org/content/apps/bwtester.html).
 

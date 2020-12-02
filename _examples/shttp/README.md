@@ -24,7 +24,7 @@ make example-shttp-fileserver \
 
 ## Running:
 
-All examples require a running SCION endhost stack, i.e. a running SCION dispatcher and SCION daemon. Please refer to '[Running](../../README.md#Running)' in this repository's main READMNE and the [SCIONLab tutorials](https://docs.scionlab.org) to get started.
+All examples require a running SCION endhost stack, i.e. a running SCION dispatcher and SCION daemon. Please refer to '[Running](../../README.md#Running)' in this repository's main README and the [SCIONLab tutorials](https://docs.scionlab.org) to get started.
 
 ### Generic file server example
 
