@@ -95,7 +95,7 @@ or
 bin/scion-bat -f 17-ffaa:1:a,[127.0.0.1]:443/form foo=bar
 ```
 
-Run custom `example-shttp-client` for `example-shttp-server`:
+Run the custom `example-shttp-client` for `example-shttp-server`:
 
 ```
 bin/example-shttp-client -s 17-ffaa:1:a,[127.0.0.1]:443
