@@ -1,25 +1,32 @@
 # Examples for HTTP over SCION/QUIC
 
-This directory contains small example programs that show how HTTP can be used over SCION/QUIC for servers, proxies, and clients.
+This directory contains small example programs that show how HTTP can be used over SCION/QUIC for servers, proxies, and clients:
+
+- fileserver: a server that serves the files from its working directory
+- proxy: a proxy server that can translate between HTTP and HTTP-over-SCION
+- server: a server with friendly greetings and other examples
+- client: a client that talks to the example server
 
 See also the package [shttp](../../pkg/shttp/README.md) for the underlaying library code.
 
-### Preparation
+## Build:
 
-Clone the repository netsec-ethz/scion-apps:
+Clone the repository netsec-ethz/scion-apps and build the eaxample applications:
 
 ```
 git clone https://github.com/netsec-ethz/scion-apps.git
 cd scion-apps
+make example-shttp-fileserver \
+        example-shttp-proxy \
+        example-shttp-server \
+        example-shttp-client
 ```
+
+## Running:
+
+All examples require a running SCION endhost stack, i.e. a running SCION dispatcher and SCION daemon. Please refer to '[Running](../../README.md#Running)' in this repository's main READMNE and the [SCIONLab tutorials](https://docs.scionlab.org) to get started.
 
 ### Generic file server example
-
-Build `example-shttp-fileserver`:
-
-```
-make example-shttp-fileserver
-```
 
 Run `example-shttp-fileserver`:
 
@@ -45,13 +52,7 @@ bin/scion-bat 17-ffaa:1:a,[127.0.0.1]:443/
 
 Replace '17-ffaa:1:a' with your server's ISD and AS numbers and see '[Environment](../../README.md#Environment)' on how to set the dispatcher and sciond environment variables in the client's (or proxy's) AS.
 
-Build `example-shttp-proxy` to provide `example-shttp-fileserver` functionality via HTTP:
-
-```
-make example-shttp-proxy
-```
-
-Run `example-shttp-proxy`:
+Run `example-shttp-proxy` to provide `example-shttp-fileserver` functionality via HTTP:
 
 ```
 bin/example-shttp-proxy --remote=17-ffaa:1:a,[127.0.0.1]:443 --local=0.0.0.0:8080
@@ -94,13 +95,7 @@ or
 bin/scion-bat -f 17-ffaa:1:a,[127.0.0.1]:443/form foo=bar
 ```
 
-Build custom `example-shttp-client`:
-
-```
-make example-shttp-client
-```
-
-Run `example-shttp-client`:
+Run custom `example-shttp-client` for `example-shttp-server`:
 
 ```
 bin/example-shttp-client -s 17-ffaa:1:a,[127.0.0.1]:443
