@@ -12,12 +12,10 @@ require (
 	github.com/lucas-clemente/quic-go v0.19.2
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
-	github.com/netsec-ethz/rains v0.1.0
-	github.com/scionproto/scion v0.5.1-0.20201127155956-87d03e12e29b
+	github.com/netsec-ethz/rains v0.2.0
+	github.com/scionproto/scion v0.6.0
 	github.com/smartystreets/goconvey v1.6.4
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
-
-replace github.com/netsec-ethz/rains => github.com/marcfrei/rains v0.1.1-0.20201130142343-5b94340201f0
