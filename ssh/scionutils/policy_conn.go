@@ -164,27 +164,5 @@ func queryPathsFiltered(ia addr.IA, policy *pathpol.Policy) ([]snet.Path, error)
 	if err != nil {
 		return nil, err
 	}
-	if policy == nil {
-		return paths, nil
-	}
-
-	pathSet := make(pathpol.PathSet)
-	for _, path := range paths {
-		pathSet[path.Fingerprint()] = path
-	}
-	filterPathSlice(&paths, policy.Filter(pathSet))
-	return paths, nil
-}
-
-// filterPathSlice keeps only paths that are in pathSet, leaving the order of the slice intact
-func filterPathSlice(paths *[]snet.Path, pathSet pathpol.PathSet) {
-
-	// Nasty "idiomatic" slice filtering: https://stackoverflow.com/a/50183212
-	filtered := (*paths)[:0]
-	for _, p := range *paths {
-		if _, ok := pathSet[p.Fingerprint()]; ok {
-			filtered = append(filtered, p)
-		}
-	}
-	*paths = filtered
+	return policy.Filter(paths), nil
 }

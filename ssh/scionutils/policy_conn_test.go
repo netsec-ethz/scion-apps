@@ -17,12 +17,9 @@ package scionutils
 import (
 	"net"
 	"reflect"
-	"strconv"
 	"testing"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -92,48 +89,19 @@ func TestPolicyConn_RoundRobinSelector(t *testing.T) {
 	}
 }
 
-func TestPolicyConn_FilterPathSlice(t *testing.T) {
+// mockPath satisfies the snet.Path interface but does not actually implement anything.
+type mockPath struct{}
 
-	paths := makePaths(5)
-	pathSet := make(pathpol.PathSet)
-	pathSet["1"] = nil // XXX(matzf) should be paths[1], which would currently require wrapping
-	pathSet["3"] = nil
-
-	expected := []snet.Path{paths[1], paths[3]}
-
-	filterPathSlice(&paths, pathSet)
-
-	if len(paths) != len(expected) {
-		t.Fatalf("filterPathSlice: expected %v, actual %v", expected, paths)
-	}
-	for i := range expected {
-		if paths[i] != expected[i] {
-			t.Fatalf("filterPathSlice: expected %v, actual %v", expected, paths)
-		}
-	}
-}
-
-// mockPath is satisfies the snet.Path interface but does not actually
-// implement anything. This allows to check object identities.
-type mockPath struct {
-	id int
-}
-
-func (p *mockPath) Fingerprint() snet.PathFingerprint {
-	return snet.PathFingerprint(strconv.Itoa(p.id))
-}
-func (p *mockPath) OverlayNextHop() *net.UDPAddr     { return nil }
-func (p *mockPath) Path() *spath.Path                { return nil }
-func (p *mockPath) Interfaces() []snet.PathInterface { return nil }
-func (p *mockPath) Destination() addr.IA             { return addr.IA{} }
-func (p *mockPath) MTU() uint16                      { return 0 }
-func (p *mockPath) Expiry() time.Time                { return time.Time{} }
-func (p *mockPath) Copy() snet.Path                  { return &mockPath{id: p.id} }
+func (p *mockPath) UnderlayNextHop() *net.UDPAddr { return nil }
+func (p *mockPath) Path() spath.Path              { return spath.Path{} }
+func (p *mockPath) Destination() addr.IA          { return addr.IA{} }
+func (p *mockPath) Metadata() *snet.PathMetadata  { return nil }
+func (p *mockPath) Copy() snet.Path               { return nil }
 
 func makePaths(num int) []snet.Path {
 	paths := make([]snet.Path, num)
 	for i := 0; i < num; i++ {
-		paths[i] = &mockPath{id: i}
+		paths[i] = &mockPath{}
 	}
 	return paths
 }

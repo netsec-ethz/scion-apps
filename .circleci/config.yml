@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.13
+      - image: circleci/golang:1.14
 
     steps:
       - run:
@@ -31,9 +31,9 @@ jobs:
             - "/go/pkg"
 
   integration:
-    docker:
-      - image: circleci/golang:1.13-stretch
-    resource_class: medium
+    machine:
+      image: ubuntu-1604:202007-01
+
     steps:
       - checkout
       # The following step are shared with netsec-ethz/rains
@@ -57,41 +57,39 @@ jobs:
       - run:
           name: Build SCION services and install python3 dependencies
           command: |
+            # Log tool versions provided by CircleCi
+            go version
+            python3 --version
+
             cd ~/scion
-            for service in "border" "cs" "godispatcher" "sciond" "tools/scion-pki"; do
+            for service in "posix-router" "cs" "dispatcher" "scion-pki" "sciond"; do
               go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
             done
 
-            sudo apt-get update && sudo apt-get install --assume-yes python3 python3-pip
             pip3 install -U wheel setuptools
             pip3 install -r ~/scion/env/pip3/requirements.txt
       - run:
           name: Configure and start local SCION AS
           command: |
-            export PYTHONPATH=~/scion/python/
             cd ~/scion
+            export PYTHONPATH=python/:.
 
-            # Generate Tiny.topo
+            # Generate tiny4.topo
             printf '#!/bin/bash\necho "0.0.0.0"' > tools/docker-ip # Some hackery to make topo scripts run
             # Use IPv4 addresses for this test
-            python/topology/generator.py -c ./topology/Tiny4.topo
+            python3 python/topology/generator.py -c ./topology/tiny4.topo
             # Link the gen directory containing sciond_addresses.json and as_list.json
             ln -s ~/scion/gen /home/circleci/project/gen
-            # Generate gen-certs
-            mkdir gen-certs gen-cache
-            openssl genrsa -out "gen-certs/tls.key" 2048
-            openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
+            mkdir gen-cache
 
-            sudo mkdir /run/shm -m 777
-
-            # Start all AS Tiny.topo
+            # Start all AS tiny4.topo
             supervisor/supervisor.sh reload
             supervisor/supervisor.sh start all
       - run:
           name: Prepare integration test
           command: |
             # Handle the two special ones
-            make setup_lint
+            make setup_lint 
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
       - run:
           name: Integration tests

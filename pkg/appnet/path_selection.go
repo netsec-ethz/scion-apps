@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // metrics for path selection
@@ -83,11 +84,11 @@ func ChoosePathByMetric(pathAlgo int, dst addr.IA) (snet.Path, error) {
 // SetPath is a helper function to set the path on an snet.UDPAddr
 func SetPath(addr *snet.UDPAddr, path snet.Path) {
 	if path == nil {
-		addr.Path = nil
+		addr.Path = spath.Path{}
 		addr.NextHop = nil
 	} else {
 		addr.Path = path.Path()
-		addr.NextHop = path.OverlayNextHop()
+		addr.NextHop = path.UnderlayNextHop()
 	}
 }
 
@@ -126,9 +127,9 @@ func filterDuplicates(paths []snet.Path) []snet.Path {
 
 	chosenPath := make(map[snet.PathFingerprint]int)
 	for i := range paths {
-		fingerprint := paths[i].Fingerprint() // Fingerprint is a hash of p.Interfaces()
+		fingerprint := snet.Fingerprint(paths[i]) // Fingerprint is a hash of paths[i].Interfaces()
 		e, dupe := chosenPath[fingerprint]
-		if !dupe || paths[e].Expiry().Before(paths[i].Expiry()) {
+		if !dupe || paths[e].Metadata().Expiry.Before(paths[i].Metadata().Expiry) {
 			chosenPath[fingerprint] = i
 		}
 	}
@@ -181,7 +182,7 @@ func pathSelection(paths []snet.Path, pathAlgo int) snet.Path {
 func selectShortestPath(paths []snet.Path) (selectedPath snet.Path, metric float64) {
 	// Selects shortest path by number of hops
 	for _, path := range paths {
-		if selectedPath == nil || len(path.Interfaces()) < len(selectedPath.Interfaces()) {
+		if selectedPath == nil || len(path.Metadata().Interfaces) < len(selectedPath.Metadata().Interfaces) {
 			selectedPath = path
 		}
 	}
@@ -191,13 +192,13 @@ func selectShortestPath(paths []snet.Path) (selectedPath snet.Path, metric float
 		result = math.Exp(-(hopCount - midpoint)) / (1 + math.Exp(-(hopCount - midpoint)))
 		return result
 	}
-	return selectedPath, metricFn(len(selectedPath.Interfaces()))
+	return selectedPath, metricFn(len(selectedPath.Metadata().Interfaces))
 }
 
 func selectLargestMTUPath(paths []snet.Path) (selectedPath snet.Path, metric float64) {
 	// Selects path with largest MTU
 	for _, path := range paths {
-		if selectedPath == nil || path.MTU() > selectedPath.MTU() {
+		if selectedPath == nil || path.Metadata().MTU > selectedPath.Metadata().MTU {
 			selectedPath = path
 		}
 	}
@@ -208,5 +209,5 @@ func selectLargestMTUPath(paths []snet.Path) (selectedPath snet.Path, metric flo
 		result = 1 / (1 + math.Exp(-tilt*(mtu-midpoint)))
 		return result
 	}
-	return selectedPath, metricFn(selectedPath.MTU())
+	return selectedPath, metricFn(selectedPath.Metadata().MTU)
 }
