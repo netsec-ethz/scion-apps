@@ -1,4 +1,4 @@
-package mpsquic
+package nesquic
 
 import (
 	"math/rand"

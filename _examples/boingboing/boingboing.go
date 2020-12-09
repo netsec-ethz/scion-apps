@@ -41,7 +41,7 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"github.com/netsec-ethz/scion-apps/pkg/mpsquic"
+	"github.com/netsec-ethz/scion-apps/pkg/nesquic"
 )
 
 const (
@@ -219,11 +219,11 @@ func (c *client) run(remote *snet.UDPAddr, paths []snet.Path) {
 	}
 	var err error
 	if remote.IA == appnet.DefNetwork().IA {
-		// XXX(matzf) mpsquic does not properly handle destination in same AS. Too many places assume
+		// XXX(matzf) nesquic does not properly handle destination in same AS. Too many places assume
 		// an existing path. Easy fallback, use normal appquic.
 		c.qsess, err = appquic.DialAddr(remote, "host:0", tlsConf, quicConf)
 	} else {
-		c.qsess, err = mpsquic.Dial(remote, "host:0", paths, tlsConf, quicConf)
+		c.qsess, err = nesquic.Dial(remote, "host:0", paths, tlsConf, quicConf)
 	}
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
@@ -336,7 +336,7 @@ type server struct {
 // On any error, the server exits.
 func (s server) run() {
 	// Listen on SCION address
-	qsock, err := mpsquic.ListenPort(
+	qsock, err := nesquic.ListenPort(
 		uint16(*port),
 		&tls.Config{
 			Certificates: appquic.GetDummyTLSCerts(),

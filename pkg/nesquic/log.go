@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mpsquic
+package nesquic
 
 import (
 	"fmt"
@@ -40,7 +40,7 @@ func init() {
 	initLogging(log.Root())
 }
 
-// initLogging initializes logging for the mpsquic library using the passed scionproto (or similar) logger
+// initLogging initializes logging for the nesquic library using the passed scionproto (or similar) logger
 func initLogging(baseLogger log.Logger) {
 	logger = &Logger{}
 	logger.Trace = func(msg string, ctx ...interface{}) { baseLogger.Trace("MSQUIC: "+msg, ctx...) }
@@ -51,7 +51,7 @@ func initLogging(baseLogger log.Logger) {
 	logger.Crit = func(msg string, ctx ...interface{}) { baseLogger.Crit("MSQUIC: "+msg, ctx...) }
 }
 
-// SetBasicLogging sets mpsquic logging to only write to os.Stdout and os.Stderr
+// SetBasicLogging sets nesquic logging to only write to os.Stdout and os.Stderr
 func SetBasicLogging() {
 	if logger != nil {
 		logger.Trace = func(msg string, ctx ...interface{}) { _, _ = fmt.Fprintf(os.Stdout, "%v\t%v", msg, ctx) }

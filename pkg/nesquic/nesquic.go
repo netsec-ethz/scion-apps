@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mpsquic is a prototype implementation for a QUIC/SCION "socket" with
+// Package nesquic is a prototype implementation for a QUIC/SCION "socket" with
 // automatic, performance aware path choice.
 //
 // The most important design decision/constraint for this package is to make
@@ -41,7 +41,7 @@
 //                The monitor reevaluates the path choice at regular time intervals, or when
 //                the probing observes drastic changes (currently: revocation or timeout for
 //                active path).
-package mpsquic
+package nesquic
 
 import (
 	"context"
