@@ -26,17 +26,30 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
-var now = time.Now().UTC()
-
-var srcIA, _ = addr.IAFromString("1-ff00:0:111")
-var dstIA, _ = addr.IAFromString("1-ff00:0:112")
-var srcHost = addr.HostFromIPStr("127.0.0.1")
-var dstHost = addr.HostFromIPStr("fd00:f00d:cafe::7f00:a")
-
 const (
 	sciondForClient = "[fd00:f00d:cafe::7f00:b]:30255"
 	sciondForServer = "127.0.0.19:30255"
 )
+
+// should return the same timestamp everytime that it's called, but for simplicity we just
+// return Now (it's okay as long as every call to this function happens in the same 24h interval).
+func timestamp() time.Time {
+	return time.Now().UTC()
+}
+func srcIA() addr.IA {
+	srcIA, _ := addr.IAFromString("1-ff00:0:111")
+	return srcIA
+}
+func dstIA() addr.IA {
+	dstIA, _ := addr.IAFromString("1-ff00:0:112")
+	return dstIA
+}
+func srcHost() addr.HostAddr {
+	return addr.HostFromIPStr("127.0.0.1")
+}
+func dstHost() addr.HostAddr {
+	return addr.HostFromIPStr("fd00:f00d:cafe::7f00:a")
+}
 
 // Check just ensures the error is nil, or complains and quits
 func check(e error) {
@@ -51,7 +64,6 @@ type Client struct {
 
 func NewClient(sciondPath string) Client {
 	sciond, err := sciond.NewService(sciondPath).Connect(context.Background())
-
 	check(err)
 	return Client{
 		sciond: sciond,
@@ -63,7 +75,7 @@ func (c Client) HostKey(meta drkey.Lvl2Meta) drkey.Lvl2Key {
 	defer cancelF()
 
 	// get L2 key: (slow path)
-	key, err := c.sciond.DRKeyGetLvl2Key(ctx, meta, now)
+	key, err := c.sciond.DRKeyGetLvl2Key(ctx, meta, timestamp())
 	check(err)
 	return key
 }
@@ -73,10 +85,10 @@ func ThisClientAndMeta() (Client, drkey.Lvl2Meta) {
 	meta := drkey.Lvl2Meta{
 		KeyType:  drkey.Host2Host,
 		Protocol: "piskes",
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		SrcHost:  srcHost,
-		DstHost:  dstHost,
+		SrcIA:    srcIA(),
+		DstIA:    dstIA(),
+		SrcHost:  srcHost(),
+		DstHost:  dstHost(),
 	}
 	return c, meta
 }
@@ -103,7 +115,7 @@ func (s Server) dsForServer(meta drkey.Lvl2Meta) drkey.DelegationSecret {
 		SrcIA:    meta.SrcIA,
 		DstIA:    meta.DstIA,
 	}
-	lvl2Key, err := s.sciond.DRKeyGetLvl2Key(ctx, dsMeta, now)
+	lvl2Key, err := s.sciond.DRKeyGetLvl2Key(ctx, dsMeta, timestamp())
 	check(err)
 	fmt.Printf("Only the server obtains it: DS key = %s\n", hex.EncodeToString(lvl2Key.Key))
 	ds := drkey.DelegationSecret{
@@ -123,20 +135,15 @@ func (s Server) HostKeyFromDS(meta drkey.Lvl2Meta, ds drkey.DelegationSecret) dr
 	return derived
 }
 
-func (s Server) HostKey(meta drkey.Lvl2Meta) drkey.Lvl2Key {
-	ds := s.dsForServer(meta)
-	return s.HostKeyFromDS(meta, ds)
-}
-
 func ThisServerAndMeta() (Server, drkey.Lvl2Meta) {
 	server := NewServer(sciondForServer)
 	meta := drkey.Lvl2Meta{
 		KeyType:  drkey.Host2Host,
 		Protocol: "piskes",
-		SrcIA:    srcIA,
-		DstIA:    dstIA,
-		SrcHost:  srcHost,
-		DstHost:  dstHost,
+		SrcIA:    srcIA(),
+		DstIA:    dstIA(),
+		SrcHost:  srcHost(),
+		DstHost:  dstHost(),
 	}
 	return server, meta
 }
@@ -147,8 +154,8 @@ func main() {
 	client, metaClient := ThisClientAndMeta()
 	t0 := time.Now()
 	clientKey = client.HostKey(metaClient)
-
 	durationClient := time.Since(t0)
+
 	server, metaServer := ThisServerAndMeta()
 	ds := server.dsForServer(metaServer)
 	t0 = time.Now()
