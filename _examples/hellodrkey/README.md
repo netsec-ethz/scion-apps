@@ -19,7 +19,7 @@ Fast path (server):
 1. Derive the DRKey with the delegation secret and the metadata.
 
 Both slow and fast paths should obtain the same key.
-And both slow and fast path are measure for performance and their times displayed at the end.
+And both slow and fast path are measured for performance and their times displayed at the end.
 
 ## CS Configuration
 
