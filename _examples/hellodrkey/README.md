@@ -27,7 +27,7 @@ For this example to work, you must configure your devel SCION with an appropriat
 Follow these steps:
 
 1. Create a local topology with the `tiny.topo` description: `./scion.sh topology -c ./topology/tiny.topo`.
-1. Edit the CS configuration for `ff00:0:111` under `gen/ff00_0_111/cs1-ff00_0_111-1.toml`
+1. Edit the CS configuration for `ff00:0:111` under `gen/ASff00_0_111/cs1-ff00_0_111-1.toml`
    and add the following at the end of the file:
    ```toml
    [drkey]
@@ -45,7 +45,7 @@ Follow these steps:
    [drkey_db]
    connection = "gen-cache/sd1-ff00_0_111.drkey.db"
    ```
-1. Edit the configuration for the CS in `gen/ff00_0_112/cs1-ff00_0_112-1.toml` and add:
+1. Edit the configuration for the CS in `gen/ASff00_0_112/cs1-ff00_0_112-1.toml` and add:
    ```toml
    [drkey]
    epoch_duration = "24h"
