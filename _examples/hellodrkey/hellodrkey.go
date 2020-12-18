@@ -31,14 +31,14 @@ const (
 	sciondForServer = "127.0.0.19:30255"
 )
 
-// these next variables are also used as constants in the code
+// These next variables are also used as constants in the code
 var timestamp = time.Now().UTC()
 var srcIA, _ = addr.IAFromString("1-ff00:0:111")
 var dstIA, _ = addr.IAFromString("1-ff00:0:112")
 var srcHost = addr.HostFromIPStr("127.0.0.1")
 var dstHost = addr.HostFromIPStr("fd00:f00d:cafe::7f00:a")
 
-// Check just ensures the error is nil, or complains and quits
+// check just ensures the error is nil, or complains and quits
 func check(e error) {
 	if e != nil {
 		panic(fmt.Sprintf("Fatal error: %v", e))
