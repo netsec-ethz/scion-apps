@@ -21,6 +21,7 @@ build: scion-bat \
 	scion-sensorfetcher scion-sensorserver \
 	scion-ssh scion-sshd \
 	example-helloworld \
+	example-hellodrkey \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
 
 clean:
@@ -109,3 +110,7 @@ example-shttp-fileserver:
 .PHONY: example-shttp-proxy
 example-shttp-proxy:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/proxy
+
+.PHONY: example-hellodrkey
+example-hellodrkey:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/hellodrkey/
