@@ -12,16 +12,23 @@ error_exit()
 iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
 
+# find the topology file in gen
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 as=$(echo ${iaFile} | cut -d"-" -f2)
-topologyFile=$SCION_GEN/ISD$isd/AS$as/endhost/topology.json
+topologyFile=$SCION_GEN/ISD$isd/AS$as/topology.json
+if [ ! -f $topologyFile ]; then
+    topologyFile=$SCION_GEN/AS$as/topology.json
+    if [ ! -f $topologyFile ]; then
+        topologyFile=$SCION_GEN/topology.json
+    fi
+fi
 
 # get remote addresses from interfaces
 ip_dsts=$(cat $topologyFile | python3 -c "import sys, json
-brs = json.load(sys.stdin)['BorderRouters']
+brs = json.load(sys.stdin)['border_routers']
 for b in brs:
-    for i in brs[b]['Interfaces']:
-        print(brs[b]['Interfaces'][i]['RemoteOverlay']['Addr'])")
+    for i in brs[b]['interfaces']:
+        print((brs[b]['interfaces'][i]['underlay']['remote']).split(':')[0])")
 if [ -z "$ip_dsts" ]; then
     error_exit "No interface addresses in $topologyFile."
 fi

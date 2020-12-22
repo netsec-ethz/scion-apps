@@ -78,12 +78,10 @@ type sdTomlConfig struct {
 }
 
 func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
-	ias, err := addr.IAFromString(ia)
-	if CheckError(err) {
+	tomlPath, err := GetPathInGen(options.ScionGen, "sd.toml", ia)
+	if err != nil {
 		fmt.Println(err)
 	}
-	tomlPath := path.Join(options.ScionGen, addr.ISDFmtPrefix+strconv.FormatUint(uint64(ias.I), 10),
-		addr.ASFmtPrefix+ias.A.FileFmt(), "endhost/sd.toml")
 
 	var config sdTomlConfig
 	if _, err := toml.DecodeFile(tomlPath, &config); err != nil {

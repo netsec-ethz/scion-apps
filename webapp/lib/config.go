@@ -30,6 +30,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
+	"github.com/scionproto/scion/go/lib/addr"
 )
 
 // default params for localhost testing
@@ -365,4 +366,28 @@ func GetNodesHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 	raw, err := ioutil.ReadFile(fp)
 	CheckError(err)
 	fmt.Fprint(w, string(raw))
+}
+
+// GetPathInGen returns the full path of the fileName in scionGen directory
+func GetPathInGen(scionGen, fileName, ia string) (string, error) {
+	ias, err := addr.IAFromString(ia)
+	if err != nil {
+		return "", err
+	}
+	// first try scionGen/ISDn/ASm/filename
+	resPath := path.Join(scionGen, addr.ISDFmtPrefix+strconv.FormatUint(uint64(ias.I), 10),
+		addr.ASFmtPrefix+ias.A.FileFmt(), fileName)
+	if _, err := os.Stat(resPath); os.IsNotExist(err) {
+		// second try scionGen/ASn/filename
+		resPath = path.Join(scionGen, addr.ASFmtPrefix+ias.A.FileFmt(), fileName)
+		if _, err := os.Stat(resPath); os.IsNotExist(err) {
+			// final try scionGen/filename
+			resPath = path.Join(scionGen, fileName)
+			if _, err := os.Stat(resPath); os.IsNotExist(err) {
+				// fileName could not be found
+				return "", fmt.Errorf("%s not present in the gen directory", fileName)
+			}
+		}
+	}
+	return resPath, nil
 }
