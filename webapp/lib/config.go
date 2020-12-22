@@ -24,7 +24,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,6 +43,8 @@ var cfgFileCliUser = "config/clients_user.json"
 var cfgFileSerUser = "config/servers_user.json"
 var cfgFileCliDef = "config/clients_default.json"
 var cfgFileSerDef = "config/servers_default.json"
+
+var topologyFile = "topology.json"
 
 // command argument constants
 var CMD_ADR = "a"
@@ -67,6 +68,10 @@ var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 type UserSetting struct {
 	MyIA      string `json:"myIa"`
 	SDAddress string `json:"sdAddress"`
+}
+
+type Topology struct {
+	IA string `json:"isd_as"`
 }
 
 type CmdOptions struct {
@@ -217,20 +222,13 @@ func ReadUserSetting(options *CmdOptions) UserSetting {
 // ScanLocalIAs will load list of locally available IAs
 func ScanLocalIAs(options *CmdOptions) []string {
 	var localIAs []string
-	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
-	re := regexp.MustCompile(reIaFilePathCap)
 	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
-		if f != nil && f.IsDir() {
-			capture := re.FindStringSubmatch(path)
-			if len(capture) > 0 {
-				ia := capture[1] + "-" + capture[2]
-				ia = strings.Replace(ia, "_", ":", -1) // convert once
-				if !StringInSlice(localIAs, ia) {
-					log.Debug("Local IA Found:", "ia", ia)
-					localIAs = append(localIAs, ia)
-				}
-			}
+		if f != nil && f.Name() == topologyFile {
+			var t Topology
+			raw, _ := ioutil.ReadFile(path)
+			json.Unmarshal([]byte(raw), &t)
+			localIAs = append(localIAs, t.IA)
 		}
 		return nil
 	})
