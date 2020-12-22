@@ -20,6 +20,7 @@ package appquic
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/lucas-clemente/quic-go"
@@ -121,10 +122,21 @@ func DialAddrEarly(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicCo
 }
 
 func ensurePathDefined(raddr *snet.UDPAddr) error {
-	if raddr.Path == nil {
+	if raddr.Path.IsEmpty() {
 		return appnet.SetDefaultPath(raddr)
 	}
 	return nil
+}
+
+// Listen listens for QUIC connections on a SCION/UDP address.
+//
+// See note on wildcard addresses in the appnet package documentation.
+func Listen(listen *net.UDPAddr, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
+	sconn, err := appnet.Listen(listen)
+	if err != nil {
+		return nil, err
+	}
+	return quic.Listen(sconn, tlsConf, quicConfig)
 }
 
 // ListenPort listens for QUIC connections on a SCION/UDP port.

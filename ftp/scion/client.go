@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -116,7 +115,7 @@ func (selector *StaticSelector) Reset() {
 
 // Copied from Pingpong sample application:
 // https://github.com/scionproto/scion/blob/8291539e5b23a217cb367bce6da05b71d0fe1d82/go/examples/pingpong/pingpong.go#L419
-func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEntry {
+func InteractivePathSelector(paths []*snet.Path) *snet.Path {
 	if len(paths) == 1 {
 		return paths[0]
 	}
@@ -125,7 +124,7 @@ func InteractivePathSelector(paths []*sciond.PathReplyEntry) *sciond.PathReplyEn
 
 	fmt.Printf("Available paths to\n")
 	for i := range paths {
-		fmt.Printf("[%2d] %s\n", i, paths[i].Path.String())
+		fmt.Printf("[%2d] %s\n", i, (*paths[i]).Path())
 	}
 	reader := bufio.NewReader(os.Stdin)
 	for {

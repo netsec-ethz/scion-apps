@@ -28,7 +28,7 @@ func Listen(address string, cert *tls.Certificate) (*Listener, error) {
 		Certificates: []tls.Certificate{*cert},
 	}
 
-	listener, err := appquic.ListenPort(addr.Port(), tlsConfig, nil)
+	listener, err := appquic.Listen(addr.addr.Host, tlsConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen: %s", err)
 	}
@@ -51,7 +51,6 @@ func (listener *Listener) Close() error {
 }
 
 func (listener *Listener) Accept() (*Connection, *quic.Session, error) {
-
 	session, err := listener.quicListener.Accept(context.Background())
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't accept APPQUIC connection: %s", err)
