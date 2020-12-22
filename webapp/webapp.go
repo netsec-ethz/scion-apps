@@ -364,12 +364,12 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
-		optApp := "echo"
-		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
+		optApp := "ping"
+		optRemote := fmt.Sprintf("%s,[%s]", d.SIa, d.SAddr)
 		optCount := fmt.Sprintf("-c=%d", d.Count)
-		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
-		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
-		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
+		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
+		optInterval := fmt.Sprintf("--interval=%fs", d.Interval)
+		optSciond := fmt.Sprintf("--sciond=%s", settings.SDAddress)
 		command = append(command, installpath,
 			optApp, optRemote, optCount, optTimeout, optInterval, optSciond)
 
@@ -379,10 +379,10 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
-		optApp := "tr"
-		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
-		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
-		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
+		optApp := "traceroute"
+		optRemote := fmt.Sprintf("%s,[%s]", d.SIa, d.SAddr)
+		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
+		optSciond := fmt.Sprintf("--sciond=%s", settings.SDAddress)
 		command = append(command, installpath, optApp, optRemote, optTimeout, optSciond)
 	}
 
