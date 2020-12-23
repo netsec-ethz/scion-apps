@@ -71,7 +71,6 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
 
 	envvars := []string{
-		"SCION_ROOT=" + path.Clean(options.ScionRoot),
 		"SCION_BIN=" + path.Clean(options.ScionBin),
 		"SCION_GEN=" + path.Clean(options.ScionGen),
 		"SCION_LOGS=" + path.Clean(options.ScionLogs),

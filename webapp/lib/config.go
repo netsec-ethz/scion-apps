@@ -81,7 +81,6 @@ type CmdOptions struct {
 	StaticRoot    string
 	BrowseRoot    string
 	AppsRoot      string
-	ScionRoot     string
 	ScionBin      string
 	ScionGen      string
 	ScionGenCache string
@@ -92,7 +91,6 @@ func (o *CmdOptions) AbsPathCmdOptions() {
 	o.StaticRoot, _ = filepath.Abs(o.StaticRoot)
 	o.BrowseRoot, _ = filepath.Abs(o.BrowseRoot)
 	o.AppsRoot, _ = filepath.Abs(o.AppsRoot)
-	o.ScionRoot, _ = filepath.Abs(o.ScionRoot)
 	o.ScionBin, _ = filepath.Abs(o.ScionBin)
 	o.ScionGen, _ = filepath.Abs(o.ScionGen)
 	o.ScionGenCache, _ = filepath.Abs(o.ScionGenCache)
@@ -127,20 +125,21 @@ func defaultBrowseRoot(staticRoot string) string {
 	return path.Join(staticRoot, "data")
 }
 
-func defaultScionBin(scionRoot string) string {
-	return path.Join(scionRoot, "bin")
+func defaultScionBin() string {
+	return "/usr/bin"
 }
 
-func defaultScionGen(scionRoot string) string {
-	return path.Join(scionRoot, "gen")
+func defaultScionGen() string {
+	return "/etc/scion"
 }
 
-func defaultScionGenCache(scionRoot string) string {
-	return path.Join(scionRoot, "gen-cache")
+func defaultScionGenCache() string {
+	return "/var/lib/scion"
 }
 
-func defaultScionLogs(scionRoot string) string {
-	return path.Join(scionRoot, "logs")
+// TODO (mmalesev) change this to the new logs dir (if it exists)
+func defaultScionLogs() string {
+	return "logs"
 }
 
 func ParseFlags() CmdOptions {
@@ -152,15 +151,13 @@ func ParseFlags() CmdOptions {
 		"Path to read/write web server files.")
 	browseRoot := flag.String(CMD_BRT, defaultBrowseRoot(*staticRoot),
 		"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
-	scionRoot := flag.String(CMD_SCN, DEF_SCIONDIR,
-		"Path to read SCION root directory of infrastructure")
-	scionBin := flag.String(CMD_SCB, defaultScionBin(*scionRoot),
+	scionBin := flag.String(CMD_SCB, defaultScionBin(),
 		"Path to execute SCION bin directory of infrastructure tools")
-	scionGen := flag.String(CMD_SCG, defaultScionGen(*scionRoot),
+	scionGen := flag.String(CMD_SCG, defaultScionGen(),
 		"Path to read SCION gen directory of infrastructure config")
-	scionGenCache := flag.String(CMD_SCC, defaultScionGenCache(*scionRoot),
+	scionGenCache := flag.String(CMD_SCC, defaultScionGenCache(),
 		"Path to read SCION gen-cache directory of infrastructure run-time config")
-	scionLogs := flag.String(CMD_SCL, defaultScionLogs(*scionRoot),
+	scionLogs := flag.String(CMD_SCL, defaultScionLogs(),
 		"Path to read SCION logs directory of infrastructure logging")
 	flag.Parse()
 	// recompute root args to use the proper relative defaults if undefined
@@ -171,22 +168,20 @@ func ParseFlags() CmdOptions {
 		*browseRoot = defaultBrowseRoot(*staticRoot)
 	}
 
-	if isFlagUsed(CMD_SCN) {
-		if !isFlagUsed(CMD_SCB) {
-			*scionBin = defaultScionBin(*scionRoot)
-		}
-		if !isFlagUsed(CMD_SCG) {
-			*scionGen = defaultScionGen(*scionRoot)
-		}
-		if !isFlagUsed(CMD_SCC) {
-			*scionGenCache = defaultScionGenCache(*scionRoot)
-		}
-		if !isFlagUsed(CMD_SCL) {
-			*scionLogs = defaultScionLogs(*scionRoot)
-		}
+	if !isFlagUsed(CMD_SCB) {
+		*scionBin = defaultScionBin()
+	}
+	if !isFlagUsed(CMD_SCG) {
+		*scionGen = defaultScionGen()
+	}
+	if !isFlagUsed(CMD_SCC) {
+		*scionGenCache = defaultScionGenCache()
+	}
+	if !isFlagUsed(CMD_SCL) {
+		*scionLogs = defaultScionLogs()
 	}
 	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *appsRoot,
-		*scionRoot, *scionBin, *scionGen, *scionGenCache, *scionLogs}
+		*scionBin, *scionGen, *scionGenCache, *scionLogs}
 	options.AbsPathCmdOptions()
 	return options
 }

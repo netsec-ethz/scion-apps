@@ -137,7 +137,6 @@ func main() {
 	ensurePath(options.StaticRoot, "data")
 	ensurePath(options.StaticRoot, "data/images")
 
-	checkPath(options.ScionRoot)
 	checkPath(options.ScionGen)
 	checkPath(options.ScionGenCache)
 	initLocalIaOptions()

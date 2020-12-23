@@ -61,19 +61,18 @@ Install all [SCIONLab apps](https://github.com/netsec-ethz/scion-apps) and depen
 ```shell
 cd scion-apps
 ./deps.sh
-make install
+make build
 ```
 
 Development Run on Local Topology:
 You can alter the defaults on the command line, all of which are listed below:
 ```shell
-webapp \
+./bin/scion-webapp \
 -a 127.0.0.1 \
 -p 8081 \
 -r . \
 -srvroot $GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web \
 -sabin $GOPATH/bin \
--sroot $GOPATH/src/github.com/scionproto/scion \
 -sbin $GOPATH/src/github.com/scionproto/scion/bin \
 -sgen $GOPATH/src/github.com/scionproto/scion/gen \
 -sgenc $GOPATH/src/github.com/scionproto/scion/gen-cache \
@@ -81,20 +80,19 @@ webapp \
 ```
 or can you run `webapp` like this, which will use the defaults above:
 ```shell
-webapp
+./bin/scion-webapp
 ```
 
 Development Run on SCIONLab Topology:
 ```shell
-webapp \
+./bin/scion-webapp \
 -a 0.0.0.0 \
 -p 8080 \
 -r ~/go/src/github.com/netsec-ethz/scion-apps/webapp/web/data \
 -srvroot ~/go/src/github.com/netsec-ethz/scion-apps/webapp/web \
 -sabin $GOPATH/bin \
--sroot /etc/scion \
 -sbin /usr/bin \
--sgen /etc/scion/gen \
+-sgen /etc/scion \
 -sgenc /var/lib/scion \
 -slogs /var/log/scion
 ```
@@ -121,8 +119,6 @@ Usage of webapp:
         Path to read SCION gen-cache directory of infrastructure run-time config (default "/home/ubuntu/go/src/github.com/scionproto/scion/gen-cache")
   -slogs string
         Path to read SCION logs directory of infrastructure logging (default "/home/ubuntu/go/src/github.com/scionproto/scion/logs")
-  -sroot string
-        Path to read SCION root directory of infrastructure (default "/home/ubuntu/go/src/github.com/scionproto/scion")
   -srvroot string
         Path to read/write web server files. (default "/home/ubuntu/go/src/github.com/netsec-ethz/scion-apps/webapp/web")
 ```
