@@ -28,7 +28,7 @@ webapp -h
 - systemctl
 
 ## SCION Binaries Used/Checked
-- $sbin/scmp
+- $sbin/scion (for scion ping and scion traceroute)
 - $sabin/bwtestclient
 - $sabin/imagefetcher
 - $sabin/sensorfetcher

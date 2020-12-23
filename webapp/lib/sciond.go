@@ -78,15 +78,21 @@ type sdTomlConfig struct {
 }
 
 func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
-	tomlPath, err := GetPathInGen(options.ScionGen, "sd.toml", ia)
-	if err != nil {
-		fmt.Println(err)
-	}
-
 	var config sdTomlConfig
-	if _, err := toml.DecodeFile(tomlPath, &config); err != nil {
-		fmt.Println(err)
+	// try to get sciond address from sd.toml, if it's not there then read it from SCION_DAEMON_ADDRESS
+	tomlPath, err := GetPathInGen(options.ScionGen, "sd.toml", ia)
+	if err == nil {
+		if _, err := toml.DecodeFile(tomlPath, &config); err == nil {
+			return config, nil
+		}
 	}
+	// read from the environment variable SCION_DAEMON_ADDRESS
+	sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
+	if !ok {
+		sd = sciond.DefaultAPIAddress
+	}
+	config = sdTomlConfig{
+		SD: sdInfo{Address: sd}}
 	return config, nil
 }
 

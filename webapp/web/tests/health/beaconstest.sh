@@ -12,7 +12,12 @@ iaFile=$(echo $1 | sed "s/:/_/g")
 echo "IA found: $iaFile"
 
 # format log file and beacons grep string (was .DEBUG)
+# TODO (mmalesev) It seems like log files are not available in scionlab, find a different way to do beacon test
 logfile=$SCION_LOGS/cs${iaFile}-1.log
+if [ ! -f $logfile ]; then
+    echo "Logfile $logfile not available, skipping beacon test"
+    exit 0
+fi
 echo "Log: $logfile"
 
 # seek last log entry for verified PCBs (was "Successfully verified PCB")
