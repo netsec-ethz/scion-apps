@@ -19,7 +19,7 @@ Please refer to `scion-ftpserver -help` for more options.
 Example usage of the client:
 
 ```bash
-$ scion-ftp -local 17-ffaa:1:10,[10.0.126.101]:4000
+$ scion-ftp
 > connect 17-ffaa:1:10,[10.0.8.100]:2121
 > login admin 123456
 > ls

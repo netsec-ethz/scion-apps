@@ -203,7 +203,7 @@ func TestTimeout(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	c, err := DialTimeout("localhost:4000", "localhost:2121", 1*time.Second)
+	c, err := DialTimeout("localhost:2121", 1*time.Second)
 	if err == nil {
 		t.Fatal("expected timeout, got nil error")
 		_ = c.Quit()
@@ -217,7 +217,7 @@ func TestWrongLogin(t *testing.T) {
 	}
 	defer mock.Close()
 
-	c, err := DialTimeout("localhost:4000", mock.Addr(), 5*time.Second)
+	c, err := DialTimeout(mock.Addr(), 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

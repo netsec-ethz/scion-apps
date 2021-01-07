@@ -179,7 +179,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			go func(i int) {
 				defer wg.Done()
 
-				conn, _, err := scion.DialAddr(c.local+":0", addrs[i], false)
+				conn, _, err := scion.DialAddr(addrs[i], false)
 				if err != nil {
 					log.Fatalf("failed to connect: %s", err)
 				}
@@ -198,10 +198,9 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			return nil, err
 		}
 
-		local := c.local + ":0"
 		remote := c.remote + ":" + strconv.Itoa(port)
 
-		conn, _, err := scion.DialAddr(local, remote, false)
+		conn, _, err := scion.DialAddr(remote, false)
 		if err != nil {
 			return nil, err
 		}

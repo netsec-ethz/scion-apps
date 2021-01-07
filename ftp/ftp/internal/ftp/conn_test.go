@@ -310,7 +310,7 @@ func openConn(t *testing.T, addr string, options ...DialOption) (*ftpMock, *Serv
 	}
 	defer mock.Close()
 
-	c, err := Dial(mock.Addr(), addr, options...)
+	c, err := Dial(addr, options...)
 	if err != nil {
 		t.Fatal(err)
 	}

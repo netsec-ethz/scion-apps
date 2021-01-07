@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -59,16 +58,12 @@ func main() {
 type commandMap map[string]func([]string)
 
 var (
-	local    = flag.String("local", "", "Local hostname (e.g. 1-ff00:0:110,[127.0.0.1]:4000")
 	hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified")
 	interval = time.Duration(15 * time.Second) // Interval for Keep-Alive
 )
 
 func init() {
 	flag.Parse()
-	if *local == "" {
-		log.Fatalf("Please set the local address with -local")
-	}
 }
 
 type App struct {
@@ -120,7 +115,7 @@ func (app *App) connect(args []string) {
 		return
 	}
 
-	conn, err := ftp.Dial(*local, args[0])
+	conn, err := ftp.Dial(args[0])
 	if err != nil {
 		app.print(err)
 		return

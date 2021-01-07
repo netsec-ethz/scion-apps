@@ -81,7 +81,7 @@ type Entry struct {
 }
 
 // Dial connects to the specified address with optional options
-func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
+func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 	do := &dialOptions{}
 	for _, option := range options {
 		option.setup(do)
@@ -96,7 +96,7 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		maxChunkSize = 500
 	}
 
-	conn, kConn, err := scion.DialAddr(local, remote, true)
+	conn, kConn, err := scion.DialAddr(remote, true)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func Dial(local, remote string, options ...DialOption) (*ServerConn, error) {
 		sourceKConn = newDebugWrapper(kConn, do.debugOutput)
 	}
 
-	localHost, _, err := scion.ParseAddress(local)
+	localHost, _, err := scion.ParseAddress(conn.LocalAddr().String())
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +221,6 @@ func DialWithBlockSize(blockSize int) DialOption {
 //
 // It is generally followed by a call to Login() as most FTP commands require
 // an authenticated user.
-func DialTimeout(local, remote string, timeout time.Duration) (*ServerConn, error) {
-	return Dial(local, remote, DialWithTimeout(timeout))
+func DialTimeout(remote string, timeout time.Duration) (*ServerConn, error) {
+	return Dial(remote, DialWithTimeout(timeout))
 }

@@ -20,7 +20,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"io"
+	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -29,12 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-func DialAddr(localAddr, remoteAddr string, openKeepAlive bool) (*Connection, *Connection, error) {
-
-	local, err := ConvertAddress(localAddr)
-	if err != nil {
-		return nil, nil, err
-	}
+func DialAddr(remoteAddr string, openKeepAlive bool) (*Connection, *Connection, error) {
 
 	remote, err := ConvertAddress(remoteAddr)
 	if err != nil {
@@ -56,6 +53,16 @@ func DialAddr(localAddr, remoteAddr string, openKeepAlive bool) (*Connection, *C
 		return nil, nil, err
 	}
 
+	defNetwork := appnet.DefNetwork()
+	localHost := session.LocalAddr().(*net.UDPAddr)
+	local := Address{
+		host: defNetwork.IA.String() + ":" + localHost.IP.String(),
+		port: port,
+		addr: snet.UDPAddr{
+			IA:   defNetwork.IA,
+			Host: localHost,
+		},
+	}
 	local.port = port
 
 	stream, err := AddStream(&session)
