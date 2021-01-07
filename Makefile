@@ -20,7 +20,7 @@ build: scion-bat \
 	scion-netcat \
 	scion-sensorfetcher scion-sensorserver \
 	scion-ssh scion-sshd \
-	scion-ftp scion-ftpserver \
+	scion-ftp scion-ftpd \
 	example-helloworld \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
 
@@ -93,11 +93,11 @@ scion-webapp:
 
 .PHONY: scion-ftp
 scion-ftp:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/client/scionftp/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/ftp/
 
-.PHONY: scion-ftpserver
-scion-ftpserver:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/server/scionftp_server/
+.PHONY: scion-ftpd
+scion-ftpd:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/ftpd/
 
 .PHONY: example-helloworld
 example-helloworld:
