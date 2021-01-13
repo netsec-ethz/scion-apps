@@ -19,7 +19,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/ftp/internal/striping"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 )
 
 type WriterSocket struct {

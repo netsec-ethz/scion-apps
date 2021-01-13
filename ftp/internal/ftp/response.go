@@ -19,7 +19,7 @@ package ftp
 import (
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/ftp/internal/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
 // Response represents a data-connection

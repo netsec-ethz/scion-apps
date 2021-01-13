@@ -14,7 +14,7 @@
 
 package striping
 
-import "github.com/netsec-ethz/scion-apps/ftp/internal/queue"
+import "github.com/netsec-ethz/scion-apps/internal/ftp/queue"
 
 type Segment struct {
 	*Header

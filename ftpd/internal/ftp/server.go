@@ -16,9 +16,8 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/netsec-ethz/scion-apps/ftp/internal/scion"
-
-	"github.com/netsec-ethz/scion-apps/ftp/internal/logger"
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 )
 
 // ServerOpts contains parameters for ftpd.NewServer()

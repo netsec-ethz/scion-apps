@@ -17,7 +17,7 @@ package socket
 import (
 	"io"
 
-	"github.com/netsec-ethz/scion-apps/ftp/internal/striping"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 )
 
 type ReaderSocket struct {

@@ -16,7 +16,7 @@ package hercules
 
 import (
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/ftp/internal/scion"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 	"net"
 	"os"
 	"os/exec"

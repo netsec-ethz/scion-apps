@@ -13,8 +13,8 @@ import (
 	"flag"
 	"log"
 
-	driver "github.com/netsec-ethz/scion-apps/ftp/ftpd/internal/driver/file"
-	"github.com/netsec-ethz/scion-apps/ftp/ftpd/internal/ftp"
+	driver "github.com/netsec-ethz/scion-apps/ftpd/internal/driver/file"
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/ftp"
 )
 
 func main() {

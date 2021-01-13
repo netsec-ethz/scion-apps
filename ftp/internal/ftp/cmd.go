@@ -29,10 +29,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/ftp/internal/hercules"
-	mode2 "github.com/netsec-ethz/scion-apps/ftp/internal/mode"
-	"github.com/netsec-ethz/scion-apps/ftp/internal/scion"
-	"github.com/netsec-ethz/scion-apps/ftp/internal/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
+	mode2 "github.com/netsec-ethz/scion-apps/internal/ftp/mode"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
 // Login authenticates the scionftp with specified user and password.

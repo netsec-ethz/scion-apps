@@ -7,8 +7,6 @@ package ftp
 import (
 	"errors"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/ftp/internal/hercules"
-	"github.com/netsec-ethz/scion-apps/ftp/internal/mode"
 	"log"
 	"os"
 	"strconv"
@@ -16,9 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/ftp/internal/scion"
-
-	socket2 "github.com/netsec-ethz/scion-apps/ftp/internal/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/mode"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
+	socket2 "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
 type Command interface {

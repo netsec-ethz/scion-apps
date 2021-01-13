@@ -93,11 +93,11 @@ scion-webapp:
 
 .PHONY: scion-ftp
 scion-ftp:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/ftp/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/
 
 .PHONY: scion-ftpd
 scion-ftpd:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/ftpd/
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftpd/
 
 .PHONY: example-helloworld
 example-helloworld:

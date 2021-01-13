@@ -15,7 +15,7 @@
 package socket
 
 import (
-	"github.com/netsec-ethz/scion-apps/ftp/internal/scion"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 	"io"
 	"time"
 )

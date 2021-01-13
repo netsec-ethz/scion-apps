@@ -27,8 +27,7 @@ import (
 	"net/textproto"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/ftp/internal/logger"
-	"github.com/netsec-ethz/scion-apps/ftp/internal/scion"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 )
 
 // EntryType describes the different types of an Entry.
@@ -56,7 +55,6 @@ type ServerConn struct {
 	storHerculesSupported bool
 	extended              bool
 	blockSize             int
-	logger                logger.Logger
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -132,7 +130,6 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 		remote:        remoteHost,
 		localAddr:     conn.LocalAddress(),
 		remoteAddr:    conn.RemoteAddress(),
-		logger:        &logger.StdLogger{},
 		blockSize:     maxChunkSize,
 	}
 

@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	ftp "github.com/netsec-ethz/scion-apps/ftp/ftp/internal/ftp"
+	ftp "github.com/netsec-ethz/scion-apps/ftp/internal/ftp"
 )
 
 func main() {

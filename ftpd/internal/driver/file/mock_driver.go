@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/ftp/ftpd/internal/ftp"
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/ftp"
 )
 
 var _ ftp.Driver = &MockDriver{}
