@@ -1,6 +1,8 @@
 // Copyright 2018 The goftp Authors. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+//
+// Copyright 2020-2021 ETH Zurich modifications to add support for SCION
 
 package ftp_test
 

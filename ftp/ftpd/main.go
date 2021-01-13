@@ -1,9 +1,11 @@
 // Copyright 2018 The goftp Authors. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-
+//
 // Modifications 2019 Elwin Stephan to make it compatible to SCION and
 // introduce parts of the GridFTP extension
+//
+// Copyright 2020-2021 ETH Zurich modifications to add support for SCION
 package main
 
 import (
