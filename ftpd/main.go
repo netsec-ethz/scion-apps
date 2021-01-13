@@ -13,8 +13,8 @@ import (
 	"flag"
 	"log"
 
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/core"
 	driver "github.com/netsec-ethz/scion-apps/ftpd/internal/driver/file"
-	"github.com/netsec-ethz/scion-apps/ftpd/internal/ftp"
 )
 
 func main() {
@@ -39,7 +39,7 @@ func main() {
 
 	factory := &driver.FileDriverFactory{
 		RootPath: *root,
-		Perm:     ftp.NewSimplePerm("user", "group"),
+		Perm:     core.NewSimplePerm("user", "group"),
 	}
 
 	if *certFile == "" || *keyFile == "" {
@@ -51,11 +51,11 @@ func main() {
 		log.Fatalf("could not load key-pair: %s", err.Error())
 	}
 
-	opts := &ftp.Opts{
+	opts := &core.Opts{
 		Factory:        factory,
 		Port:           uint16(*port),
 		Hostname:       *host,
-		Auth:           &ftp.SimpleAuth{Name: *user, Password: *pass},
+		Auth:           &core.SimpleAuth{Name: *user, Password: *pass},
 		Certificate:    &cert,
 		HerculesBinary: *hercules,
 		RootPath:       *root,
@@ -63,7 +63,7 @@ func main() {
 
 	log.Printf("Starting ftp server on %v:%v", opts.Hostname, opts.Port)
 	log.Printf("Username %v, Password %v", *user, *pass)
-	srv := ftp.NewServer(opts)
+	srv := core.NewServer(opts)
 	err = srv.ListenAndServe()
 	if err != nil {
 		log.Fatal("Error starting server:", err)

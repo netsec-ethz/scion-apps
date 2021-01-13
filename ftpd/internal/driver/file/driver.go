@@ -12,17 +12,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/ftpd/internal/ftp"
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/core"
 )
 
-var _ ftp.Driver = &FileDriver{}
+var _ core.Driver = &FileDriver{}
 
 type FileDriver struct {
 	RootPath string
-	ftp.Perm
+	core.Perm
 }
 
-func (driver *FileDriver) Init(*ftp.Conn) {
+func (driver *FileDriver) Init(*core.Conn) {
 	//
 }
 
@@ -63,7 +63,7 @@ func (driver *FileDriver) ChangeDir(path string) error {
 	return errors.New("not a directory")
 }
 
-func (driver *FileDriver) Stat(path string) (ftp.FileInfo, error) {
+func (driver *FileDriver) Stat(path string) (core.FileInfo, error) {
 	basepath, _ := driver.RealPath(path)
 	rPath, err := filepath.Abs(basepath)
 	if err != nil {
@@ -91,7 +91,7 @@ func (driver *FileDriver) Stat(path string) (ftp.FileInfo, error) {
 	return &FileInfo{f, mode, owner, group}, nil
 }
 
-func (driver *FileDriver) ListDir(path string, callback func(ftp.FileInfo) error) error {
+func (driver *FileDriver) ListDir(path string, callback func(core.FileInfo) error) error {
 	basepath, _ := driver.RealPath(path)
 	return filepath.Walk(basepath, func(f string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -242,9 +242,9 @@ func (driver *FileDriver) PutFile(destPath string, data io.Reader, appendData bo
 
 type FileDriverFactory struct {
 	RootPath string
-	ftp.Perm
+	core.Perm
 }
 
-func (factory *FileDriverFactory) NewDriver() (ftp.Driver, error) {
+func (factory *FileDriverFactory) NewDriver() (core.Driver, error) {
 	return &FileDriver{factory.RootPath, factory.Perm}, nil
 }

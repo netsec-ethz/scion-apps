@@ -22,23 +22,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion-apps/ftpd/internal/ftp"
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/core"
 )
 
-var _ ftp.Driver = &MockDriver{}
+var _ core.Driver = &MockDriver{}
 
 type MockDriver struct {
 }
 
 func (driver *MockDriver) RealPath(path string) (string, error) {
-	return "", ftp.ErrNoFileSystem
+	return "", core.ErrNoFileSystem
 }
 
-func (driver *MockDriver) Init(*ftp.Conn) {
+func (driver *MockDriver) Init(*core.Conn) {
 	//
 }
 
-func (driver *MockDriver) Stat(string) (ftp.FileInfo, error) {
+func (driver *MockDriver) Stat(string) (core.FileInfo, error) {
 	panic("not implemented for mock driver")
 }
 
@@ -46,7 +46,7 @@ func (driver *MockDriver) ChangeDir(string) error {
 	panic("not implemented for mock driver")
 }
 
-func (driver *MockDriver) ListDir(string, func(ftp.FileInfo) error) error {
+func (driver *MockDriver) ListDir(string, func(core.FileInfo) error) error {
 	panic("not implemented for mock driver")
 }
 
@@ -109,10 +109,10 @@ func (driver *MockDriver) PutFile(path string, data io.Reader, appendData bool) 
 	return io.Copy(ioutil.Discard, data)
 }
 
-var _ ftp.DriverFactory = &MockDriverFactory{}
+var _ core.DriverFactory = &MockDriverFactory{}
 
 type MockDriverFactory struct{}
 
-func (factory *MockDriverFactory) NewDriver() (ftp.Driver, error) {
+func (factory *MockDriverFactory) NewDriver() (core.Driver, error) {
 	return &MockDriver{}, nil
 }

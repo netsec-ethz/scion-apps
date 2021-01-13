@@ -4,7 +4,7 @@
 //
 // Copyright 2020-2021 ETH Zurich modifications to add support for SCION
 
-package ftp_test
+package core_test
 
 import (
 	"io/ioutil"

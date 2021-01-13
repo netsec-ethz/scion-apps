@@ -2,13 +2,13 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package ftp
+/*
+http://tools.ietf.org/html/rfc959
 
-import "os"
+http://www.faqs.org/rfcs/rfc2389.html
+http://www.faqs.org/rfcs/rfc959.html
 
-type FileInfo interface {
-	os.FileInfo
+http://tools.ietf.org/html/rfc2428
+*/
 
-	Owner() string
-	Group() string
-}
+package core
