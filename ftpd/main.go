@@ -9,8 +9,8 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"log"
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/core"
@@ -24,8 +24,6 @@ func main() {
 		pass     = flag.String("pass", "", "Password for login (omit for public access)")
 		port     = flag.Uint("port", 2121, "Port")
 		host     = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
-		certFile = flag.String("cert", "", "TLS certificate file")
-		keyFile  = flag.String("key", "", "TLS private key file")
 		hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified")
 	)
 	flag.Parse()
@@ -42,14 +40,7 @@ func main() {
 		Perm:     core.NewSimplePerm("user", "group"),
 	}
 
-	if *certFile == "" || *keyFile == "" {
-		log.Fatalf("Please specify public/private key files to use with -cert and -key")
-	}
-
-	cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
-	if err != nil {
-		log.Fatalf("could not load key-pair: %s", err.Error())
-	}
+	certs := appquic.GetDummyTLSCerts()
 
 	log.Printf("Starting FTP server on %v:%v", *host, *port)
 	var auth core.Auth
@@ -65,13 +56,13 @@ func main() {
 		Port:           uint16(*port),
 		Hostname:       *host,
 		Auth:           auth,
-		Certificate:    &cert,
+		Certificate:    &certs[0],
 		HerculesBinary: *hercules,
 		RootPath:       *root,
 	}
 
 	srv := core.NewServer(opts)
-	err = srv.ListenAndServe()
+	err := srv.ListenAndServe()
 	if err != nil {
 		log.Fatal("Error starting server:", err)
 	}
