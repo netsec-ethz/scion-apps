@@ -1,6 +1,8 @@
 // Copyright 2018 The goftp Authors. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+//
+// Copyright 2021 ETH Zurich modifications to add anonymous authentication
 
 package core
 
@@ -186,7 +188,7 @@ func (conn *Conn) receiveLine(line string) {
 	}
 	if cmdObj.RequireParam() && param == "" {
 		_, _ = conn.writeMessage(553, "action aborted, required param missing")
-	} else if cmdObj.RequireAuth() && conn.user == "" {
+	} else if cmdObj.RequireAuth() && !conn.server.Auth.IsAuthorized(conn.user) {
 		_, _ = conn.writeMessage(530, "not logged in")
 	} else {
 		cmdObj.Execute(conn, param)

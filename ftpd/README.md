@@ -15,11 +15,11 @@ Usage of scion-ftpd:
   -key string
     	TLS private key file
   -pass string
-    	Password for login (default "123456")
+    	Password for login (omit for anonymous FTP)
   -port uint
     	Port (default 2121)
   -root string
     	Root directory to serve
   -user string
-    	Username for login (default "admin")
+    	Username for login (omit for anonymous FTP)
 ```

@@ -20,8 +20,8 @@ import (
 func main() {
 	var (
 		root     = flag.String("root", "", "Root directory to serve")
-		user     = flag.String("user", "admin", "Username for login")
-		pass     = flag.String("pass", "123456", "Password for login")
+		user     = flag.String("user", "", "Username for login (omit for public access)")
+		pass     = flag.String("pass", "", "Password for login (omit for public access)")
 		port     = flag.Uint("port", 2121, "Port")
 		host     = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
 		certFile = flag.String("cert", "", "TLS certificate file")
@@ -51,18 +51,25 @@ func main() {
 		log.Fatalf("could not load key-pair: %s", err.Error())
 	}
 
+	log.Printf("Starting FTP server on %v:%v", *host, *port)
+	var auth core.Auth
+	if *user == "" && *pass == "" {
+		log.Printf("Anonymous FTP")
+		auth = &core.AnonymousAuth{}
+	} else {
+		log.Printf("Username %v, Password %v", *user, *pass)
+		auth = &core.SimpleAuth{Name: *user, Password: *pass}
+	}
 	opts := &core.Opts{
 		Factory:        factory,
 		Port:           uint16(*port),
 		Hostname:       *host,
-		Auth:           &core.SimpleAuth{Name: *user, Password: *pass},
+		Auth:           auth,
 		Certificate:    &cert,
 		HerculesBinary: *hercules,
 		RootPath:       *root,
 	}
 
-	log.Printf("Starting ftp server on %v:%v", opts.Hostname, opts.Port)
-	log.Printf("Username %v, Password %v", *user, *pass)
 	srv := core.NewServer(opts)
 	err = srv.ListenAndServe()
 	if err != nil {
