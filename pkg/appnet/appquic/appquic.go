@@ -121,7 +121,7 @@ func DialAddrEarly(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicCo
 }
 
 func ensurePathDefined(raddr *snet.UDPAddr) error {
-	if raddr.Path == nil {
+	if raddr.Path.IsEmpty() {
 		return appnet.SetDefaultPath(raddr)
 	}
 	return nil

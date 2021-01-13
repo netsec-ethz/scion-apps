@@ -67,7 +67,7 @@ var (
 	currentFilesLock sync.Mutex
 )
 
-func handleImageFiles(dir string) {
+func handleImageFiles(dir string, keepFiles bool) {
 	for {
 		// Read the directory and look for new .jpg images
 		direntries, err := ioutil.ReadDir(dir)
@@ -94,20 +94,22 @@ func handleImageFiles(dir string) {
 			}
 			currentFilesLock.Unlock()
 		}
-		// Check if an image should be deleted
-		now := time.Now()
-		currentFilesLock.Lock()
-		for k, v := range currentFiles {
-			if now.Sub(v.readTime) > MaxFileAge+MaxFileAgeGracePeriod {
-				err = os.Remove(k)
-				check(err)
-				delete(currentFiles, k)
-				if k == mostRecentFile {
-					mostRecentFile = ""
+		if !keepFiles {
+			// Check if an image should be deleted
+			now := time.Now()
+			currentFilesLock.Lock()
+			for k, v := range currentFiles {
+				if now.Sub(v.readTime) > MaxFileAge+MaxFileAgeGracePeriod {
+					err = os.Remove(path.Join(dir, k))
+					check(err)
+					delete(currentFiles, k)
+					if k == mostRecentFile {
+						mostRecentFile = ""
+					}
 				}
 			}
+			currentFilesLock.Unlock()
 		}
-		currentFilesLock.Unlock()
 
 		time.Sleep(imageReadInterval)
 	}
@@ -119,12 +121,13 @@ func main() {
 	// Fetch arguments from command line
 	port := flag.Uint("p", 40002, "Server Port")
 	dir := flag.String("d", ".", "Directory to serve images from")
+	keepFiles := flag.Bool("keep", false, "Keep (do not delete) existing image files")
 	flag.Parse()
 
 	udpConnection, err := appnet.ListenPort(uint16(*port))
 	check(err)
 
-	go handleImageFiles(*dir)
+	go handleImageFiles(*dir, *keepFiles)
 
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)

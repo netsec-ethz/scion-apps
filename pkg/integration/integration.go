@@ -27,10 +27,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	sintegration "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+
+	"github.com/netsec-ethz/scion-apps/pkg/integration/sintegration"
 )
 
 const (
@@ -53,8 +54,7 @@ const (
 	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
 	// The message should always be `Listening ia=<IA>`
 	// where <IA> is the IA the server is listening on.
-	//ReadySignal = "Listening ia="
-	ReadySignal = "Registered with dispatcher"
+	ReadySignal = "Listening ia="
 	// GoIntegrationEnv is an environment variable that is set for the binary under test.
 	// It can be used to guard certain statements, like printing the ReadySignal,
 	// in a program under test.
@@ -93,7 +93,7 @@ func Init(name string) (err error) {
 
 	// Wrap call
 	_ = os.Chdir(projectRoot)
-	err = sintegration.Init(name)
+	err = sintegration.Init()
 	// restore pwd
 	_ = os.Chdir(pwd)
 
@@ -195,7 +195,7 @@ var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
 func getSCIONDAddress(ia addr.IA) (addr string, err error) {
 	// Wrap library call
 	_ = os.Chdir(projectRoot)
-	addr, err = sintegration.GetSCIONDAddress(sintegration.SCIONDAddressesFile, ia)
+	addr, err = sintegration.GetSCIONDAddress(sintegration.GenFile(sintegration.SCIONDAddressesFile), ia)
 	// restore pwd
 	_ = os.Chdir(pwd)
 
@@ -226,7 +226,7 @@ func connSciond(ctx context.Context, sciondAddress string) (sciond.Connector, er
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
 func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	bsAddr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	bsAddr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}

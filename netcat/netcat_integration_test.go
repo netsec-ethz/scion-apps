@@ -143,8 +143,8 @@ func TestIntegrationScionNetcatUDP(t *testing.T) {
 			append(cmnArgs, integration.DstAddrPattern+":"+serverPort),
 			nil,
 			nil,
-			nil,
 			integration.RegExp("^.*Connected.*$"),
+			nil,
 		},
 	}
 

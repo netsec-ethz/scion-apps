@@ -332,7 +332,7 @@ func main() {
 
 	// update default packet size to max MTU on the selected path
 	if path != nil {
-		InferedPktSize = int64(path.MTU())
+		InferedPktSize = int64(path.Metadata().MTU)
 	} else {
 		// use default packet size when within same AS and pathEntry is not set
 		InferedPktSize = DefaultPktSize

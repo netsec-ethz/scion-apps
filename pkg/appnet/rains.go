@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build !norains
+
 package appnet
 
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -26,26 +29,39 @@ import (
 
 const rainsConfigPath = "/etc/scion/rains.cfg"
 
-var rainsServer *snet.UDPAddr // resolver address
-
 func init() {
-	// read RAINS server address
-	rainsServer = readRainsConfig()
+	resolveRains = &rainsResolver{}
 }
 
-func readRainsConfig() *snet.UDPAddr {
-	bs, err := ioutil.ReadFile(rainsConfigPath)
+type rainsResolver struct{}
+
+func (r *rainsResolver) Resolve(name string) (*snet.SCIONAddress, error) {
+	server, err := readRainsConfig()
 	if err != nil {
-		return nil
+		return nil, err
+	}
+	if server == nil {
+		// nobody to ask, so we won't get a reply
+		return nil, &HostNotFoundError{name}
+	}
+	return rainsQuery(server, name)
+}
+
+func readRainsConfig() (*snet.UDPAddr, error) {
+	bs, err := ioutil.ReadFile(rainsConfigPath)
+	if os.IsNotExist(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("error loading %s: %s", rainsConfigPath, err)
 	}
 	address, err := snet.ParseUDPAddr(strings.TrimSpace(string(bs)))
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("error parsing %s, expected SCION UDP address: %s", rainsConfigPath, err)
 	}
-	return address
+	return address, nil
 }
 
-func rainsQuery(hostname string) (snet.SCIONAddress, error) {
+func rainsQuery(server *snet.UDPAddr, hostname string) (*snet.SCIONAddress, error) {
 
 	const (
 		ctx     = "."                    // use global context
@@ -55,19 +71,22 @@ func rainsQuery(hostname string) (snet.SCIONAddress, error) {
 	)
 	qOpts := []rains.Option{} // no options
 
-	if rainsServer == nil {
-		return snet.SCIONAddress{}, fmt.Errorf("could not resolve %q, no RAINS server configured", hostname)
-	}
-
+	// TODO(matzf): check that this behaves as expected:
+	// - return error on timeout, network problems, invalid format, ...
+	// - return HostNotFoundError error if all went well, but host not found
 	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
 	// The timeout value has been decreased to counter this behavior until the problem is resolved.
-	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, rainsServer)
+	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, server)
 	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("address for host %q not found: %v", hostname, err)
+		return nil, fmt.Errorf("address for host %q not found: %v", hostname, err)
 	}
-	addr, err := addrFromString(reply[qType])
+	addrStr, ok := reply[qType]
+	if !ok {
+		return nil, &HostNotFoundError{hostname}
+	}
+	addr, err := addrFromString(addrStr)
 	if err != nil {
-		return snet.SCIONAddress{}, fmt.Errorf("address for host %q invalid: %v", hostname, err)
+		return nil, fmt.Errorf("address for host %q invalid: %v", hostname, err)
 	}
-	return addr, nil
+	return &addr, nil
 }

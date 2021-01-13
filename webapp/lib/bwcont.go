@@ -175,18 +175,27 @@ func GetBwByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	}
 	log.Debug("Requested data:", "bwTestResults", bwTestResults)
 
-	bwtestsJSON, err := json.Marshal(bwTestResults)
+	bwtestsJSON, err := formatGraphResults(bwTestResults, active)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	jsonBuf := []byte(`{ "graph": ` + string(bwtestsJSON))
+	fmt.Fprint(w, bwtestsJSON)
+}
+
+func formatGraphResults(v interface{}, active bool) (string, error) {
+	testsJSON, err := json.Marshal(v)
+	if CheckError(err) {
+		return "", err
+	}
+	jsonBuf := []byte(`{ "graph": ` + string(testsJSON))
 	json := []byte(`, "active": ` + strconv.FormatBool(active))
 	jsonBuf = append(jsonBuf, json...)
 	jsonBuf = append(jsonBuf, []byte(`}`)...)
 
-	// ensure % if any, is escaped correctly before writing to printf formatter
-	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
+	// ensure % if any, is escaped correctly before writing to output
+	jsonStr := strings.Replace(string(jsonBuf), "%", "%%", -1)
+	return jsonStr, nil
 }
 
 // WriteCmdCsv appends the cmd data (bwtest or echo) in csv-format to srcpath.

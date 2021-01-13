@@ -15,7 +15,6 @@
 package lib
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -133,16 +132,10 @@ func GetEchoByTimeHandler(w http.ResponseWriter, r *http.Request, active bool) {
 	}
 	log.Debug("Requested data:", "echoResults", echoResults)
 
-	echoJSON, err := json.Marshal(echoResults)
+	echoJSON, err := formatGraphResults(echoResults, active)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	jsonBuf := []byte(`{ "graph": ` + string(echoJSON))
-	json := []byte(`, "active": ` + strconv.FormatBool(active))
-	jsonBuf = append(jsonBuf, json...)
-	jsonBuf = append(jsonBuf, []byte(`}`)...)
-
-	// ensure % if any, is escaped correctly before writing to printf formatter
-	fmt.Fprintf(w, strings.Replace(string(jsonBuf), "%", "%%", -1))
+	fmt.Fprint(w, echoJSON)
 }
