@@ -68,6 +68,7 @@ func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAdd
 	return args, nil
 }
 
+// Does not attempt to resolve a configuration file, if herculesConfig is nil
 func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress, remoteAddress scion.Address, file string) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress)
 	if err != nil {
@@ -81,6 +82,7 @@ func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, l
 	return exec.Command("sudo", args...), nil
 }
 
+// Does not attempt to resolve a configuration file, if herculesConfig is nil
 func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress scion.Address, file string) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress)
 	if err != nil {
@@ -92,6 +94,35 @@ func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, l
 		"-timeout", "5",
 	)
 	return exec.Command("sudo", args...), nil
+}
+
+func checkIfRegularFile(fileName string) (bool, error) {
+	stat, err := os.Stat(fileName)
+	if err == nil && stat.Mode().IsRegular() {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+// Checks for a hercules.toml config file in the following locations:
+//  - the current working directory
+//  - /etc/scion-ftp/
+//  - /etc/
+func ResolveConfig() (*string, error) {
+	candidates := []string{"hercules.toml", "/etc/hercules.toml", "/etc/scion-ftp/hercules.toml"}
+	for _, candidate := range candidates {
+		exists, err := checkIfRegularFile(candidate)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return &candidate, nil
+		}
+	}
+	return nil, nil
 }
 
 func OwnFile(file string) error {

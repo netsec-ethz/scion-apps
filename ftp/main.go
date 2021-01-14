@@ -25,13 +25,13 @@ import (
 	"strings"
 	"time"
 
-	ftp "github.com/netsec-ethz/scion-apps/ftp/internal/ftp"
+	"github.com/netsec-ethz/scion-apps/ftp/internal/ftp"
 )
 
 func main() {
 	app := App{
 		ctx:            context.Background(),
-		herculesBinary: *hercules,
+		herculesBinary: *herculesFlag,
 	}
 
 	app.cmd = commandMap{
@@ -58,8 +58,8 @@ func main() {
 type commandMap map[string]func([]string)
 
 var (
-	hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified")
-	interval = time.Duration(15 * time.Second) // Interval for Keep-Alive
+	herculesFlag = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
+	interval     = time.Duration(15 * time.Second) // Interval for Keep-Alive
 )
 
 func init() {
@@ -291,17 +291,12 @@ func (app *App) retr(args []string) {
 }
 
 func (app *App) retrHercules(args []string) {
-	if len(args) < 2 || len(args) > 3 {
-		app.print("Must supply one argument for source and one for destination; optionally supply a Hercules config file")
+	if len(args) != 2 {
+		app.print("Must supply one argument for source and one for destination")
 		return
 	}
 
-	var config *string = nil
-	if len(args) == 3 {
-		config = &args[2]
-	}
-
-	err := app.conn.RetrHercules(app.herculesBinary, args[0], args[1], config)
+	err := app.conn.RetrHercules(app.herculesBinary, args[0], args[1])
 	if err != nil {
 		app.print(err)
 	}
@@ -326,17 +321,12 @@ func (app *App) stor(args []string) {
 }
 
 func (app *App) storHercules(args []string) {
-	if len(args) < 2 || len(args) > 3 {
-		app.print("Must supply one argument for source and one for destination; optionally supply a Hercules config file")
+	if len(args) != 2 {
+		app.print("Must supply one argument for source and one for destination")
 		return
 	}
 
-	var config *string = nil
-	if len(args) == 3 {
-		config = &args[2]
-	}
-
-	err := app.conn.StorHercules(app.herculesBinary, args[0], args[1], config)
+	err := app.conn.StorHercules(app.herculesBinary, args[0], args[1])
 	if err != nil {
 		app.print(err)
 	}

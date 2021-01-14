@@ -381,12 +381,18 @@ func (c *ServerConn) IsRetrHerculesSupported() bool {
 	return c.retrHerculesSupported
 }
 
-func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string, herculesConfig *string) error {
+func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
 	}
+	herculesConfig, err := hercules.ResolveConfig()
+	if err != nil {
+		return err
+	}
 	if herculesConfig == nil {
-		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
+		log.Printf("No Hercules configuration found, using defaults (queue 0, copy mode)")
+	} else {
+		log.Printf("Using Hercules configuration at %s", *herculesConfig)
 	}
 
 	sock, err := c.openDataConn()
@@ -474,12 +480,18 @@ func (c *ServerConn) IsStorHerculesSupported() bool {
 	return c.storHerculesSupported
 }
 
-func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string, herculesConfig *string) error {
+func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
 	}
+	herculesConfig, err := hercules.ResolveConfig()
+	if err != nil {
+		return err
+	}
 	if herculesConfig == nil {
-		log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode, don't configure queues)")
+		log.Printf("No Hercules configuration found, using defaults (queue 0, copy mode)")
+	} else {
+		log.Printf("Using Hercules configuration at %s", *herculesConfig)
 	}
 
 	sock, err := c.openDataConn()

@@ -24,7 +24,7 @@ func main() {
 		pass     = flag.String("pass", "", "Password for login (omit for public access)")
 		port     = flag.Uint("port", 2121, "Port")
 		host     = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
-		hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified")
+		hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
 	)
 	flag.Parse()
 	if *root == "" {

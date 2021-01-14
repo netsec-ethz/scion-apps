@@ -56,7 +56,7 @@ func DialAddr(remoteAddr string, openKeepAlive bool) (*Connection, *Connection, 
 	defNetwork := appnet.DefNetwork()
 	localHost := session.LocalAddr().(*net.UDPAddr)
 	local := Address{
-		host: defNetwork.IA.String() + ":" + localHost.IP.String(),
+		host: defNetwork.IA.String() + ",[" + localHost.IP.String() + "]",
 		port: port,
 		addr: snet.UDPAddr{
 			IA:   defNetwork.IA,

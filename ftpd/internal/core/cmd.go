@@ -786,6 +786,17 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 		conn.writeOrLog(502, "Command not implemented")
 		return
 	}
+	herculesConfig, err := hercules.ResolveConfig()
+	if err != nil {
+		log.Printf("hercules.ResolveConfig: %s", err)
+		conn.writeOrLog(502, "Unexpected Hercules error")
+		return
+	}
+	if herculesConfig == nil {
+		log.Printf("No Hercules configuration found, using defaults (queue 0, copy mode)")
+	} else {
+		log.Printf("Using Hercules configuration at %s", *herculesConfig)
+	}
 
 	if conn.dataConn == nil {
 		log.Print("No data connection open")
@@ -815,8 +826,6 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}
 	defer func() { _ = f.Close() }()
 
-	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode)")
-
 	if !conn.server.herculesLock.tryLockTimeout(5 * time.Second) {
 		conn.writeOrLog(425, "All Hercules units busy - please try again later")
 		return
@@ -825,7 +834,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 
 	command, err := hercules.PrepareHerculesSendCommand(
 		conn.server.HerculesBinary,
-		nil,
+		herculesConfig,
 		conn.dataConn.LocalAddress(),
 		conn.dataConn.RemoteAddress(),
 		path,
@@ -1173,6 +1182,18 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 		return
 	}
 
+	herculesConfig, err := hercules.ResolveConfig()
+	if err != nil {
+		log.Printf("hercules.ResolveConfig: %s", err)
+		conn.writeOrLog(502, "Unexpected Hercules error")
+		return
+	}
+	if herculesConfig == nil {
+		log.Printf("No Hercules configuration found, using defaults (queue 0, copy mode)")
+	} else {
+		log.Printf("Using Hercules configuration at %s", *herculesConfig)
+	}
+
 	if conn.dataConn == nil {
 		log.Print("No data connection open")
 		conn.writeOrLog(425, "Can't open data connection")
@@ -1214,15 +1235,13 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 		}
 	}()
 
-	log.Printf("No Hercules configuration given, using defaults (queue 0, copy mode)")
-
 	if !conn.server.herculesLock.tryLockTimeout(5 * time.Second) {
 		conn.writeOrLog(425, "All Hercules units busy - please try again later")
 		return
 	}
 	defer conn.server.herculesLock.unlock()
 
-	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, nil, conn.dataConn.LocalAddress(), path)
+	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, herculesConfig, conn.dataConn.LocalAddress(), path)
 	if err != nil {
 		log.Printf("could not start hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
