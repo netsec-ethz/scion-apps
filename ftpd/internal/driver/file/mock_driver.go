@@ -30,8 +30,12 @@ var _ core.Driver = &MockDriver{}
 type MockDriver struct {
 }
 
-func (driver *MockDriver) RealPath(path string) (string, error) {
-	return "", core.ErrNoFileSystem
+func (driver *MockDriver) RealPath(path string) string {
+	return ""
+}
+
+func (driver *MockDriver) IsFileSystem() bool {
+	return false
 }
 
 func (driver *MockDriver) Init(*core.Conn) {

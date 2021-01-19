@@ -8,6 +8,7 @@ $ scion-ftp
 Usage of scion-ftp:
   -hercules string
     	Enable RETR_HERCULES using the Hercules binary specified
+    	In Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp
 ```
 
 After starting the application run `help` to see all available commands.

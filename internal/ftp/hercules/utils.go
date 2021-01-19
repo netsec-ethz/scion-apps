@@ -15,12 +15,14 @@
 package hercules
 
 import (
+	"errors"
 	"fmt"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 	"net"
 	"os"
 	"os/exec"
 	"os/user"
+	"strconv"
 )
 
 func findInterfaceName(localAddr net.IP) (string, error) {
@@ -50,7 +52,7 @@ func findInterfaceName(localAddr net.IP) (string, error) {
 	return "", fmt.Errorf("could not find interface with address %s", localAddr)
 }
 
-func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAddress scion.Address) ([]string, error) {
+func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAddress scion.Address, offset int64) ([]string, error) {
 	iface, err := findInterfaceName(localAddress.Addr().Host.IP)
 	if err != nil {
 		return nil, err
@@ -65,12 +67,15 @@ func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAdd
 	if herculesConfig != nil {
 		args = append(args, "-c", *herculesConfig)
 	}
+	if offset != -1 {
+		args = append(args, "-foffset", strconv.FormatInt(offset, 10))
+	}
 	return args, nil
 }
 
 // Does not attempt to resolve a configuration file, if herculesConfig is nil
-func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress, remoteAddress scion.Address, file string) (*exec.Cmd, error) {
-	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress)
+func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress, remoteAddress scion.Address, file string, offset int64) (*exec.Cmd, error) {
+	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +88,8 @@ func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, l
 }
 
 // Does not attempt to resolve a configuration file, if herculesConfig is nil
-func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress scion.Address, file string) (*exec.Cmd, error) {
-	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress)
+func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress scion.Address, file string, offset int64) (*exec.Cmd, error) {
+	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +128,22 @@ func ResolveConfig() (*string, error) {
 		}
 	}
 	return nil, nil
+}
+
+// Checks that the file is writeable with the process owner's user permissions
+// If the file does not exist, AssertFileWriteable will attempt to create it
+func AssertFileWriteable(path string) (fileCreated bool, err error) {
+	fileCreated = false
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		f, err = os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+		if err != nil {
+			return
+		}
+		fileCreated = true
+	}
+	_ = f.Close()
+	return
 }
 
 func OwnFile(file string) error {

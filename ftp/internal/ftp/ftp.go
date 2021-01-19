@@ -51,9 +51,8 @@ type ServerConn struct {
 	localAddr, remoteAddr scion.Address
 	features              map[string]string // Server capabilities discovered at runtime
 	mlstSupported         bool
-	retrHerculesSupported bool
-	storHerculesSupported bool
-	extended              bool
+	herculesSupported     bool
+	mode                  byte
 	blockSize             int
 }
 
@@ -152,11 +151,8 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 	if _, mlstSupported := c.features["MLST"]; mlstSupported {
 		c.mlstSupported = true
 	}
-	if _, retrHerculesSupported := c.features["RETR_HERCULES"]; retrHerculesSupported {
-		c.retrHerculesSupported = true
-	}
-	if _, storHerculesSupported := c.features["STOR_HERCULES"]; storHerculesSupported {
-		c.storHerculesSupported = true
+	if _, retrHerculesSupported := c.features["HERCULES"]; retrHerculesSupported {
+		c.herculesSupported = true
 	}
 
 	return c, nil

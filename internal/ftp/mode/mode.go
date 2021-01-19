@@ -19,4 +19,5 @@ const (
 	Stream               = 'S'
 	ExtendedBlockMode    = 'E'
 	PartialFileTransport = "PFT"
+	Hercules             = 'H'
 )

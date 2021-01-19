@@ -50,7 +50,7 @@ type Conn struct {
 	lastFilePos     int64
 	appendData      bool
 	closed          bool
-	extended        bool
+	mode            byte
 	parallelism     int
 	blockSize       int
 }

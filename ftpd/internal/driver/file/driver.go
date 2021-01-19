@@ -46,13 +46,17 @@ func (f *FileInfo) Group() string {
 	return f.group
 }
 
-func (driver *FileDriver) RealPath(path string) (string, error) {
+func (driver *FileDriver) RealPath(path string) string {
 	paths := strings.Split(path, "/")
-	return filepath.Join(append([]string{driver.RootPath}, paths...)...), nil
+	return filepath.Join(append([]string{driver.RootPath}, paths...)...)
+}
+
+func (driver *FileDriver) IsFileSystem() bool {
+	return true
 }
 
 func (driver *FileDriver) ChangeDir(path string) error {
-	rPath, _ := driver.RealPath(path)
+	rPath := driver.RealPath(path)
 	f, err := os.Lstat(rPath)
 	if err != nil {
 		return err
@@ -64,7 +68,7 @@ func (driver *FileDriver) ChangeDir(path string) error {
 }
 
 func (driver *FileDriver) Stat(path string) (core.FileInfo, error) {
-	basepath, _ := driver.RealPath(path)
+	basepath := driver.RealPath(path)
 	rPath, err := filepath.Abs(basepath)
 	if err != nil {
 		return nil, err
@@ -92,7 +96,7 @@ func (driver *FileDriver) Stat(path string) (core.FileInfo, error) {
 }
 
 func (driver *FileDriver) ListDir(path string, callback func(core.FileInfo) error) error {
-	basepath, _ := driver.RealPath(path)
+	basepath := driver.RealPath(path)
 	return filepath.Walk(basepath, func(f string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -127,7 +131,7 @@ func (driver *FileDriver) ListDir(path string, callback func(core.FileInfo) erro
 }
 
 func (driver *FileDriver) DeleteDir(path string) error {
-	rPath, _ := driver.RealPath(path)
+	rPath := driver.RealPath(path)
 	f, err := os.Lstat(rPath)
 	if err != nil {
 		return err
@@ -139,7 +143,7 @@ func (driver *FileDriver) DeleteDir(path string) error {
 }
 
 func (driver *FileDriver) DeleteFile(path string) error {
-	rPath, _ := driver.RealPath(path)
+	rPath := driver.RealPath(path)
 	f, err := os.Lstat(rPath)
 	if err != nil {
 		return err
@@ -151,18 +155,18 @@ func (driver *FileDriver) DeleteFile(path string) error {
 }
 
 func (driver *FileDriver) Rename(fromPath string, toPath string) error {
-	oldPath, _ := driver.RealPath(fromPath)
-	newPath, _ := driver.RealPath(toPath)
+	oldPath := driver.RealPath(fromPath)
+	newPath := driver.RealPath(toPath)
 	return os.Rename(oldPath, newPath)
 }
 
 func (driver *FileDriver) MakeDir(path string) error {
-	rPath, _ := driver.RealPath(path)
+	rPath := driver.RealPath(path)
 	return os.MkdirAll(rPath, os.ModePerm)
 }
 
 func (driver *FileDriver) GetFile(path string, offset int64) (int64, io.ReadCloser, error) {
-	rPath, _ := driver.RealPath(path)
+	rPath := driver.RealPath(path)
 	f, err := os.Open(rPath)
 	if err != nil {
 		return 0, nil, err
@@ -182,7 +186,7 @@ func (driver *FileDriver) GetFile(path string, offset int64) (int64, io.ReadClos
 }
 
 func (driver *FileDriver) PutFile(destPath string, data io.Reader, appendData bool) (int64, error) {
-	rPath, _ := driver.RealPath(destPath)
+	rPath := driver.RealPath(destPath)
 	var isExist bool
 	f, err := os.Lstat(rPath)
 	if err == nil {

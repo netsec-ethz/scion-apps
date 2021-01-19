@@ -43,9 +43,7 @@ func main() {
 		"pwd":     app.pwd,
 		"mode":    app.mode,
 		"get":     app.retr,
-		"geth":    app.retrHercules,
 		"put":     app.stor,
-		"puth":    app.storHercules,
 		"mkdir":   app.mkdir,
 		"quit":    app.quit,
 	}
@@ -58,7 +56,7 @@ func main() {
 type commandMap map[string]func([]string)
 
 var (
-	herculesFlag = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
+	herculesFlag = flag.String("hercules", "", "Enable Hercules mode using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
 	interval     = time.Duration(15 * time.Second) // Interval for Keep-Alive
 )
 
@@ -123,12 +121,8 @@ func (app *App) connect(args []string) {
 
 	app.conn = conn
 
-	if app.conn.IsRetrHerculesSupported() && app.conn.IsStorHerculesSupported() {
-		app.print("This server supports Hercules up- and downloads, try geth or puth for faster file transfers.")
-	} else if app.conn.IsRetrHerculesSupported() {
-		app.print("This server supports Hercules downloads, try geth for faster file transfers.")
-	} else if app.conn.IsStorHerculesSupported() {
-		app.print("This server supports Hercules uploads, try puth for faster file transfers.")
+	if app.conn.IsHerculesSupported() {
+		app.print("This server supports Hercules up- and downloads, mode H for faster file transfers.")
 	}
 
 	ctx, cancel := context.WithCancel(app.ctx)
@@ -218,7 +212,7 @@ func (app *App) pwd(args []string) {
 
 func (app *App) mode(args []string) {
 	if len(args) != 1 {
-		app.print("Must supply one argument for mode, [S]tream or [E]xtended")
+		app.print("Must supply one argument for mode, [S]tream, [E]xtended or [H]ercules")
 		return
 	}
 
@@ -261,44 +255,45 @@ func (app *App) retr(args []string) {
 	fmt.Println(offset)
 	fmt.Println(length)
 
-	if offset != -1 && length != -1 {
-		resp, err = app.conn.Eret(remotePath, offset, length)
-	} else if offset != -1 {
-		resp, err = app.conn.RetrFrom(remotePath, uint64(offset))
+	if app.conn.IsModeHercules() { // With Hercules, separation of data transmission and persistence is not possible
+		if offset != -1 && length != -1 {
+			app.print("ERET not supported with Hercules")
+		} else if offset != -1 {
+			err = app.conn.RetrHerculesFrom(app.herculesBinary, remotePath, localPath, int64(offset))
+		} else {
+			err = app.conn.RetrHercules(app.herculesBinary, remotePath, localPath)
+		}
+		if err != nil {
+			app.print(err)
+		}
 	} else {
-		resp, err = app.conn.Retr(remotePath)
-	}
+		if offset != -1 && length != -1 {
+			resp, err = app.conn.Eret(remotePath, offset, length)
+		} else if offset != -1 {
+			resp, err = app.conn.RetrFrom(remotePath, uint64(offset))
+		} else {
+			resp, err = app.conn.Retr(remotePath)
+		}
 
-	if err != nil {
-		app.print(err)
-		return
-	}
-	defer resp.Close()
+		if err != nil {
+			app.print(err)
+			return
+		}
+		defer resp.Close()
 
-	f, err := os.Create(localPath)
-	if err != nil {
-		app.print(err)
-		return
-	}
-	defer f.Close()
+		f, err := os.Create(localPath)
+		if err != nil {
+			app.print(err)
+			return
+		}
+		defer f.Close()
 
-	n, err := io.Copy(f, resp)
-	if err != nil {
-		app.print(err)
-	} else {
-		app.print(fmt.Sprintf("Received %d bytes", n))
-	}
-}
-
-func (app *App) retrHercules(args []string) {
-	if len(args) != 2 {
-		app.print("Must supply one argument for source and one for destination")
-		return
-	}
-
-	err := app.conn.RetrHercules(app.herculesBinary, args[0], args[1])
-	if err != nil {
-		app.print(err)
+		n, err := io.Copy(f, resp)
+		if err != nil {
+			app.print(err)
+		} else {
+			app.print(fmt.Sprintf("Received %d bytes", n))
+		}
 	}
 }
 
@@ -308,29 +303,22 @@ func (app *App) stor(args []string) {
 		return
 	}
 
-	f, err := os.Open(args[0])
-	if err != nil {
-		app.print(err)
-		return
-	}
+	var err error
+	if app.conn.IsModeHercules() { // With Hercules, separation of data transmission and persistence is not possible
+		err = app.conn.StorHercules(app.herculesBinary, args[0], args[1])
+	} else {
+		var f *os.File
+		f, err = os.Open(args[0])
+		if err != nil {
+			app.print(err)
+			return
+		}
 
-	err = app.conn.Stor(args[1], f)
-	if err != nil {
-		app.print(err)
+		err = app.conn.Stor(args[1], f)
 	}
-}
-
-func (app *App) storHercules(args []string) {
-	if len(args) != 2 {
-		app.print("Must supply one argument for source and one for destination")
-		return
-	}
-
-	err := app.conn.StorHercules(app.herculesBinary, args[0], args[1])
 	if err != nil {
 		app.print(err)
 	}
-
 }
 
 func (app *App) quit(args []string) {

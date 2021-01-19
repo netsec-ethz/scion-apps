@@ -66,10 +66,12 @@ type Driver interface {
 	// returns - the number of bytes written and the first error encountered while writing, if any.
 	PutFile(string, io.Reader, bool) (int64, error)
 
-	// This function is only required to support the Hercules subsystem.
+	// This function is only required to support the Hercules subsystem. If the driver is not backed by a filesystem,
+	// this function should return a dummy value and IsFileSystem() must return false.
 	// params  - path
 	// returns - valid path in the filesystem to use with the Hercules subsystem
-	//         - hercules.ErrNoFileSystem, if the driver is not backed by a filesystem (and thus, cannot support the
-	//           Hercules subsystem)
-	RealPath(path string) (string, error)
+	RealPath(path string) string
+
+	// returns - whether the driver is backed by a filesystem
+	IsFileSystem() bool
 }

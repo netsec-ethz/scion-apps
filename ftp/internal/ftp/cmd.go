@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
@@ -166,7 +167,7 @@ func (c *ServerConn) getDataConnPort() (int, error) {
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
-	if c.extended {
+	if c.mode == mode2.ExtendedBlockMode {
 		addrs, err := c.spas()
 		if err != nil {
 			return nil, err
@@ -195,6 +196,8 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 		return socket.NewMultiSocket(sockets, c.blockSize), nil
 
 	} else {
+		// for Stream and Hercules mode, data connections work the same,
+		// except that Hercules will "steal" the traffic from the Kernel
 		port, err := c.getDataConnPort()
 		if err != nil {
 			return nil, err
@@ -377,11 +380,22 @@ func (c *ServerConn) RetrFrom(path string, offset uint64) (*Response, error) {
 	return &Response{conn: conn, c: c}, nil
 }
 
-func (c *ServerConn) IsRetrHerculesSupported() bool {
-	return c.retrHerculesSupported
+func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string) error {
+	ftpCmd := fmt.Sprintf("RETR %s", remotePath)
+	return c.herculesDownload(herculesBinary, localPath, ftpCmd, -1)
 }
 
-func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string) error {
+func (c *ServerConn) RetrHerculesFrom(herculesBinary, remotePath, localPath string, offset int64) error {
+	_, _, err := c.cmd(StatusRequestFilePending, "REST %d", offset)
+	if err != nil {
+		return err
+	}
+
+	ftpCmd := fmt.Sprintf("RETR %s", remotePath)
+	return c.herculesDownload(herculesBinary, localPath, ftpCmd, offset)
+}
+
+func (c *ServerConn) herculesDownload(herculesBinary, localPath, ftpCmd string, offset int64) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
 	}
@@ -395,13 +409,27 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string) 
 		log.Printf("Using Hercules configuration at %s", *herculesConfig)
 	}
 
+	// check file access as unprivileged user
+	fileCreated, err := hercules.AssertFileWriteable(localPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil && fileCreated {
+			err2 := syscall.Unlink(localPath)
+			if err2 != nil {
+				log.Printf("could not delete file: %s", err2)
+			}
+		}
+	}()
+
 	sock, err := c.openDataConn()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = sock.Close() }()
 
-	cmd, err := hercules.PrepareHerculesRecvCommand(herculesBinary, herculesConfig, sock.LocalAddress(), localPath)
+	cmd, err := hercules.PrepareHerculesRecvCommand(herculesBinary, herculesConfig, sock.LocalAddress(), localPath, offset)
 	if err != nil {
 		return err
 	}
@@ -414,7 +442,7 @@ func (c *ServerConn) RetrHercules(herculesBinary, remotePath, localPath string) 
 		return fmt.Errorf("could not start Hercules: %s", err)
 	}
 
-	code, _, err := c.cmd(StatusAboutToSend, "RETR_HERCULES %s", remotePath)
+	code, _, err := c.cmd(StatusAboutToSend, ftpCmd)
 	if code != StatusAboutToSend {
 		err2 := cmd.Process.Kill()
 		if err2 != nil {
@@ -476,11 +504,12 @@ func (c *ServerConn) StorFrom(path string, r io.Reader, offset uint64) error {
 	return err
 }
 
-func (c *ServerConn) IsStorHerculesSupported() bool {
-	return c.storHerculesSupported
+func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string) error {
+	ftpCmd := fmt.Sprintf("STOR %s", remotePath)
+	return c.uploadHercules(herculesBinary, localPath, ftpCmd, -1)
 }
 
-func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string) error {
+func (c *ServerConn) uploadHercules(herculesBinary, localPath, ftpCmd string, offset int64) error {
 	if herculesBinary == "" {
 		return fmt.Errorf("you need to specify -hercules to use this feature")
 	}
@@ -494,18 +523,24 @@ func (c *ServerConn) StorHercules(herculesBinary, localPath, remotePath string) 
 		log.Printf("Using Hercules configuration at %s", *herculesConfig)
 	}
 
+	f, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	_ = f.Close()
+
 	sock, err := c.openDataConn()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = sock.Close() }()
 
-	code, _, err := c.cmd(StatusAlreadyOpen, "STOR_HERCULES %s", remotePath)
+	code, _, err := c.cmd(StatusAlreadyOpen, ftpCmd)
 	if code != StatusAlreadyOpen {
 		return fmt.Errorf("transfer failed: %s", err)
 	}
 
-	cmd, err := hercules.PrepareHerculesSendCommand(herculesBinary, herculesConfig, sock.LocalAddress(), sock.RemoteAddress(), localPath)
+	cmd, err := hercules.PrepareHerculesSendCommand(herculesBinary, herculesConfig, sock.LocalAddress(), sock.RemoteAddress(), localPath, offset)
 	if err != nil {
 		return err
 	}
@@ -638,19 +673,30 @@ func (c *ServerConn) Quit() error {
 
 // Switch Mode
 func (c *ServerConn) Mode(mode byte) error {
-	code, line, err := c.cmd(StatusCommandOK, "MODE %s", string(mode))
+	switch mode { // check if we support the requested mode
+	case mode2.Stream:
+	case mode2.ExtendedBlockMode:
+	case mode2.Hercules:
+		break
+	default:
+		return fmt.Errorf("unsupported mode: %v", mode)
+	}
 
+	code, line, err := c.cmd(StatusCommandOK, "MODE %s", string(mode))
 	if err != nil {
 		return fmt.Errorf("failed to set Mode %v: %d - %s", mode, code, line)
 	}
 
-	if mode == mode2.Stream {
-		c.extended = false
-	} else if mode == mode2.ExtendedBlockMode {
-		c.extended = true
-	}
-
+	c.mode = mode
 	return nil
+}
+
+func (c *ServerConn) IsModeHercules() bool {
+	return c.mode == mode2.Hercules
+}
+
+func (c *ServerConn) IsHerculesSupported() bool {
+	return c.herculesSupported
 }
 
 // Striped Passive

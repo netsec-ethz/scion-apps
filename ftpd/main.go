@@ -10,11 +10,12 @@ package main
 
 import (
 	"flag"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"log"
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/core"
 	driver "github.com/netsec-ethz/scion-apps/ftpd/internal/driver/file"
+	hercules2 "github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
 func main() {
@@ -24,7 +25,7 @@ func main() {
 		pass     = flag.String("pass", "", "Password for login (omit for public access)")
 		port     = flag.Uint("port", 2121, "Port")
 		host     = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
-		hercules = flag.String("hercules", "", "Enable RETR_HERCULES using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
+		hercules = flag.String("hercules", "", "Enable Hercules mode using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
 	)
 	flag.Parse()
 	if *root == "" {
@@ -51,6 +52,15 @@ func main() {
 		log.Printf("Username %v, Password %v", *user, *pass)
 		auth = &core.SimpleAuth{Name: *user, Password: *pass}
 	}
+
+	herculesConfig, err := hercules2.ResolveConfig()
+	if err != nil {
+		log.Printf("hercules.ResolveConfig: %s", err)
+	}
+	if herculesConfig != nil {
+		log.Printf("In Hercules mode, using configuration at %s", *herculesConfig)
+	}
+
 	opts := &core.Opts{
 		Factory:        factory,
 		Port:           uint16(*port),
@@ -58,11 +68,12 @@ func main() {
 		Auth:           auth,
 		Certificate:    &certs[0],
 		HerculesBinary: *hercules,
+		HerculesConfig: herculesConfig,
 		RootPath:       *root,
 	}
 
 	srv := core.NewServer(opts)
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	if err != nil {
 		log.Fatal("Error starting server:", err)
 	}

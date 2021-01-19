@@ -5,7 +5,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -31,54 +30,52 @@ type commandMap map[string]Command
 
 var (
 	commands = commandMap{
-		"ADAT":          commandAdat{},
-		"ALLO":          commandAllo{},
-		"APPE":          commandAppe{},
-		"CDUP":          commandCdup{},
-		"CWD":           commandCwd{},
-		"CCC":           commandCcc{},
-		"CONF":          commandConf{},
-		"DELE":          commandDele{},
-		"ENC":           commandEnc{},
-		"EPRT":          commandEprt{},
-		"EPSV":          commandEpsv{},
-		"FEAT":          commandFeat{},
-		"LIST":          commandList{},
-		"LPRT":          commandLprt{},
-		"NLST":          commandNlst{},
-		"MDTM":          commandMdtm{},
-		"MIC":           commandMic{},
-		"MKD":           commandMkd{},
-		"MODE":          commandMode{},
-		"NOOP":          commandNoop{},
-		"OPTS":          commandOpts{},
-		"PASS":          commandPass{},
-		"PASV":          commandPasv{},
-		"PBSZ":          commandPbsz{},
-		"PORT":          commandPort{},
-		"PROT":          commandProt{},
-		"PWD":           commandPwd{},
-		"QUIT":          commandQuit{},
-		"RETR":          commandRetr{},
-		"RETR_HERCULES": commandRetrHercules{},
-		"REST":          commandRest{},
-		"RNFR":          commandRnfr{},
-		"RNTO":          commandRnto{},
-		"RMD":           commandRmd{},
-		"SIZE":          commandSize{},
-		"STOR":          commandStor{},
-		"STOR_HERCULES": commandStorHercules{},
-		"STRU":          commandStru{},
-		"SYST":          commandSyst{},
-		"TYPE":          commandType{},
-		"USER":          commandUser{},
-		"XCUP":          commandCdup{},
-		"XCWD":          commandCwd{},
-		"XMKD":          commandMkd{},
-		"XPWD":          commandPwd{},
-		"XRMD":          commandRmd{},
-		"SPAS":          commandSpas{},
-		"ERET":          commandEret{},
+		"ADAT": commandAdat{},
+		"ALLO": commandAllo{},
+		"APPE": commandAppe{},
+		"CDUP": commandCdup{},
+		"CWD":  commandCwd{},
+		"CCC":  commandCcc{},
+		"CONF": commandConf{},
+		"DELE": commandDele{},
+		"ENC":  commandEnc{},
+		"EPRT": commandEprt{},
+		"EPSV": commandEpsv{},
+		"FEAT": commandFeat{},
+		"LIST": commandList{},
+		"LPRT": commandLprt{},
+		"NLST": commandNlst{},
+		"MDTM": commandMdtm{},
+		"MIC":  commandMic{},
+		"MKD":  commandMkd{},
+		"MODE": commandMode{},
+		"NOOP": commandNoop{},
+		"OPTS": commandOpts{},
+		"PASS": commandPass{},
+		"PASV": commandPasv{},
+		"PBSZ": commandPbsz{},
+		"PORT": commandPort{},
+		"PROT": commandProt{},
+		"PWD":  commandPwd{},
+		"QUIT": commandQuit{},
+		"RETR": commandRetr{},
+		"REST": commandRest{},
+		"RNFR": commandRnfr{},
+		"RNTO": commandRnto{},
+		"RMD":  commandRmd{},
+		"SIZE": commandSize{},
+		"STOR": commandStor{},
+		"STRU": commandStru{},
+		"SYST": commandSyst{},
+		"TYPE": commandType{},
+		"USER": commandUser{},
+		"XCUP": commandCdup{},
+		"XCWD": commandCwd{},
+		"XMKD": commandMkd{},
+		"XPWD": commandPwd{},
+		"XRMD": commandRmd{},
+		"SPAS": commandSpas{},
+		"ERET": commandEret{},
 	}
 )
 
@@ -576,20 +573,26 @@ func (cmd commandMode) RequireAuth() bool {
 
 func (cmd commandMode) Execute(conn *Conn, param string) {
 	if strings.ToUpper(param) == "S" {
-		// Stream Mode
-		conn.extended = false
+		conn.mode = mode.Stream
 		_, _ = conn.writeMessage(200, "OK")
 
 	} else if strings.ToUpper(param) == "E" {
-		// Extended Block Mode
-		conn.extended = true
+		conn.mode = mode.ExtendedBlockMode
 		conn.parallelism = 4
 		conn.blockSize = 500
-		_, _ = conn.writeMessage(200, "OK")
+
+	} else if strings.ToUpper(param) == "H" {
+		if conn.server.HerculesBinary == "" {
+			conn.writeOrLog(504, "Hercules mode not supported")
+			return
+		}
+		conn.mode = mode.Hercules
 
 	} else {
-		_, _ = conn.writeMessage(504, "MODE is an obsolete command, only (S)tream and (E)xtended Mode supported")
+		_, _ = conn.writeMessage(504, "MODE is an obsolete command, only (S)tream (E)xtended and (H)ercules Mode supported")
+		return
 	}
+	_, _ = conn.writeMessage(200, "OK")
 }
 
 // cmdNoop responds to the NOOP FTP command.
@@ -754,6 +757,15 @@ func (cmd commandRetr) Execute(conn *Conn, param string) {
 		conn.lastFilePos = 0
 		conn.appendData = false
 	}()
+
+	if conn.mode == 'H' {
+		cmd.executeHercules(conn, path)
+	} else {
+		cmd.executeTraditional(conn, path)
+	}
+}
+
+func (cmd commandRetr) executeTraditional(conn *Conn, path string) {
 	bytes, data, err := conn.driver.GetFile(path, conn.lastFilePos)
 	if err == nil {
 		defer func() { _ = data.Close() }()
@@ -767,37 +779,7 @@ func (cmd commandRetr) Execute(conn *Conn, param string) {
 	}
 }
 
-type commandRetrHercules struct{}
-
-func (cmd commandRetrHercules) IsExtend() bool {
-	return false
-}
-
-func (cmd commandRetrHercules) RequireParam() bool {
-	return true
-}
-
-func (cmd commandRetrHercules) RequireAuth() bool {
-	return true
-}
-
-func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
-	if conn.server.HerculesBinary == "" {
-		conn.writeOrLog(502, "Command not implemented")
-		return
-	}
-	herculesConfig, err := hercules.ResolveConfig()
-	if err != nil {
-		log.Printf("hercules.ResolveConfig: %s", err)
-		conn.writeOrLog(502, "Unexpected Hercules error")
-		return
-	}
-	if herculesConfig == nil {
-		log.Printf("No Hercules configuration found, using defaults (queue 0, copy mode)")
-	} else {
-		log.Printf("Using Hercules configuration at %s", *herculesConfig)
-	}
-
+func (cmd commandRetr) executeHercules(conn *Conn, path string) {
 	if conn.dataConn == nil {
 		log.Print("No data connection open")
 		conn.writeOrLog(425, "Can't open data connection")
@@ -809,22 +791,13 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}()
 
 	// check file access as unprivileged user
-	path, err := conn.driver.RealPath(conn.buildPath(param))
-	if err != nil {
-		if errors.Is(err, ErrNoFileSystem) {
-			conn.writeOrLog(502, "Command not implemented")
-		} else {
-			log.Printf("driver.RealPath returned unexpected error: %s", err.Error())
-			conn.writeOrLog(551, "File not available for download")
-		}
-		return
-	}
-	f, err := os.Open(path)
+	realPath := conn.driver.RealPath(path)
+	f, err := os.Open(realPath)
 	if err != nil {
 		conn.writeOrLog(551, "File not available for download")
 		return
 	}
-	defer func() { _ = f.Close() }()
+	_ = f.Close()
 
 	if !conn.server.herculesLock.tryLockTimeout(5 * time.Second) {
 		conn.writeOrLog(425, "All Hercules units busy - please try again later")
@@ -832,13 +805,7 @@ func (cmd commandRetrHercules) Execute(conn *Conn, param string) {
 	}
 	defer conn.server.herculesLock.unlock()
 
-	command, err := hercules.PrepareHerculesSendCommand(
-		conn.server.HerculesBinary,
-		herculesConfig,
-		conn.dataConn.LocalAddress(),
-		conn.dataConn.RemoteAddress(),
-		path,
-	)
+	command, err := hercules.PrepareHerculesSendCommand(conn.server.HerculesBinary, conn.server.HerculesConfig, conn.dataConn.LocalAddress(), conn.dataConn.RemoteAddress(), realPath, conn.lastFilePos)
 	if err != nil {
 		log.Printf("could not run hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
@@ -1146,7 +1113,20 @@ func (cmd commandStor) RequireAuth() bool {
 }
 
 func (cmd commandStor) Execute(conn *Conn, param string) {
+	if conn.lastFilePos != 0 { // not properly implemented as of now (lastFilePos is not used as offset)
+		_, _ = conn.writeMessage(503, "uploads starting at an offset are not implemented")
+		return
+	}
 	targetPath := conn.buildPath(param)
+
+	if conn.mode == 'H' {
+		cmd.executeHercules(conn, targetPath)
+	} else {
+		cmd.executeTraditional(conn, targetPath)
+	}
+}
+
+func (cmd commandStor) executeTraditional(conn *Conn, targetPath string) {
 	_, _ = conn.writeMessage(150, "Data transfer starting")
 
 	defer func() {
@@ -1162,38 +1142,7 @@ func (cmd commandStor) Execute(conn *Conn, param string) {
 	}
 }
 
-type commandStorHercules struct{}
-
-func (cmd commandStorHercules) IsExtend() bool {
-	return false
-}
-
-func (cmd commandStorHercules) RequireParam() bool {
-	return true
-}
-
-func (cmd commandStorHercules) RequireAuth() bool {
-	return true
-}
-
-func (cmd commandStorHercules) Execute(conn *Conn, param string) {
-	if conn.server.HerculesBinary == "" {
-		conn.writeOrLog(502, "Command not implemented")
-		return
-	}
-
-	herculesConfig, err := hercules.ResolveConfig()
-	if err != nil {
-		log.Printf("hercules.ResolveConfig: %s", err)
-		conn.writeOrLog(502, "Unexpected Hercules error")
-		return
-	}
-	if herculesConfig == nil {
-		log.Printf("No Hercules configuration found, using defaults (queue 0, copy mode)")
-	} else {
-		log.Printf("Using Hercules configuration at %s", *herculesConfig)
-	}
-
+func (cmd commandStor) executeHercules(conn *Conn, path string) {
 	if conn.dataConn == nil {
 		log.Print("No data connection open")
 		conn.writeOrLog(425, "Can't open data connection")
@@ -1205,30 +1154,15 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 	}()
 
 	// check file access as unprivileged user
-	path, err := conn.driver.RealPath(conn.buildPath(param))
-	if err != nil {
-		if errors.Is(err, ErrNoFileSystem) {
-			conn.writeOrLog(502, "Command not implemented")
-		} else {
-			log.Printf("driver.RealPath returned unexpected error: %s", err.Error())
-			conn.writeOrLog(551, "File not available for writing")
-		}
-		return
-	}
-	unlinkOnFailure := false
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
-		f, err = os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
-		unlinkOnFailure = true
-	}
+	realPath := conn.driver.RealPath(path)
+	fileCreated, err := hercules.AssertFileWriteable(realPath)
 	if err != nil {
 		conn.writeOrLog(551, "File not available for writing")
 		return
 	}
 	defer func() {
-		_ = f.Close()
-		if err != nil && !unlinkOnFailure {
-			err = syscall.Unlink(path)
+		if err != nil && fileCreated {
+			err = syscall.Unlink(realPath)
 			if err != nil {
 				log.Printf("could not delete file: %s", err)
 			}
@@ -1241,7 +1175,7 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 	}
 	defer conn.server.herculesLock.unlock()
 
-	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, herculesConfig, conn.dataConn.LocalAddress(), path)
+	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, conn.server.HerculesConfig, conn.dataConn.LocalAddress(), realPath, -1)
 	if err != nil {
 		log.Printf("could not start hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
@@ -1264,8 +1198,8 @@ func (cmd commandStorHercules) Execute(conn *Conn, param string) {
 		conn.writeOrLog(551, "Hercules returned an error")
 	} else {
 		conn.writeOrLog(226, "Hercules transfer complete")
-		unlinkOnFailure = false
-		err = hercules.OwnFile(path)
+		fileCreated = false
+		err = hercules.OwnFile(realPath)
 		if err != nil {
 			log.Printf("could not own file: %s", err)
 		}

@@ -48,6 +48,7 @@ type Opts struct {
 
 	// Hercules binary for RETR_HERCULES feature
 	HerculesBinary string
+	HerculesConfig *string
 	RootPath       string
 }
 
@@ -111,6 +112,7 @@ func serverOptsWithDefaults(opts *Opts) *Opts {
 
 	newOpts.Certificate = opts.Certificate
 	newOpts.HerculesBinary = opts.HerculesBinary
+	newOpts.HerculesConfig = opts.HerculesConfig
 	newOpts.RootPath = opts.RootPath
 
 	return &newOpts
@@ -182,7 +184,7 @@ func (server *Server) ListenAndServe() error {
 	}
 
 	if server.HerculesBinary != "" {
-		curFeats += " RETR_HERCULES\n"
+		curFeats += " HERCULES\n"
 	}
 	server.feats = fmt.Sprintf(feats, curFeats)
 
