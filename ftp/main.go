@@ -252,9 +252,6 @@ func (app *App) retr(args []string) {
 		}
 	}
 
-	fmt.Println(offset)
-	fmt.Println(length)
-
 	if app.conn.IsModeHercules() { // With Hercules, separation of data transmission and persistence is not possible
 		if offset != -1 && length != -1 {
 			app.print("ERET not supported with Hercules")
