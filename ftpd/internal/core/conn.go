@@ -125,7 +125,7 @@ func (conn *Conn) Serve() {
 }
 
 func (conn *Conn) AddKeepAliveConn(stream *quic.Stream) {
-	keepAliveConn := scion.NewAppQuicConnection(*stream, conn.conn.LocalAddr().(scion.Address), conn.conn.RemoteAddr().(scion.Address))
+	keepAliveConn := socket.NewScionSocket(conn.conn.(*socket.ScionSocket).Session, *stream)
 	conn.keepAliveConn = keepAliveConn
 	conn.keepAliveReader = bufio.NewReader(keepAliveConn)
 	conn.keepAliveWriter = bufio.NewWriter(keepAliveConn)

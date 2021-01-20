@@ -15,8 +15,8 @@
 package socket
 
 import (
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 	"io"
+	"net"
 	"time"
 )
 
@@ -44,12 +44,12 @@ func (m *MultiSocket) Close() error {
 	return m.WriterSocket.Close()
 }
 
-func (m *MultiSocket) LocalAddress() scion.Address {
-	return m.WriterSocket.sockets[0].LocalAddress()
+func (m *MultiSocket) LocalAddr() net.Addr {
+	return m.WriterSocket.sockets[0].LocalAddr()
 }
 
-func (m *MultiSocket) RemoteAddress() scion.Address {
-	return m.WriterSocket.sockets[0].RemoteAddress()
+func (m *MultiSocket) RemoteAddr() net.Addr {
+	return m.WriterSocket.sockets[0].RemoteAddr()
 }
 
 var _ DataSocket = &MultiSocket{}

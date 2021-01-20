@@ -6,7 +6,9 @@ package core
 
 import (
 	"fmt"
+	"github.com/scionproto/scion/go/lib/snet"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -380,15 +382,15 @@ func (cmd commandEpsv) Execute(conn *Conn, param string) {
 		_, _ = conn.writeMessage(425, "Data connection failed")
 		return
 	}
-	msg := fmt.Sprintf("Entering Extended Passive Mode (|||%d|)", listener.Port())
+	msg := fmt.Sprintf("Entering Extended Passive Mode (|||%d|)", listener.QuicListener.Addr().(*net.UDPAddr).Port)
 	_, _ = conn.writeMessage(229, msg)
 
-	socket, _, err := listener.Accept()
+	socket, err := listener.Accept()
 	if err != nil {
 		_, _ = conn.writeMessage(426, "Connection closed, failed to open data connection")
 		return
 	}
-	conn.dataConn = socket2.NewScionSocket(socket)
+	conn.dataConn = socket
 
 }
 
@@ -805,7 +807,7 @@ func (cmd commandRetr) executeHercules(conn *Conn, path string) {
 	}
 	defer conn.server.herculesLock.unlock()
 
-	command, err := hercules.PrepareHerculesSendCommand(conn.server.HerculesBinary, conn.server.HerculesConfig, conn.dataConn.LocalAddress(), conn.dataConn.RemoteAddress(), realPath, conn.lastFilePos)
+	command, err := hercules.PrepareHerculesSendCommand(conn.server.HerculesBinary, conn.server.HerculesConfig, conn.dataConn.LocalAddr().(*net.UDPAddr), conn.dataConn.RemoteAddr().(*snet.UDPAddr), realPath, conn.lastFilePos)
 	if err != nil {
 		log.Printf("could not run hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
@@ -1175,7 +1177,7 @@ func (cmd commandStor) executeHercules(conn *Conn, path string) {
 	}
 	defer conn.server.herculesLock.unlock()
 
-	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, conn.server.HerculesConfig, conn.dataConn.LocalAddress(), realPath, -1)
+	command, err := hercules.PrepareHerculesRecvCommand(conn.server.HerculesBinary, conn.server.HerculesConfig, conn.dataConn.LocalAddr().(*net.UDPAddr), realPath, -1)
 	if err != nil {
 		log.Printf("could not start hercules: %s", err)
 		conn.writeOrLog(425, "Can't open data connection")
@@ -1356,7 +1358,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 		// Addr().String() return
 		// 1-ff00:0:110,[127.0.0.1]:5848 (UDP)
 		// Remove Protocol first
-		addr := listener[i].String()
+		addr := listener[i].QuicListener.Addr().String()
 
 		line += " " + addr + "\r\n"
 	}
@@ -1364,7 +1366,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 	_, _ = conn.writeMessageMultiline(229, line)
 
 	for i := range listener {
-		connection, _, err := listener[i].Accept()
+		connection, err := listener[i].Accept()
 		if err != nil {
 			_, _ = conn.writeMessage(426, "Connection closed, failed to open data connection")
 
@@ -1374,7 +1376,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 			}
 			return
 		}
-		sockets[i] = socket2.NewScionSocket(connection)
+		sockets[i] = connection
 	}
 
 	conn.dataConn = socket2.NewMultiSocket(sockets, conn.blockSize)

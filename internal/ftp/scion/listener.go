@@ -19,20 +19,20 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
-	"io"
-	"strings"
-
 	"github.com/lucas-clemente/quic-go"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/scionproto/scion/go/lib/snet"
+	"io"
+	"net"
 )
 
 type Listener struct {
-	quicListener quic.Listener
-	Address
+	QuicListener quic.Listener
 }
 
 func Listen(address string, cert *tls.Certificate) (*Listener, error) {
-	addr, err := ConvertAddress(address)
+	addr, err := snet.ParseUDPAddr(address)
 	if err != nil {
 		return nil, err
 	}
@@ -42,48 +42,34 @@ func Listen(address string, cert *tls.Certificate) (*Listener, error) {
 		Certificates: []tls.Certificate{*cert},
 	}
 
-	listener, err := appquic.Listen(addr.addr.Host, tlsConfig, nil)
+	listenAddr := net.UDPAddr{
+		Port: int(addr.Host.Port),
+	}
+	listener, err := appquic.Listen(&listenAddr, tlsConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen: %s", err)
 	}
 
-	_, port, err := ParseCompleteAddress(listener.Addr().String())
-	if err != nil {
-		return nil, err
-	}
-
-	addr.port = port
-
 	return &Listener{
 		listener,
-		addr,
 	}, nil
 }
 
 func (listener *Listener) Close() error {
-	return listener.quicListener.Close()
+	return listener.QuicListener.Close()
 }
 
-func (listener *Listener) Accept() (*Connection, *quic.Session, error) {
-	session, err := listener.quicListener.Accept(context.Background())
+func (listener *Listener) Accept() (*socket.ScionSocket, error) {
+	session, err := listener.QuicListener.Accept(context.Background())
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't accept APPQUIC connection: %s", err)
+		return nil, fmt.Errorf("couldn't accept APPQUIC connection: %s", err)
 	}
-
-	remote := session.RemoteAddr().String()
-	remote = strings.Split(remote, " ")[0]
-
-	remoteAddr, err := ConvertAddress(remote)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	stream, err := AcceptStream(&session)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return NewAppQuicConnection(stream, listener.Address, remoteAddr), &session, nil
+	return socket.NewScionSocket(session, stream), nil
 }
 
 func AcceptStream(session *quic.Session) (quic.Stream, error) {

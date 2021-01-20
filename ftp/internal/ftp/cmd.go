@@ -20,8 +20,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/scionproto/scion/go/lib/snet"
 	"io"
 	"log"
+	"net"
 	"net/textproto"
 	"os"
 	"strconv"
@@ -187,7 +189,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 					log.Fatalf("failed to connect: %s", err)
 				}
 
-				sockets[i] = socket.NewScionSocket(conn)
+				sockets[i] = conn
 			}(i)
 		}
 
@@ -203,14 +205,15 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			return nil, err
 		}
 
-		remote := c.remote + ":" + strconv.Itoa(port)
+		remote := c.socket.RemoteAddr().(*snet.UDPAddr).Copy()
+		remote.Host.Port = port
 
-		conn, _, err := scion.DialAddr(remote, false)
+		conn, _, err := scion.DialAddr(remote.String(), false)
 		if err != nil {
 			return nil, err
 		}
 
-		return socket.NewScionSocket(conn), nil
+		return conn, nil
 	}
 }
 
@@ -429,7 +432,7 @@ func (c *ServerConn) herculesDownload(herculesBinary, localPath, ftpCmd string, 
 	}
 	defer func() { _ = sock.Close() }()
 
-	cmd, err := hercules.PrepareHerculesRecvCommand(herculesBinary, herculesConfig, sock.LocalAddress(), localPath, offset)
+	cmd, err := hercules.PrepareHerculesRecvCommand(herculesBinary, herculesConfig, sock.LocalAddr().(*net.UDPAddr), localPath, offset)
 	if err != nil {
 		return err
 	}
@@ -540,7 +543,7 @@ func (c *ServerConn) uploadHercules(herculesBinary, localPath, ftpCmd string, of
 		return fmt.Errorf("transfer failed: %s", err)
 	}
 
-	cmd, err := hercules.PrepareHerculesSendCommand(herculesBinary, herculesConfig, sock.LocalAddress(), sock.RemoteAddress(), localPath, offset)
+	cmd, err := hercules.PrepareHerculesSendCommand(herculesBinary, herculesConfig, sock.LocalAddr().(*net.UDPAddr), sock.RemoteAddr().(*snet.UDPAddr), localPath, offset)
 	if err != nil {
 		return err
 	}

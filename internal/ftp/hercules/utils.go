@@ -17,7 +17,8 @@ package hercules
 import (
 	"errors"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/scionproto/scion/go/lib/snet"
 	"net"
 	"os"
 	"os/exec"
@@ -52,15 +53,20 @@ func findInterfaceName(localAddr net.IP) (string, error) {
 	return "", fmt.Errorf("could not find interface with address %s", localAddr)
 }
 
-func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAddress scion.Address, offset int64) ([]string, error) {
-	iface, err := findInterfaceName(localAddress.Addr().Host.IP)
+func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAddress *net.UDPAddr, offset int64) ([]string, error) {
+	iface, err := findInterfaceName(localAddress.IP)
 	if err != nil {
 		return nil, err
 	}
 
+	lAddr := &snet.UDPAddr{
+		IA:   appnet.DefNetwork().IA,
+		Host: localAddress,
+	}
+
 	args := []string{
 		herculesBinary,
-		"-l", localAddress.String(),
+		"-l", lAddr.String(),
 		"-i", iface,
 	}
 
@@ -74,7 +80,7 @@ func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAdd
 }
 
 // Does not attempt to resolve a configuration file, if herculesConfig is nil
-func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress, remoteAddress scion.Address, file string, offset int64) (*exec.Cmd, error) {
+func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress *net.UDPAddr, remoteAddress *snet.UDPAddr, file string, offset int64) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress, offset)
 	if err != nil {
 		return nil, err
@@ -88,7 +94,7 @@ func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, l
 }
 
 // Does not attempt to resolve a configuration file, if herculesConfig is nil
-func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress scion.Address, file string, offset int64) (*exec.Cmd, error) {
+func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress *net.UDPAddr, file string, offset int64) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress, offset)
 	if err != nil {
 		return nil, err

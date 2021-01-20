@@ -22,6 +22,8 @@ package ftp
 import (
 	"context"
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"github.com/scionproto/scion/go/lib/snet"
 	"io"
 	"net"
 	"net/textproto"
@@ -44,16 +46,16 @@ const (
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
 type ServerConn struct {
-	options               *dialOptions
-	conn                  *textproto.Conn
-	keepAliveConn         *textproto.Conn
-	local, remote         string // local and remote address (without port!)
-	localAddr, remoteAddr scion.Address
-	features              map[string]string // Server capabilities discovered at runtime
-	mlstSupported         bool
-	herculesSupported     bool
-	mode                  byte
-	blockSize             int
+	options           *dialOptions
+	socket            *socket.ScionSocket
+	conn              *textproto.Conn
+	keepAliveConn     *textproto.Conn
+	remote            string
+	features          map[string]string // Server capabilities discovered at runtime
+	mlstSupported     bool
+	herculesSupported bool
+	mode              byte
+	blockSize         int
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -110,12 +112,7 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 		sourceKConn = newDebugWrapper(kConn, do.debugOutput)
 	}
 
-	localHost, _, err := scion.ParseAddress(conn.LocalAddr().String())
-	if err != nil {
-		return nil, err
-	}
-
-	remoteHost, _, err := scion.ParseAddress(remote)
+	remoteHost, err := snet.ParseUDPAddr(remote)
 	if err != nil {
 		return nil, err
 	}
@@ -123,12 +120,10 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 	c := &ServerConn{
 		options:       do,
 		features:      make(map[string]string),
+		socket:        conn,
 		conn:          textproto.NewConn(sourceConn),
 		keepAliveConn: textproto.NewConn(sourceKConn),
-		local:         localHost,
-		remote:        remoteHost,
-		localAddr:     conn.LocalAddress(),
-		remoteAddr:    conn.RemoteAddress(),
+		remote:        remoteHost.String(),
 		blockSize:     maxChunkSize,
 	}
 

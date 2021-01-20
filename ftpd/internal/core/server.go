@@ -202,7 +202,7 @@ func (server *Server) Serve(l *scion.Listener) error {
 	server.ctx, server.cancel = context.WithCancel(context.Background())
 	sessionID := ""
 	for {
-		conn, session, err := server.listener.Accept()
+		conn, err := server.listener.Accept()
 		if err != nil {
 			select {
 			case <-server.ctx.Done():
@@ -222,7 +222,7 @@ func (server *Server) Serve(l *scion.Listener) error {
 		} else {
 			ftpConn := server.newConn(conn, driver)
 			go ftpConn.Serve()
-			go acceptKeepAlive(session, ftpConn)
+			go acceptKeepAlive(&conn.Session, ftpConn)
 		}
 	}
 }

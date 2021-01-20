@@ -6,9 +6,9 @@
 package socket
 
 import (
+	"github.com/lucas-clemente/quic-go"
+	"net"
 	"time"
-
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 )
 
 // DataSocket describes a data socket is used to send non-control data between the scionftp and
@@ -29,16 +29,17 @@ type DataSocket interface {
 	// Set deadline associated with connection (scionftp)
 	SetDeadline(t time.Time) error
 
-	LocalAddress() scion.Address
-	RemoteAddress() scion.Address
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
 }
 
 var _ DataSocket = &ScionSocket{}
 
 type ScionSocket struct {
-	*scion.Connection
+	quic.Session
+	quic.Stream
 }
 
-func NewScionSocket(conn *scion.Connection) *ScionSocket {
-	return &ScionSocket{conn}
+func NewScionSocket(sess quic.Session, stream quic.Stream) *ScionSocket {
+	return &ScionSocket{sess, stream}
 }
