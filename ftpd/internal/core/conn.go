@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 const (
@@ -63,14 +63,14 @@ func (conn *Conn) IsLogin() bool {
 	return len(conn.user) > 0
 }
 
-func (conn *Conn) NewListener() (*scion.Listener, error) {
+func (conn *Conn) NewListener() (*sockquic.Listener, error) {
 
 	var err error
-	var listener *scion.Listener
+	var listener *sockquic.Listener
 
 	for i := 0; i < listenerRetries; i++ {
 
-		listener, err = scion.Listen(conn.server.Hostname+":0", conn.server.Certificate)
+		listener, err = sockquic.ListenPort(0, conn.server.Certificate)
 		if err == nil {
 			break
 		}

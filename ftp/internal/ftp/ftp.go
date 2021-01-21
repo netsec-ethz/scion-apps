@@ -29,7 +29,7 @@ import (
 	"net/textproto"
 	"time"
 
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 // EntryType describes the different types of an Entry.
@@ -97,7 +97,12 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 		maxChunkSize = 500
 	}
 
-	conn, kConn, err := scion.DialAddr(remote, true)
+	conn, err := sockquic.DialAddr(remote)
+	if err != nil {
+		return nil, err
+	}
+
+	kConn, err := sockquic.OpenStream(conn.Session)
 	if err != nil {
 		return nil, err
 	}

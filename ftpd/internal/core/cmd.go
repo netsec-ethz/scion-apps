@@ -17,8 +17,8 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/mode"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 	socket2 "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 type Command interface {
@@ -1334,7 +1334,7 @@ func (cmd commandSpas) RequireAuth() bool {
 func (cmd commandSpas) Execute(conn *Conn, param string) {
 
 	sockets := make([]socket2.DataSocket, conn.parallelism)
-	listener := make([]*scion.Listener, conn.parallelism)
+	listener := make([]*sockquic.Listener, conn.parallelism)
 	var err error
 
 	line := "Entering Striped Passive Mode\n"

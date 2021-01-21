@@ -24,16 +24,11 @@ func main() {
 		user     = flag.String("user", "", "Username for login (omit for public access)")
 		pass     = flag.String("pass", "", "Password for login (omit for public access)")
 		port     = flag.Uint("port", 2121, "Port")
-		host     = flag.String("host", "", "Host (e.g. 1-ff00:0:110,[127.0.0.1])")
 		hercules = flag.String("hercules", "", "Enable Hercules mode using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
 	)
 	flag.Parse()
 	if *root == "" {
 		log.Fatalf("Please set a root to serve with -root")
-	}
-
-	if *host == "" {
-		log.Fatalf("Please set the hostaddress with -host")
 	}
 
 	factory := &driver.FileDriverFactory{
@@ -43,7 +38,6 @@ func main() {
 
 	certs := appquic.GetDummyTLSCerts()
 
-	log.Printf("Starting FTP server on %v:%v", *host, *port)
 	var auth core.Auth
 	if *user == "" && *pass == "" {
 		log.Printf("Anonymous FTP")
@@ -64,7 +58,6 @@ func main() {
 	opts := &core.Opts{
 		Factory:        factory,
 		Port:           uint16(*port),
-		Hostname:       *host,
 		Auth:           auth,
 		Certificate:    &certs[0],
 		HerculesBinary: *hercules,

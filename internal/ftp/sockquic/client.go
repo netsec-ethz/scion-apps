@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scion
+package sockquic
 
 import (
 	"crypto/tls"
@@ -24,7 +24,7 @@ import (
 	"io"
 )
 
-func DialAddr(remoteAddr string, openKeepAlive bool) (*socket.ScionSocket, *socket.ScionSocket, error) {
+func DialAddr(remoteAddr string) (*socket.ScionSocket, error) {
 
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
@@ -33,29 +33,18 @@ func DialAddr(remoteAddr string, openKeepAlive bool) (*socket.ScionSocket, *sock
 
 	session, err := appquic.Dial(remoteAddr, tlsConfig, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to dial %s: %s", remoteAddr, err)
+		return nil, fmt.Errorf("unable to dial %s: %s", remoteAddr, err)
 	}
 
-	stream, err := AddStream(&session)
+	conn, err := OpenStream(session)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	conn := socket.NewScionSocket(session, *stream)
-
-	var kConn *socket.ScionSocket = nil
-	if openKeepAlive {
-		kStream, err := AddStream(&session)
-		if err != nil {
-			return nil, nil, err
-		}
-		kConn = socket.NewScionSocket(session, *kStream)
-	}
-
-	return conn, kConn, nil
+	return conn, nil
 }
 
-func AddStream(session *quic.Session) (*quic.Stream, error) {
-	stream, err := (*session).OpenStream()
+func OpenStream(session quic.Session) (*socket.ScionSocket, error) {
+	stream, err := session.OpenStream()
 	if err != nil {
 		return nil, fmt.Errorf("unable to open stream: %s", err)
 	}
@@ -64,7 +53,7 @@ func AddStream(session *quic.Session) (*quic.Stream, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &stream, nil
+	return socket.NewScionSocket(session, stream), nil
 }
 
 func sendHandshake(rw io.ReadWriter) error {

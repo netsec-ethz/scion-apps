@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scion
+package sockquic
 
 import (
 	"context"
@@ -22,30 +22,20 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"github.com/scionproto/scion/go/lib/snet"
 	"io"
-	"net"
 )
 
 type Listener struct {
 	QuicListener quic.Listener
 }
 
-func Listen(address string, cert *tls.Certificate) (*Listener, error) {
-	addr, err := snet.ParseUDPAddr(address)
-	if err != nil {
-		return nil, err
-	}
-
+func ListenPort(port uint16, cert *tls.Certificate) (*Listener, error) {
 	tlsConfig := &tls.Config{
 		NextProtos:   []string{"scionftp"},
 		Certificates: []tls.Certificate{*cert},
 	}
 
-	listenAddr := net.UDPAddr{
-		Port: int(addr.Host.Port),
-	}
-	listener, err := appquic.Listen(&listenAddr, tlsConfig, nil)
+	listener, err := appquic.ListenPort(port, tlsConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen: %s", err)
 	}

@@ -14,10 +14,9 @@ import (
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
 	"net"
-	"strconv"
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 // ServerOpts contains parameters for ftpd.NewServer()
@@ -31,11 +30,7 @@ type Opts struct {
 	// Server Name, Default is Go Ftp Server
 	Name string
 
-	// The hostname that the FTP server should listen on. Optional, defaults to
-	// "::", which means all hostnames on ipv4 and ipv6.
-	Hostname string
-
-	// The port that the FTP should listen on. Optional, defaults to 3000. In
+	// The port that the FTP should listen on. Optional, defaults to 2121. In
 	// a production environment you will probably want to change this to 21.
 	Port uint16
 
@@ -58,9 +53,8 @@ type Opts struct {
 // Always use the NewServer() method to create a new Server.
 type Server struct {
 	*Opts
-	listenTo     string
 	logger       logger.Logger
-	listener     *scion.Listener
+	listener     *sockquic.Listener
 	ctx          context.Context
 	cancel       context.CancelFunc
 	feats        string
@@ -77,11 +71,6 @@ func serverOptsWithDefaults(opts *Opts) *Opts {
 	var newOpts Opts
 	if opts == nil {
 		opts = &Opts{}
-	}
-	if opts.Hostname == "" {
-		newOpts.Hostname = "::"
-	} else {
-		newOpts.Hostname = opts.Hostname
 	}
 	if opts.Port == 0 {
 		newOpts.Port = 2121
@@ -139,7 +128,6 @@ func NewServer(opts *Opts) *Server {
 	opts = serverOptsWithDefaults(opts)
 	s := new(Server)
 	s.Opts = opts
-	s.listenTo = opts.Hostname + ":" + strconv.Itoa(int(opts.Port))
 	s.logger = opts.Logger
 	s.herculesLock = makeLock()
 	return s
@@ -174,11 +162,11 @@ func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 // listening on the same port.
 //
 func (server *Server) ListenAndServe() error {
-	var listener *scion.Listener
+	var listener *sockquic.Listener
 	var err error
 	var curFeats = featCmds
 
-	listener, err = scion.Listen(server.listenTo, server.Certificate)
+	listener, err = sockquic.ListenPort(server.Port, server.Certificate)
 	if err != nil {
 		return err
 	}
@@ -197,7 +185,7 @@ func (server *Server) ListenAndServe() error {
 // Serve accepts connections on a given net.Listener and handles each
 // request in a new goroutine.
 //
-func (server *Server) Serve(l *scion.Listener) error {
+func (server *Server) Serve(l *sockquic.Listener) error {
 	server.listener = l
 	server.ctx, server.cancel = context.WithCancel(context.Background())
 	sessionID := ""
@@ -228,7 +216,7 @@ func (server *Server) Serve(l *scion.Listener) error {
 }
 
 func acceptKeepAlive(session *quic.Session, ftpConn *Conn) {
-	stream, err := scion.AcceptStream(session)
+	stream, err := sockquic.AcceptStream(session)
 	if err != nil {
 		if ne, ok := err.(net.Error); !ok || !ne.Timeout() {
 			ftpConn.logger.Printf(ftpConn.sessionID, "could not accept keep alive stream: %s", err)

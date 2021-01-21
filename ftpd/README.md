@@ -9,8 +9,6 @@ Usage of scion-ftpd:
   -hercules string
     	Enable RETR_HERCULES using the Hercules binary specified
     	In Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp
-  -host string
-    	Host (e.g. 1-ff00:0:110,[127.0.0.1])
   -pass string
     	Password for login (omit for anonymous FTP)
   -port uint

@@ -34,8 +34,8 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	mode2 "github.com/netsec-ethz/scion-apps/internal/ftp/mode"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/scion"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 // Login authenticates the scionftp with specified user and password.
@@ -184,7 +184,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 			go func(i int) {
 				defer wg.Done()
 
-				conn, _, err := scion.DialAddr(addrs[i], false)
+				conn, err := sockquic.DialAddr(addrs[i])
 				if err != nil {
 					log.Fatalf("failed to connect: %s", err)
 				}
@@ -208,7 +208,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 		remote := c.socket.RemoteAddr().(*snet.UDPAddr).Copy()
 		remote.Host.Port = port
 
-		conn, _, err := scion.DialAddr(remote.String(), false)
+		conn, err := sockquic.DialAddr(remote.String())
 		if err != nil {
 			return nil, err
 		}
