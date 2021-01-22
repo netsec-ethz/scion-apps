@@ -73,7 +73,7 @@ func PromptAcceptHostKey(hostname string, remote net.Addr, publicKey string) boo
 		fmt.Scanln(&answer)
 		answer = strings.ToLower(answer)
 		if strings.HasPrefix(answer, "y") {
-			fmt.Printf("Alright, adding %s to the list of known hosts", publicKey)
+			fmt.Printf("Alright, adding %s to the list of known hosts\n", publicKey)
 			return true
 		} else if strings.HasPrefix(answer, "n") {
 			return false
