@@ -19,6 +19,7 @@ build: scion-bat \
 	scion-imagefetcher scion-imageserver \
 	scion-netcat \
 	scion-sensorfetcher scion-sensorserver \
+	scion-skip \
 	scion-ssh scion-sshd \
 	example-helloworld \
 	example-hellodrkey \
@@ -78,6 +79,10 @@ scion-sensorfetcher:
 .PHONY: scion-sensorserver
 scion-sensorserver:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./sensorapp/sensorserver/
+
+.PHONY: scion-skip
+scion-skip:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./skip/
 
 .PHONY: scion-ssh
 scion-ssh:
