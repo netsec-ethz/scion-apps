@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2021 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,8 +41,8 @@ const (
 func main() {
 	transport := shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
 	defer transport.Close()
-	proxy := &ProxyHandler{
-		Transport: transport,
+	proxy := &proxyHandler{
+		transport: transport,
 	}
 
 	server := &http.Server{
@@ -52,17 +52,16 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-type ProxyHandler struct {
-	Transport http.RoundTripper
+type proxyHandler struct {
+	transport http.RoundTripper
 }
 
-func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-
+func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	req.Host = demunge(req.Host)
 	req.URL.Scheme = "https"
 	req.URL.Host = req.Host
 
-	resp, err := h.Transport.RoundTrip(req)
+	resp, err := h.transport.RoundTrip(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -86,7 +85,7 @@ func copyHeader(dst, src http.Header) {
 func demunge(host string) string {
 	parts := mungedScionAddr.FindStringSubmatch(host)
 	if parts != nil {
-		// directly apply mangling as inMangleSCIONAddr
+		// directly apply mangling as in appnet.MangleSCIONAddr
 		return fmt.Sprintf("[%s-%s,%s]",
 			parts[mungedScionAddrIAIndex],
 			strings.ReplaceAll(parts[mungedScionAddrASIndex], "_", ":"),

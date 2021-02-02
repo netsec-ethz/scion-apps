@@ -4,9 +4,9 @@
 with the lighthouse/beacon scheme :boat:) is a poor man's browser integration
 for SCION.
 
-skip uses a [Proxy auto-config](https://en.wikipedia.org/wiki/Proxy_auto-config) file
-to forward all requests that are go to a SCION destination to a proxy server,
-running as a (native) binary on the localhost.
+skip uses a [Proxy auto-config](https://en.wikipedia.org/wiki/Proxy_auto-config)
+file to forward all requests with a SCION destination to a proxy server running
+as a (native) binary on localhost.
 As this mechanism does not let us support a separate protocol identifier nor allow
 looking up whether a name refers to a SCION address, we identify SCION addresses
 as either:
@@ -20,9 +20,9 @@ as either:
 * Build the `scion-skip` binary by running `make scion-skip` (see
   [Build](../README.md#build) in the main README).
 
-* Install the `skip.pac` as an "Automatic proxy configuration". 
+* Install the `skip.pac` as an "Automatic proxy configuration".
 
-  In Firefox (currently v84.0), navigate to 
+  In Firefox (currently v84.0), navigate to
   **Preferences** / **General** / **Network Settings**, enable "Automatic proxy
   configuration URL" and enter `file://` and the path to the `skip.pac` file
   (e.g. `file:///home/skipper/scion-apps/skip/skip.pac`).

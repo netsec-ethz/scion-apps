@@ -143,6 +143,9 @@ Sensorapp contains fetcher and server applications for sensor readings, using th
 
 Installation and usage information is available on the [SCION Tutorials web page for sensorapp](https://docs.scionlab.org/content/apps/fetch_sensor_readings.html).
 
+## skip
+
+skip is a very simple local HTTP proxy server for very basic SCION browser support. See the [skip README](skip/README.md) for more information.
 
 ## ssh
 
