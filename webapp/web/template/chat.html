@@ -1,0 +1,143 @@
+{{define "chat"}} {{template "header" .}}
+
+<link
+ href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css"
+ rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/3.6.4/firebase.js"></script>
+<!-- TODO: API update <script src="https://www.gstatic.com/firebasejs/6.6.1/firebase-app.js"></script> -->
+
+<script type="text/javascript" src="static/js/asviz.js"></script>
+
+<style>
+video {
+ width: 320px;
+ height: 240px;
+ background-color: #888;
+ border-radius: 7px;
+}
+
+button {
+ margin: 5px 0px 0px 0px !important;
+ width: 650px;
+}
+
+#yourVBox {
+ float: left;
+}
+
+#friendsVBox {
+ overflow: hidden;
+}
+
+.video-container {
+ width: 320px;
+ height: 240px;
+ position: relative;
+ margin: 0px 10px 0px 0px;
+}
+
+#videoFrame {
+ width: 1010px;
+ height: 300px;
+}
+
+.videos-line {
+ float: left;
+ margin: 10px 0px 0px 10px;
+}
+
+.controls-line {
+ overflow: hidden;
+ width: 220px;
+ height: 300px;
+}
+
+.overlay-desc {
+ background: rgba(0, 0, 0, 0);
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 320px;
+ height: 240px;
+ padding: 10px;
+}
+
+.overlay-text {
+ color: white;
+}
+</style>
+
+
+<div class="content">
+
+ <div id='as-error'></div>
+
+ <h2>SCIONLab Chat</h2>
+
+ <div id="videoFrame">
+
+  <div class="videos-line">
+
+   <div id="yourVBox" class="video-container">
+    <video id="yourVideo" autoplay muted>
+    </video>
+    <div class="overlay-desc">
+     <p id="yourIaText" class="overlay-text">Your Video</p>
+     <p id="yourVar1" class="overlay-text"></p>
+     <p id="yourVar2" class="overlay-text"></p>
+     <p id="yourVar3" class="overlay-text"></p>
+    </div>
+   </div>
+
+   <div id="friendsVBox" class="video-container">
+    <video id="friendsVideo" autoplay></video>
+    <div class="overlay-desc">
+     <p id="friendsIaText" class="overlay-text">Your Friend's Video</p>
+     <p id="friendsVar1" class="overlay-text"></p>
+     <p id="friendsVar2" class="overlay-text"></p>
+     <p id="friendsVar3" class="overlay-text"></p>
+    </div>
+   </div>
+
+   <button onclick="showFriendsFace()" type="button"
+    class="btn btn-primary btn-lg">
+    <span class="glyphicon glyphicon-facetime-video" aria-hidden="true"></span>
+    Call
+   </button>
+
+  </div>
+
+  <div class="controls-line">
+
+   <input id="yourMsg" type="text" placeholder="message text"> <input
+    id="btnSend" type="button" value="Send" onclick="sendTextMsg();">
+   <pre id="logMsgs" class="stdout"></pre>
+
+  </div>
+
+ </div>
+
+ <div class="stdout">
+  <div id="videoout"></div>
+ </div>
+
+</div>
+
+<script type="text/javascript" src="static/js/netcat.js"></script>
+
+
+<script type="text/javascript">
+    yourIa = {{.MyIA}};
+    // send the message after enter key as well
+    $('#yourMsg').keydown(function(e){
+        if(event.keyCode == 13) {
+           sendTextMsg();
+           e.preventDefault();
+           return false;
+        }
+    });
+</script>
+<script type="text/javascript" src="static/js/chat.js"></script>
+
+{{template "footer" .}} {{end}}

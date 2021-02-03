@@ -32,6 +32,7 @@ webapp -h
 - $sabin/bwtestclient
 - $sabin/imagefetcher
 - $sabin/sensorfetcher
+- $sabin/netcat
 
 ## Scripts/Directories Used/Checked
 - $sroot/scion.sh (deprecated)
