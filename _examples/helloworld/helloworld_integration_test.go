@@ -17,7 +17,6 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration"
@@ -51,12 +50,9 @@ func TestHelloworldSample(t *testing.T) {
 		{
 			"client_hello",
 			append([]string{"-remote", integration.DstAddrPattern + ":" + serverPort}, cmnArgs...),
-			func(prev bool, line string) bool {
-				res := strings.Contains(line, "hello world")
-				return prev || res // return true if any output line contains the string
-			},
+			integration.Contains("hello world"),
 			nil,
-			integration.Contains("Done. Wrote 11 bytes."),
+			integration.Contains("Wrote 22 bytes."),
 			nil,
 		},
 	}

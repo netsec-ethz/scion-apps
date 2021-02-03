@@ -17,11 +17,13 @@ package shttp
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 const nextProtoRaw = "raw" // Used for pretend-its-TCP QUIC
@@ -94,10 +96,11 @@ func listen(addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	quicListener, err := appquic.Listen(laddr, tlsCfg, nil)
+	quicListener, err := pan.ListenQUIC(context.Background(), laddr, nil, tlsCfg, nil)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(quicListener.Addr())
 	return singleStreamListener{quicListener}, nil
 }
 

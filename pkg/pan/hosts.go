@@ -12,34 +12,138 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package appnet
+package pan
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var (
-	resolveEtcHosts      Resolver = &hostsfileResolver{"/etc/hosts"}
-	resolveEtcScionHosts Resolver = &hostsfileResolver{"/etc/scion/hosts"}
-	resolveRains         Resolver = nil
+	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
+	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
+	resolveRains         resolver = nil
 )
 
+// ResolveUDPAddrAt parses the address and resolves the hostname.
+// The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
+// or in the form of "hostname:port".
+// If the address is in the form of a hostname, resolver is used to resolve the name.
+func resolveUDPAddrAt(address string, resolver resolver) (UDPAddr, error) {
+	raddr, err := ParseUDPAddr(address)
+	if err == nil {
+		return raddr, nil
+	}
+	hostStr, portStr, err := net.SplitHostPort(address)
+	if err != nil {
+		return UDPAddr{}, err
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return UDPAddr{}, err
+	}
+	host, err := resolver.Resolve(hostStr)
+	if err != nil {
+		return UDPAddr{}, err
+	}
+	ia := host.IA
+	return UDPAddr{IA: ia, IP: host.IP, Port: port}, nil
+}
+
+// defaultResolver returns the default name resolver, used in ResolveUDPAddr.
+// It will use the following sources, in the given order of precedence, to
+// resolve a name:
+//
+//  - /etc/hosts
+//  - /etc/scion/hosts
+//  - RAINS, if a server is configured in /etc/scion/rains.cfg.
+//    Disabled if built with !norains.
+func defaultResolver() resolver {
+	return resolverList{
+		resolveEtcHosts,
+		resolveEtcScionHosts,
+		resolveRains,
+	}
+}
+
+// scionAddr is a SCION/IP host address.
+type scionAddr struct {
+	IA IA
+	IP net.IP
+}
+
 var (
-	addrRegexp     = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),(\[[^\]]+\]|[^\[\]]+)$`)
-	hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(?:\[[^\]]+\]|[^\[\]:]+))):(\d+)$`)
+	addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),(\[[^\]]+\]|[^\[\]]+)$`)
 )
 
 const (
 	addrRegexpIaIndex = 1
 	addrRegexpL3Index = 2
+)
 
+// ParseSCIONAddr converts an SCION address string to a SCION address.
+func parseSCIONAddr(address string) (scionAddr, error) {
+	parts := addrRegexp.FindStringSubmatch(address)
+	if parts == nil {
+		return scionAddr{}, fmt.Errorf("no valid SCION address: %q", address)
+	}
+	ia, err := ParseIA(parts[addrRegexpIaIndex])
+	if err != nil {
+		return scionAddr{},
+			fmt.Errorf("invalid IA string: %v", parts[addrRegexpIaIndex])
+	}
+	l3Trimmed := strings.Trim(parts[addrRegexpL3Index], "[]")
+	ip := net.ParseIP(l3Trimmed)
+	if ip == nil {
+		return scionAddr{},
+			fmt.Errorf("invalid IP string: %v", l3Trimmed)
+	}
+	return scionAddr{IA: ia, IP: ip}, nil
+}
+
+func (a scionAddr) String() string {
+	return fmt.Sprintf("%s,%s", a.IA, a.IP)
+}
+
+// resolver is the interface to resolve a host name to a SCION host address.
+// Currently, this is implemented for reading a hosts file and RAINS
+type resolver interface {
+	// Resolve finds an address for the name.
+	// Returns a HostNotFoundError if the name was not found, but otherwise no
+	// error occurred.
+	Resolve(name string) (scionAddr, error)
+}
+
+// resolverList represents a list of Resolvers that are processed in sequence
+// to return the first match.
+type resolverList []resolver
+
+func (resolvers resolverList) Resolve(name string) (scionAddr, error) {
+	var errHostNotFound HostNotFoundError
+	for _, resolver := range resolvers {
+		if resolver != nil {
+			addr, err := resolver.Resolve(name)
+			if err == nil {
+				return addr, nil
+			} else if !errors.As(err, &errHostNotFound) {
+				return addr, err
+			}
+		}
+	}
+	return scionAddr{}, HostNotFoundError{name}
+}
+
+var (
+	hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(?:\[[^\]]+\]|[^\[\]:]+))):(\d+)$`)
+)
+
+const (
 	hostPortRegexpHostIndex = 1
 	hostPortRegexpPortIndex = 2
 )
@@ -53,64 +157,12 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 	if match != nil {
 		return match[hostPortRegexpHostIndex], match[hostPortRegexpPortIndex], nil
 	}
-	return "", "", fmt.Errorf("appnet.SplitHostPort: invalid address")
-}
-
-// ResolveUDPAddr parses the address and resolves the hostname.
-// The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
-// or in the form of "hostname:port".
-// If the address is in the form of a hostname, the DefaultResolver is used to
-// resolve the name.
-func ResolveUDPAddr(address string) (*snet.UDPAddr, error) {
-	return ResolveUDPAddrAt(address, DefaultResolver())
-}
-
-// ResolveUDPAddrAt parses the address and resolves the hostname.
-// The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
-// or in the form of "hostname:port".
-// If the address is in the form of a hostname, resolver is used to resolve the name.
-func ResolveUDPAddrAt(address string, resolver Resolver) (*snet.UDPAddr, error) {
-
-	raddr, err := snet.ParseUDPAddr(address)
-	if err == nil {
-		return raddr, nil
-	}
-	hostStr, portStr, err := net.SplitHostPort(address)
-	if err != nil {
-		return nil, err
-	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return nil, err
-	}
-	host, err := resolver.Resolve(hostStr)
-	if err != nil {
-		return nil, err
-	}
-	ia := host.IA
-	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: host.Host.IP(), Port: port}}, nil
-}
-
-// DefaultResolver returns the default name resolver, used in ResolveUDPAddr.
-// It will use the following sources, in the given order of precedence, to
-// resolve a name:
-//
-//  - /etc/hosts
-//  - /etc/scion/hosts
-//  - RAINS, if a server is configured in /etc/scion/rains.cfg.
-//    Disabled if built with !norains.
-func DefaultResolver() Resolver {
-	return ResolverList{
-		resolveEtcHosts,
-		resolveEtcScionHosts,
-		resolveRains,
-	}
+	return "", "", fmt.Errorf("pan.SplitHostPort: invalid address")
 }
 
 // MangleSCIONAddr mangles a SCION address string (if it is one) so it can be
 // safely used in the host part of a URL.
 func MangleSCIONAddr(address string) string {
-
 	raddr, err := snet.ParseUDPAddr(address)
 	if err != nil {
 		return address
@@ -153,30 +205,4 @@ func UnmangleSCIONAddr(address string) string {
 	}
 	udpAddr.Host.Port = int(p)
 	return udpAddr.String()
-}
-
-// addrFromString parses a string to a snet.SCIONAddress
-// XXX(matzf) this would optimally be part of snet
-func addrFromString(address string) (snet.SCIONAddress, error) {
-	parts := addrRegexp.FindStringSubmatch(address)
-	if parts == nil {
-		return snet.SCIONAddress{}, fmt.Errorf("no valid SCION address: %q", address)
-	}
-	ia, err := addr.IAFromString(parts[addrRegexpIaIndex])
-	if err != nil {
-		return snet.SCIONAddress{},
-			fmt.Errorf("invalid IA string: %v", parts[addrRegexpIaIndex])
-	}
-	l3Trimmed := strings.Trim(parts[addrRegexpL3Index], "[]")
-	var l3 addr.HostAddr
-	if hostSVC := addr.HostSVCFromString(l3Trimmed); hostSVC != addr.SvcNone {
-		l3 = hostSVC
-	} else {
-		l3 = addr.HostFromIPStr(l3Trimmed)
-		if l3 == nil {
-			return snet.SCIONAddress{},
-				fmt.Errorf("invalid IP address string: %v", l3Trimmed)
-		}
-	}
-	return snet.SCIONAddress{IA: ia, Host: l3}, nil
 }
