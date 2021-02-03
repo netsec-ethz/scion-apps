@@ -18,6 +18,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -57,9 +58,13 @@ type proxyHandler struct {
 }
 
 func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	req.Host = demunge(req.Host)
+	hostMunged := req.Host
+	host := demunge(req.Host)
+	req.Host = host
 	req.URL.Scheme = "https"
-	req.URL.Host = req.Host
+	req.URL.Host = host
+	// Only accept plain text so we can munge the host name in the body without decompressing (lazy)
+	req.Header.Del("Accept-Encoding")
 
 	resp, err := h.transport.RoundTrip(req)
 	if err != nil {
@@ -67,17 +72,40 @@ func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	copyHeader(w.Header(), resp.Header)
+	copyAndReplaceHeader(w.Header(), resp.Header, host, hostMunged)
 	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
+	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+		fmt.Println("replacing")
+		copyAndReplace(w, resp.Body, host, hostMunged)
+	} else {
+		_, _ = io.Copy(w, resp.Body)
+	}
 }
 
-func copyHeader(dst, src http.Header) {
+func copyAndReplaceHeader(dst, src http.Header, host, hostMunged string) {
 	for k, vv := range src {
 		for _, v := range vv {
-			dst.Add(k, v)
+			vMunged := replaceMunged([]byte(v), host, hostMunged)
+			dst.Add(k, string(vMunged))
 		}
 	}
+}
+
+func copyAndReplace(w io.Writer, body io.Reader, host, hostMunged string) {
+	// ReadAll, not the most elegant solution...
+	b, _ := ioutil.ReadAll(body)
+	b = replaceMunged(b, host, hostMunged)
+	_, _ = w.Write(b)
+}
+
+// replaceMunged replaces http://<host> or https://<host> with http://<hostMunged>, so
+// for example it replaces https://www.scionlab.org with http://www.scionlab.org.scion
+// This replacement is applied to both headers and html body so that most links and redirects
+// should work.
+func replaceMunged(s []byte, host, hostMunged string) []byte {
+	// compile and compile again, not super elegant either...
+	reOriginal := regexp.MustCompile(`http(s)?://` + regexp.QuoteMeta(host))
+	return reOriginal.ReplaceAll(s, []byte("http://"+hostMunged))
 }
 
 // demunge reverts the host name to a proper SCION address, from the format
