@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
-	mode2 "github.com/netsec-ethz/scion-apps/internal/ftp/mode"
+	libmode "github.com/netsec-ethz/scion-apps/internal/ftp/mode"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
@@ -169,7 +169,7 @@ func (c *ServerConn) getDataConnPort() (int, error) {
 // openDataConn creates a new FTP data connection.
 func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
-	if c.mode == mode2.ExtendedBlockMode {
+	if c.mode == libmode.ExtendedBlockMode {
 		addrs, err := c.spas()
 		if err != nil {
 			return nil, err
@@ -283,13 +283,18 @@ func (c *ServerConn) NameList(path string) (entries []string, err error) {
 	return
 }
 
+func (c *ServerConn) IsMlstSupported() bool {
+	_, mlstSupported := c.features["MLST"]
+	return mlstSupported
+}
+
 // List issues a LIST FTP command.
 func (c *ServerConn) List(path string) (entries []*Entry, err error) {
 
 	var cmd string
 	var parser parseFunc
 
-	if c.mlstSupported {
+	if c.IsMlstSupported() {
 		cmd = "MLSD"
 		parser = parseRFC3659ListLine
 	} else {
@@ -677,9 +682,9 @@ func (c *ServerConn) Quit() error {
 // Switch Mode
 func (c *ServerConn) Mode(mode byte) error {
 	switch mode { // check if we support the requested mode
-	case mode2.Stream:
-	case mode2.ExtendedBlockMode:
-	case mode2.Hercules:
+	case libmode.Stream:
+	case libmode.ExtendedBlockMode:
+	case libmode.Hercules:
 		break
 	default:
 		return fmt.Errorf("unsupported mode: %v", mode)
@@ -695,11 +700,12 @@ func (c *ServerConn) Mode(mode byte) error {
 }
 
 func (c *ServerConn) IsModeHercules() bool {
-	return c.mode == mode2.Hercules
+	return c.mode == libmode.Hercules
 }
 
 func (c *ServerConn) IsHerculesSupported() bool {
-	return c.herculesSupported
+	_, herculesSupported := c.features["HERCULES"]
+	return herculesSupported
 }
 
 // Striped Passive

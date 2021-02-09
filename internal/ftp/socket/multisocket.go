@@ -15,16 +15,9 @@
 package socket
 
 import (
-	"io"
 	"net"
 	"time"
 )
-
-type Socket interface {
-	io.Reader
-	io.Writer
-	io.Closer
-}
 
 type MultiSocket struct {
 	*ReaderSocket

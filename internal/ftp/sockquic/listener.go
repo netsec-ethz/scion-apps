@@ -17,7 +17,7 @@ package sockquic
 import (
 	"context"
 	"crypto/tls"
-	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
@@ -78,9 +78,12 @@ func AcceptStream(session *quic.Session) (quic.Stream, error) {
 func receiveHandshake(rw io.ReadWriter) error {
 
 	msg := make([]byte, 1)
-	err := binary.Read(rw, binary.BigEndian, msg)
+	len, err := rw.Read(msg)
 	if err != nil {
 		return err
+	}
+	if len != 1 {
+		return errors.New("invalid handshake received")
 	}
 
 	return nil

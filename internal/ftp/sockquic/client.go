@@ -16,7 +16,6 @@ package sockquic
 
 import (
 	"crypto/tls"
-	"encoding/binary"
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
@@ -60,7 +59,8 @@ func sendHandshake(rw io.ReadWriter) error {
 
 	msg := []byte{200}
 
-	return binary.Write(rw, binary.BigEndian, msg)
+	_, err := rw.Write(msg)
+	return err
 
 	// log.Debug("Sent handshake", "msg", msg)
 }

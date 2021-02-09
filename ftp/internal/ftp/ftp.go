@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
-	"github.com/scionproto/scion/go/lib/snet"
 	"io"
 	"net"
 	"net/textproto"
@@ -46,16 +45,13 @@ const (
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
 type ServerConn struct {
-	options           *dialOptions
-	socket            *socket.ScionSocket
-	conn              *textproto.Conn
-	keepAliveConn     *textproto.Conn
-	remote            string
-	features          map[string]string // Server capabilities discovered at runtime
-	mlstSupported     bool
-	herculesSupported bool
-	mode              byte
-	blockSize         int
+	options       *dialOptions
+	socket        *socket.ScionSocket
+	conn          *textproto.Conn
+	keepAliveConn *textproto.Conn
+	features      map[string]string // Server capabilities discovered at runtime
+	mode          byte
+	blockSize     int
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -117,18 +113,12 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 		sourceKConn = newDebugWrapper(kConn, do.debugOutput)
 	}
 
-	remoteHost, err := snet.ParseUDPAddr(remote)
-	if err != nil {
-		return nil, err
-	}
-
 	c := &ServerConn{
 		options:       do,
 		features:      make(map[string]string),
 		socket:        conn,
 		conn:          textproto.NewConn(sourceConn),
 		keepAliveConn: textproto.NewConn(sourceKConn),
-		remote:        remoteHost.String(),
 		blockSize:     maxChunkSize,
 	}
 
@@ -146,13 +136,6 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 			return nil, fmt.Errorf("could execute FEAT: %s\nand could not close connection: %s", err, err2)
 		}
 		return nil, fmt.Errorf("could execute FEAT: %s", err)
-	}
-
-	if _, mlstSupported := c.features["MLST"]; mlstSupported {
-		c.mlstSupported = true
-	}
-	if _, retrHerculesSupported := c.features["HERCULES"]; retrHerculesSupported {
-		c.herculesSupported = true
 	}
 
 	return c, nil
