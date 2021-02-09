@@ -79,6 +79,7 @@ func prepareHerculesArgs(herculesBinary string, herculesConfig *string, localAdd
 	return args, nil
 }
 
+// PrepareHerculesSendCommand builds an exec.Command to run Hercules in sender mode
 // Does not attempt to resolve a configuration file, if herculesConfig is nil
 func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, localAddress *net.UDPAddr, remoteAddress *snet.UDPAddr, file string, offset int64) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress, offset)
@@ -93,6 +94,7 @@ func PrepareHerculesSendCommand(herculesBinary string, herculesConfig *string, l
 	return exec.Command("sudo", args...), nil
 }
 
+// PrepareHerculesRecvCommand builds an exec.Command to run Hercules in receiver mode
 // Does not attempt to resolve a configuration file, if herculesConfig is nil
 func PrepareHerculesRecvCommand(herculesBinary string, herculesConfig *string, localAddress *net.UDPAddr, file string, offset int64) (*exec.Cmd, error) {
 	args, err := prepareHerculesArgs(herculesBinary, herculesConfig, localAddress, offset)
@@ -118,7 +120,7 @@ func checkIfRegularFile(fileName string) (bool, error) {
 	return false, err
 }
 
-// Checks for a hercules.toml config file in the following locations:
+// ResolveConfig checks for a hercules.toml config file in the following locations:
 //  - the current working directory
 //  - /etc/scion-ftp/
 //  - /etc/
@@ -136,7 +138,7 @@ func ResolveConfig() (*string, error) {
 	return nil, nil
 }
 
-// Checks that the file is writeable with the process owner's user permissions
+// AssertFileWriteable checks that the file is writeable with the process owner's user permissions
 // If the file does not exist, AssertFileWriteable will attempt to create it
 func AssertFileWriteable(path string) (fileCreated bool, err error) {
 	fileCreated = false

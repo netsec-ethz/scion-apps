@@ -14,7 +14,9 @@
 //
 // Copyright 2020-2021 ETH Zurich modifications to add support for SCION
 
-// Package ftp implements a FTP scionftp as described in RFC 959.
+// Package ftp implements an FTP client as described in RFC 959. Non-standard
+// modifications were made to support SCION, Hercules mode and the GridFTP
+// extension.
 //
 // A textproto.Error is returned for errors at the protocol level.
 package ftp
