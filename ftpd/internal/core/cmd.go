@@ -6,6 +6,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/snet"
 	"log"
 	"net"
@@ -1355,7 +1356,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 		// Addr().String() return
 		// 1-ff00:0:110,[127.0.0.1]:5848 (UDP)
 		// Remove Protocol first
-		addr := listener[i].QuicListener.Addr().String()
+		addr := appnet.DefNetwork().IA.String() + "," + listener[i].QuicListener.Addr().(*net.UDPAddr).String()
 
 		line += " " + addr + "\r\n"
 	}
