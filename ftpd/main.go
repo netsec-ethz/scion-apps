@@ -14,7 +14,7 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/core"
 	driver "github.com/netsec-ethz/scion-apps/ftpd/internal/driver/file"
-	hercules2 "github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
+	libhercules "github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
@@ -47,7 +47,7 @@ func main() {
 		auth = &core.SimpleAuth{Name: *user, Password: *pass}
 	}
 
-	herculesConfig, err := hercules2.ResolveConfig()
+	herculesConfig, err := libhercules.ResolveConfig()
 	if err != nil {
 		log.Printf("hercules.ResolveConfig: %s", err)
 	}

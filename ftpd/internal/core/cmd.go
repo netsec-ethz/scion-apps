@@ -17,7 +17,7 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/mode"
-	socket2 "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	libsocket "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
@@ -1333,7 +1333,7 @@ func (cmd commandSpas) RequireAuth() bool {
 
 func (cmd commandSpas) Execute(conn *Conn, param string) {
 
-	sockets := make([]socket2.DataSocket, conn.parallelism)
+	sockets := make([]libsocket.DataSocket, conn.parallelism)
 	listener := make([]*sockquic.Listener, conn.parallelism)
 	var err error
 
@@ -1376,7 +1376,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 		sockets[i] = connection
 	}
 
-	conn.dataConn = socket2.NewMultiSocket(sockets, conn.blockSize)
+	conn.dataConn = libsocket.NewMultiSocket(sockets, conn.blockSize)
 
 }
 
