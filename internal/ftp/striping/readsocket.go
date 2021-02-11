@@ -12,38 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package socket
+package striping
 
 import (
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"io"
-
-	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 )
 
-type ReaderSocket struct {
-	sockets []DataSocket
-	queue   *striping.SegmentQueue
-	pop     <-chan *striping.Segment
+type readerSocket struct {
+	sockets []socket.DataSocket
+	queue   *SegmentQueue
+	pop     <-chan *Segment
 }
 
-var _ io.Reader = &ReaderSocket{}
-var _ io.Closer = &ReaderSocket{}
+var _ io.Reader = &readerSocket{}
+var _ io.Closer = &readerSocket{}
 
-func NewReadsocket(sockets []DataSocket) *ReaderSocket {
-	return &ReaderSocket{
+func newReaderSocket(sockets []socket.DataSocket) *readerSocket {
+	return &readerSocket{
 		sockets: sockets,
-		queue:   striping.NewSegmentQueue(len(sockets)),
+		queue:   NewSegmentQueue(len(sockets)),
 	}
 }
 
-func (s *ReaderSocket) Read(p []byte) (n int, err error) {
+func (s *readerSocket) Read(p []byte) (n int, err error) {
 
 	if s.pop == nil {
 		push, pop := s.queue.PushChannel()
 		s.pop = pop
 
 		for _, subSocket := range s.sockets {
-			reader := NewReadWorker(subSocket)
+			reader := newReadWorker(subSocket)
 			go reader.Run(push)
 		}
 	}
@@ -60,6 +59,6 @@ func (s *ReaderSocket) Read(p []byte) (n int, err error) {
 
 }
 
-func (s *ReaderSocket) Close() error {
+func (s *readerSocket) Close() error {
 	panic("implement me")
 }

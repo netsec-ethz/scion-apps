@@ -12,31 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package socket
+package striping
 
 import (
 	"context"
 	"encoding/binary"
+	socket2 "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-type WriteWorker struct {
+type writeWorker struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
-	segments chan *striping.Segment
-	socket   DataSocket
+	segments chan *Segment
+	socket   socket2.DataSocket
 }
 
-func NewWriteWorker(ctx context.Context, wg *sync.WaitGroup, segments chan *striping.Segment, socket DataSocket) *WriteWorker {
-	return &WriteWorker{ctx, wg, segments, socket}
+func newWriteWorker(ctx context.Context, wg *sync.WaitGroup, segments chan *Segment, socket socket2.DataSocket) *writeWorker {
+	return &writeWorker{ctx, wg, segments, socket}
 }
 
 // Writes segments until receives cancellation signal on Done()
 // and sends EOD Header after that.
-func (w *WriteWorker) Run() {
+func (w *writeWorker) Run() {
 	for {
 		select {
 		case segment := <-w.segments:
@@ -46,9 +46,9 @@ func (w *WriteWorker) Run() {
 			}
 
 		case <-w.ctx.Done():
-			eod := striping.NewHeader(
+			eod := NewHeader(
 				0, 0,
-				striping.BlockFlagEndOfData)
+				BlockFlagEndOfData)
 			err := w.writeHeader(eod)
 			if err != nil {
 				log.Error("Failed to write eod header", "err", err)
@@ -59,11 +59,11 @@ func (w *WriteWorker) Run() {
 	}
 }
 
-func (w *WriteWorker) writeHeader(header *striping.Header) error {
+func (w *writeWorker) writeHeader(header *Header) error {
 	return binary.Write(w.socket, binary.BigEndian, header)
 }
 
-func (w *WriteWorker) writeSegment(segment *striping.Segment) error {
+func (w *writeWorker) writeSegment(segment *Segment) error {
 	err := w.writeHeader(segment.Header)
 	if err != nil {
 		return err

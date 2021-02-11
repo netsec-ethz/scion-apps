@@ -6,6 +6,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/snet"
 	"log"
@@ -1377,7 +1378,7 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 		sockets[i] = connection
 	}
 
-	conn.dataConn = libsocket.NewMultiSocket(sockets, conn.blockSize)
+	conn.dataConn = striping.NewMultiSocket(sockets, conn.blockSize)
 
 }
 

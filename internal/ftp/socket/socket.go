@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// DataSocket describes a data socket is used to send non-control data between the scionftp and
+// DataSocket describes a data socket is used to send non-control data between the client and
 // server.
 type DataSocket interface {
 	// the standard io.Reader interface

@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package socket
+package striping
 
 import (
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"net"
 	"time"
 )
 
 type MultiSocket struct {
-	*ReaderSocket
-	*WriterSocket
+	*readerSocket
+	*writerSocket
 	closed bool
 }
 
@@ -29,28 +30,28 @@ func (m *MultiSocket) SetDeadline(t time.Time) error {
 	panic("implement me")
 }
 
-var _ DataSocket = &MultiSocket{}
+var _ socket.DataSocket = &MultiSocket{}
 
-// Only the scionftp should close the socket
+// Only the client should close the socket
 // Sends the closing message
 func (m *MultiSocket) Close() error {
-	return m.WriterSocket.Close()
+	return m.writerSocket.Close()
 }
 
 func (m *MultiSocket) LocalAddr() net.Addr {
-	return m.WriterSocket.sockets[0].LocalAddr()
+	return m.writerSocket.sockets[0].LocalAddr()
 }
 
 func (m *MultiSocket) RemoteAddr() net.Addr {
-	return m.WriterSocket.sockets[0].RemoteAddr()
+	return m.writerSocket.sockets[0].RemoteAddr()
 }
 
-var _ DataSocket = &MultiSocket{}
+var _ socket.DataSocket = &MultiSocket{}
 
-func NewMultiSocket(sockets []DataSocket, maxLength int) *MultiSocket {
+func NewMultiSocket(sockets []socket.DataSocket, maxLength int) *MultiSocket {
 	return &MultiSocket{
-		NewReadsocket(sockets),
-		NewWriterSocket(sockets, maxLength),
+		newReaderSocket(sockets),
+		newWriterSocket(sockets, maxLength),
 		false,
 	}
 }

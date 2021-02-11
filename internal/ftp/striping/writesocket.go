@@ -12,33 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package socket
+package striping
 
 import (
 	"context"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"io"
 	"sync"
 )
 
-type WriterSocket struct {
-	sockets           []DataSocket
+type writerSocket struct {
+	sockets           []socket.DataSocket
 	maxLength         int
-	segmentChannel    chan *striping.Segment
+	segmentChannel    chan *Segment
 	wg                *sync.WaitGroup
 	cancel            context.CancelFunc
 	written           int
 	dispatchedWriters bool
 }
 
-var _ io.Writer = &WriterSocket{}
-var _ io.Closer = &WriterSocket{}
+var _ io.Writer = &writerSocket{}
+var _ io.Closer = &writerSocket{}
 
-func NewWriterSocket(sockets []DataSocket, maxLength int) *WriterSocket {
-	return &WriterSocket{
+func newWriterSocket(sockets []socket.DataSocket, maxLength int) *writerSocket {
+	return &writerSocket{
 		sockets:        sockets,
 		maxLength:      maxLength,
-		segmentChannel: make(chan *striping.Segment),
+		segmentChannel: make(chan *Segment),
 		wg:             &sync.WaitGroup{},
 	}
 }
@@ -46,7 +46,7 @@ func NewWriterSocket(sockets []DataSocket, maxLength int) *WriterSocket {
 // Will dispatch workers if required and write on
 // the allocated stream. After writing it is necessary
 // to call FinishAndWait() to make sure that everything is sent
-func (s *WriterSocket) Write(p []byte) (n int, err error) {
+func (s *writerSocket) Write(p []byte) (n int, err error) {
 	if !s.dispatchedWriters {
 		s.dispatchedWriters = true
 		s.cancel = s.dispatchWriter()
@@ -67,7 +67,7 @@ func (s *WriterSocket) Write(p []byte) (n int, err error) {
 		data := make([]byte, to-cur)
 		copy(data, p[cur:to])
 
-		s.segmentChannel <- striping.NewSegment(data, s.written)
+		s.segmentChannel <- NewSegment(data, s.written)
 
 		s.written += to - cur
 
@@ -77,7 +77,7 @@ func (s *WriterSocket) Write(p []byte) (n int, err error) {
 
 // Should only be called when all segments have been dispatchedReader,
 // that is, segmentChannel should be empty
-func (s *WriterSocket) FinishAndWait() {
+func (s *writerSocket) FinishAndWait() {
 	// Wait until all writers have finished
 	if !s.dispatchedWriters {
 		return
@@ -90,22 +90,22 @@ func (s *WriterSocket) FinishAndWait() {
 	s.dispatchedWriters = false
 }
 
-func (s *WriterSocket) dispatchWriter() context.CancelFunc {
+func (s *writerSocket) dispatchWriter() context.CancelFunc {
 	ctx, cancel := context.WithCancel(context.TODO())
 
 	for _, socket := range s.sockets {
 		s.wg.Add(1)
-		worker := NewWriteWorker(ctx, s.wg, s.segmentChannel, socket)
+		worker := newWriteWorker(ctx, s.wg, s.segmentChannel, socket)
 		go worker.Run()
 	}
 
 	return cancel
 }
 
-// Closing the WriterSocket blocks until until all
+// Closing the writerSocket blocks until until all
 // children have finished sending and then closes
 // all sub-sockets
-func (s *WriterSocket) Close() error {
+func (s *writerSocket) Close() error {
 
 	s.FinishAndWait()
 

@@ -12,30 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package socket
+package striping
 
 import (
 	"encoding/binary"
 	"fmt"
-
-	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
+	libsocket "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
-// A ReadWorker should be dispatched and runs until it
+// A readWorker should be dispatched and runs until it
 // receives the closing connection
 // Does not need to be closed since it's closed
 // automatically
-type ReadWorker struct {
-	socket DataSocket
+type readWorker struct {
+	socket libsocket.DataSocket
 	// ctx    context.Context // Currently unused
 }
 
-func NewReadWorker(socket DataSocket) *ReadWorker {
-	return &ReadWorker{socket: socket}
+func newReadWorker(socket libsocket.DataSocket) *readWorker {
+	return &readWorker{socket: socket}
 }
 
 // Keeps running until it receives an EOD flag
-func (s *ReadWorker) Run(push chan<- *striping.Segment) {
+func (s *readWorker) Run(push chan<- *Segment) {
 	for {
 		seg, err := receiveNextSegment(s.socket)
 		if err != nil {
@@ -44,15 +43,15 @@ func (s *ReadWorker) Run(push chan<- *striping.Segment) {
 
 		push <- seg
 
-		if seg.ContainsFlag(striping.BlockFlagEndOfData) {
+		if seg.ContainsFlag(BlockFlagEndOfData) {
 			return
 		}
 
 	}
 }
 
-func receiveNextSegment(socket DataSocket) (*striping.Segment, error) {
-	header := &striping.Header{}
+func receiveNextSegment(socket libsocket.DataSocket) (*Segment, error) {
+	header := &Header{}
 	err := binary.Read(socket, binary.BigEndian, header)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read header: %s", err)
@@ -72,7 +71,7 @@ func receiveNextSegment(socket DataSocket) (*striping.Segment, error) {
 			cur += n
 		}
 		if cur == int(header.ByteCount) {
-			return striping.NewSegmentWithHeader(header, data), nil
+			return NewSegmentWithHeader(header, data), nil
 		}
 	}
 }

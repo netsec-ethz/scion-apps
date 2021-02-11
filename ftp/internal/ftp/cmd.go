@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 	"github.com/scionproto/scion/go/lib/snet"
 	"io"
 	"log"
@@ -195,7 +196,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
 		wg.Wait()
 
-		return socket.NewMultiSocket(sockets, c.blockSize), nil
+		return striping.NewMultiSocket(sockets, c.blockSize), nil
 
 	} else {
 		// for Stream and Hercules mode, data connections work the same,
