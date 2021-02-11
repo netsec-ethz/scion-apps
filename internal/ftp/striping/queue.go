@@ -15,35 +15,25 @@
 package striping
 
 import (
-	"github.com/netsec-ethz/scion-apps/internal/ftp/queue"
+	"container/heap"
 )
 
 type SegmentQueue struct {
-	internal    queue.Queue
+	internal    heap.Interface
 	offset      uint64
 	openStreams int
 }
 
-var _ queue.Sortable = &Item{}
-
-type Item struct {
-	Segment
-}
-
-func (item *Item) Less(b queue.Sortable) bool {
-	return item.OffsetCount < b.(*Item).OffsetCount
-}
-
 func (q *SegmentQueue) Push(segment *Segment) {
-	q.internal.Push(segment)
+	heap.Push(q.internal, segment)
 }
 
 func (q *SegmentQueue) Pop() *Segment {
-	return q.internal.Pop().(*Segment)
+	return heap.Pop(q.internal).(*Segment)
 }
 
 func (q *SegmentQueue) Peek() *Segment {
-	return q.internal.Peek().(*Segment)
+	return (*q.internal.(segmentHeap).segments)[0]
 }
 
 func (q *SegmentQueue) Len() int {
@@ -52,7 +42,7 @@ func (q *SegmentQueue) Len() int {
 
 func NewSegmentQueue(workers int) *SegmentQueue {
 	return &SegmentQueue{
-		internal:    queue.NewQueue(),
+		internal:    newSegmentHeap(),
 		offset:      0,
 		openStreams: workers,
 	}

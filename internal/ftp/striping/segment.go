@@ -14,15 +14,9 @@
 
 package striping
 
-import "github.com/netsec-ethz/scion-apps/internal/ftp/queue"
-
 type Segment struct {
 	*Header
 	Data []byte
-}
-
-func (a *Segment) Less(b queue.Sortable) bool {
-	return a.OffsetCount < b.(*Segment).OffsetCount
 }
 
 func NewSegment(data []byte, offset int, flags ...uint8) *Segment {

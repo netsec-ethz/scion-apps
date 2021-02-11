@@ -63,12 +63,14 @@ func receiveNextSegment(socket DataSocket) (*striping.Segment, error) {
 
 	// Read all bytes
 	for {
-		n, err := socket.Read(data[cur:header.ByteCount])
-		if err != nil {
-			return nil, fmt.Errorf("failed to read payload: %s", err)
-		}
+		if cur < int(header.ByteCount) {
+			n, err := socket.Read(data[cur:header.ByteCount])
+			if err != nil {
+				return nil, fmt.Errorf("failed to read payload: %s", err)
+			}
 
-		cur += n
+			cur += n
+		}
 		if cur == int(header.ByteCount) {
 			return striping.NewSegmentWithHeader(header, data), nil
 		}

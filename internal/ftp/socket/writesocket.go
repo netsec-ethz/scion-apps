@@ -16,10 +16,9 @@ package socket
 
 import (
 	"context"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 	"io"
 	"sync"
-
-	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 )
 
 type WriterSocket struct {
