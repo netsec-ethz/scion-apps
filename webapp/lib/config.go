@@ -28,9 +28,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	log "github.com/inconshreveable/log15"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
-	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // default params for localhost testing
@@ -44,8 +45,10 @@ var cfgFileCliUser = "config/clients_user.json"
 var cfgFileSerUser = "config/servers_user.json"
 var cfgFileCliDef = "config/clients_default.json"
 var cfgFileSerDef = "config/servers_default.json"
+var cfgFileSerIA = "config/servers_iaToSd.json"
 
 var topologyFile = "topology.json"
+var sdFile = "sd.toml"
 
 // command argument constants
 var CMD_ADR = "a"
@@ -71,9 +74,21 @@ type UserSetting struct {
 	SDAddress string `json:"sdAddress"`
 }
 
-type Topology struct {
+// topology holds the IA from topology.json
+type topology struct {
 	IA string `json:"isd_as"`
 }
+
+// sdTomlConfig holds the information from sd.toml
+type sdTomlConfig struct {
+	SD sdInfo `toml:"sd"`
+}
+
+// sdInfo holds the Sciond infomation from the sd field in sd.toml
+type sdInfo struct {
+	Address string `toml:"address"`
+}
+
 
 type CmdOptions struct {
 	Addr          string
@@ -189,13 +204,13 @@ func ParseFlags() CmdOptions {
 // WriteUserSetting writes the settings to disk.
 func WriteUserSetting(options *CmdOptions, settings *UserSetting) {
 	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
+	settingsJSON, _ := json.Marshal(settings)
 
 	// writing myIA means we have to retrieve sciond's tcp address too
 	// since sciond's address may be autognerated
-	config, err := LoadSciondConfig(options, settings.MyIA)
+	sd, err := LoadSciondConfig(options, settings.MyIA)
 	CheckError(err)
-	settings.SDAddress = config.SD.Address
-	settingsJSON, _ := json.Marshal(settings)
+	settings.SDAddress = sd
 
 	log.Info("Updating...", "UserSetting", string(settingsJSON))
 	err = ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
@@ -215,21 +230,64 @@ func ReadUserSetting(options *CmdOptions) UserSetting {
 	return settings
 }
 
-// ScanLocalIAs will load list of locally available IAs
-func ScanLocalIAs(options *CmdOptions) []string {
-	var localIAs []string
+// ScanLocalSetting will load list of locally available IAs and their corresponding Scionds
+func ScanLocalSetting(options *CmdOptions) map[string]string {
+	iaToSd := make(map[string]string)
 	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.Name() == topologyFile {
-			var t Topology
-			raw, _ := ioutil.ReadFile(path)
-			json.Unmarshal([]byte(raw), &t)
-			localIAs = append(localIAs, t.IA)
+			sdPath := path[:len(path)-len(topologyFile)] + sdFile
+			ia := getIAFromTopologyFile(path)
+			sd := getSDFromSDTomlFile(sdPath)
+			iaToSd[ia] = sd
 		}
 		return nil
 	})
-	sort.Strings(localIAs)
-	return localIAs
+	return iaToSd
+}
+
+// WriteLocalSettings writes the ia to sciond mapping to disk
+func WriteLocalSettings(options *CmdOptions, iaToSD map[string]string) {
+	fp := path.Join(options.StaticRoot, cfgFileSerIA)
+	settingsJSON, _ := json.Marshal(iaToSD)
+	log.Info("Updating...", "IAs and Scionds", string(settingsJSON))
+	err := ioutil.WriteFile(fp, settingsJSON, 0644)
+	CheckError(err)
+}
+
+// ReadLocalSettings reads the ia to sciond mappings from disk
+func ReadLocalSettings(options *CmdOptions) map[string]string {
+	iaToSD := make(map[string]string)
+	fp := path.Join(options.StaticRoot, cfgFileSerIA)
+
+	raw, err := ioutil.ReadFile(fp)
+	CheckError(err)
+	log.Debug("ReadLocalSettings from saved", "settings", string(raw))
+	json.Unmarshal([]byte(raw), &iaToSD)
+
+	return iaToSD
+}
+
+// getSDFromSDTomlFile returns sciond address from sd.toml on the given path
+func getSDFromSDTomlFile(path string) string {
+	var config sdTomlConfig
+	if _, err := toml.DecodeFile(path, &config); err == nil {
+		return config.SD.Address
+	}
+	// if sd.toml is not present, read from the environment variable SCION_DAEMON_ADDRESS
+	sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
+	if !ok {
+		sd = sciond.DefaultAPIAddress
+	}
+	return sd
+}
+
+// getIAFromTopologyFile returns IA from topology.json on the given path
+func getIAFromTopologyFile(path string) string {
+	var t topology
+	raw, _ := ioutil.ReadFile(path)
+	json.Unmarshal([]byte(raw), &t)
+	return t.IA
 }
 
 // StringInSlice can check a slice for a unique string
@@ -361,28 +419,4 @@ func GetNodesHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 	raw, err := ioutil.ReadFile(fp)
 	CheckError(err)
 	fmt.Fprint(w, string(raw))
-}
-
-// GetPathInGen returns the full path of the fileName in scionGen directory
-func GetPathInGen(scionGen, fileName, ia string) (string, error) {
-	ias, err := addr.IAFromString(ia)
-	if err != nil {
-		return "", err
-	}
-	// first try scionGen/ISDn/ASm/filename
-	resPath := path.Join(scionGen, addr.ISDFmtPrefix+strconv.FormatUint(uint64(ias.I), 10),
-		addr.ASFmtPrefix+ias.A.FileFmt(), fileName)
-	if _, err := os.Stat(resPath); os.IsNotExist(err) {
-		// second try scionGen/ASn/filename
-		resPath = path.Join(scionGen, addr.ASFmtPrefix+ias.A.FileFmt(), fileName)
-		if _, err := os.Stat(resPath); os.IsNotExist(err) {
-			// final try scionGen/filename
-			resPath = path.Join(scionGen, fileName)
-			if _, err := os.Stat(resPath); os.IsNotExist(err) {
-				// fileName could not be found
-				return "", fmt.Errorf("%s not present in the gen directory", fileName)
-			}
-		}
-	}
-	return resPath, nil
 }

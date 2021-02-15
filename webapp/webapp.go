@@ -165,8 +165,15 @@ func main() {
 
 // load list of locally available IAs and determine user choices
 func initLocalIaOptions() {
-	localIAs = lib.ScanLocalIAs(&options)
+	// get IA to Sciond mappings of all locally available IAs
+	iaToSD := lib.ScanLocalSetting(&options)
 	settings = lib.ReadUserSetting(&options)
+
+	// extract all available IAs from the map
+	localIAs = make([]string, 0, len(iaToSD))
+	for ia := range iaToSD {
+		localIAs = append(localIAs, ia)
+	}
 
 	// if read myia not in list, pick default
 	iaExists := lib.StringInSlice(localIAs, settings.MyIA)
@@ -175,10 +182,12 @@ func initLocalIaOptions() {
 	if !iaExists {
 		if len(localIAs) > 0 {
 			settings.MyIA = localIAs[0]
+			settings.SDAddress = iaToSD[localIAs[0]]
 		} else {
-			settings.MyIA = ""
+			log.Error("No IAs found")
 		}
 	}
+	lib.WriteLocalSettings(&options, iaToSD)
 	lib.WriteUserSetting(&options, &settings)
 }
 

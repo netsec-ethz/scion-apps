@@ -32,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	log "github.com/inconshreveable/log15"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
@@ -69,31 +68,16 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 	fmt.Fprint(w, buffer.String())
 }
 
-type sdInfo struct {
-	Address string `toml:"address"`
-}
+func LoadSciondConfig(options *CmdOptions, ia string) (string, error) {
+	// read the sd address from the local settings file on disk
+	iaToSD := ReadLocalSettings(options)
+	sd, ok := iaToSD[ia]
 
-type sdTomlConfig struct {
-	SD sdInfo `toml:"sd"`
-}
-
-func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
-	var config sdTomlConfig
-	// try to get sciond address from sd.toml, if it's not there then read it from SCION_DAEMON_ADDRESS
-	tomlPath, err := GetPathInGen(options.ScionGen, "sd.toml", ia)
-	if err == nil {
-		if _, err := toml.DecodeFile(tomlPath, &config); err == nil {
-			return config, nil
-		}
-	}
-	// read from the environment variable SCION_DAEMON_ADDRESS
-	sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
+	// if the ia was not in the local settings file, return error
 	if !ok {
-		sd = sciond.DefaultAPIAddress
+		return "", fmt.Errorf("ia not present in the %s file", cfgFileSerIA)
 	}
-	config = sdTomlConfig{
-		SD: sdInfo{Address: sd}}
-	return config, nil
+	return sd, nil
 }
 
 // connect opens a connection to the scion daemon at sciondAddress or, if
@@ -147,13 +131,13 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		return
 	}
 
-	config, err := LoadSciondConfig(options, CIa)
+	sd, err := LoadSciondConfig(options, CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
 
-	sciondConn, err := connect(config.SD.Address)
+	sciondConn, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -300,13 +284,13 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) 
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	config, err := LoadSciondConfig(options, CIa)
+	sd, err := LoadSciondConfig(options, CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
 
-	c, err := connect(config.SD.Address)
+	c, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)
 		return
