@@ -68,7 +68,7 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 	fmt.Fprint(w, buffer.String())
 }
 
-func LoadSciondConfig(options *CmdOptions, ia string) (string, error) {
+func GetSciondAddress(options *CmdOptions, ia string) (string, error) {
 	// read the sd address from the local settings file on disk
 	iaToInfo := ReadLocalSettings(options)
 	info, ok := iaToInfo[ia]
@@ -131,7 +131,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		return
 	}
 
-	sd, err := LoadSciondConfig(options, CIa)
+	sd, err := GetSciondAddress(options, CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -284,7 +284,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) 
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	sd, err := LoadSciondConfig(options, CIa)
+	sd, err := GetSciondAddress(options, CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return

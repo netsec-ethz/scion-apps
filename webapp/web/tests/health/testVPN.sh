@@ -26,7 +26,7 @@ fi
 
 # ip address of the tun0 interface
 ipAddress=$(echo "$targetLines" | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -n1)
-topologyFile=${3}/topology.json
+topologyFile=$3
 # ip address specified in the topology file. If "bind" parameter present, use that one; "public" if not
 ipTopology=$(cat $topologyFile | python3 -c "import sys, json
 brs = json.load(sys.stdin)['BorderRouters']

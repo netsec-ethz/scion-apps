@@ -48,7 +48,8 @@ var cfgFileSerDef = "config/servers_default.json"
 var cfgFileSerIA = "config/servers_ias.json"
 
 var topologyFile = "topology.json"
-var sdFile = "sd.toml"
+var sdToml = "sd.toml"
+var sciondToml = "sciond.toml"
 
 // command argument constants
 var CMD_ADR = "a"
@@ -74,10 +75,11 @@ type UserSetting struct {
 	Info IAInfo `json:"info"`
 }
 
-// IAInfo holds data about an ia
+// IAInfo holds data about ia
 type IAInfo struct {
 	Sciond  string
-	GenPath string
+	SdTomlPath string
+	TopologyPath string
 }
 
 // topology holds the IA from topology.json
@@ -236,12 +238,17 @@ func ScanLocalSetting(options *CmdOptions) map[string]IAInfo {
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.Name() == topologyFile {
 			dirPath := path[:len(path)-len(topologyFile)]
-			sdPath := dirPath + sdFile
+			// TODO sciond information is either sd.toml or sciond.toml, clean this once this is settled
+			sdPath := dirPath + sdToml
+			if _, err := os.Stat(sdPath); os.IsNotExist(err) {
+				sdPath = dirPath + sciondToml
+			}
 			ia := getIAFromTopologyFile(path)
 			sd := getSDFromSDTomlFile(sdPath)
 			iaToInfo[ia] = IAInfo{
 				Sciond:  sd,
-				GenPath: dirPath,
+				SdTomlPath: sdPath,
+				TopologyPath: path,
 			}
 		}
 		return nil

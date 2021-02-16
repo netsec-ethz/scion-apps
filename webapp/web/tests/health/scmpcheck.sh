@@ -23,7 +23,7 @@ echo "IP found: $ip"
 # find the topology file in gen
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 as=$(echo ${iaFile} | cut -d"-" -f2)
-topologyFile=${3}/topology.json
+topologyFile=$3
 
 # get remote addresses from interfaces, return paired list
 dsts=($(cat $topologyFile | python3 -c "import sys, json
