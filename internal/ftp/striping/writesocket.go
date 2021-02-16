@@ -16,13 +16,13 @@ package striping
 
 import (
 	"context"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"io"
+	"net"
 	"sync"
 )
 
 type writerSocket struct {
-	sockets           []socket.DataSocket
+	sockets           []net.Conn
 	maxLength         int
 	segmentChannel    chan *Segment
 	wg                *sync.WaitGroup
@@ -34,7 +34,7 @@ type writerSocket struct {
 var _ io.Writer = &writerSocket{}
 var _ io.Closer = &writerSocket{}
 
-func newWriterSocket(sockets []socket.DataSocket, maxLength int) *writerSocket {
+func newWriterSocket(sockets []net.Conn, maxLength int) *writerSocket {
 	return &writerSocket{
 		sockets:        sockets,
 		maxLength:      maxLength,

@@ -17,14 +17,13 @@
 package ftp
 
 import (
+	"net"
 	"time"
-
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
 // Response represents a data-connection
 type Response struct {
-	conn   socket.DataSocket
+	conn   net.Conn
 	c      *ServerConn
 	closed bool
 }

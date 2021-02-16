@@ -15,7 +15,6 @@
 package striping
 
 import (
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"net"
 	"time"
 )
@@ -26,11 +25,34 @@ type MultiSocket struct {
 	closed bool
 }
 
-func (m *MultiSocket) SetDeadline(t time.Time) error {
-	panic("implement me")
+func (m *MultiSocket) SetReadDeadline(t time.Time) error {
+	// readerSocket.sockets contains the same sockets as writerSocket.sockets, hence it's fine to just:
+	for _, s := range m.readerSocket.sockets {
+		if err := s.SetReadDeadline(t); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-var _ socket.DataSocket = &MultiSocket{}
+func (m *MultiSocket) SetWriteDeadline(t time.Time) error {
+	// writerSocket.sockets contains the same sockets as readerSocket.sockets, hence it's fine to just:
+	for _, s := range m.writerSocket.sockets {
+		if err := s.SetWriteDeadline(t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *MultiSocket) SetDeadline(t time.Time) error {
+	if err := m.SetReadDeadline(t); err != nil {
+		return err
+	}
+	return m.SetWriteDeadline(t)
+}
+
+var _ net.Conn = &MultiSocket{}
 
 // Only the client should close the socket
 // Sends the closing message
@@ -46,9 +68,7 @@ func (m *MultiSocket) RemoteAddr() net.Addr {
 	return m.writerSocket.sockets[0].RemoteAddr()
 }
 
-var _ socket.DataSocket = &MultiSocket{}
-
-func NewMultiSocket(sockets []socket.DataSocket, maxLength int) *MultiSocket {
+func NewMultiSocket(sockets []net.Conn, maxLength int) *MultiSocket {
 	return &MultiSocket{
 		newReaderSocket(sockets),
 		newWriterSocket(sockets, maxLength),

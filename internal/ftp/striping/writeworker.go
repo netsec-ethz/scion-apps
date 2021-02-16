@@ -17,7 +17,7 @@ package striping
 import (
 	"context"
 	"encoding/binary"
-	socket2 "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"net"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -27,10 +27,10 @@ type writeWorker struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
 	segments chan *Segment
-	socket   socket2.DataSocket
+	socket   net.Conn
 }
 
-func newWriteWorker(ctx context.Context, wg *sync.WaitGroup, segments chan *Segment, socket socket2.DataSocket) *writeWorker {
+func newWriteWorker(ctx context.Context, wg *sync.WaitGroup, segments chan *Segment, socket net.Conn) *writeWorker {
 	return &writeWorker{ctx, wg, segments, socket}
 }
 

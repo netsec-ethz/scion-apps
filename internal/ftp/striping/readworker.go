@@ -17,7 +17,7 @@ package striping
 import (
 	"encoding/binary"
 	"fmt"
-	libsocket "github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"net"
 )
 
 // A readWorker should be dispatched and runs until it
@@ -25,11 +25,11 @@ import (
 // Does not need to be closed since it's closed
 // automatically
 type readWorker struct {
-	socket libsocket.DataSocket
+	socket net.Conn
 	// ctx    context.Context // Currently unused
 }
 
-func newReadWorker(socket libsocket.DataSocket) *readWorker {
+func newReadWorker(socket net.Conn) *readWorker {
 	return &readWorker{socket: socket}
 }
 
@@ -50,7 +50,7 @@ func (s *readWorker) Run(push chan<- *Segment) {
 	}
 }
 
-func receiveNextSegment(socket libsocket.DataSocket) (*Segment, error) {
+func receiveNextSegment(socket net.Conn) (*Segment, error) {
 	header := &Header{}
 	err := binary.Read(socket, binary.BigEndian, header)
 	if err != nil {

@@ -37,7 +37,7 @@ type Conn struct {
 	keepAliveConn   net.Conn
 	keepAliveReader *bufio.Reader
 	keepAliveWriter *bufio.Writer
-	dataConn        socket.DataSocket
+	dataConn        net.Conn
 	driver          Driver
 	auth            Auth
 	logger          logger.Logger

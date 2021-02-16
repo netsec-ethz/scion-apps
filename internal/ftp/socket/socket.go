@@ -8,32 +8,9 @@ package socket
 import (
 	"github.com/lucas-clemente/quic-go"
 	"net"
-	"time"
 )
 
-// DataSocket describes a data socket is used to send non-control data between the client and
-// server.
-type DataSocket interface {
-	// the standard io.Reader interface
-	Read(p []byte) (n int, err error)
-
-	// the standard io.ReaderFrom interface
-	// ReadFrom(r io.Reader) (int64, error)
-
-	// the standard io.Writer interface
-	Write(p []byte) (n int, err error)
-
-	// the standard io.Closer interface
-	Close() error
-
-	// Set deadline associated with connection (scionftp)
-	SetDeadline(t time.Time) error
-
-	LocalAddr() net.Addr
-	RemoteAddr() net.Addr
-}
-
-var _ DataSocket = &ScionSocket{}
+var _ net.Conn = &ScionSocket{}
 
 type ScionSocket struct {
 	quic.Session

@@ -15,12 +15,12 @@
 package striping
 
 import (
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"io"
+	"net"
 )
 
 type readerSocket struct {
-	sockets []socket.DataSocket
+	sockets []net.Conn
 	queue   *SegmentQueue
 	pop     <-chan *Segment
 }
@@ -28,7 +28,7 @@ type readerSocket struct {
 var _ io.Reader = &readerSocket{}
 var _ io.Closer = &readerSocket{}
 
-func newReaderSocket(sockets []socket.DataSocket) *readerSocket {
+func newReaderSocket(sockets []net.Conn) *readerSocket {
 	return &readerSocket{
 		sockets: sockets,
 		queue:   NewSegmentQueue(len(sockets)),

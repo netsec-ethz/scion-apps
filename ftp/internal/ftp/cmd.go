@@ -35,7 +35,6 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	libmode "github.com/netsec-ethz/scion-apps/internal/ftp/mode"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
@@ -168,7 +167,7 @@ func (c *ServerConn) getDataConnPort() (int, error) {
 
 // TODO: Close connections if there is an error with the others
 // openDataConn creates a new FTP data connection.
-func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
+func (c *ServerConn) openDataConn() (net.Conn, error) {
 
 	if c.mode == libmode.ExtendedBlockMode {
 		addrs, err := c.spas()
@@ -178,7 +177,7 @@ func (c *ServerConn) openDataConn() (socket.DataSocket, error) {
 
 		wg := &sync.WaitGroup{}
 
-		sockets := make([]socket.DataSocket, len(addrs))
+		sockets := make([]net.Conn, len(addrs))
 		wg.Add(len(sockets))
 		for i := range sockets {
 
@@ -231,7 +230,7 @@ func (c *ServerConn) cmd(expected int, format string, args ...interface{}) (int,
 
 // cmdDataConnFrom executes a command which require a FTP data connection.
 // Issues a REST FTP command to specify the number of bytes to skip for the transfer.
-func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (socket.DataSocket, error) {
+func (c *ServerConn) cmdDataConnFrom(offset uint64, format string, args ...interface{}) (net.Conn, error) {
 	conn, err := c.openDataConn()
 	if err != nil {
 		return nil, err
