@@ -20,6 +20,7 @@ if [ $isd -ge 16 ]; then
     status="$(systemctl -t service --failed | grep scion*.service 2>&1)"
 else
     # localhost testing
+    [ -z "$SCION_ROOT" ] && error_exit "SCION_ROOT env variable not set, scion.sh can't be found"
     cd $SCION_ROOT
     status="$($SCION_ROOT/scion.sh status 2>&1)"
 fi

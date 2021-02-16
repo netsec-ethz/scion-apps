@@ -15,13 +15,7 @@ echo "IA found: $iaFile"
 # find the topology file in gen
 isd=$(echo ${iaFile} | cut -d"-" -f1)
 as=$(echo ${iaFile} | cut -d"-" -f2)
-topologyFile=$SCION_GEN/ISD$isd/AS$as/topology.json
-if [ ! -f $topologyFile ]; then
-    topologyFile=$SCION_GEN/AS$as/topology.json
-    if [ ! -f $topologyFile ]; then
-        topologyFile=$SCION_GEN/topology.json
-    fi
-fi
+topologyFile=${3}/topology.json
 
 # get remote addresses from interfaces
 ip_dsts=$(cat $topologyFile | python3 -c "import sys, json

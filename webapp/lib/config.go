@@ -45,7 +45,7 @@ var cfgFileCliUser = "config/clients_user.json"
 var cfgFileSerUser = "config/servers_user.json"
 var cfgFileCliDef = "config/clients_default.json"
 var cfgFileSerDef = "config/servers_default.json"
-var cfgFileSerIA = "config/servers_iaToSd.json"
+var cfgFileSerIA = "config/servers_ias.json"
 
 var topologyFile = "topology.json"
 var sdFile = "sd.toml"
@@ -70,8 +70,14 @@ var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
 // UserSetting holds the serialized structure for persistent user settings
 type UserSetting struct {
-	MyIA      string `json:"myIa"`
-	SDAddress string `json:"sdAddress"`
+	MyIA string `json:"myIa"`
+	Info IAInfo `json:"info"`
+}
+
+// IAInfo holds data about an ia
+type IAInfo struct {
+	Sciond  string
+	GenPath string
 }
 
 // topology holds the IA from topology.json
@@ -84,11 +90,10 @@ type sdTomlConfig struct {
 	SD sdInfo `toml:"sd"`
 }
 
-// sdInfo holds the Sciond infomation from the sd field in sd.toml
+// sdInfo holds the Sciond information from the sd field in sd.toml
 type sdInfo struct {
 	Address string `toml:"address"`
 }
-
 
 type CmdOptions struct {
 	Addr          string
@@ -206,14 +211,8 @@ func WriteUserSetting(options *CmdOptions, settings *UserSetting) {
 	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
 	settingsJSON, _ := json.Marshal(settings)
 
-	// writing myIA means we have to retrieve sciond's tcp address too
-	// since sciond's address may be autognerated
-	sd, err := LoadSciondConfig(options, settings.MyIA)
-	CheckError(err)
-	settings.SDAddress = sd
-
 	log.Info("Updating...", "UserSetting", string(settingsJSON))
-	err = ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
+	err := ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
 	CheckError(err)
 }
 
@@ -231,41 +230,45 @@ func ReadUserSetting(options *CmdOptions) UserSetting {
 }
 
 // ScanLocalSetting will load list of locally available IAs and their corresponding Scionds
-func ScanLocalSetting(options *CmdOptions) map[string]string {
-	iaToSd := make(map[string]string)
+func ScanLocalSetting(options *CmdOptions) map[string]IAInfo {
+	iaToInfo := make(map[string]IAInfo)
 	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.Name() == topologyFile {
-			sdPath := path[:len(path)-len(topologyFile)] + sdFile
+			dirPath := path[:len(path)-len(topologyFile)]
+			sdPath := dirPath + sdFile
 			ia := getIAFromTopologyFile(path)
 			sd := getSDFromSDTomlFile(sdPath)
-			iaToSd[ia] = sd
+			iaToInfo[ia] = IAInfo{
+				Sciond:  sd,
+				GenPath: dirPath,
+			}
 		}
 		return nil
 	})
-	return iaToSd
+	return iaToInfo
 }
 
 // WriteLocalSettings writes the ia to sciond mapping to disk
-func WriteLocalSettings(options *CmdOptions, iaToSD map[string]string) {
+func WriteLocalSettings(options *CmdOptions, iaToInfo map[string]IAInfo) {
 	fp := path.Join(options.StaticRoot, cfgFileSerIA)
-	settingsJSON, _ := json.Marshal(iaToSD)
+	settingsJSON, _ := json.Marshal(iaToInfo)
 	log.Info("Updating...", "IAs and Scionds", string(settingsJSON))
 	err := ioutil.WriteFile(fp, settingsJSON, 0644)
 	CheckError(err)
 }
 
 // ReadLocalSettings reads the ia to sciond mappings from disk
-func ReadLocalSettings(options *CmdOptions) map[string]string {
-	iaToSD := make(map[string]string)
+func ReadLocalSettings(options *CmdOptions) map[string]IAInfo {
+	iaToInfo := make(map[string]IAInfo)
 	fp := path.Join(options.StaticRoot, cfgFileSerIA)
 
 	raw, err := ioutil.ReadFile(fp)
 	CheckError(err)
 	log.Debug("ReadLocalSettings from saved", "settings", string(raw))
-	json.Unmarshal([]byte(raw), &iaToSD)
+	json.Unmarshal([]byte(raw), &iaToInfo)
 
-	return iaToSD
+	return iaToInfo
 }
 
 // getSDFromSDTomlFile returns sciond address from sd.toml on the given path
