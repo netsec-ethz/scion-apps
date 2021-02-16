@@ -21,6 +21,7 @@ build: scion-bat \
 	scion-sensorfetcher scion-sensorserver \
 	scion-skip \
 	scion-ssh scion-sshd \
+	scion-ftp scion-ftpd \
 	example-helloworld \
 	example-hellodrkey \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
@@ -95,6 +96,14 @@ scion-sshd:
 .PHONY: scion-webapp
 scion-webapp:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./webapp/
+
+.PHONY: scion-ftp
+scion-ftp:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftp/
+
+.PHONY: scion-ftpd
+scion-ftpd:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./ftpd/
 
 .PHONY: example-helloworld
 example-helloworld:
