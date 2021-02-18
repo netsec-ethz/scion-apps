@@ -29,8 +29,8 @@ import (
 	"strings"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/pelletier/go-toml"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
+	"github.com/pelletier/go-toml"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
@@ -65,9 +65,9 @@ var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
 // IAConfig holds data about ia
 type IAConfig struct {
-	Sciond  string
-	SdTomlPath string
-	TopologyPath string
+	Sciond        string
+	SdTomlPath    string
+	TopologyPath  string
 	MetricsServer string
 }
 
@@ -162,9 +162,9 @@ func ScanLocalSetting(options *CmdOptions) map[string]IAConfig {
 			}
 			ia := getIAFromTopologyFile(path)
 			iaToCfg[ia] = IAConfig{
-				Sciond: getSDFromSDTomlFile(sdPath),
-				SdTomlPath: sdPath,
-				TopologyPath: path,
+				Sciond:        getSDFromSDTomlFile(sdPath),
+				SdTomlPath:    sdPath,
+				TopologyPath:  path,
 				MetricsServer: getMetricsServer(dirPath),
 			}
 		}
