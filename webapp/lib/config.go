@@ -28,8 +28,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	log "github.com/inconshreveable/log15"
+	"github.com/pelletier/go-toml"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
@@ -85,16 +85,6 @@ type IAInfo struct {
 // topology holds the IA from topology.json
 type topology struct {
 	IA string `json:"isd_as"`
-}
-
-// sdTomlConfig holds the information from sd.toml
-type sdTomlConfig struct {
-	SD sdInfo `toml:"sd"`
-}
-
-// sdInfo holds the Sciond information from the sd field in sd.toml
-type sdInfo struct {
-	Address string `toml:"address"`
 }
 
 type CmdOptions struct {
@@ -280,14 +270,16 @@ func ReadLocalSettings(options *CmdOptions) map[string]IAInfo {
 
 // getSDFromSDTomlFile returns sciond address from sd.toml on the given path
 func getSDFromSDTomlFile(path string) string {
-	var config sdTomlConfig
-	if _, err := toml.DecodeFile(path, &config); err == nil {
-		return config.SD.Address
-	}
-	// if sd.toml is not present, read from the environment variable SCION_DAEMON_ADDRESS
-	sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
-	if !ok {
-		sd = sciond.DefaultAPIAddress
+	var sd string
+	if config, err := toml.LoadFile(path); err == nil {
+		sd = config.Get("sd.address").(string)
+	} else {
+		log.Error("toml file %s could not be read", path)
+		var ok bool
+		sd, ok = os.LookupEnv("SCION_DAEMON_ADDRESS")
+		if !ok {
+			sd = sciond.DefaultAPIAddress
+		}
 	}
 	return sd
 }
