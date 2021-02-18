@@ -117,7 +117,6 @@ func main() {
 
 	// logging
 	logDirPath := ensurePath(options.StaticRoot, "logs")
-	checkPath(options.ScionLogs)
 	log.Root().SetHandler(log.MultiHandler(
 		log.LvlFilterHandler(log.LvlDebug,
 			log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),

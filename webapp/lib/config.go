@@ -54,10 +54,8 @@ var CMD_ADR = "a"
 var CMD_PRT = "p"
 var CMD_WEB = "srvroot"
 var CMD_BRT = "r"
-var CMD_SCN = "sroot"
 var CMD_SCG = "sgen"
 var CMD_SCC = "sgenc"
-var CMD_SCL = "slogs"
 
 // appsRoot is the root location of scionlab apps.
 var GOPATH = os.Getenv("GOPATH")
@@ -70,6 +68,7 @@ type IAConfig struct {
 	Sciond  string
 	SdTomlPath string
 	TopologyPath string
+	MetricsServer string
 }
 
 // topology holds the IA from topology.json
@@ -84,7 +83,6 @@ type CmdOptions struct {
 	BrowseRoot    string
 	ScionGen      string
 	ScionGenCache string
-	ScionLogs     string
 }
 
 func (o *CmdOptions) AbsPathCmdOptions() {
@@ -92,7 +90,6 @@ func (o *CmdOptions) AbsPathCmdOptions() {
 	o.BrowseRoot, _ = filepath.Abs(o.BrowseRoot)
 	o.ScionGen, _ = filepath.Abs(o.ScionGen)
 	o.ScionGenCache, _ = filepath.Abs(o.ScionGenCache)
-	o.ScionLogs, _ = filepath.Abs(o.ScionLogs)
 }
 
 func isFlagUsed(name string) bool {
@@ -121,11 +118,6 @@ func defaultScionGenCache() string {
 	return "/var/lib/scion"
 }
 
-// TODO (mmalesev) change this to the new logs dir (if it exists)
-func defaultScionLogs() string {
-	return "logs"
-}
-
 func ParseFlags() CmdOptions {
 	addr := flag.String(CMD_ADR, listenAddrDef, "Address of server host.")
 	port := flag.Int(CMD_PRT, listenPortDef, "Port of server host.")
@@ -137,8 +129,6 @@ func ParseFlags() CmdOptions {
 		"Path to read SCION gen directory of infrastructure config")
 	scionGenCache := flag.String(CMD_SCC, defaultScionGenCache(),
 		"Path to read SCION gen-cache directory of infrastructure run-time config")
-	scionLogs := flag.String(CMD_SCL, defaultScionLogs(),
-		"Path to read SCION logs directory of infrastructure logging")
 	flag.Parse()
 	// recompute root args to use the proper relative defaults if undefined
 	if !isFlagUsed(CMD_WEB) {
@@ -153,10 +143,7 @@ func ParseFlags() CmdOptions {
 	if !isFlagUsed(CMD_SCC) {
 		*scionGenCache = defaultScionGenCache()
 	}
-	if !isFlagUsed(CMD_SCL) {
-		*scionLogs = defaultScionLogs()
-	}
-	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *scionGen, *scionGenCache, *scionLogs}
+	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *scionGen, *scionGenCache}
 	options.AbsPathCmdOptions()
 	return options
 }
@@ -174,16 +161,31 @@ func ScanLocalSetting(options *CmdOptions) map[string]IAConfig {
 				sdPath = dirPath + sciondToml
 			}
 			ia := getIAFromTopologyFile(path)
-			sd := getSDFromSDTomlFile(sdPath)
 			iaToCfg[ia] = IAConfig{
-				Sciond:  sd,
+				Sciond: getSDFromSDTomlFile(sdPath),
 				SdTomlPath: sdPath,
 				TopologyPath: path,
+				MetricsServer: getMetricsServer(dirPath),
 			}
 		}
 		return nil
 	})
 	return iaToCfg
+}
+
+// getMetricsServer returns metrics server address from sc-*.toml on the given path
+func getMetricsServer(searchPath string) string {
+	srv := searchPath
+	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
+		// searching for cs*.toml file (a hacky way to avoid importing a regex package)
+		if f != nil && len(f.Name()) > len("cs-.toml") && f.Name()[:2] == "cs" &&
+			f.Name()[len(f.Name())-5:] == ".toml" {
+			config, _ := toml.LoadFile(path)
+			srv = config.Get("metrics.prometheus").(string) + "/metrics"
+		}
+		return nil
+	})
+	return srv
 }
 
 // getSDFromSDTomlFile returns sciond address from sd.toml on the given path

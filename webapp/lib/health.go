@@ -72,7 +72,6 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 
 	envvars := []string{
 		"SCION_GEN=" + path.Clean(options.ScionGen),
-		"SCION_LOGS=" + path.Clean(options.ScionLogs),
 	}
 
 	var tests DefTests
@@ -99,7 +98,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		log.Info(test.Script + ": " + test.Desc)
 		// execute script
 		cmd := exec.Command("bash", test.Script,
-			myIA, cfg.Sciond, cfg.TopologyPath)
+			myIA, cfg.Sciond, cfg.TopologyPath, cfg.MetricsServer)
 		cmd.Dir = filepath.Dir(fp)
 		cmd.Env = append(os.Environ(), envvars...)
 		var stdout, stderr bytes.Buffer
