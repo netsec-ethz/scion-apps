@@ -152,8 +152,6 @@ func main() {
 	lib.GenClientNodeDefaults(&options, myIA)
 	lib.GenServerNodeDefaults(&options, localIAs)
 
-	checkPath(options.AppsRoot)
-	checkPath(options.ScionBin)
 	appsBuildCheck("bwtester")
 	appsBuildCheck("camerapp")
 	appsBuildCheck("sensorapp")
@@ -537,25 +535,35 @@ func getClientCwd(app string) string {
 	case "bwtester":
 		cwd = path.Join(options.StaticRoot, "data")
 	case "echo", "traceroute":
-		cwd = path.Join(options.ScionBin, ".")
+		cwd = "."
 	}
 	return cwd
 }
 
-// Parses html selection and returns name of app binary.
+// Returns full path of app binary.
 func getClientLocationBin(app string) string {
-	var binname string
+	var appName, binPath string
 	switch app {
 	case "sensorapp":
-		binname = path.Join(options.AppsRoot, "scion-sensorfetcher")
+		appName = "scion-sensorfetcher"
 	case "camerapp":
-		binname = path.Join(options.AppsRoot, "scion-imagefetcher")
+		appName = "scion-imagefetcher"
 	case "bwtester":
-		binname = path.Join(options.AppsRoot, "scion-bwtestclient")
+		appName = "scion-bwtestclient"
 	case "echo", "traceroute":
-		binname = path.Join(options.ScionBin, "scion")
+		appName = "scion"
 	}
-	return binname
+
+	paths := strings.Split(os.Getenv("PATH"), ":")
+	for _, p := range paths {
+		appPath := path.Join(p, "/", appName)
+		if _, err := os.Stat(appPath); !os.IsNotExist(err) {
+			binPath = appPath
+			break
+		}
+	}
+
+	return binPath
 }
 
 // Handles piping command line output to logs, database, and http response writer.

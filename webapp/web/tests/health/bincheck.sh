@@ -3,12 +3,13 @@
 
 # check for required binaries which may not have been built and installed
 missingbin=false
-declare -a apps=("$SCION_BIN/scion" "$APPS_ROOT/scion-bwtestclient" "$APPS_ROOT/scion-imagefetcher" "$APPS_ROOT/scion-sensorfetcher" )
-for fbin in "${apps[@]}"; do
-    if [ -f "$fbin" ]; then
-        echo "$fbin exists"
+declare -a apps=("scion" "scion-bwtestclient" "scion-imagefetcher" "scion-sensorfetcher" )
+for a in "${apps[@]}"; do
+    path=$(which $a)
+    if [ -x "$path" ]; then
+        echo "$a exists"
     else
-        echo "$fbin does not exist, check that SCION and SCION Apps are installed and that -sbin and -sabin point to the correct directories." 1>&2
+        echo "$a does not exist, check that SCION and SCION Apps are installed and that PATH is set correctly." 1>&2
         missingbin=true
     fi
 done

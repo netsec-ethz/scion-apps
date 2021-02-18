@@ -52,11 +52,9 @@ var sciondToml = "sciond.toml"
 // command argument constants
 var CMD_ADR = "a"
 var CMD_PRT = "p"
-var CMD_ART = "sabin"
 var CMD_WEB = "srvroot"
 var CMD_BRT = "r"
 var CMD_SCN = "sroot"
-var CMD_SCB = "sbin"
 var CMD_SCG = "sgen"
 var CMD_SCC = "sgenc"
 var CMD_SCL = "slogs"
@@ -84,8 +82,6 @@ type CmdOptions struct {
 	Port          int
 	StaticRoot    string
 	BrowseRoot    string
-	AppsRoot      string
-	ScionBin      string
 	ScionGen      string
 	ScionGenCache string
 	ScionLogs     string
@@ -94,8 +90,6 @@ type CmdOptions struct {
 func (o *CmdOptions) AbsPathCmdOptions() {
 	o.StaticRoot, _ = filepath.Abs(o.StaticRoot)
 	o.BrowseRoot, _ = filepath.Abs(o.BrowseRoot)
-	o.AppsRoot, _ = filepath.Abs(o.AppsRoot)
-	o.ScionBin, _ = filepath.Abs(o.ScionBin)
 	o.ScionGen, _ = filepath.Abs(o.ScionGen)
 	o.ScionGenCache, _ = filepath.Abs(o.ScionGenCache)
 	o.ScionLogs, _ = filepath.Abs(o.ScionLogs)
@@ -111,26 +105,12 @@ func isFlagUsed(name string) bool {
 	return found
 }
 
-// defaultAppsRoot returns the directory containing the webapp executable as
-// the default base directory for the apps resources
-func defaultAppsRoot() string {
-	exec, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	return path.Dir(exec)
+func defaultStaticRoot() string {
+	return "webapp/web"
 }
 
-func defaultStaticRoot(appsRoot string) string {
-	return path.Join(appsRoot, "../webapp/web")
-}
-
-func defaultBrowseRoot(staticRoot string) string {
-	return path.Join(staticRoot, "data")
-}
-
-func defaultScionBin() string {
-	return "/usr/bin"
+func defaultBrowseRoot() string {
+	return "data"
 }
 
 func defaultScionGen() string {
@@ -149,14 +129,10 @@ func defaultScionLogs() string {
 func ParseFlags() CmdOptions {
 	addr := flag.String(CMD_ADR, listenAddrDef, "Address of server host.")
 	port := flag.Int(CMD_PRT, listenPortDef, "Port of server host.")
-	appsRoot := flag.String(CMD_ART, defaultAppsRoot(),
-		"Path to execute the installed scionlab apps binaries")
-	staticRoot := flag.String(CMD_WEB, defaultStaticRoot(*appsRoot),
+	staticRoot := flag.String(CMD_WEB, defaultStaticRoot(),
 		"Path to read/write web server files.")
-	browseRoot := flag.String(CMD_BRT, defaultBrowseRoot(*staticRoot),
+	browseRoot := flag.String(CMD_BRT, defaultBrowseRoot(),
 		"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
-	scionBin := flag.String(CMD_SCB, defaultScionBin(),
-		"Path to execute SCION bin directory of infrastructure tools")
 	scionGen := flag.String(CMD_SCG, defaultScionGen(),
 		"Path to read SCION gen directory of infrastructure config")
 	scionGenCache := flag.String(CMD_SCC, defaultScionGenCache(),
@@ -166,14 +142,10 @@ func ParseFlags() CmdOptions {
 	flag.Parse()
 	// recompute root args to use the proper relative defaults if undefined
 	if !isFlagUsed(CMD_WEB) {
-		*staticRoot = defaultStaticRoot(*appsRoot)
+		*staticRoot = defaultStaticRoot()
 	}
 	if !isFlagUsed(CMD_BRT) {
-		*browseRoot = defaultBrowseRoot(*staticRoot)
-	}
-
-	if !isFlagUsed(CMD_SCB) {
-		*scionBin = defaultScionBin()
+		*browseRoot = defaultBrowseRoot()
 	}
 	if !isFlagUsed(CMD_SCG) {
 		*scionGen = defaultScionGen()
@@ -184,8 +156,7 @@ func ParseFlags() CmdOptions {
 	if !isFlagUsed(CMD_SCL) {
 		*scionLogs = defaultScionLogs()
 	}
-	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *appsRoot,
-		*scionBin, *scionGen, *scionGenCache, *scionLogs}
+	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *scionGen, *scionGenCache, *scionLogs}
 	options.AbsPathCmdOptions()
 	return options
 }

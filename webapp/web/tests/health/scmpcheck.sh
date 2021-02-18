@@ -42,7 +42,7 @@ do
     # if no response under default scmp ping timeout consider connection failed
     ia_dst="${dsts[i]}"
     ip_dst="${dsts[i+1]}"
-    cmd="$SCION_BIN/scion ping -c 1 --timeout 5s $ia_dst,[$ip_dst]"
+    cmd="scion ping -c 1 --timeout 5s $ia_dst,[$ip_dst]"
     if [ $isd -lt 16 ]; then
         # local tests
         cmd="$cmd --sciond $sdaddress"
