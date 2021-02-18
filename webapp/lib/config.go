@@ -41,11 +41,9 @@ var cliPortDef = 30001
 var serPortDef = 30100
 var serDefAddr = "127.0.0.2"
 
-var cfgFileCliUser = "config/clients_user.json"
 var cfgFileSerUser = "config/servers_user.json"
 var cfgFileCliDef = "config/clients_default.json"
 var cfgFileSerDef = "config/servers_default.json"
-var cfgFileSerIA = "config/servers_ias.json"
 
 var topologyFile = "topology.json"
 var sdToml = "sd.toml"
@@ -69,14 +67,8 @@ var GOPATH = os.Getenv("GOPATH")
 // scionRoot is the root location of the scion infrastructure.
 var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
-// UserSetting holds the serialized structure for persistent user settings
-type UserSetting struct {
-	MyIA string `json:"myIa"`
-	Info IAInfo `json:"info"`
-}
-
-// IAInfo holds data about ia
-type IAInfo struct {
+// IAConfig holds data about ia
+type IAConfig struct {
 	Sciond  string
 	SdTomlPath string
 	TopologyPath string
@@ -198,32 +190,9 @@ func ParseFlags() CmdOptions {
 	return options
 }
 
-// WriteUserSetting writes the settings to disk.
-func WriteUserSetting(options *CmdOptions, settings *UserSetting) {
-	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
-	settingsJSON, _ := json.Marshal(settings)
-
-	log.Info("Updating...", "UserSetting", string(settingsJSON))
-	err := ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
-	CheckError(err)
-}
-
-// ReadUserSetting reads the settings from disk.
-func ReadUserSetting(options *CmdOptions) UserSetting {
-	var settings UserSetting
-	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
-
-	// no problem when user settings not set yet
-	raw, _ := ioutil.ReadFile(cliUserFp)
-	log.Debug("ReadUserSetting from saved", "settings", string(raw))
-	json.Unmarshal([]byte(raw), &settings)
-
-	return settings
-}
-
 // ScanLocalSetting will load list of locally available IAs and their corresponding Scionds
-func ScanLocalSetting(options *CmdOptions) map[string]IAInfo {
-	iaToInfo := make(map[string]IAInfo)
+func ScanLocalSetting(options *CmdOptions) map[string]IAConfig {
+	iaToCfg := make(map[string]IAConfig)
 	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.Name() == topologyFile {
@@ -235,7 +204,7 @@ func ScanLocalSetting(options *CmdOptions) map[string]IAInfo {
 			}
 			ia := getIAFromTopologyFile(path)
 			sd := getSDFromSDTomlFile(sdPath)
-			iaToInfo[ia] = IAInfo{
+			iaToCfg[ia] = IAConfig{
 				Sciond:  sd,
 				SdTomlPath: sdPath,
 				TopologyPath: path,
@@ -243,29 +212,7 @@ func ScanLocalSetting(options *CmdOptions) map[string]IAInfo {
 		}
 		return nil
 	})
-	return iaToInfo
-}
-
-// WriteLocalSettings writes the ia to sciond mapping to disk
-func WriteLocalSettings(options *CmdOptions, iaToInfo map[string]IAInfo) {
-	fp := path.Join(options.StaticRoot, cfgFileSerIA)
-	settingsJSON, _ := json.Marshal(iaToInfo)
-	log.Info("Updating...", "IAs and Scionds", string(settingsJSON))
-	err := ioutil.WriteFile(fp, settingsJSON, 0644)
-	CheckError(err)
-}
-
-// ReadLocalSettings reads the ia to sciond mappings from disk
-func ReadLocalSettings(options *CmdOptions) map[string]IAInfo {
-	iaToInfo := make(map[string]IAInfo)
-	fp := path.Join(options.StaticRoot, cfgFileSerIA)
-
-	raw, err := ioutil.ReadFile(fp)
-	CheckError(err)
-	log.Debug("ReadLocalSettings from saved", "settings", string(raw))
-	json.Unmarshal([]byte(raw), &iaToInfo)
-
-	return iaToInfo
+	return iaToCfg
 }
 
 // getSDFromSDTomlFile returns sciond address from sd.toml on the given path
@@ -290,16 +237,6 @@ func getIAFromTopologyFile(path string) string {
 	raw, _ := ioutil.ReadFile(path)
 	json.Unmarshal([]byte(raw), &t)
 	return t.IA
-}
-
-// StringInSlice can check a slice for a unique string
-func StringInSlice(arr []string, i string) bool {
-	for _, v := range arr {
-		if v == i {
-			return true
-		}
-	}
-	return false
 }
 
 // Makes interfaces sortable, by preferred name
@@ -411,8 +348,6 @@ func GetNodesHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		fp = path.Join(options.StaticRoot, cfgFileCliDef)
 	case "servers_default":
 		fp = path.Join(options.StaticRoot, cfgFileSerDef)
-	case "clients_user":
-		fp = path.Join(options.StaticRoot, cfgFileCliUser)
 	case "servers_user":
 		fp = path.Join(options.StaticRoot, cfgFileSerUser)
 	default:

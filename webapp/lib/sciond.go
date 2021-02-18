@@ -68,18 +68,6 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 	fmt.Fprint(w, buffer.String())
 }
 
-func GetSciondAddress(options *CmdOptions, ia string) (string, error) {
-	// read the sd address from the local settings file on disk
-	iaToInfo := ReadLocalSettings(options)
-	info, ok := iaToInfo[ia]
-
-	// if the ia was not in the local settings file, return error
-	if !ok {
-		return "", fmt.Errorf("ia not present in the %s file", cfgFileSerIA)
-	}
-	return info.Sciond, nil
-}
-
 // connect opens a connection to the scion daemon at sciondAddress or, if
 // empty, the default address.
 func connect(sciondAddress string) (sciond.Connector, error) {
@@ -110,7 +98,7 @@ type Hop struct {
 }
 
 // PathTopoHandler handles requests for paths, returning results from sciond.
-func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
+func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, iaToCfg map[string]IAConfig) {
 	r.ParseForm()
 	SIa := r.PostFormValue("ia_ser")
 	CIa := r.PostFormValue("ia_cli")
@@ -131,12 +119,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		return
 	}
 
-	sd, err := GetSciondAddress(options, CIa)
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-
+	sd := iaToCfg[CIa].Sciond
 	sciondConn, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)
@@ -280,16 +263,11 @@ func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 }
 
 // AsTopoHandler handles requests for AS data, returning results from sciond.
-func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
+func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, iaToCfg map[string]IAConfig) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	sd, err := GetSciondAddress(options, CIa)
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-
+	sd := iaToCfg[CIa].Sciond
 	c, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)

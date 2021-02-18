@@ -41,7 +41,8 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-var settings lib.UserSetting
+// myIA is the currently selected IA
+var myIA string
 var id = "webapp"
 
 const reAvailPath = `(?i:available paths to)`
@@ -50,8 +51,8 @@ const reRemoveAnsi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z
 // list of locally available IAs
 var localIAs []string
 
-// mapping of locally available IAs to their info
-var iaToInfo map[string]lib.IAInfo
+// mapping of locally available IAs to their configuration
+var iaToCfg map[string]lib.IAConfig
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -145,10 +146,10 @@ func main() {
 	checkPath(options.ScionGen)
 	checkPath(options.ScionGenCache)
 	initLocalIaOptions()
-	log.Info("IA loaded:", "myIa", settings.MyIA)
+	log.Info("IA loaded:", "myIa", myIA)
 
 	// generate client/server default
-	lib.GenClientNodeDefaults(&options, settings.MyIA)
+	lib.GenClientNodeDefaults(&options, myIA)
 	lib.GenServerNodeDefaults(&options, localIAs)
 
 	checkPath(options.AppsRoot)
@@ -171,34 +172,20 @@ func main() {
 // load list of locally available IAs and determine user choices
 func initLocalIaOptions() {
 	// get a map of locally available IAs to their information
-	iaToInfo = lib.ScanLocalSetting(&options)
+	iaToCfg = lib.ScanLocalSetting(&options)
+	if len(iaToCfg) == 0 {
+		log.Error("No IAs found on the server")
+		return
+	}
 
 	// extract all available IAs from the map
-	localIAs = make([]string, 0, len(iaToInfo))
-	for ia := range iaToInfo {
+	localIAs = make([]string, 0, len(iaToCfg))
+	for ia := range iaToCfg {
 		localIAs = append(localIAs, ia)
 	}
 	sort.Strings(localIAs)
 
-	// read the IA information provided by the user
-	settings = lib.ReadUserSetting(&options)
-
-	// if read myia not in list, pick default
-	iaExists := lib.StringInSlice(localIAs, settings.MyIA)
-	if !iaExists {
-		if len(localIAs) > 0 {
-			settings.MyIA = localIAs[0]
-		} else {
-			log.Error("No IAs found on the server")
-			return
-		}
-	}
-
-	// get the information about the selected IA
-	settings.Info = iaToInfo[settings.MyIA]
-
-	lib.WriteLocalSettings(&options, iaToInfo)
-	lib.WriteUserSetting(&options, &settings)
+	myIA = localIAs[0]
 }
 
 func initServeHandlers() {
@@ -273,32 +260,32 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: settings.MyIA})
+	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: myIA})
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.WriteHeader(status)
-	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: settings.MyIA})
+	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: myIA})
 }
 
 func dirViewHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: settings.MyIA})
+	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: myIA})
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "about", &Page{Title: "SCIONLab About", MyIA: settings.MyIA})
+	display(w, "about", &Page{Title: "SCIONLab About", MyIA: myIA})
 }
 
 func appsHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: settings.MyIA})
+	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: myIA})
 }
 
 func astopoHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: settings.MyIA})
+	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: myIA})
 }
 
 func trcHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: settings.MyIA})
+	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: myIA})
 }
 
 // There're three CmdItem, BwTestItem, EchoItem and TracerouteItem
@@ -387,7 +374,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optCount := fmt.Sprintf("-c=%d", d.Count)
 		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
 		optInterval := fmt.Sprintf("--interval=%fs", d.Interval)
-		optSciond := fmt.Sprintf("--sciond=%s", settings.Info.Sciond)
+		optSciond := fmt.Sprintf("--sciond=%s", iaToCfg[myIA].Sciond)
 		command = append(command, installpath,
 			optApp, optRemote, optCount, optTimeout, optInterval, optSciond)
 
@@ -400,7 +387,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optApp := "traceroute"
 		optRemote := fmt.Sprintf("%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
-		optSciond := fmt.Sprintf("--sciond=%s", settings.Info.Sciond)
+		optSciond := fmt.Sprintf("--sciond=%s", iaToCfg[myIA].Sciond)
 		command = append(command, installpath, optApp, optRemote, optTimeout, optSciond)
 	}
 
@@ -506,7 +493,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = getClientCwd(appSel)
-	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+settings.Info.Sciond)
+	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+iaToCfg[myIA].Sciond)
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
@@ -694,7 +681,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, &options, settings)
+	lib.HealthCheckHandler(w, r, &options, myIA, iaToCfg[myIA])
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
@@ -723,11 +710,11 @@ func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.PathTopoHandler(w, r, &options)
+	lib.PathTopoHandler(w, r, &options, iaToCfg)
 }
 
 func getAsTopoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.AsTopoHandler(w, r, &options)
+	lib.AsTopoHandler(w, r, &options, iaToCfg)
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
@@ -742,13 +729,7 @@ func getIAsHandler(w http.ResponseWriter, r *http.Request) {
 
 func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
 	// in:myIA , out:nil, set locally
-	myIa := r.PostFormValue("myIA")
-	settings = lib.ReadUserSetting(&options)
-	settings.MyIA = myIa
-	settings.Info = iaToInfo[myIa]
-
-	// save myIA to file
-	lib.WriteUserSetting(&options, &settings)
-	lib.GenClientNodeDefaults(&options, settings.MyIA)
-	log.Info("IA set:", "myIa", settings.MyIA)
+	myIA = r.PostFormValue("myIA")
+	lib.GenClientNodeDefaults(&options, myIA)
+	log.Info("IA set:", "myIa", myIA)
 }
