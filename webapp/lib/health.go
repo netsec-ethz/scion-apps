@@ -59,7 +59,7 @@ type ResHealthCheck struct {
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, myIA string, cfg IAConfig) {
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, myIA string, cfg ASConfig) {
 	hcResFp := path.Join(options.StaticRoot, resFileHealthCheck)
 	// read specified tests from json definition
 	fp := path.Join(options.StaticRoot, defFileHealthCheck)

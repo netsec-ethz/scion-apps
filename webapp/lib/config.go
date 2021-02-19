@@ -63,13 +63,16 @@ var GOPATH = os.Getenv("GOPATH")
 // scionRoot is the root location of the scion infrastructure.
 var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
-// IAConfig holds data about ia
-type IAConfig struct {
+// ASConfig holds data about ia
+type ASConfig struct {
 	Sciond        string
 	SdTomlPath    string
 	TopologyPath  string
 	MetricsServer string
 }
+
+// mapping AS addresses to their corresponding configs
+type ASConfigs = map[string]ASConfig
 
 // topology holds the IA from topology.json
 type topology struct {
@@ -149,8 +152,8 @@ func ParseFlags() CmdOptions {
 }
 
 // ScanLocalSetting will load list of locally available IAs and their corresponding Scionds
-func ScanLocalSetting(options *CmdOptions) map[string]IAConfig {
-	iaToCfg := make(map[string]IAConfig)
+func ScanLocalSetting(options *CmdOptions) ASConfigs {
+	cfg := make(ASConfigs)
 	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
 		if f != nil && f.Name() == topologyFile {
@@ -161,7 +164,7 @@ func ScanLocalSetting(options *CmdOptions) map[string]IAConfig {
 				sdPath = dirPath + sciondToml
 			}
 			ia := getIAFromTopologyFile(path)
-			iaToCfg[ia] = IAConfig{
+			cfg[ia] = ASConfig{
 				Sciond:        getSDFromSDTomlFile(sdPath),
 				SdTomlPath:    sdPath,
 				TopologyPath:  path,
@@ -170,22 +173,17 @@ func ScanLocalSetting(options *CmdOptions) map[string]IAConfig {
 		}
 		return nil
 	})
-	return iaToCfg
+	return cfg
 }
 
-// getMetricsServer returns metrics server address from sc-*.toml on the given path
+// getMetricsServer returns metrics server address from cs*.toml on the given path
 func getMetricsServer(searchPath string) string {
-	srv := searchPath
-	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
-		// searching for cs*.toml file (a hacky way to avoid importing a regex package)
-		if f != nil && len(f.Name()) > len("cs-.toml") && f.Name()[:2] == "cs" &&
-			f.Name()[len(f.Name())-5:] == ".toml" {
-			config, _ := toml.LoadFile(path)
-			srv = config.Get("metrics.prometheus").(string) + "/metrics"
-		}
-		return nil
-	})
-	return srv
+	files, err := filepath.Glob(filepath.Join(searchPath, "cs*.toml"))
+	if err != nil || len(files) != 1 {
+		return ""
+	}
+	config, _ := toml.LoadFile(files[0])
+	return config.Get("metrics.prometheus").(string) + "/metrics"
 }
 
 // getSDFromSDTomlFile returns sciond address from sd.toml on the given path

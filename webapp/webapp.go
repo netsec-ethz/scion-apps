@@ -51,8 +51,8 @@ const reRemoveAnsi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z
 // list of locally available IAs
 var localIAs []string
 
-// mapping of locally available IAs to their configuration
-var iaToCfg map[string]lib.IAConfig
+// mapping of locally available AS addresses to their configuration
+var asCfg lib.ASConfigs
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -169,15 +169,15 @@ func main() {
 // load list of locally available IAs and determine user choices
 func initLocalIaOptions() {
 	// get a map of locally available IAs to their information
-	iaToCfg = lib.ScanLocalSetting(&options)
-	if len(iaToCfg) == 0 {
+	asCfg = lib.ScanLocalSetting(&options)
+	if len(asCfg) == 0 {
 		log.Error("No IAs found on the server")
 		return
 	}
 
 	// extract all available IAs from the map
-	localIAs = make([]string, 0, len(iaToCfg))
-	for ia := range iaToCfg {
+	localIAs = make([]string, 0, len(asCfg))
+	for ia := range asCfg {
 		localIAs = append(localIAs, ia)
 	}
 	sort.Strings(localIAs)
@@ -341,7 +341,7 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 // d could be either model.BwTestItem, model.EchoItem or model.TracerouteItem
 func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
-	installpath := getClientLocationBin(appSel)
+	appBin := getAppBin(appSel)
 	log.Info(fmt.Sprintf("App tag is %s...", appSel))
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
@@ -351,7 +351,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			return nil
 		}
 		optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
-		command = append(command, installpath, optServer)
+		command = append(command, appBin, optServer)
 		if appSel == "bwtester" {
 			bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
 				d.CSPackets, d.CSBandwidth)
@@ -371,8 +371,8 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optCount := fmt.Sprintf("-c=%d", d.Count)
 		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
 		optInterval := fmt.Sprintf("--interval=%fs", d.Interval)
-		optSciond := fmt.Sprintf("--sciond=%s", iaToCfg[myIA].Sciond)
-		command = append(command, installpath,
+		optSciond := fmt.Sprintf("--sciond=%s", asCfg[myIA].Sciond)
+		command = append(command, appBin,
 			optApp, optRemote, optCount, optTimeout, optInterval, optSciond)
 
 	case "traceroute":
@@ -384,8 +384,8 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 		optApp := "traceroute"
 		optRemote := fmt.Sprintf("%s,[%s]", d.SIa, d.SAddr)
 		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
-		optSciond := fmt.Sprintf("--sciond=%s", iaToCfg[myIA].Sciond)
-		command = append(command, installpath, optApp, optRemote, optTimeout, optSciond)
+		optSciond := fmt.Sprintf("--sciond=%s", asCfg[myIA].Sciond)
+		command = append(command, appBin, optApp, optRemote, optTimeout, optSciond)
 	}
 
 	if len(pathStr) > 0 {
@@ -490,7 +490,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = getClientCwd(appSel)
-	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+iaToCfg[myIA].Sciond)
+	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+asCfg[myIA].Sciond)
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
@@ -514,8 +514,8 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 }
 
 func appsBuildCheck(app string) {
-	installpath := getClientLocationBin(app)
-	if _, err := os.Stat(installpath); os.IsNotExist(err) {
+	appBin := getAppBin(app)
+	if _, err := exec.LookPath(appBin); err != nil {
 		CheckError(err)
 		CheckError(errors.New("App missing, build all apps with 'make install'."))
 	} else {
@@ -539,9 +539,9 @@ func getClientCwd(app string) string {
 	return cwd
 }
 
-// Returns full path of app binary.
-func getClientLocationBin(app string) string {
-	var appName, binPath string
+// Returns the name of the corresponding app binary.
+func getAppBin(app string) string {
+	var appName string
 	switch app {
 	case "sensorapp":
 		appName = "scion-sensorfetcher"
@@ -552,17 +552,7 @@ func getClientLocationBin(app string) string {
 	case "echo", "traceroute":
 		appName = "scion"
 	}
-
-	paths := strings.Split(os.Getenv("PATH"), ":")
-	for _, p := range paths {
-		appPath := path.Join(p, "/", appName)
-		if _, err := os.Stat(appPath); !os.IsNotExist(err) {
-			binPath = appPath
-			break
-		}
-	}
-
-	return binPath
+	return appName
 }
 
 // Handles piping command line output to logs, database, and http response writer.
@@ -688,7 +678,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, &options, myIA, iaToCfg[myIA])
+	lib.HealthCheckHandler(w, r, &options, myIA, asCfg[myIA])
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
@@ -717,11 +707,11 @@ func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.PathTopoHandler(w, r, &options, iaToCfg)
+	lib.PathTopoHandler(w, r, &options, asCfg)
 }
 
 func getAsTopoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.AsTopoHandler(w, r, &options, iaToCfg)
+	lib.AsTopoHandler(w, r, &options, asCfg)
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {

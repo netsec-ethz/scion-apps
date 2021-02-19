@@ -98,7 +98,7 @@ type Hop struct {
 }
 
 // PathTopoHandler handles requests for paths, returning results from sciond.
-func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, iaToCfg map[string]IAConfig) {
+func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, cfg ASConfigs) {
 	r.ParseForm()
 	SIa := r.PostFormValue("ia_ser")
 	CIa := r.PostFormValue("ia_cli")
@@ -119,7 +119,7 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		return
 	}
 
-	sd := iaToCfg[CIa].Sciond
+	sd := cfg[CIa].Sciond
 	sciondConn, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)
@@ -263,11 +263,11 @@ func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 }
 
 // AsTopoHandler handles requests for AS data, returning results from sciond.
-func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, iaToCfg map[string]IAConfig) {
+func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, cfg ASConfigs) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	sd := iaToCfg[CIa].Sciond
+	sd := cfg[CIa].Sciond
 	c, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)
