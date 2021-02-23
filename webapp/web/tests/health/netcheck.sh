@@ -8,15 +8,7 @@ error_exit()
     exit 1
 }
 
-# allow IA via args, ignoring gen/ia
-iaFile=$(echo $1 | sed "s/:/_/g")
-echo "IA found: $iaFile"
-
-# find the topology file in gen
-isd=$(echo ${iaFile} | cut -d"-" -f1)
-as=$(echo ${iaFile} | cut -d"-" -f2)
 topologyFile=$3
-
 # get remote addresses from interfaces
 ip_dsts=$(cat $topologyFile | python3 -c "import sys, json
 brs = json.load(sys.stdin)['border_routers']
