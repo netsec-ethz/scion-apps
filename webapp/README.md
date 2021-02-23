@@ -64,37 +64,31 @@ cd scion-apps
 make build
 ```
 
-Development Run on Local Topology:
+Development Run on ScionLab Topology:
 You can alter the defaults on the command line, all of which are listed below:
 ```shell
 ./bin/scion-webapp \
 -a 127.0.0.1 \
--p 8081 \
--r . \
+-p 8000 \
+-r $GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web/data \
 -srvroot $GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web \
--sabin $GOPATH/bin \
--sbin $GOPATH/src/github.com/scionproto/scion/bin \
--sgen $GOPATH/src/github.com/scionproto/scion/gen \
--sgenc $GOPATH/src/github.com/scionproto/scion/gen-cache \
--slogs $GOPATH/src/github.com/scionproto/scion/logs
+-sgen /etc/scion \
+-sgenc /var/lib/scion 
 ```
 or can you run `webapp` like this, which will use the defaults above:
 ```shell
 ./bin/scion-webapp
 ```
 
-Development Run on SCIONLab Topology:
+Development Run on Local Topology:
 ```shell
 ./bin/scion-webapp \
--a 0.0.0.0 \
+-a 127.0.0.1 \
 -p 8080 \
--r ~/go/src/github.com/netsec-ethz/scion-apps/webapp/web/data \
--srvroot ~/go/src/github.com/netsec-ethz/scion-apps/webapp/web \
--sabin $GOPATH/bin \
--sbin /usr/bin \
--sgen /etc/scion \
--sgenc /var/lib/scion \
--slogs /var/log/scion
+-r $GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web/data \
+-srvroot $GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web \
+-sgen $HOME/scion/gen \
+-sgenc  $HOME/scion/gen-cache
 ```
 
 ## Dependencies
@@ -104,23 +98,17 @@ A list of dependencies for `webapp` can be found at [dependencies.md](./dependen
 ```shell
 Usage of webapp:
   -a string
-        Address of server host. (default "127.0.0.1")
+    	Address of server host. (default "127.0.0.1")
   -p int
-        Port of server host. (default 8000)
+    	Port of server host. (default 8000)
   -r string
-        Root path to read/browse from, CAUTION: read-access granted from -a and -p. (default ".")
-  -sabin string
-        Path to execute the installed scionlab apps binaries (default "/home/ubuntu/go/bin")
-  -sbin string
-        Path to execute SCION bin directory of infrastructure tools (default "/home/ubuntu/go/src/github.com/scionproto/scion/bin")
+    	Root path to read/browse from, CAUTION: read-access granted from -a and -p. (default "$GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web/data")
   -sgen string
-        Path to read SCION gen directory of infrastructure config (default "/home/ubuntu/go/src/github.com/scionproto/scion/gen")
+    	Path to read SCION gen directory of infrastructure config (default "/etc/scion")
   -sgenc string
-        Path to read SCION gen-cache directory of infrastructure run-time config (default "/home/ubuntu/go/src/github.com/scionproto/scion/gen-cache")
-  -slogs string
-        Path to read SCION logs directory of infrastructure logging (default "/home/ubuntu/go/src/github.com/scionproto/scion/logs")
+    	Path to read SCION gen-cache directory of infrastructure run-time config (default "/var/lib/scion")
   -srvroot string
-        Path to read/write web server files. (default "/home/ubuntu/go/src/github.com/netsec-ethz/scion-apps/webapp/web")
+    	Path to read/write web server files. (default "$GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web")
 ```
 
 ## Related Links

@@ -106,11 +106,12 @@ func isFlagUsed(name string) bool {
 }
 
 func defaultStaticRoot() string {
-	return "webapp/web"
+	defaultWebappRoot := path.Join(os.Getenv("GOPATH"), "/src/github.com/netsec-ethz/scion-apps/webapp/")
+	return path.Join(defaultWebappRoot, "web")
 }
 
-func defaultBrowseRoot() string {
-	return "data"
+func defaultBrowseRoot(staticRoot string) string {
+	return path.Join(staticRoot, "data")
 }
 
 func defaultScionGen() string {
@@ -126,7 +127,7 @@ func ParseFlags() CmdOptions {
 	port := flag.Int(CMD_PRT, listenPortDef, "Port of server host.")
 	staticRoot := flag.String(CMD_WEB, defaultStaticRoot(),
 		"Path to read/write web server files.")
-	browseRoot := flag.String(CMD_BRT, defaultBrowseRoot(),
+	browseRoot := flag.String(CMD_BRT, defaultBrowseRoot(*staticRoot),
 		"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
 	scionGen := flag.String(CMD_SCG, defaultScionGen(),
 		"Path to read SCION gen directory of infrastructure config")
@@ -138,7 +139,7 @@ func ParseFlags() CmdOptions {
 		*staticRoot = defaultStaticRoot()
 	}
 	if !isFlagUsed(CMD_BRT) {
-		*browseRoot = defaultBrowseRoot()
+		*browseRoot = defaultBrowseRoot(*staticRoot)
 	}
 	if !isFlagUsed(CMD_SCG) {
 		*scionGen = defaultScionGen()
@@ -189,10 +190,16 @@ func getMetricsServer(searchPath string) string {
 // getSDFromSDTomlFile returns sciond address from sd.toml on the given path
 func getSDFromSDTomlFile(path string) string {
 	var sd string
-	if config, err := toml.LoadFile(path); err == nil {
-		sd = config.Get("sd.address").(string)
-	} else {
-		log.Error("toml file %s could not be read", path)
+	switch config, err := toml.LoadFile(path); err {
+	case nil:
+		sdAddr := config.Get("sd.address")
+		if sdAddr != nil {
+			sd = sdAddr.(string)
+			break
+		}
+		fallthrough
+	default:
+		log.Info(fmt.Sprintf("sciond address could not be read from toml file %s", path))
 		var ok bool
 		sd, ok = os.LookupEnv("SCION_DAEMON_ADDRESS")
 		if !ok {

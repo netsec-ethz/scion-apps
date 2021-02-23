@@ -111,10 +111,6 @@ gow run . \
 -p 8080 \
 -r ./web/data \
 -srvroot ./web \
--sabin /usr/bin/scion \
--sroot /etc/scion \
--sbin /usr/bin \
 -sgen  /etc/scion/gen \
 -sgenc /var/lib/scion \
--slogs /var/log/scion
 ```
