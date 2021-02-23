@@ -189,24 +189,16 @@ func getMetricsServer(searchPath string) string {
 
 // getSDFromSDTomlFile returns sciond address from sd.toml on the given path
 func getSDFromSDTomlFile(path string) string {
-	var sd string
-	switch config, err := toml.LoadFile(path); err {
-	case nil:
-		sdAddr := config.Get("sd.address")
-		if sdAddr != nil {
-			sd = sdAddr.(string)
-			break
-		}
-		fallthrough
-	default:
-		log.Info(fmt.Sprintf("sciond address could not be read from toml file %s", path))
-		var ok bool
-		sd, ok = os.LookupEnv("SCION_DAEMON_ADDRESS")
-		if !ok {
-			sd = sciond.DefaultAPIAddress
+	if config, err := toml.LoadFile(path); err == nil {
+		if sdAddr := config.Get("sd.address"); sdAddr != nil {
+			return sdAddr.(string)
 		}
 	}
-	return sd
+	log.Info(fmt.Sprintf("sciond address could not be read from toml file %s", path))
+	if sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS"); ok {
+		return sd
+	}
+	return sciond.DefaultAPIAddress
 }
 
 // getIAFromTopologyFile returns IA from topology.json on the given path
