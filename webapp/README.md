@@ -98,17 +98,17 @@ A list of dependencies for `webapp` can be found at [dependencies.md](./dependen
 ```shell
 Usage of webapp:
   -a string
-    	Address of server host. (default "127.0.0.1")
+        Address of server host. (default "127.0.0.1")
   -p int
-    	Port of server host. (default 8000)
+        Port of server host. (default 8000)
   -r string
-    	Root path to read/browse from, CAUTION: read-access granted from -a and -p. (default "$GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web/data")
+        Root path to read/browse from, CAUTION: read-access granted from -a and -p. (default "$GOPATH/src/github.com/netsec-ethz/scion-apps/webapp /web/data")
   -sgen string
-    	Path to read SCION gen directory of infrastructure config (default "/etc/scion")
+        Path to read SCION gen directory of infrastructure config (default "/etc/scion")
   -sgenc string
-    	Path to read SCION gen-cache directory of infrastructure run-time config (default "/var/lib/scion")
+        Path to read SCION gen-cache directory of infrastructure run-time config (default "/var/lib/scion")
   -srvroot string
-    	Path to read/write web server files. (default "$GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web")
+        Path to read/write web server files. (default "$GOPATH/src/github.com/netsec-ethz/scion-apps/webapp/web")
 ```
 
 ## Related Links
