@@ -74,6 +74,7 @@ Add alternate test forwarding port line in `Vagrantfile`:
 Update Go Paths:
 ```shell
 echo 'export GOPATH="$HOME/go"' >> ~/.profile
+echo 'export GOBIN="$GOPATH/bin"' >> ~/.profile
 echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:/usr/local/go/bin:$PATH"' >> ~/.profile
 source ~/.profile
 mkdir -p "$GOPATH"
@@ -91,24 +92,18 @@ Build and install `scion-apps`:
 ```shell
 sudo apt install make gcc libpam0g-dev
 cd ~
-git clone -b scionlab https://github.com/netsec-ethz/scion-apps
+git clone -b master https://github.com/netsec-ethz/scion-apps
 cd scion-apps
+make setup_lint
 make install
 ```
 
-Download scionlab's fork of scion and build and install `sig`:
-```shell
-cd ~
-git clone -b scionlab https://github.com/netsec-ethz/scion
-go build -o $GOPATH/bin/sig ~/scion/go/sig/main.go
-```
-
-Install Go Watcher:
+(Optional) Install Go Watcher:
 ```shell
 go get -u github.com/mitranim/gow 
 ```
 
-Development Run:
+Development Run (check dependencies.md for the meaning of the flags):
 ```shell
 cd ~/scion-apps/webapp
 gow run . \
@@ -116,10 +111,6 @@ gow run . \
 -p 8080 \
 -r ./web/data \
 -srvroot ./web \
--sabin /usr/bin/scion \
--sroot /etc/scion \
--sbin /usr/bin \
 -sgen  /etc/scion/gen \
 -sgenc /var/lib/scion \
--slogs /var/log/scion
 ```

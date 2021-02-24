@@ -24,13 +24,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	log "github.com/inconshreveable/log15"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
+	"github.com/pelletier/go-toml"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // default params for localhost testing
@@ -40,22 +41,21 @@ var cliPortDef = 30001
 var serPortDef = 30100
 var serDefAddr = "127.0.0.2"
 
-var cfgFileCliUser = "config/clients_user.json"
 var cfgFileSerUser = "config/servers_user.json"
 var cfgFileCliDef = "config/clients_default.json"
 var cfgFileSerDef = "config/servers_default.json"
 
+var topologyFile = "topology.json"
+var sdToml = "sd.toml"
+var sciondToml = "sciond.toml"
+
 // command argument constants
 var CMD_ADR = "a"
 var CMD_PRT = "p"
-var CMD_ART = "sabin"
 var CMD_WEB = "srvroot"
 var CMD_BRT = "r"
-var CMD_SCN = "sroot"
-var CMD_SCB = "sbin"
 var CMD_SCG = "sgen"
 var CMD_SCC = "sgenc"
-var CMD_SCL = "slogs"
 
 // appsRoot is the root location of scionlab apps.
 var GOPATH = os.Getenv("GOPATH")
@@ -63,10 +63,20 @@ var GOPATH = os.Getenv("GOPATH")
 // scionRoot is the root location of the scion infrastructure.
 var DEF_SCIONDIR = path.Join(GOPATH, "src/github.com/scionproto/scion")
 
-// UserSetting holds the serialized structure for persistent user settings
-type UserSetting struct {
-	MyIA      string `json:"myIa"`
-	SDAddress string `json:"sdAddress"`
+// ASConfig holds data about ia
+type ASConfig struct {
+	Sciond        string
+	SdTomlPath    string
+	TopologyPath  string
+	MetricsServer string
+}
+
+// mapping AS addresses to their corresponding configs
+type ASConfigs = map[string]ASConfig
+
+// topology holds the IA from topology.json
+type topology struct {
+	IA string `json:"isd_as"`
 }
 
 type CmdOptions struct {
@@ -74,23 +84,15 @@ type CmdOptions struct {
 	Port          int
 	StaticRoot    string
 	BrowseRoot    string
-	AppsRoot      string
-	ScionRoot     string
-	ScionBin      string
 	ScionGen      string
 	ScionGenCache string
-	ScionLogs     string
 }
 
 func (o *CmdOptions) AbsPathCmdOptions() {
 	o.StaticRoot, _ = filepath.Abs(o.StaticRoot)
 	o.BrowseRoot, _ = filepath.Abs(o.BrowseRoot)
-	o.AppsRoot, _ = filepath.Abs(o.AppsRoot)
-	o.ScionRoot, _ = filepath.Abs(o.ScionRoot)
-	o.ScionBin, _ = filepath.Abs(o.ScionBin)
 	o.ScionGen, _ = filepath.Abs(o.ScionGen)
 	o.ScionGenCache, _ = filepath.Abs(o.ScionGenCache)
-	o.ScionLogs, _ = filepath.Abs(o.ScionLogs)
 }
 
 func isFlagUsed(name string) bool {
@@ -103,149 +105,108 @@ func isFlagUsed(name string) bool {
 	return found
 }
 
-// defaultAppsRoot returns the directory containing the webapp executable as
-// the default base directory for the apps resources
-func defaultAppsRoot() string {
-	exec, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	return path.Dir(exec)
-}
-
-func defaultStaticRoot(appsRoot string) string {
-	return path.Join(appsRoot, "../webapp/web")
+func defaultStaticRoot() string {
+	defaultWebappRoot := path.Join(os.Getenv("GOPATH"), "/src/github.com/netsec-ethz/scion-apps/webapp/")
+	return path.Join(defaultWebappRoot, "web")
 }
 
 func defaultBrowseRoot(staticRoot string) string {
 	return path.Join(staticRoot, "data")
 }
 
-func defaultScionBin(scionRoot string) string {
-	return path.Join(scionRoot, "bin")
+func defaultScionGen() string {
+	return "/etc/scion"
 }
 
-func defaultScionGen(scionRoot string) string {
-	return path.Join(scionRoot, "gen")
-}
-
-func defaultScionGenCache(scionRoot string) string {
-	return path.Join(scionRoot, "gen-cache")
-}
-
-func defaultScionLogs(scionRoot string) string {
-	return path.Join(scionRoot, "logs")
+func defaultScionGenCache() string {
+	return "/var/lib/scion"
 }
 
 func ParseFlags() CmdOptions {
 	addr := flag.String(CMD_ADR, listenAddrDef, "Address of server host.")
 	port := flag.Int(CMD_PRT, listenPortDef, "Port of server host.")
-	appsRoot := flag.String(CMD_ART, defaultAppsRoot(),
-		"Path to execute the installed scionlab apps binaries")
-	staticRoot := flag.String(CMD_WEB, defaultStaticRoot(*appsRoot),
+	staticRoot := flag.String(CMD_WEB, defaultStaticRoot(),
 		"Path to read/write web server files.")
 	browseRoot := flag.String(CMD_BRT, defaultBrowseRoot(*staticRoot),
 		"Root path to read/browse from, CAUTION: read-access granted from -a and -p.")
-	scionRoot := flag.String(CMD_SCN, DEF_SCIONDIR,
-		"Path to read SCION root directory of infrastructure")
-	scionBin := flag.String(CMD_SCB, defaultScionBin(*scionRoot),
-		"Path to execute SCION bin directory of infrastructure tools")
-	scionGen := flag.String(CMD_SCG, defaultScionGen(*scionRoot),
+	scionGen := flag.String(CMD_SCG, defaultScionGen(),
 		"Path to read SCION gen directory of infrastructure config")
-	scionGenCache := flag.String(CMD_SCC, defaultScionGenCache(*scionRoot),
+	scionGenCache := flag.String(CMD_SCC, defaultScionGenCache(),
 		"Path to read SCION gen-cache directory of infrastructure run-time config")
-	scionLogs := flag.String(CMD_SCL, defaultScionLogs(*scionRoot),
-		"Path to read SCION logs directory of infrastructure logging")
 	flag.Parse()
 	// recompute root args to use the proper relative defaults if undefined
 	if !isFlagUsed(CMD_WEB) {
-		*staticRoot = defaultStaticRoot(*appsRoot)
+		*staticRoot = defaultStaticRoot()
 	}
 	if !isFlagUsed(CMD_BRT) {
 		*browseRoot = defaultBrowseRoot(*staticRoot)
 	}
-
-	if isFlagUsed(CMD_SCN) {
-		if !isFlagUsed(CMD_SCB) {
-			*scionBin = defaultScionBin(*scionRoot)
-		}
-		if !isFlagUsed(CMD_SCG) {
-			*scionGen = defaultScionGen(*scionRoot)
-		}
-		if !isFlagUsed(CMD_SCC) {
-			*scionGenCache = defaultScionGenCache(*scionRoot)
-		}
-		if !isFlagUsed(CMD_SCL) {
-			*scionLogs = defaultScionLogs(*scionRoot)
-		}
+	if !isFlagUsed(CMD_SCG) {
+		*scionGen = defaultScionGen()
 	}
-	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *appsRoot,
-		*scionRoot, *scionBin, *scionGen, *scionGenCache, *scionLogs}
+	if !isFlagUsed(CMD_SCC) {
+		*scionGenCache = defaultScionGenCache()
+	}
+	options := CmdOptions{*addr, *port, *staticRoot, *browseRoot, *scionGen, *scionGenCache}
 	options.AbsPathCmdOptions()
 	return options
 }
 
-// WriteUserSetting writes the settings to disk.
-func WriteUserSetting(options *CmdOptions, settings *UserSetting) {
-	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
-
-	// writing myIA means we have to retrieve sciond's tcp address too
-	// since sciond's address may be autognerated
-	config, err := LoadSciondConfig(options, settings.MyIA)
-	CheckError(err)
-	settings.SDAddress = config.SD.Address
-	settingsJSON, _ := json.Marshal(settings)
-
-	log.Info("Updating...", "UserSetting", string(settingsJSON))
-	err = ioutil.WriteFile(cliUserFp, settingsJSON, 0644)
-	CheckError(err)
-}
-
-// ReadUserSetting reads the settings from disk.
-func ReadUserSetting(options *CmdOptions) UserSetting {
-	var settings UserSetting
-	cliUserFp := path.Join(options.StaticRoot, cfgFileCliUser)
-
-	// no problem when user settings not set yet
-	raw, _ := ioutil.ReadFile(cliUserFp)
-	log.Debug("ReadUserSetting from saved", "settings", string(raw))
-	json.Unmarshal([]byte(raw), &settings)
-
-	return settings
-}
-
-// ScanLocalIAs will load list of locally available IAs
-func ScanLocalIAs(options *CmdOptions) []string {
-	var localIAs []string
-	var reIaFilePathCap = `\/ISD([0-9]+)\/AS(\w+)`
-	re := regexp.MustCompile(reIaFilePathCap)
+// ScanLocalSetting will load list of locally available IAs and their corresponding Scionds
+func ScanLocalSetting(options *CmdOptions) ASConfigs {
+	cfg := make(ASConfigs)
 	var searchPath = options.ScionGen
 	filepath.Walk(searchPath, func(path string, f os.FileInfo, _ error) error {
-		if f != nil && f.IsDir() {
-			capture := re.FindStringSubmatch(path)
-			if len(capture) > 0 {
-				ia := capture[1] + "-" + capture[2]
-				ia = strings.Replace(ia, "_", ":", -1) // convert once
-				if !StringInSlice(localIAs, ia) {
-					log.Debug("Local IA Found:", "ia", ia)
-					localIAs = append(localIAs, ia)
-				}
+		if f != nil && f.Name() == topologyFile {
+			dirPath := path[:len(path)-len(topologyFile)]
+			// TODO sciond information is either sd.toml or sciond.toml, clean this once this is settled
+			sdPath := dirPath + sdToml
+			if _, err := os.Stat(sdPath); os.IsNotExist(err) {
+				sdPath = dirPath + sciondToml
+			}
+			ia := getIAFromTopologyFile(path)
+			cfg[ia] = ASConfig{
+				Sciond:        getSDFromSDTomlFile(sdPath),
+				SdTomlPath:    sdPath,
+				TopologyPath:  path,
+				MetricsServer: getMetricsServer(dirPath),
 			}
 		}
 		return nil
 	})
-	sort.Strings(localIAs)
-	return localIAs
+	return cfg
 }
 
-// StringInSlice can check a slice for a unique string
-func StringInSlice(arr []string, i string) bool {
-	for _, v := range arr {
-		if v == i {
-			return true
+// getMetricsServer returns metrics server address from cs*.toml on the given path
+func getMetricsServer(searchPath string) string {
+	files, err := filepath.Glob(filepath.Join(searchPath, "cs*.toml"))
+	if err != nil || len(files) != 1 {
+		return ""
+	}
+	config, _ := toml.LoadFile(files[0])
+	return config.Get("metrics.prometheus").(string) + "/metrics"
+}
+
+// getSDFromSDTomlFile returns sciond address from sd.toml on the given path
+func getSDFromSDTomlFile(path string) string {
+	if config, err := toml.LoadFile(path); err == nil {
+		if sdAddr := config.Get("sd.address"); sdAddr != nil {
+			return sdAddr.(string)
 		}
 	}
-	return false
+	log.Info(fmt.Sprintf("sciond address could not be read from toml file %s", path))
+	if sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS"); ok {
+		return sd
+	}
+	return sciond.DefaultAPIAddress
+}
+
+// getIAFromTopologyFile returns IA from topology.json on the given path
+func getIAFromTopologyFile(path string) string {
+	var t topology
+	raw, _ := ioutil.ReadFile(path)
+	json.Unmarshal([]byte(raw), &t)
+	return t.IA
 }
 
 // Makes interfaces sortable, by preferred name
@@ -357,8 +318,6 @@ func GetNodesHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		fp = path.Join(options.StaticRoot, cfgFileCliDef)
 	case "servers_default":
 		fp = path.Join(options.StaticRoot, cfgFileSerDef)
-	case "clients_user":
-		fp = path.Join(options.StaticRoot, cfgFileCliUser)
 	case "servers_user":
 		fp = path.Join(options.StaticRoot, cfgFileSerUser)
 	default:

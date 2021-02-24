@@ -27,22 +27,21 @@ webapp -h
 - cat
 - systemctl
 
-## SCION Binaries Used/Checked
-- $sbin/scmp
-- $sabin/bwtestclient
-- $sabin/imagefetcher
-- $sabin/sensorfetcher
+## SCION Binaries Used/Checked (should be somewhere on $PATH)
+- scion (for scion ping and scion traceroute)
+- scion-bwtestclient
+- scion-imagefetcher
+- scion-sensorfetcher
 
 ## Scripts/Directories Used/Checked
-- $sroot/scion.sh (deprecated)
-- $slogs/bs[IA]-1.log
-- $sgen/ISD*/AS* (scanning for local IAs)
-- $sgen/ISD[ISD]/AS[AS]/endhost/topology.json
+- $SCION_ROOT/scion.sh (only for local topologies (ISD < 16))
+- $sgen/.*topology.json (checking all subdirectories of $sgen for topology.json)
+- $sgen/.*(sciond|sd).toml (for reading sciond address)
+- $sgen/*cs*.toml (for reading prometheus server address)
 - $sgenc/*.crt
 - $sgenc/*.trc
 - $sgenc/ps[IA]-1.path.db
 - /run/shm/dispatcher/default.sock
-- /run/shm/sciond/default.sock
 
 ## Static Webserver Required
 - $srvroot/favico.ico
@@ -59,7 +58,3 @@ webapp -h
 - $srvroot/data/
 - $srvroot/data/images/
 - $srvroot/logs/
-
-
-
-

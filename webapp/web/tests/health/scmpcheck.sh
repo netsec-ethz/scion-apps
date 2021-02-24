@@ -8,11 +8,6 @@ error_exit()
     exit 1
 }
 
-# allow IA via args, ignoring gen/ia
-ia=$(echo $1 | sed "s/_/:/g")
-iaFile=$(echo $1 | sed "s/:/_/g")
-echo "IA found: $iaFile"
-
 sdaddress=$(echo $2)
 echo "sciond address: $sdaddress"
 
@@ -20,17 +15,14 @@ echo "sciond address: $sdaddress"
 ip=$(hostname -I | cut -d" " -f1)
 echo "IP found: $ip"
 
-isd=$(echo ${iaFile} | cut -d"-" -f1)
-as=$(echo ${iaFile} | cut -d"-" -f2)
-topologyFile=$SCION_GEN/ISD$isd/AS$as/endhost/topology.json
-
+topologyFile=$3
 # get remote addresses from interfaces, return paired list
 dsts=($(cat $topologyFile | python3 -c "import sys, json
-brs = json.load(sys.stdin)['BorderRouters']
+brs = json.load(sys.stdin)['border_routers']
 for b in brs:
-    for i in brs[b]['Interfaces']:
-        print(brs[b]['Interfaces'][i]['ISD_AS'])
-        print(brs[b]['Interfaces'][i]['RemoteOverlay']['Addr'])"))
+    for i in brs[b]['interfaces']:
+        print(brs[b]['interfaces'][i]['isd_as'])
+        print((brs[b]['interfaces'][i]['underlay']['remote']).split(':')[0])"))
 if [ -z "$dsts" ]; then
     error_exit "No interface addresses in $topologyFile."
 fi
@@ -41,11 +33,7 @@ do
     # if no response under default scmp ping timeout consider connection failed
     ia_dst="${dsts[i]}"
     ip_dst="${dsts[i+1]}"
-    cmd="$SCION_BIN/scmp echo -c 1 -timeout 5s -remote $ia_dst,[$ip_dst]"
-    if [ $isd -lt 16 ]; then
-        # local tests
-        cmd="$cmd -sciond $sdaddress"
-    fi
+    cmd="scion ping -c 1 --sciond $sdaddress --timeout 5s $ia_dst,[$ip_dst]"
     echo "Running: $cmd"
     recv=$($cmd | grep -E -o '[0-9]+ received' | cut -f1 -d' ')
     if [ "$recv" != "1" ]; then

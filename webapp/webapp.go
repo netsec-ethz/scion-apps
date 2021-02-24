@@ -28,6 +28,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -40,13 +41,18 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-var settings lib.UserSetting
+// myIA is the currently selected IA
+var myIA string
 var id = "webapp"
 
 const reAvailPath = `(?i:available paths to)`
 const reRemoveAnsi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
 
+// list of locally available IAs
 var localIAs []string
+
+// mapping of locally available AS addresses to their configuration
+var asCfg lib.ASConfigs
 
 // Ensures an inactive browser will end continuous testing
 var maxContTimeout = time.Duration(10) * time.Minute
@@ -111,7 +117,6 @@ func main() {
 
 	// logging
 	logDirPath := ensurePath(options.StaticRoot, "logs")
-	checkPath(options.ScionLogs)
 	log.Root().SetHandler(log.MultiHandler(
 		log.LvlFilterHandler(log.LvlDebug,
 			log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
@@ -137,18 +142,15 @@ func main() {
 	ensurePath(options.StaticRoot, "data")
 	ensurePath(options.StaticRoot, "data/images")
 
-	checkPath(options.ScionRoot)
 	checkPath(options.ScionGen)
 	checkPath(options.ScionGenCache)
 	initLocalIaOptions()
-	log.Info("IA loaded:", "myIa", settings.MyIA)
+	log.Info("IA loaded:", "myIa", myIA)
 
 	// generate client/server default
-	lib.GenClientNodeDefaults(&options, settings.MyIA)
+	lib.GenClientNodeDefaults(&options, myIA)
 	lib.GenServerNodeDefaults(&options, localIAs)
 
-	checkPath(options.AppsRoot)
-	checkPath(options.ScionBin)
 	appsBuildCheck("bwtester")
 	appsBuildCheck("camerapp")
 	appsBuildCheck("sensorapp")
@@ -166,21 +168,21 @@ func main() {
 
 // load list of locally available IAs and determine user choices
 func initLocalIaOptions() {
-	localIAs = lib.ScanLocalIAs(&options)
-	settings = lib.ReadUserSetting(&options)
-
-	// if read myia not in list, pick default
-	iaExists := lib.StringInSlice(localIAs, settings.MyIA)
-
-	// check for saved MyIA or use first available
-	if !iaExists {
-		if len(localIAs) > 0 {
-			settings.MyIA = localIAs[0]
-		} else {
-			settings.MyIA = ""
-		}
+	// get a map of locally available IAs to their information
+	asCfg = lib.ScanLocalSetting(&options)
+	if len(asCfg) == 0 {
+		log.Error("No IAs found on the server")
+		return
 	}
-	lib.WriteUserSetting(&options, &settings)
+
+	// extract all available IAs from the map
+	localIAs = make([]string, 0, len(asCfg))
+	for ia := range asCfg {
+		localIAs = append(localIAs, ia)
+	}
+	sort.Strings(localIAs)
+
+	myIA = localIAs[0]
 }
 
 func initServeHandlers() {
@@ -255,32 +257,32 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: settings.MyIA})
+	display(w, "health", &Page{Title: "SCIONLab Health", MyIA: myIA})
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.WriteHeader(status)
-	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: settings.MyIA})
+	display(w, "error", &Page{Title: "SCIONLab Error", MyIA: myIA})
 }
 
 func dirViewHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: settings.MyIA})
+	display(w, "dirview", &Page{Title: "SCIONLab Files", MyIA: myIA})
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "about", &Page{Title: "SCIONLab About", MyIA: settings.MyIA})
+	display(w, "about", &Page{Title: "SCIONLab About", MyIA: myIA})
 }
 
 func appsHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: settings.MyIA})
+	display(w, "apps", &Page{Title: "SCIONLab Apps", MyIA: myIA})
 }
 
 func astopoHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: settings.MyIA})
+	display(w, "astopo", &Page{Title: "SCIONLab AS Topology", MyIA: myIA})
 }
 
 func trcHandler(w http.ResponseWriter, r *http.Request) {
-	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: settings.MyIA})
+	display(w, "trc", &Page{Title: "SCIONLab TRC", MyIA: myIA})
 }
 
 // There're three CmdItem, BwTestItem, EchoItem and TracerouteItem
@@ -339,7 +341,7 @@ func parseRequest2CmdItem(r *http.Request, appSel string) (model.CmdItem, string
 // d could be either model.BwTestItem, model.EchoItem or model.TracerouteItem
 func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []string {
 	var command []string
-	installpath := getClientLocationBin(appSel)
+	appBin := getAppBin(appSel)
 	log.Info(fmt.Sprintf("App tag is %s...", appSel))
 	switch appSel {
 	case "bwtester", "camerapp", "sensorapp":
@@ -349,7 +351,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			return nil
 		}
 		optServer := fmt.Sprintf("-s=%s,[%s]:%d", d.SIa, d.SAddr, d.SPort)
-		command = append(command, installpath, optServer)
+		command = append(command, appBin, optServer)
 		if appSel == "bwtester" {
 			bwCS := fmt.Sprintf("-cs=%d,%d,%d,%dbps", d.CSDuration/1000, d.CSPktSize,
 				d.CSPackets, d.CSBandwidth)
@@ -364,13 +366,13 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
-		optApp := "echo"
-		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
+		optApp := "ping"
+		optRemote := fmt.Sprintf("%s,[%s]", d.SIa, d.SAddr)
 		optCount := fmt.Sprintf("-c=%d", d.Count)
-		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
-		optInterval := fmt.Sprintf("-interval=%fs", d.Interval)
-		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
-		command = append(command, installpath,
+		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
+		optInterval := fmt.Sprintf("--interval=%fs", d.Interval)
+		optSciond := fmt.Sprintf("--sciond=%s", asCfg[myIA].Sciond)
+		command = append(command, appBin,
 			optApp, optRemote, optCount, optTimeout, optInterval, optSciond)
 
 	case "traceroute":
@@ -379,11 +381,11 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 			log.Error("Parsing error, CmdItem category doesn't match its name")
 			return nil
 		}
-		optApp := "tr"
-		optRemote := fmt.Sprintf("-remote=%s,[%s]", d.SIa, d.SAddr)
-		optTimeout := fmt.Sprintf("-timeout=%fs", d.Timeout)
-		optSciond := fmt.Sprintf("-sciond=%s", settings.SDAddress)
-		command = append(command, installpath, optApp, optRemote, optTimeout, optSciond)
+		optApp := "traceroute"
+		optRemote := fmt.Sprintf("%s,[%s]", d.SIa, d.SAddr)
+		optTimeout := fmt.Sprintf("--timeout=%fs", d.Timeout)
+		optSciond := fmt.Sprintf("--sciond=%s", asCfg[myIA].Sciond)
+		command = append(command, appBin, optApp, optRemote, optTimeout, optSciond)
 	}
 
 	if len(pathStr) > 0 {
@@ -488,7 +490,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = getClientCwd(appSel)
-	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+settings.SDAddress)
+	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+asCfg[myIA].Sciond)
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 
@@ -512,8 +514,8 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 }
 
 func appsBuildCheck(app string) {
-	installpath := getClientLocationBin(app)
-	if _, err := os.Stat(installpath); os.IsNotExist(err) {
+	appBin := getAppBin(app)
+	if _, err := exec.LookPath(appBin); err != nil {
 		CheckError(err)
 		CheckError(errors.New("App missing, build all apps with 'make install'."))
 	} else {
@@ -532,25 +534,25 @@ func getClientCwd(app string) string {
 	case "bwtester":
 		cwd = path.Join(options.StaticRoot, "data")
 	case "echo", "traceroute":
-		cwd = path.Join(options.ScionBin, ".")
+		cwd = "."
 	}
 	return cwd
 }
 
-// Parses html selection and returns name of app binary.
-func getClientLocationBin(app string) string {
-	var binname string
+// Returns the name of the corresponding app binary.
+func getAppBin(app string) string {
+	var appName string
 	switch app {
 	case "sensorapp":
-		binname = path.Join(options.AppsRoot, "scion-sensorfetcher")
+		appName = "scion-sensorfetcher"
 	case "camerapp":
-		binname = path.Join(options.AppsRoot, "scion-imagefetcher")
+		appName = "scion-imagefetcher"
 	case "bwtester":
-		binname = path.Join(options.AppsRoot, "scion-bwtestclient")
+		appName = "scion-bwtestclient"
 	case "echo", "traceroute":
-		binname = path.Join(options.ScionBin, "scmp")
+		appName = "scion"
 	}
-	return binname
+	return appName
 }
 
 // Handles piping command line output to logs, database, and http response writer.
@@ -676,7 +678,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	lib.HealthCheckHandler(w, r, &options, settings)
+	lib.HealthCheckHandler(w, r, &options, myIA, asCfg[myIA])
 }
 
 func getBwByTimeHandler(w http.ResponseWriter, r *http.Request) {
@@ -705,11 +707,11 @@ func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.PathTopoHandler(w, r, &options)
+	lib.PathTopoHandler(w, r, &options, asCfg)
 }
 
 func getAsTopoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.AsTopoHandler(w, r, &options)
+	lib.AsTopoHandler(w, r, &options, asCfg)
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {
@@ -724,12 +726,7 @@ func getIAsHandler(w http.ResponseWriter, r *http.Request) {
 
 func setUserOptionsHandler(w http.ResponseWriter, r *http.Request) {
 	// in:myIA , out:nil, set locally
-	myIa := r.PostFormValue("myIA")
-	settings = lib.ReadUserSetting(&options)
-	settings.MyIA = myIa
-
-	// save myIA to file
-	lib.WriteUserSetting(&options, &settings)
-	lib.GenClientNodeDefaults(&options, settings.MyIA)
-	log.Info("IA set:", "myIa", settings.MyIA)
+	myIA = r.PostFormValue("myIA")
+	lib.GenClientNodeDefaults(&options, myIA)
+	log.Info("IA set:", "myIa", myIA)
 }

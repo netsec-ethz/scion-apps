@@ -21,6 +21,7 @@ build: scion-bat \
 	scion-sensorfetcher scion-sensorserver \
 	scion-skip \
 	scion-ssh scion-sshd \
+	scion-webapp \
 	example-helloworld \
 	example-hellodrkey \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
@@ -38,7 +39,7 @@ setup_lint:
 
 lint:
 	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
-	golangci-lint run --build-tags=$(TAGS)
+	golangci-lint run --build-tags=$(TAGS) --timeout=2m0s -v
 
 install: all
   # Note: install everything but the examples

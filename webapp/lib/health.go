@@ -59,7 +59,7 @@ type ResHealthCheck struct {
 
 // HealthCheckHandler handles calling the default health-check scripts and
 // returning the json-formatted results of each script.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, settings UserSetting) {
+func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, myIA string, cfg ASConfig) {
 	hcResFp := path.Join(options.StaticRoot, resFileHealthCheck)
 	// read specified tests from json definition
 	fp := path.Join(options.StaticRoot, defFileHealthCheck)
@@ -71,11 +71,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	log.Debug("HealthCheckHandler", "resFileHealthCheck", string(raw))
 
 	envvars := []string{
-		"SCION_ROOT=" + path.Clean(options.ScionRoot),
-		"SCION_BIN=" + path.Clean(options.ScionBin),
 		"SCION_GEN=" + path.Clean(options.ScionGen),
-		"SCION_LOGS=" + path.Clean(options.ScionLogs),
-		"APPS_ROOT=" + path.Clean(options.AppsRoot),
 	}
 
 	var tests DefTests
@@ -102,7 +98,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		log.Info(test.Script + ": " + test.Desc)
 		// execute script
 		cmd := exec.Command("bash", test.Script,
-			settings.MyIA, settings.SDAddress)
+			myIA, cfg.Sciond, cfg.TopologyPath, cfg.MetricsServer)
 		cmd.Dir = filepath.Dir(fp)
 		cmd.Env = append(os.Environ(), envvars...)
 		var stdout, stderr bytes.Buffer

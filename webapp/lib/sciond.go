@@ -32,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	log "github.com/inconshreveable/log15"
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
@@ -69,29 +68,6 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 	fmt.Fprint(w, buffer.String())
 }
 
-type sdInfo struct {
-	Address string `toml:"address"`
-}
-
-type sdTomlConfig struct {
-	SD sdInfo `toml:"sd"`
-}
-
-func LoadSciondConfig(options *CmdOptions, ia string) (sdTomlConfig, error) {
-	ias, err := addr.IAFromString(ia)
-	if CheckError(err) {
-		fmt.Println(err)
-	}
-	tomlPath := path.Join(options.ScionGen, addr.ISDFmtPrefix+strconv.FormatUint(uint64(ias.I), 10),
-		addr.ASFmtPrefix+ias.A.FileFmt(), "endhost/sd.toml")
-
-	var config sdTomlConfig
-	if _, err := toml.DecodeFile(tomlPath, &config); err != nil {
-		fmt.Println(err)
-	}
-	return config, nil
-}
-
 // connect opens a connection to the scion daemon at sciondAddress or, if
 // empty, the default address.
 func connect(sciondAddress string) (sciond.Connector, error) {
@@ -122,7 +98,7 @@ type Hop struct {
 }
 
 // PathTopoHandler handles requests for paths, returning results from sciond.
-func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
+func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, cfg ASConfigs) {
 	r.ParseForm()
 	SIa := r.PostFormValue("ia_ser")
 	CIa := r.PostFormValue("ia_cli")
@@ -143,13 +119,8 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		return
 	}
 
-	config, err := LoadSciondConfig(options, CIa)
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-
-	sciondConn, err := connect(config.SD.Address)
+	sd := cfg[CIa].Sciond
+	sciondConn, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -292,17 +263,12 @@ func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
 }
 
 // AsTopoHandler handles requests for AS data, returning results from sciond.
-func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
+func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, cfg ASConfigs) {
 	r.ParseForm()
 	CIa := r.PostFormValue("src")
 
-	config, err := LoadSciondConfig(options, CIa)
-	if CheckError(err) {
-		returnError(w, err)
-		return
-	}
-
-	c, err := connect(config.SD.Address)
+	sd := cfg[CIa].Sciond
+	c, err := connect(sd)
 	if CheckError(err) {
 		returnError(w, err)
 		return
