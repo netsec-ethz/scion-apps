@@ -32,20 +32,6 @@ var as_st = 6; // AS node stroke
 var sv_st = 2; // service node stroke
 
 /*
- * Focuses the active tab to the tab label.
- */
-function activateTab(tab) {
-    $('.tab-pane a[href="#' + tab + '"]').tab('show');
-};
-
-/*
- * Returns the tab label of the active tab
- */
-function getTab() {
-    return $("ul#sampleTabs li.active")
-}
-
-/*
  * Creates on-click handler that will draw/hide selected path arcs.
  */
 function setupPathSelection() {
@@ -399,26 +385,20 @@ function updateNodeSelected(isSelected, selected) {
 
 var svc_pre = {
     0 : "unset", // Not set
-    1 : "bs", // Beacon service
-    2 : "ps", // Path service
-    3 : "cs", // Certificate service
-    4 : "sb", // SIBRA service
-    5 : "ds", // Discovery service
-    6 : "br", // Border router
-    7 : "sig", // SCION-IP gateway
-    8 : "hps", // Hidden Path service
+    1 : "ds",
+    2 : "cs",
+    3 : "sb",
+    4 : "sig",
+    5 : "hps",
 };
 
 var svc_service = {
     0 : "unset",
-    1 : "BEACON",
-    2 : "PATH",
-    3 : "CERTIFICATE",
-    4 : "SIBRA",
-    5 : "GATEWAY",
-    6 : "DISCOVERY",
-    7 : "SIG",
-    8 : "HIDDEN PATH",
+    1 : "Discovery Service",
+    2 : "Control Service",
+    3 : "SIBRA",
+    4 : "SIG",
+    5 : "Hidden Path Service",
 };
 
 function get_json_as_topo(data, width, height) {
@@ -431,16 +411,14 @@ function get_json_as_topo(data, width, height) {
             "links" : []
         };
     }
-    var a = data.as_info.Entries[0];
-    var ia = iaRaw2Read(a.RawIsdas);
-    var iaf = iaRaw2File(a.RawIsdas);
+    var a = data.as_info
+    var iaf = a.IA.replace(/:/g, "_")
 
     // asinfo: add AS root node
     var asnode = {};
-    asnode.name = ia;
+    asnode.name = a.IA;
     asnode.service = "ISD-AS";
-    asnode.mtu = a.Mtu;
-    asnode.is_core_as = a.IsCore;
+    asnode.mtu = a.MTU;
     asnode.type = "root";
     asnode.group = gidx;
     // fix root in center
@@ -449,34 +427,23 @@ function get_json_as_topo(data, width, height) {
     asnode.fixed = true;
     nodes.push(asnode);
 
-    var sinfos = data.svc_info.Entries;
+    var sinfos = data.svc_info;
     for (s in sinfos) {
-        var st = sinfos[s].ServiceType;
         gidx += 1;
-        var hinfos = sinfos[s].HostInfos;
-        for (h in hinfos) {
-            // svcinfo: add all service nodes
-            var snode = {};
-            snode.name = svc_pre[st] + iaf + "-" + (parseInt(h) + 1);
-            snode.service = svc_service[st];
-            snode.ttl = sinfos[s].Ttl;
-            if (hinfos[h].Addrs.IPv4) {
-                snode.ipv4 = ipv4Raw2Read(hinfos[h].Addrs.IPv4);
-            }
-            if (hinfos[h].Addrs.IPv6) {
-                snode.ipv6 = ipv6Raw2Read(hinfos[h].Addrs.IPv6);
-            }
-            snode.port = hinfos[h].Port;
-            snode.type = "service";
-            snode.group = gidx;
-            nodes.push(snode);
-            // svcinfo: add internal links to service nodes
-            var slink = {};
-            slink.source = asnode.name;
-            slink.target = snode.name;
-            slink.type = "as-in";
-            links.push(slink);
-        }
+        // svcinfo: add all service nodes
+        var snode = {};
+        snode.name = svc_pre[s] + iaf
+        snode.service = svc_service[s];
+        snode.addr = sinfos[s]
+        snode.type = "service";
+        snode.group = gidx;
+        nodes.push(snode);
+        // svcinfo: add internal links to service nodes
+        var slink = {};
+        slink.source = asnode.name;
+        slink.target = snode.name;
+        slink.type = "as-in";
+        links.push(slink);
     }
 
     // consider each unique ip/port as a single border router, which may
@@ -495,10 +462,9 @@ function get_json_as_topo(data, width, height) {
             var snode = {};
             brs[brkey] = "br" + iaf + "-" + (Object.keys(brs).length + 1);
             snode.name = brs[brkey];
-            snode.service = "BORDER";
+            snode.service = "Border Router";
             snode.ipv4 = ipv4;
             snode.port = port;
-            snode.if_id = ""; // no longer in if_info in sciond
             snode.zone = zone;
             snode.type = "router";
             snode.group = gidx;
@@ -563,71 +529,4 @@ function showError(err) {
     } else {
         $("#as-error").empty();
     }
-}
-
-function htmlDecode(htmlIn) {
-    var e = document.createElement('div');
-    e.innerHTML = htmlIn;
-    return e.childNodes.length === 0 ? "" : e.childNodes[0].nodeValue;
-}
-
-function ab2str(ab) {
-    return String.fromCharCode.apply(null, new Uint8Array(ab));
-}
-
-function str2ab(str) {
-    var buf = new ArrayBuffer(str.length);
-    var bufView = new Uint8Array(buf);
-    for (var i = 0; i < str.length; i++) {
-        bufView[i] = str.charCodeAt(i);
-    }
-    return buf;
-}
-
-function toBytesUInt32(num) {
-    var ab = new ArrayBuffer(4);
-    var view = new DataView(ab);
-    view.setInt32(0, num, false);
-    return ab;
-}
-
-function fromBytesUInt32(ab) {
-    var view = new DataView(ab);
-    return view.getInt32(0, false);
-}
-
-function reduceHex(hex) {
-    return parseInt(hex, 16).toString(16);
-}
-
-function iaRawCompose(rawIa) {
-    var parts = [];
-    var hex = rawIa.toString(16);
-    var isd = parseInt(hex.slice(0, -12), 16);
-    var as1 = reduceHex(hex.slice(-12, -8));
-    var as2 = reduceHex(hex.slice(-8, -4));
-    var as3 = reduceHex(hex.slice(-4));
-    return [ isd, as1, as2, as3 ];
-}
-
-function iaRaw2Read(rawIa) {
-    var parts = iaRawCompose(rawIa);
-    return parts[0] + '-' + parts.slice(1, 4).join(':');
-}
-
-function iaRaw2File(rawIa) {
-    var parts = iaRawCompose(rawIa);
-    return parts[0] + '-' + parts.slice(1, 4).join('_');
-}
-
-function ipv4Raw2Read(rawIpv4) {
-    var b = atob(rawIpv4); // decode
-    var a = new Uint8Array(str2ab(b));
-    var ipv4 = a.join('.');
-    return ipv4;
-}
-
-// TODO: needs decoding
-function ipv6Raw2Read(rawIpv6) {
-    return rawIpv6;
 }
