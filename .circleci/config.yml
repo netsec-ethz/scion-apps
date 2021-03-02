@@ -51,9 +51,9 @@ jobs:
             git checkout --quiet ${scion_commit}
       - restore_cache:
           keys:
-            - v1-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
-            - v1-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-
-            - v1-integration-pkg-cache-
+            - v2-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+            - v2-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-
+            - v2-integration-pkg-cache-
       - run:
           name: Build SCION services and install python3 dependencies
           command: |
@@ -99,7 +99,7 @@ jobs:
       - store_artifacts:
           path: /tmp/scion-apps-integration/
       - save_cache:
-          key: v1-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+          key: v2-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
           paths:
             - "~/.go_workspace/"
             - "~/.cache/go-build/"
