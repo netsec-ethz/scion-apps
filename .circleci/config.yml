@@ -86,14 +86,15 @@ jobs:
             supervisor/supervisor.sh reload
             supervisor/supervisor.sh start all
       - run:
-          name: Prepare integration test
-          command: |
-            # Handle the two special ones
-            make setup_lint 
+          name: Install libpam0g-dev
+          command:
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
       - run:
           name: Integration tests
           command: |
+            # XXX: hack, don't build skip here, needs go-1.16, currently this runs on go-1.15.
+            # As there are currently no integration tests for scion-skip, we don't need it here.
+            sed -i '/^\s*scion-skip\s*\\$/d' Makefile
             make integration
       - store_artifacts:
           path: /tmp/scion-apps-integration/
