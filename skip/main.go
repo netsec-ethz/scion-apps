@@ -24,6 +24,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"regexp"
@@ -53,12 +54,11 @@ type skipPACTemplateParams struct {
 	ProxyAddress string
 }
 
-var (
-	bindAddress = kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCP()
-)
-
 func main() {
+	var bindAddress *net.TCPAddr
+	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
+
 	transport := shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
 	defer transport.Close()
 	proxy := &proxyHandler{
@@ -66,9 +66,12 @@ func main() {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("localhost/skip.pac", http.HandlerFunc(handleWPAD))
+	if bindAddress.IP != nil {
+		mux.Handle(bindAddress.IP.String()+"/skip.pac", http.HandlerFunc(handleWPAD))
+	}
 	mux.Handle("/", proxy) // everything else
 	server := &http.Server{
-		Addr:    (*bindAddress).String(),
+		Addr:    bindAddress.String(),
 		Handler: handlers.LoggingHandler(os.Stdout, mux),
 	}
 	log.Fatal(server.ListenAndServe())
