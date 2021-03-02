@@ -30,7 +30,7 @@ clean:
 	go clean ./...
 	rm -f bin/*
 
-test: lint
+test:
 	go test -v -tags=$(TAGS) ./...
 
 setup_lint:
@@ -46,7 +46,7 @@ install: all
 	mkdir -p $(DESTDIR)
 	cp -t $(DESTDIR) $(BIN)/scion-*
 
-integration: all
+integration: build
 	go test -v -tags=integration,$(TAGS) ./... ./_examples/helloworld/
 
 .PHONY: scion-bat

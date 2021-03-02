@@ -15,13 +15,13 @@ jobs:
             - v1-pkg-cache-{{ checksum "go.sum" }}
             - v1-pkg-cache
       - run:
+          name: Build
+          command: make build
+      - run:
           name: Run Linters
           command: |
             make setup_lint
             make lint
-      - run:
-          name: Build
-          command: make all
       - run:
           name: Run unit tests
           command: make test
@@ -51,9 +51,9 @@ jobs:
             git checkout --quiet ${scion_commit}
       - restore_cache:
           keys:
-            - v2-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
-            - v2-pkg-cache-{{ checksum "~/scion/go.sum" }}-
-            - v2-pkg-cache-
+            - v1-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+            - v1-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-
+            - v1-integration-pkg-cache-
       - run:
           name: Build SCION services and install python3 dependencies
           command: |
@@ -98,7 +98,7 @@ jobs:
       - store_artifacts:
           path: /tmp/scion-apps-integration/
       - save_cache:
-          key: v2-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+          key: v1-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
           paths:
             - "/go/pkg"
 
