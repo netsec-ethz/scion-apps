@@ -101,7 +101,8 @@ jobs:
       - save_cache:
           key: v1-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
           paths:
-            - "/go/pkg"
+            - "~/.go_workspace/"
+            - "~/.cache/go-build/"
 
 workflows:
   version: 2
