@@ -15,7 +15,9 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
+	_ "embed"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -24,9 +26,11 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/gorilla/handlers"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -39,18 +43,44 @@ const (
 	mungedScionAddrHostIndex = 3
 )
 
+//go:embed skip.pac
+var skipPAC string
+var skipPACtemplate = template.Must(template.New("skip.pac").Parse(skipPAC))
+
+type skipPACTemplateParams struct {
+	ProxyAddress string
+}
+
+var (
+	bindAddress = kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCP()
+)
+
 func main() {
+	kingpin.Parse()
 	transport := shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
 	defer transport.Close()
 	proxy := &proxyHandler{
 		transport: transport,
 	}
-
+	mux := http.NewServeMux()
+	mux.Handle("localhost/skip.pac", http.HandlerFunc(handleWPAD))
+	mux.Handle("/", proxy) // everything else
 	server := &http.Server{
-		Addr:    "localhost:8888",
-		Handler: handlers.LoggingHandler(os.Stdout, proxy),
+		Addr:    (*bindAddress).String(),
+		Handler: handlers.LoggingHandler(os.Stdout, mux),
 	}
 	log.Fatal(server.ListenAndServe())
+}
+
+func handleWPAD(w http.ResponseWriter, req *http.Request) {
+	buf := &bytes.Buffer{}
+	err := skipPACtemplate.Execute(buf, skipPACTemplateParams{ProxyAddress: req.Host})
+	if err != nil {
+		http.Error(w, "error executing template", 500)
+		return
+	}
+	w.Header().Set("content-type", "application/x-ns-proxy-autoconfig")
+	_, _ = w.Write(buf.Bytes())
 }
 
 type proxyHandler struct {

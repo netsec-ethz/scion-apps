@@ -1,9 +1,8 @@
 module github.com/netsec-ethz/scion-apps
 
-go 1.14
+go 1.16
 
 require (
-	github.com/BurntSushi/toml v0.3.1
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/bclicn/color v0.0.0-20180711051946-108f2023dc84
 	github.com/gorilla/handlers v1.5.1
