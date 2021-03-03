@@ -17,7 +17,7 @@
 // different value than expected.
 // There is not much value in running these tests for our fork anyway, so skip
 // them.
-// +build test-bat-httplib
+// +build testbathttplib
 
 package httplib
 

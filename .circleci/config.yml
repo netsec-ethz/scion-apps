@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.14
+      - image: circleci/golang:1.16
 
     steps:
       - run:
@@ -15,13 +15,13 @@ jobs:
             - v1-pkg-cache-{{ checksum "go.sum" }}
             - v1-pkg-cache
       - run:
+          name: Build
+          command: make build
+      - run:
           name: Run Linters
           command: |
             make setup_lint
             make lint
-      - run:
-          name: Build
-          command: make all
       - run:
           name: Run unit tests
           command: make test
@@ -32,7 +32,7 @@ jobs:
 
   integration:
     machine:
-      image: ubuntu-1604:202007-01
+      image: ubuntu-2004:202101-01
 
     steps:
       - checkout
@@ -51,9 +51,9 @@ jobs:
             git checkout --quiet ${scion_commit}
       - restore_cache:
           keys:
-            - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
-            - v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-
-            - v1-pkg-cache-
+            - v2-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+            - v2-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-
+            - v2-integration-pkg-cache-
       - run:
           name: Build SCION services and install python3 dependencies
           command: |
@@ -86,21 +86,23 @@ jobs:
             supervisor/supervisor.sh reload
             supervisor/supervisor.sh start all
       - run:
-          name: Prepare integration test
-          command: |
-            # Handle the two special ones
-            make setup_lint 
+          name: Install libpam0g-dev
+          command:
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
       - run:
           name: Integration tests
           command: |
+            # XXX: hack, don't build skip here, needs go-1.16, currently this runs on go-1.15.
+            # As there are currently no integration tests for scion-skip, we don't need it here.
+            sed -i '/^\s*scion-skip\s*\\$/d' Makefile
             make integration
       - store_artifacts:
           path: /tmp/scion-apps-integration/
       - save_cache:
-          key: v1-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
+          key: v2-integration-pkg-cache-{{ checksum "~/scion/go.sum" }}-{{ checksum "go.sum" }}
           paths:
-            - "/go/pkg"
+            - "~/.go_workspace/"
+            - "~/.cache/go-build/"
 
 workflows:
   version: 2

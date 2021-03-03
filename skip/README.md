@@ -24,8 +24,8 @@ as either:
 
   In Firefox (currently v84.0), navigate to
   **Preferences** / **General** / **Network Settings**, enable "Automatic proxy
-  configuration URL" and enter `file://` and the path to the `skip.pac` file
-  (e.g. `file:///home/skipper/scion-apps/skip/skip.pac`).
+  configuration URL" and enter `http://localhost:8888/skip.pac`.
+  Adapt the address if you're running skip on a non-default address with `--bind`.
 
 ## Usage
 
@@ -41,7 +41,6 @@ Enter SCION addresses in the URL bar of your browser, mangled as described above
 
 ## Limitations
 
-* Chrome does not appear to honor the PAC (WPAD) configuration, even when it reads it. Not sure why.
 * Does not support HTTPS
 * Does not support WebSockets (HTTP CONNECT) method
 * Does not allow specifiying the protocol (e.g. as

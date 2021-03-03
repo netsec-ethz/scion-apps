@@ -71,22 +71,7 @@ Add alternate test forwarding port line in `Vagrantfile`:
   config.vm.network "forwarded_port", guest: 8080, host: 8080, protocol: "tcp"
 ```
 
-Update Go Paths:
-```shell
-echo 'export GOPATH="$HOME/go"' >> ~/.profile
-echo 'export GOBIN="$GOPATH/bin"' >> ~/.profile
-echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:/usr/local/go/bin:$PATH"' >> ~/.profile
-source ~/.profile
-mkdir -p "$GOPATH"
-```
-
-Install Go 1.14:
-```shell
-cd ~
-sudo rm -rf /usr/local/go
-curl -LO https://golang.org/dl/go1.14.12.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.14.12.linux-amd64.tar.gz
-```
+Install Go 1.16 (see e.g. https://github.com/golang/go/wiki/Ubuntu).
 
 Build and install `scion-apps`:
 ```shell
