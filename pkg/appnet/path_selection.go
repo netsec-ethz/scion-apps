@@ -17,6 +17,7 @@ package appnet
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -110,8 +111,11 @@ func QueryPaths(ia addr.IA) ([]snet.Path, error) {
 		return nil, nil
 	} else {
 		paths, err := DefNetwork().PathQuerier.Query(context.Background(), ia)
-		if err != nil || len(paths) == 0 {
+		if err != nil {
 			return nil, err
+		}
+		if len(paths) == 0 {
+			return nil, errors.New("no path available")
 		}
 		paths = filterDuplicates(paths)
 		return paths, nil
