@@ -22,7 +22,6 @@ import (
 type MultiSocket struct {
 	*readerSocket
 	*writerSocket
-	closed bool
 }
 
 func (m *MultiSocket) SetReadDeadline(t time.Time) error {
@@ -72,6 +71,5 @@ func NewMultiSocket(sockets []net.Conn, maxLength int) *MultiSocket {
 	return &MultiSocket{
 		newReaderSocket(sockets),
 		newWriterSocket(sockets, maxLength),
-		false,
 	}
 }

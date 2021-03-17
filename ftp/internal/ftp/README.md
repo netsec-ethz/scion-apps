@@ -2,8 +2,6 @@
 
 Client package for FTP + GridFTP extension, adapted to the SCION network.
 Forked from [jlaffaye/ftp](https://github.com/jlaffaye/ftp), with SCION support originally added in [elwin/scionFTP](https://github.com/elwin/scionFTP).
-Forked
-from .
 
 ## Example ##
 
