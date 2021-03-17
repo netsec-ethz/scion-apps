@@ -22,7 +22,7 @@ import (
 type readerSocket struct {
 	sockets []net.Conn
 	queue   *SegmentQueue
-	pop     <-chan *Segment
+	pop     <-chan Segment
 }
 
 var _ io.Reader = &readerSocket{}
@@ -50,7 +50,7 @@ func (s *readerSocket) Read(p []byte) (n int, err error) {
 	next := <-s.pop
 
 	// Channel has been closed -> no more segments
-	if next == nil {
+	if next.Header == nil {
 		return 0, io.EOF
 	}
 

@@ -19,17 +19,17 @@ type Segment struct {
 	Data []byte
 }
 
-func NewSegment(data []byte, offset int, flags ...uint8) *Segment {
+func NewSegment(data []byte, offset int, flags ...uint8) Segment {
 
-	return &Segment{
+	return Segment{
 		NewHeader(uint64(len(data)), uint64(offset), flags...),
 		data,
 	}
 
 }
 
-func NewSegmentWithHeader(header *Header, data []byte) *Segment {
-	return &Segment{
+func NewSegmentWithHeader(header *Header, data []byte) Segment {
+	return Segment{
 		header,
 		data,
 	}

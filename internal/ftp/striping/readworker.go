@@ -34,7 +34,7 @@ func newReadWorker(socket net.Conn) *readWorker {
 }
 
 // Keeps running until it receives an EOD flag
-func (s *readWorker) Run(push chan<- *Segment) {
+func (s *readWorker) Run(push chan<- Segment) {
 	for {
 		seg, err := receiveNextSegment(s.socket)
 		if err != nil {
@@ -50,11 +50,11 @@ func (s *readWorker) Run(push chan<- *Segment) {
 	}
 }
 
-func receiveNextSegment(socket net.Conn) (*Segment, error) {
+func receiveNextSegment(socket net.Conn) (Segment, error) {
 	header := &Header{}
 	err := binary.Read(socket, binary.BigEndian, header)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read header: %s", err)
+		return Segment{}, fmt.Errorf("failed to read header: %s", err)
 	}
 
 	data := make([]byte, header.ByteCount)
@@ -65,7 +65,7 @@ func receiveNextSegment(socket net.Conn) (*Segment, error) {
 		if cur < int(header.ByteCount) {
 			n, err := socket.Read(data[cur:header.ByteCount])
 			if err != nil {
-				return nil, fmt.Errorf("failed to read payload: %s", err)
+				return Segment{}, fmt.Errorf("failed to read payload: %s", err)
 			}
 
 			cur += n

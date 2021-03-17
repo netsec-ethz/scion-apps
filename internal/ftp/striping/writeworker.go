@@ -26,11 +26,11 @@ import (
 type writeWorker struct {
 	ctx      context.Context
 	wg       *sync.WaitGroup
-	segments chan *Segment
+	segments chan Segment
 	socket   net.Conn
 }
 
-func newWriteWorker(ctx context.Context, wg *sync.WaitGroup, segments chan *Segment, socket net.Conn) *writeWorker {
+func newWriteWorker(ctx context.Context, wg *sync.WaitGroup, segments chan Segment, socket net.Conn) *writeWorker {
 	return &writeWorker{ctx, wg, segments, socket}
 }
 
@@ -63,7 +63,7 @@ func (w *writeWorker) writeHeader(header *Header) error {
 	return binary.Write(w.socket, binary.BigEndian, header)
 }
 
-func (w *writeWorker) writeSegment(segment *Segment) error {
+func (w *writeWorker) writeSegment(segment Segment) error {
 	err := w.writeHeader(segment.Header)
 	if err != nil {
 		return err

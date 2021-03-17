@@ -24,16 +24,16 @@ type SegmentQueue struct {
 	openStreams int
 }
 
-func (q *SegmentQueue) Push(segment *Segment) {
+func (q *SegmentQueue) Push(segment Segment) {
 	heap.Push(q.internal, segment)
 }
 
-func (q *SegmentQueue) Pop() *Segment {
-	return heap.Pop(q.internal).(*Segment)
+func (q *SegmentQueue) Pop() Segment {
+	return heap.Pop(q.internal).(Segment)
 }
 
-func (q *SegmentQueue) Peek() *Segment {
-	return (*q.internal.(segmentHeap).segments)[0]
+func (q *SegmentQueue) Peek() Segment {
+	return q.internal.(*segmentHeap).segments[0]
 }
 
 func (q *SegmentQueue) Len() int {
@@ -48,10 +48,10 @@ func NewSegmentQueue(workers int) *SegmentQueue {
 	}
 }
 
-func (q *SegmentQueue) PushChannel() (chan<- *Segment, <-chan *Segment) {
+func (q *SegmentQueue) PushChannel() (chan<- Segment, <-chan Segment) {
 	// Make buffered channels 4 times as large as the number of streams
-	push := make(chan *Segment, q.openStreams*4)
-	pop := make(chan *Segment, q.openStreams*4)
+	push := make(chan Segment, q.openStreams*4)
+	pop := make(chan Segment, q.openStreams*4)
 	go func() {
 		for {
 			// Has received everything
@@ -82,7 +82,7 @@ func (q *SegmentQueue) PushChannel() (chan<- *Segment, <-chan *Segment) {
 	return push, pop
 }
 
-func (q *SegmentQueue) handleSegment(next *Segment) {
+func (q *SegmentQueue) handleSegment(next Segment) {
 	if next.ContainsFlag(BlockFlagEndOfData) {
 		q.openStreams--
 	}

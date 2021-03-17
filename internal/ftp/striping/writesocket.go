@@ -24,7 +24,7 @@ import (
 type writerSocket struct {
 	sockets           []net.Conn
 	maxLength         int
-	segmentChannel    chan *Segment
+	segmentChannel    chan Segment
 	wg                *sync.WaitGroup
 	cancel            context.CancelFunc
 	written           int
@@ -38,7 +38,7 @@ func newWriterSocket(sockets []net.Conn, maxLength int) *writerSocket {
 	return &writerSocket{
 		sockets:        sockets,
 		maxLength:      maxLength,
-		segmentChannel: make(chan *Segment),
+		segmentChannel: make(chan Segment),
 		wg:             &sync.WaitGroup{},
 	}
 }
