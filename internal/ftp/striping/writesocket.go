@@ -15,7 +15,6 @@
 package striping
 
 import (
-	"context"
 	"io"
 	"net"
 	"sync"
@@ -26,7 +25,6 @@ type writerSocket struct {
 	maxLength         int
 	segmentChannel    chan Segment
 	wg                *sync.WaitGroup
-	cancel            context.CancelFunc
 	written           int
 	dispatchedWriters bool
 }
@@ -49,7 +47,7 @@ func newWriterSocket(sockets []net.Conn, maxLength int) *writerSocket {
 func (s *writerSocket) Write(p []byte) (n int, err error) {
 	if !s.dispatchedWriters {
 		s.dispatchedWriters = true
-		s.cancel = s.dispatchWriter()
+		s.dispatchWriter()
 	}
 
 	cur := 0
@@ -75,31 +73,24 @@ func (s *writerSocket) Write(p []byte) (n int, err error) {
 	}
 }
 
-// Should only be called when all segments have been dispatchedReader,
-// that is, segmentChannel should be empty
 func (s *writerSocket) FinishAndWait() {
 	// Wait until all writers have finished
 	if !s.dispatchedWriters {
 		return
 	}
 
-	// Tell all workers to send EOD next
-	s.cancel()
+	close(s.segmentChannel)
 	s.wg.Wait()
 
 	s.dispatchedWriters = false
 }
 
-func (s *writerSocket) dispatchWriter() context.CancelFunc {
-	ctx, cancel := context.WithCancel(context.TODO())
-
+func (s *writerSocket) dispatchWriter() {
 	for _, socket := range s.sockets {
 		s.wg.Add(1)
-		worker := newWriteWorker(ctx, s.wg, s.segmentChannel, socket)
+		worker := newWriteWorker(s.wg, s.segmentChannel, socket)
 		go worker.Run()
 	}
-
-	return cancel
 }
 
 // Closing the writerSocket blocks until until all

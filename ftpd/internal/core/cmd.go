@@ -1332,52 +1332,39 @@ func (cmd commandSpas) RequireAuth() bool {
 }
 
 func (cmd commandSpas) Execute(conn *Conn, param string) {
-
 	sockets := make([]net.Conn, conn.parallelism)
-	listener := make([]*Listener, conn.parallelism)
 	var err error
 
 	line := "Entering Striped Passive Mode\n"
 
-	for i := range listener {
-		listener[i], err = conn.NewListener()
+	listener, err := conn.NewListener()
+	if err != nil {
+		_, _ = conn.writeMessage(425, "Data connection failed")
+		return
+	}
 
-		if err != nil {
-			_, _ = conn.writeMessage(425, "Data connection failed")
-
-			// Close already opened sockets
-			for j := 0; j < i; j++ {
-				_ = listener[i].Close()
-			}
-			return
-		}
-
-		// Addr().String() return
-		// 1-ff00:0:110,[127.0.0.1]:5848 (UDP)
-		// Remove Protocol first
-		addr := appnet.DefNetwork().IA.String() + "," + listener[i].QuicListener.Addr().(*net.UDPAddr).String()
-
-		line += " " + addr + "\r\n"
+	listenAddr := appnet.DefNetwork().IA.String() + "," + listener.QuicListener.Addr().(*net.UDPAddr).String()
+	for i := 0; i < conn.parallelism; i++ {
+		line += " " + listenAddr + "\r\n"
 	}
 
 	_, _ = conn.writeMessageMultiline(229, line)
 
-	for i := range listener {
-		connection, err := listener[i].Accept()
+	for i := range sockets {
+		connection, err := listener.Accept()
 		if err != nil {
 			_, _ = conn.writeMessage(426, "Connection closed, failed to open data connection")
 
 			// Close already opened sockets
 			for j := 0; j < i; j++ {
-				_ = listener[i].Close()
+				_ = sockets[i].Close()
 			}
 			return
 		}
 		sockets[i] = connection
 	}
 
-	conn.dataConn = striping.NewMultiSocket(sockets, conn.blockSize)
-
+	conn.dataConn = striping.NewMultiSocket(sockets, listener, conn.blockSize)
 }
 
 type commandEret struct{}

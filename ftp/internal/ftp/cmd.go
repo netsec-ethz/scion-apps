@@ -195,7 +195,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 
 		wg.Wait()
 
-		return striping.NewMultiSocket(sockets, c.blockSize), nil
+		return striping.NewMultiSocket(sockets, nil, c.blockSize), nil
 
 	} else {
 		// for Stream and Hercules mode, data connections work the same,

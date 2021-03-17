@@ -15,6 +15,7 @@
 package striping
 
 import (
+	"io"
 	"net"
 	"time"
 )
@@ -22,6 +23,7 @@ import (
 type MultiSocket struct {
 	*readerSocket
 	*writerSocket
+	closer io.Closer
 }
 
 func (m *MultiSocket) SetReadDeadline(t time.Time) error {
@@ -56,7 +58,14 @@ var _ net.Conn = &MultiSocket{}
 // Only the client should close the socket
 // Sends the closing message
 func (m *MultiSocket) Close() error {
-	return m.writerSocket.Close()
+	err := m.writerSocket.Close()
+	if m.closer != nil {
+		go func() { // close later, buffers might still be in use
+			time.Sleep(10 * time.Second)
+			_ = m.closer.Close()
+		}()
+	}
+	return err
 }
 
 func (m *MultiSocket) LocalAddr() net.Addr {
@@ -67,9 +76,10 @@ func (m *MultiSocket) RemoteAddr() net.Addr {
 	return m.writerSocket.sockets[0].RemoteAddr()
 }
 
-func NewMultiSocket(sockets []net.Conn, maxLength int) *MultiSocket {
+func NewMultiSocket(sockets []net.Conn, closer io.Closer, maxLength int) *MultiSocket {
 	return &MultiSocket{
 		newReaderSocket(sockets),
 		newWriterSocket(sockets, maxLength),
+		closer,
 	}
 }

@@ -15,7 +15,6 @@
 package striping
 
 import (
-	"context"
 	"encoding/binary"
 	"net"
 	"sync"
@@ -24,31 +23,29 @@ import (
 )
 
 type writeWorker struct {
-	ctx      context.Context
 	wg       *sync.WaitGroup
 	segments chan Segment
 	socket   net.Conn
 }
 
-func newWriteWorker(ctx context.Context, wg *sync.WaitGroup, segments chan Segment, socket net.Conn) *writeWorker {
-	return &writeWorker{ctx, wg, segments, socket}
+func newWriteWorker(wg *sync.WaitGroup, segments chan Segment, socket net.Conn) *writeWorker {
+	return &writeWorker{wg, segments, socket}
 }
 
 // Writes segments until receives cancellation signal on Done()
 // and sends EOD Header after that.
 func (w *writeWorker) Run() {
 	for {
-		select {
-		case segment := <-w.segments:
+		segment, more := <-w.segments
+		if segment.Header != nil {
 			err := w.writeSegment(segment)
 			if err != nil {
 				log.Error("Failed to write segment", "err", err)
 			}
+		}
 
-		case <-w.ctx.Done():
-			eod := NewHeader(
-				0, 0,
-				BlockFlagEndOfData)
+		if !more {
+			eod := NewHeader(0, 0, BlockFlagEndOfData)
 			err := w.writeHeader(eod)
 			if err != nil {
 				log.Error("Failed to write eod header", "err", err)

@@ -39,6 +39,7 @@ func (s *readWorker) Run(push chan<- Segment) {
 		seg, err := receiveNextSegment(s.socket)
 		if err != nil {
 			fmt.Printf("Failed to receive segment: %s\n", err)
+			return
 		}
 
 		push <- seg
