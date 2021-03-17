@@ -23,7 +23,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/netsec-ethz/scion-apps/ftp/internal/ftp"
 )
@@ -57,7 +56,6 @@ type commandMap map[string]func([]string)
 
 var (
 	herculesFlag = flag.String("hercules", "", "Enable Hercules mode using the Hercules binary specified\nIn Hercules mode, scionFTP checks the following directories for Hercules config files: ., /etc, /etc/scion-ftp")
-	interval     = time.Duration(15 * time.Second) // Interval for Keep-Alive
 )
 
 func init() {
@@ -69,7 +67,6 @@ type App struct {
 	out            io.Writer
 	cmd            commandMap
 	ctx            context.Context
-	cancel         context.CancelFunc
 	herculesBinary string
 }
 
@@ -124,28 +121,6 @@ func (app *App) connect(args []string) {
 	if app.conn.IsHerculesSupported() {
 		app.print("This server supports Hercules up- and downloads, mode H for faster file transfers.")
 	}
-
-	ctx, cancel := context.WithCancel(app.ctx)
-	app.cancel = cancel
-
-	go app.keepalive(ctx, interval)
-}
-
-func (app *App) keepalive(ctx context.Context, interval time.Duration) {
-
-	for {
-		select {
-		case <-time.After(interval):
-			err := app.conn.NoOp()
-			if err != nil {
-				app.print(fmt.Sprintf("Failed to ping for keepalive: %s", err))
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-
 }
 
 func (app *App) login(args []string) {
@@ -319,10 +294,6 @@ func (app *App) stor(args []string) {
 }
 
 func (app *App) quit(args []string) {
-	if app.cancel != nil {
-		app.cancel()
-	}
-
 	err := app.conn.Quit()
 	if err != nil {
 		app.print(err)

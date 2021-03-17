@@ -12,11 +12,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/lucas-clemente/quic-go"
 	"net"
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 // ServerOpts contains parameters for ftpd.NewServer()
@@ -54,7 +52,7 @@ type Opts struct {
 type Server struct {
 	*Opts
 	logger       logger.Logger
-	listener     *sockquic.Listener
+	listener     *Listener
 	ctx          context.Context
 	cancel       context.CancelFunc
 	feats        string
@@ -162,11 +160,11 @@ func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 // listening on the same port.
 //
 func (server *Server) ListenAndServe() error {
-	var listener *sockquic.Listener
+	var listener *Listener
 	var err error
 	var curFeats = featCmds
 
-	listener, err = sockquic.ListenPort(server.Port, server.Certificate)
+	listener, err = ListenPort(server.Port, server.Certificate)
 	if err != nil {
 		return err
 	}
@@ -185,7 +183,7 @@ func (server *Server) ListenAndServe() error {
 // Serve accepts connections on a given net.Listener and handles each
 // request in a new goroutine.
 //
-func (server *Server) Serve(l *sockquic.Listener) error {
+func (server *Server) Serve(l *Listener) error {
 	server.listener = l
 	server.ctx, server.cancel = context.WithCancel(context.Background())
 	sessionID := ""
@@ -210,21 +208,8 @@ func (server *Server) Serve(l *sockquic.Listener) error {
 		} else {
 			ftpConn := server.newConn(conn, driver)
 			go ftpConn.Serve()
-			go acceptKeepAlive(&conn.Session, ftpConn)
 		}
 	}
-}
-
-func acceptKeepAlive(session *quic.Session, ftpConn *Conn) {
-	stream, err := sockquic.AcceptStream(session)
-	if err != nil {
-		if ne, ok := err.(net.Error); !ok || !ne.Timeout() {
-			ftpConn.logger.Printf(ftpConn.sessionID, "could not accept keep alive stream: %s", err)
-		}
-		return
-	}
-	ftpConn.AddKeepAliveConn(&stream)
-	ftpConn.ServeKeepAlive()
 }
 
 // Shutdown will gracefully stop a server. Already connected clients will retain their connections

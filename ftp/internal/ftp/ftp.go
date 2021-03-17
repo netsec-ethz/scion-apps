@@ -29,8 +29,6 @@ import (
 	"net"
 	"net/textproto"
 	"time"
-
-	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 // EntryType describes the different types of an Entry.
@@ -47,13 +45,12 @@ const (
 // A single connection only supports one in-flight data connection.
 // It is not safe to be called concurrently.
 type ServerConn struct {
-	options       *dialOptions
-	socket        *socket.ScionSocket
-	conn          *textproto.Conn
-	keepAliveConn *textproto.Conn
-	features      map[string]string // Server capabilities discovered at runtime
-	mode          byte
-	blockSize     int
+	options   *dialOptions
+	socket    *socket.SingleStream
+	conn      *textproto.Conn
+	features  map[string]string // Server capabilities discovered at runtime
+	mode      byte
+	blockSize int
 }
 
 // DialOption represents an option to start a new connection with Dial
@@ -95,12 +92,7 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 		maxChunkSize = 500
 	}
 
-	conn, err := sockquic.DialAddr(remote)
-	if err != nil {
-		return nil, err
-	}
-
-	kConn, err := sockquic.OpenStream(conn.Session)
+	conn, err := socket.DialAddr(remote)
 	if err != nil {
 		return nil, err
 	}
@@ -110,18 +102,12 @@ func Dial(remote string, options ...DialOption) (*ServerConn, error) {
 		sourceConn = newDebugWrapper(conn, do.debugOutput)
 	}
 
-	var sourceKConn io.ReadWriteCloser = kConn
-	if do.debugOutput != nil {
-		sourceKConn = newDebugWrapper(kConn, do.debugOutput)
-	}
-
 	c := &ServerConn{
-		options:       do,
-		features:      make(map[string]string),
-		socket:        conn,
-		conn:          textproto.NewConn(sourceConn),
-		keepAliveConn: textproto.NewConn(sourceKConn),
-		blockSize:     maxChunkSize,
+		options:   do,
+		features:  make(map[string]string),
+		socket:    conn,
+		conn:      textproto.NewConn(sourceConn),
+		blockSize: maxChunkSize,
 	}
 
 	_, _, err = c.conn.ReadResponse(StatusReady)

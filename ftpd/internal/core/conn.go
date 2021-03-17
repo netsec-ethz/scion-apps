@@ -12,17 +12,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/lucas-clemente/quic-go"
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
 	"io"
 	"log"
 	"net"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 const (
@@ -31,28 +27,25 @@ const (
 )
 
 type Conn struct {
-	conn            net.Conn
-	controlReader   *bufio.Reader
-	controlWriter   *bufio.Writer
-	keepAliveConn   net.Conn
-	keepAliveReader *bufio.Reader
-	keepAliveWriter *bufio.Writer
-	dataConn        net.Conn
-	driver          Driver
-	auth            Auth
-	logger          logger.Logger
-	server          *Server
-	sessionID       string
-	namePrefix      string
-	reqUser         string
-	user            string
-	renameFrom      string
-	lastFilePos     int64
-	appendData      bool
-	closed          bool
-	mode            byte
-	parallelism     int
-	blockSize       int
+	conn          net.Conn
+	controlReader *bufio.Reader
+	controlWriter *bufio.Writer
+	dataConn      net.Conn
+	driver        Driver
+	auth          Auth
+	logger        logger.Logger
+	server        *Server
+	sessionID     string
+	namePrefix    string
+	reqUser       string
+	user          string
+	renameFrom    string
+	lastFilePos   int64
+	appendData    bool
+	closed        bool
+	mode          byte
+	parallelism   int
+	blockSize     int
 }
 
 func (conn *Conn) LoginUser() string {
@@ -63,14 +56,14 @@ func (conn *Conn) IsLogin() bool {
 	return len(conn.user) > 0
 }
 
-func (conn *Conn) NewListener() (*sockquic.Listener, error) {
+func (conn *Conn) NewListener() (*Listener, error) {
 
 	var err error
-	var listener *sockquic.Listener
+	var listener *Listener
 
 	for i := 0; i < listenerRetries; i++ {
 
-		listener, err = sockquic.ListenPort(0, conn.server.Certificate)
+		listener, err = ListenPort(0, conn.server.Certificate)
 		if err == nil {
 			break
 		}
@@ -124,51 +117,9 @@ func (conn *Conn) Serve() {
 	conn.logger.Print(conn.sessionID, "Connection Terminated")
 }
 
-func (conn *Conn) AddKeepAliveConn(stream *quic.Stream) {
-	keepAliveConn := socket.NewScionSocket(conn.conn.(*socket.ScionSocket).Session, *stream)
-	conn.keepAliveConn = keepAliveConn
-	conn.keepAliveReader = bufio.NewReader(keepAliveConn)
-	conn.keepAliveWriter = bufio.NewWriter(keepAliveConn)
-}
-
-// ServeKeepAlive starts an endless loop that only accepts and responds to NOOP
-// commands. A scionftp client can send keep alive packets using the separate
-// stream to avoid race conditions on the primary stream during data transfers.
-func (conn *Conn) ServeKeepAlive() {
-	conn.logger.Print(conn.sessionID, "Keep-Alive Stream Established")
-	// read commands
-	for {
-		line, err := conn.keepAliveReader.ReadString('\n')
-		if err != nil {
-			if err != io.EOF {
-				conn.logger.Print(conn.sessionID, fmt.Sprint("read error:", err))
-			}
-
-			break
-		}
-		command := strings.ToUpper(strings.Trim(line, "\r\n"))
-		if command != "NOOP" {
-			_, _ = conn.writeMessage(550, "Got non-NOOP on keep-alive stream")
-		} else {
-			_, _ = conn.keepAliveWriter.WriteString("200 OK\r\n")
-			_ = conn.keepAliveWriter.Flush()
-		}
-		// QUIT command closes connection, break to avoid error on reading from
-		// closed socket
-		if conn.closed {
-			break
-		}
-	}
-	conn.Close()
-	conn.logger.Print(conn.sessionID, "Keep-Alive Stream Terminated")
-}
-
 // Close will manually close this connection, even if the scionftp isn't ready.
 func (conn *Conn) Close() {
 	_ = conn.conn.Close()
-	if conn.keepAliveConn != nil {
-		_ = conn.keepAliveConn.Close()
-	}
 	conn.closed = true
 	if conn.dataConn != nil {
 		_ = conn.dataConn.Close()

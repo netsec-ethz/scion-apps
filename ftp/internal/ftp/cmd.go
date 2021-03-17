@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 	"github.com/scionproto/scion/go/lib/snet"
 	"io"
@@ -35,7 +36,6 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	libmode "github.com/netsec-ethz/scion-apps/internal/ftp/mode"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/sockquic"
 )
 
 // Login authenticates the scionftp with specified user and password.
@@ -184,7 +184,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 			go func(i int) {
 				defer wg.Done()
 
-				conn, err := sockquic.DialAddr(addrs[i])
+				conn, err := socket.DialAddr(addrs[i])
 				if err != nil {
 					log.Fatalf("failed to connect: %s", err)
 				}
@@ -208,7 +208,7 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 		remote := c.socket.RemoteAddr().(*snet.UDPAddr).Copy()
 		remote.Host.Port = port
 
-		conn, err := sockquic.DialAddr(remote.String())
+		conn, err := socket.DialAddr(remote.String())
 		if err != nil {
 			return nil, err
 		}
@@ -655,12 +655,12 @@ func (c *ServerConn) RemoveDir(path string) error {
 // NOOP has no effects and is usually used to prevent the remote FTP server to
 // close the otherwise idle connection.
 func (c *ServerConn) NoOp() error {
-	_, err := c.keepAliveConn.Cmd("NOOP")
+	_, err := c.conn.Cmd("NOOP")
 	if err != nil {
 		return err
 	}
 
-	_, _, err = c.keepAliveConn.ReadResponse(StatusCommandOK)
+	_, _, err = c.conn.ReadResponse(StatusCommandOK)
 	return err
 }
 

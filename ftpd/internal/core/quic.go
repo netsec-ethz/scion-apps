@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sockquic
+package core
 
 import (
-	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"io"
+	"net"
 )
 
 type Listener struct {
@@ -49,42 +47,6 @@ func (listener *Listener) Close() error {
 	return listener.QuicListener.Close()
 }
 
-func (listener *Listener) Accept() (*socket.ScionSocket, error) {
-	session, err := listener.QuicListener.Accept(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("couldn't accept APPQUIC connection: %s", err)
-	}
-	stream, err := AcceptStream(&session)
-	if err != nil {
-		return nil, err
-	}
-
-	return socket.NewScionSocket(session, stream), nil
-}
-
-func AcceptStream(session *quic.Session) (quic.Stream, error) {
-	stream, err := (*session).AcceptStream(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	err = receiveHandshake(stream)
-	if err != nil {
-		return nil, err
-	}
-	return stream, nil
-}
-
-func receiveHandshake(rw io.ReadWriter) error {
-
-	msg := make([]byte, 1)
-	len, err := rw.Read(msg)
-	if err != nil {
-		return err
-	}
-	if len != 1 {
-		return errors.New("invalid handshake received")
-	}
-
-	return nil
+func (listener *Listener) Accept() (net.Conn, error) {
+	return socket.Accept(listener.QuicListener)
 }
