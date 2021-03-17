@@ -6,6 +6,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -385,12 +386,12 @@ func (cmd commandEpsv) Execute(conn *Conn, param string) {
 	msg := fmt.Sprintf("Entering Extended Passive Mode (|||%d|)", listener.QuicListener.Addr().(*net.UDPAddr).Port)
 	_, _ = conn.writeMessage(229, msg)
 
-	socket, err := listener.Accept()
+	sock, err := listener.Accept()
 	if err != nil {
 		_, _ = conn.writeMessage(426, "Connection closed, failed to open data connection")
 		return
 	}
-	conn.dataConn = socket
+	conn.dataConn = socket.DelayedCloserSocket{Conn: sock, Closer: listener, Duration: 120 * time.Second}
 
 }
 
@@ -1364,7 +1365,11 @@ func (cmd commandSpas) Execute(conn *Conn, param string) {
 		sockets[i] = connection
 	}
 
-	conn.dataConn = striping.NewMultiSocket(sockets, listener, conn.blockSize)
+	conn.dataConn = socket.DelayedCloserSocket{
+		Conn:     striping.NewMultiSocket(sockets, conn.blockSize),
+		Closer:   listener,
+		Duration: 120 * time.Second,
+	}
 }
 
 type commandEret struct{}
