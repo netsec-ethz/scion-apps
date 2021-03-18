@@ -198,8 +198,10 @@ func (c *ServerConn) openDataConn() (net.Conn, error) {
 		return striping.NewMultiSocket(sockets, c.blockSize), nil
 
 	} else {
-		// for Stream and Hercules mode, data connections work the same,
-		// except that Hercules will "steal" the traffic from the Kernel
+		// For Stream and Hercules mode, data connections work the same,
+		// except that Hercules will "steal" the traffic from the Kernel.
+		// Note that this only happens for file transfers, the remaining
+		// data connections will work as normal in stream mode.
 		port, err := c.getDataConnPort()
 		if err != nil {
 			return nil, err
