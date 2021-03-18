@@ -574,7 +574,6 @@ func (cmd commandMode) RequireAuth() bool {
 func (cmd commandMode) Execute(conn *Conn, param string) {
 	if strings.ToUpper(param) == "S" {
 		conn.mode = mode.Stream
-		_, _ = conn.writeMessage(200, "OK")
 
 	} else if strings.ToUpper(param) == "E" {
 		conn.mode = mode.ExtendedBlockMode
