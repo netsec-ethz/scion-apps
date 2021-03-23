@@ -19,7 +19,7 @@ import (
 )
 
 type SegmentQueue struct {
-	internal    heap.Interface
+	internal    *segmentHeap
 	offset      uint64
 	openStreams int
 }
@@ -33,7 +33,7 @@ func (q *SegmentQueue) Pop() Segment {
 }
 
 func (q *SegmentQueue) Peek() Segment {
-	return q.internal.(*segmentHeap).segments[0]
+	return q.internal.segments[0]
 }
 
 func (q *SegmentQueue) Len() int {
