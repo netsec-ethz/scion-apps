@@ -1,54 +1,52 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 
+	"github.com/gorilla/handlers"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 func main() {
-
-	local := flag.String("local", "", "The local HTTP or SCION address on which the server will be listening")
-	remote := flag.String("remote", "", "The SCION or HTTP address on which the server will be requested")
+	port := flag.Uint("port", 80, "port the proxy server listens on.")
+	listenSCION := flag.Bool("listen-scion", false, "proxy server listens on SCION.")
+	remote := flag.String("remote", "", "remote URL to which requests will be forwarded."+
+		"Requests are sent over SCION iff this contains a SCION address.")
 
 	flag.Parse()
 
-	mux := http.NewServeMux()
-
-	// parseUDPAddr validates if the address is a SCION address
-	// which we can use to proxy to SCION
-	if _, err := snet.ParseUDPAddr(*remote); err == nil {
-		proxyHandler, err := shttp.NewSingleSCIONHostReverseProxy(*remote, &tls.Config{InsecureSkipVerify: true})
-		if err != nil {
-			log.Fatalf("Failed to create SCION reverse proxy %s", err)
-		}
-
-		mux.Handle("/", proxyHandler)
-		log.Printf("Proxy to SCION remote %s\n", *remote)
-	} else {
-		u, err := url.Parse(*remote)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed parse remote %s, %s", *remote, err))
-		}
-		log.Printf("Proxy to HTTP remote %s\n", *remote)
-		mux.Handle("/", httputil.NewSingleHostReverseProxy(u))
+	if *remote == "" {
+		flag.Usage()
+		os.Exit(2)
 	}
+	remoteMangled := shttp.MangleSCIONAddrURL(*remote)
+	remoteURL, err := url.Parse(remoteMangled)
+	if err != nil {
+		log.Fatal(err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(remoteURL)
+	if remoteMangled != *remote {
+		proxy.Transport = shttp.NewRoundTripper()
+		log.Printf("Proxy to SCION remote %s\n", remoteURL)
+	} else {
+		log.Printf("Proxy to IP/TCP remote %s\n", remoteURL)
+	}
+	handler := handlers.LoggingHandler(os.Stdout, proxy)
 
-	if lAddr, err := snet.ParseUDPAddr(*local); err == nil {
-		log.Printf("Listen on SCION %s\n", *local)
+	local := fmt.Sprintf(":%d", *port)
+	if *listenSCION {
+		log.Printf("Listen on SCION %s\n", local)
 		// ListenAndServe does not support listening on a complete SCION Address,
 		// Consequently, we only use the port (as seen in the server example)
-		log.Fatalf("%s", shttp.ListenAndServe(fmt.Sprintf(":%d", lAddr.Host.Port), mux, nil))
+		log.Fatal(shttp.ListenAndServe(local, handler))
 	} else {
-		log.Printf("Listen on HTTP %s\n", *local)
-		log.Fatalf("%s", http.ListenAndServe(*local, mux))
+		log.Printf("Listen on IP/TCP %s\n", local)
+		log.Fatal(http.ListenAndServe(local, handler))
 	}
-
 }

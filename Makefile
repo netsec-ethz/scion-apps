@@ -24,6 +24,7 @@ build: scion-bat \
 	scion-skip \
 	scion-ssh scion-sshd \
 	scion-webapp \
+	scion-web-gateway \
 	example-helloworld \
 	example-hellodrkey \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
@@ -33,7 +34,7 @@ clean:
 	rm -f bin/*
 
 test:
-	go test -v -tags=$(TAGS) ./...
+	go test -tags=$(TAGS) ./...
 
 setup_lint:
 	@# Install golangci-lint (as dumb as this looks, this is the recommended way to install)
@@ -41,7 +42,7 @@ setup_lint:
 
 lint:
 	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
-	golangci-lint run --build-tags=$(TAGS) --timeout=2m0s -v
+	golangci-lint run --build-tags=$(TAGS) --timeout=2m0s
 
 install: all
   # Note: install everything but the examples
@@ -106,6 +107,10 @@ scion-sshd:
 .PHONY: scion-webapp
 scion-webapp:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./webapp/
+
+.PHONY: scion-web-gateway
+scion-web-gateway:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./web-gateway/
 
 .PHONY: example-helloworld
 example-helloworld:

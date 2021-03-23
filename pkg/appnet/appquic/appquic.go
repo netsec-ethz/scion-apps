@@ -20,6 +20,7 @@ package appquic
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/lucas-clemente/quic-go"
@@ -132,6 +133,14 @@ func ensurePathDefined(raddr *snet.UDPAddr) error {
 // See note on wildcard addresses in the appnet package documentation.
 func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
 	sconn, err := appnet.ListenPort(port)
+	if err != nil {
+		return nil, err
+	}
+	return quic.Listen(sconn, tlsConf, quicConfig)
+}
+
+func Listen(listen *net.UDPAddr, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
+	sconn, err := appnet.Listen(listen)
 	if err != nil {
 		return nil, err
 	}

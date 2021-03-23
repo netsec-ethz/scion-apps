@@ -15,7 +15,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -37,16 +36,14 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Create a standard server with our custom RoundTripper
+	// Create a standard client with our custom RoundTripper
 	c := &http.Client{
-		Transport: shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil),
+		Transport: shttp.NewRoundTripper(),
 	}
-	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
-	defer c.Transport.(shttp.RoundTripper).Close()
 
 	// Make a get request
 	start := time.Now()
-	query := fmt.Sprintf("https://%s/hello", *serverAddrStr)
+	query := fmt.Sprintf("http://%s/hello", *serverAddrStr)
 	resp, err := c.Get(shttp.MangleSCIONAddrURL(query))
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
@@ -57,8 +54,11 @@ func main() {
 	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp)
 
+	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
+	c.CloseIdleConnections()
+
 	start = time.Now()
-	query = fmt.Sprintf("https://%s/form", *serverAddrStr)
+	query = fmt.Sprintf("http://%s/form", *serverAddrStr)
 	resp, err = c.Post(
 		shttp.MangleSCIONAddrURL(query),
 		"application/x-www-form-urlencoded",

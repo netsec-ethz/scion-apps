@@ -1,75 +1,46 @@
-# HTTP over SCION/QUIC
+# HTTP over SCION
 
-This package contains a client/server implementation of HTTP/3 over SCION/QUIC as well as a proxy implementation to proxy HTTP/3 requests over SCION to HTTP/1.1 and vice versa.
+This package contains glue code to use the standard net/http libraries for HTTP
+over SCION.
 
-### The Client is a standard net/http client with a custom RoundTripper implementation.
+This uses a QUIC session with a single stream as a transport, instead of the
+standard TCP (for which we do not have an implementation on top of SCION).
+As TLS is always enabled in QUIC, we use an insecure TLS session with self
+signed certificates to get something similar to TCP for insecure HTTP.
+For HTTPS, we'll have two TLS sessions; the insecure TLS for the basic
+transport and on top of that, the "normal" TLS for the actual web content.
+This may seem silly, and the net/http library provides enough hooks that would
+allow using the "normal" TLS session directly. However, only this setup allows
+to implement CONNECT, e.g. to proxy HTTPS traffic over HTTP.
 
-First, create a client:
+### Client
+
+We use the standard net/http Client/Transport with a customized Dial function:
+
 ```Go
+// Create a client with our Transport/Dialer:
 client := &http.Client{
-    Transport: &shttp.NewRoundTripper(tlsCfg, quicCfg)
+    Transport: shttp.NewRoundTripper()
 }
-```
-
-where `tlsCfg` and `quicCfg` can both be left `nil`.
-
-Then, make requests as usual:
-```Go
+// Make requests as usual
 resp, err := client.Get("http://server:8080/download")
 ```
-Hostnames are resolved by parsing the `/etc/hosts` file or by a RAINS lookup (see [Hostnames](../../README.md#Hostnames)).
 
-### The Server is a full HTTP/3 server designed to work similar to the standard net/http implementation. It supports:
-
-* concurrent handling of clients
-* standard net/http handlers
-* standard net/http helpers such as http.ServeFile, http.Error, http.ServeMux, etc
-* detection of Content-Type and Content-Length and setting of headers accordingly
-
-First, create a ServeMux():
+Hostnames are resolved by parsing the `/etc/hosts` file or by a RAINS lookup
+(see [Hostnames](../../README.md#Hostnames)).
+URLs potentially containing raw SCION addresses must be *mangled* before
+passing into the client (or any other place where they might be parsed as URL).
 ```Go
-mux := http.NewServeMux()
+resp, err := client.Get(shttp.MangleSCIONURL("http://1-ff00:0:110,127.0.0.1:8080/download"))
 ```
 
-Then, create handlers:
+### Server
+
+The server is used just like the standard net/http server; the handlers work
+all the same, only a custom listener is used for serving.
+
+Example:
 ```Go
-mux.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
-	// Status 200 OK will be set implicitly
-	// Content-Length will be inferred by server
-	// Content-Type will be detected by server
-	http.ServeFile(w, r, "example/sample.html")
-})
+handler := http.FileServer(http.Dir("/usr/share/doc"))))
+log.Fatal(shttp.ListenAndServe(":80", handler))
 ```
-DefaultServeMux is supported. Use it as usual:
-```Go
-http.HandleFunc("/download", func(w http.ResponseWriter, r *http.Request) {
-	// handle request
-})
-
-http.Handle("/download", handler)
-```
-
-Finally, start the server:
-```Go
-err := shttp.ListenAndServe(local, mux, nil)
-if err != nil {
-	log.Fatal(err)
-}
-
-```
-where `local` is the local (UDP)-address of the server.
-
-### Proxy combines the client and server implementation
-The proxy can handle two directions: From HTTP/1.1 to SCION and from SCION to HTTP/1.1. Its idea is to make resources provided over HTTP accessible over the SCION network. 
-
-To use the proxy, consider the proxy example in _examples. This implementation detects from the format of the `remote` and `local` argument if it should listen on SCION/HTTP/1.1 and proxy to SCION/HTTP/1.1.
-
-Example code can be found here: [_examples/shttp/proxy](../../_examples/shttp/proxy/main.go)
-
-To proxy from SCION to HTTP/1.1, use
-`./proxy --local="19-ffcc:1:aaa,[127.0.0.1]:42424" --remote="http://192.168.0.1:8090"`
-
-and to proxy to SCION from HTTP/1.1, use
-`./proxy --remote="19-ffcc:1:aaa,[127.0.0.1]:42425" --local="192.168.0.1:8091"`
-
-Furthermore, also proxying from SCION to SCION and from HTTP/1.1 to HTTP/1.1 is possible by entering the correct address formats for SCION and HTTP/1.1 respectively.
