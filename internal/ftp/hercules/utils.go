@@ -17,13 +17,15 @@ package hercules
 import (
 	"errors"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/scionproto/scion/go/lib/snet"
 	"net"
 	"os"
 	"os/exec"
 	"os/user"
 	"strconv"
+
+	"github.com/scionproto/scion/go/lib/snet"
+
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 func findInterfaceName(localAddr net.IP) (string, error) {

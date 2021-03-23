@@ -6,10 +6,6 @@ package core
 
 import (
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/scionproto/scion/go/lib/snet"
 	"log"
 	"net"
 	"os"
@@ -18,8 +14,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/snet"
+
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	"github.com/netsec-ethz/scion-apps/internal/ftp/mode"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
 
 type Command interface {

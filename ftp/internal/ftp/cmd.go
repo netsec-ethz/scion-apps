@@ -20,9 +20,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
-	"github.com/scionproto/scion/go/lib/snet"
 	"io"
 	"log"
 	"net"
@@ -34,8 +31,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/snet"
+
 	"github.com/netsec-ethz/scion-apps/internal/ftp/hercules"
 	libmode "github.com/netsec-ethz/scion-apps/internal/ftp/mode"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/striping"
 )
 
 // Login authenticates the scionftp with specified user and password.

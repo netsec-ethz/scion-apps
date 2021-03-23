@@ -24,11 +24,12 @@ package ftp
 import (
 	"context"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"io"
 	"net"
 	"net/textproto"
 	"time"
+
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
 // EntryType describes the different types of an Entry.

@@ -10,10 +10,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"io"
 	"net"
+
+	"github.com/lucas-clemente/quic-go"
+
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
 var _ net.Conn = &SingleStream{}

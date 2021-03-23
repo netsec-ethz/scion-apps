@@ -12,13 +12,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
 	"io"
 	"log"
 	"net"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
 )
 
 const (

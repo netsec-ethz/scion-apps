@@ -17,10 +17,12 @@ package core
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
+
 	"github.com/lucas-clemente/quic-go"
+
 	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"net"
 )
 
 type Listener struct {

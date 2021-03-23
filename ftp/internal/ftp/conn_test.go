@@ -18,7 +18,6 @@ package ftp
 
 import (
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"net"
@@ -28,6 +27,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type ftpMock struct {
