@@ -15,7 +15,7 @@
 package shttp
 
 import (
-	"crypto/tls"
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -24,7 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -112,8 +111,8 @@ func TestRoundTripper(t *testing.T) {
 	// checks wether the address can be successfully unmangled and resolved.
 	// expected will be set in the test loop, below
 	var expected string
-	testDial := func(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
-		unmangled := appnet.UnmangleSCIONAddr(address)
+	testDial := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		unmangled := appnet.UnmangleSCIONAddr(addr)
 		resolvedAddr, err := appnet.ResolveUDPAddrAt(unmangled, resolver)
 		if err != nil {
 			t.Fatalf("unexpected error when resolving address '%s' in roundtripper: %s", unmangled, err)
@@ -125,9 +124,11 @@ func TestRoundTripper(t *testing.T) {
 		return nil, errors.New("just a test")
 	}
 
-	rt := NewRoundTripper(nil, nil)
-	rt.(*roundTripper).rt.Dial = testDial
-	c := &http.Client{Transport: rt}
+	c := &http.Client{
+		Transport: &http.Transport{
+			DialContext: testDial,
+		},
+	}
 
 	for _, tc := range testCases {
 		for _, urlPattern := range urlPatterns {

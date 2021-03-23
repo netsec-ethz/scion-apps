@@ -16,20 +16,17 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
 func main() {
-
-	port := flag.Uint("p", 443, "port the server listens on")
-	flag.Parse()
-
 	m := http.NewServeMux()
 
 	// handler that responds with a friendly greeting
@@ -84,5 +81,6 @@ func main() {
 		}
 	})
 
-	log.Fatal(shttp.ListenAndServe(fmt.Sprintf(":%d", *port), m, nil))
+	handler := handlers.LoggingHandler(os.Stdout, m)
+	log.Fatal(shttp.ListenAndServe(":80", handler))
 }

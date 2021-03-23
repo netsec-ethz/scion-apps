@@ -7,11 +7,9 @@ for SCION.
 skip uses a [Proxy auto-config](https://en.wikipedia.org/wiki/Proxy_auto-config)
 file to forward all requests with a SCION destination to a proxy server running
 as a (native) binary on localhost.
-As this mechanism does not let us support a separate protocol identifier nor allow
-looking up whether a name refers to a SCION address, we identify SCION addresses
-as either:
-  * the host name of a SCION host with an appended  pseudo-TLD `.scion`, e.g.
-    `http://www.scionlab.org.scion`, or
+This mechanism does not let us dynamically look up whether a name refers to
+a SCION address. We identify SCION addresses as either:
+  * the host name of a SCION host from `/etc/hosts` or `/etc/scion/hosts`
   * a mangled SCION address in the form `<ISD>-<AS id with
     underscores>-<host>`, e.g. `http://17-ffaa_0_1101-129.132.121.164/`
 
@@ -36,16 +34,11 @@ repository's main README and the [SCIONLab tutorials](https://docs.scionlab.org)
 Start `bin/scion-skip` and keep it running in the background.
 
 Enter SCION addresses in the URL bar of your browser, mangled as described above:
-  * [http://www.scionlab.org.scion](http://www.scionlab.org.scion)
   * [http://17-ffaa_0_1101-129.132.121.164/](http://17-ffaa_0_1101-129.132.121.164/)
+  * [http://www.scionlab.org](http://www.scionlab.org), assuming there is an
+    entry for `www.scionlab.org` in `/etc/scion/hosts`.
 
 ## Limitations
-
-* Does not support HTTPS
-* Does not support WebSockets (HTTP CONNECT) method
-* Does not allow specifiying the protocol (e.g. as
-  `scion+http://www.scionlab.org`) but instead uses a kludgy pseudo-TLD to
-  identify SCION hosts.
 
 Obviously this is not great, but hey, it's a start. Some inspiration for how to
 to build something more advanced can be found in this extensions for the gopher

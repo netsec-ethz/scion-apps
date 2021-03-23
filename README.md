@@ -139,8 +139,9 @@ netcat contains a SCION port of the netcat application. See the [netcat README](
 Pkg contains underlaying library code for scion-apps.
 
 - appnet: simplified and functionally extended wrapper interfaces for the SCION core libraries
-- appquic:  a simple interface to use QUIC over SCION
-- shttp: a client/server implementation of HTTP/3 over SCION/QUIC
+- appquic: a simple interface to use QUIC over SCION
+- shttp: glue library to use net/http libraries for HTTP over SCION
+- shttp3: glue library to use quic-go/http3 for HTTP/3 over SCION
 - integration: a simple framework to support intergration testing for the demo applications in this repository
 
 
@@ -160,6 +161,10 @@ Directory ssh contains a SSH client and server running over SCION network.
 
 More documentation is available in the [ssh README](ssh/README.md).
 
+
+## web-gateway
+
+web-gateway is a SCION web server that proxies web content from the TCP/IP web to the SCION web.
 
 ## webapp
 

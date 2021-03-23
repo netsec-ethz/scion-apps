@@ -17,12 +17,13 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	_ "embed"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -32,6 +33,7 @@ import (
 	"text/template"
 
 	"github.com/gorilla/handlers"
+	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -52,6 +54,7 @@ var skipPACtemplate = template.Must(template.New("skip.pac").Parse(skipPAC))
 
 type skipPACTemplateParams struct {
 	ProxyAddress string
+	SCIONHosts   []string
 }
 
 func main() {
@@ -59,10 +62,8 @@ func main() {
 	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
 
-	transport := shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
-	defer transport.Close()
 	proxy := &proxyHandler{
-		transport: transport,
+		transport: shttp.NewRoundTripper(),
 	}
 	mux := http.NewServeMux()
 	mux.Handle("localhost/skip.pac", http.HandlerFunc(handleWPAD))
@@ -70,17 +71,26 @@ func main() {
 		mux.Handle(bindAddress.IP.String()+"/skip.pac", http.HandlerFunc(handleWPAD))
 	}
 	mux.Handle("/", proxy) // everything else
+
+	handler := interceptConnect(http.HandlerFunc(handleTunneling), mux)
+
 	server := &http.Server{
 		Addr:    bindAddress.String(),
-		Handler: handlers.LoggingHandler(os.Stdout, mux),
+		Handler: handlers.LoggingHandler(os.Stdout, handler),
 	}
 	log.Fatal(server.ListenAndServe())
 }
 
 func handleWPAD(w http.ResponseWriter, req *http.Request) {
 	buf := &bytes.Buffer{}
-	err := skipPACtemplate.Execute(buf, skipPACTemplateParams{ProxyAddress: req.Host})
+	err := skipPACtemplate.Execute(buf,
+		skipPACTemplateParams{
+			ProxyAddress: req.Host,
+			SCIONHosts:   loadHosts(),
+		},
+	)
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, "error executing template", 500)
 		return
 	}
@@ -93,13 +103,9 @@ type proxyHandler struct {
 }
 
 func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	hostMunged := req.Host
 	host := demunge(req.Host)
 	req.Host = host
-	req.URL.Scheme = "https"
 	req.URL.Host = host
-	// Only accept plain text so we can munge the host name in the body without decompressing (lazy)
-	req.Header.Del("Accept-Encoding")
 
 	resp, err := h.transport.RoundTrip(req)
 	if err != nil {
@@ -107,40 +113,86 @@ func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	copyAndReplaceHeader(w.Header(), resp.Header, host, hostMunged)
+	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
-		fmt.Println("replacing")
-		copyAndReplace(w, resp.Body, host, hostMunged)
-	} else {
-		_, _ = io.Copy(w, resp.Body)
-	}
+	_, _ = io.Copy(w, resp.Body)
 }
 
-func copyAndReplaceHeader(dst, src http.Header, host, hostMunged string) {
+func copyHeader(dst, src http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
-			vMunged := replaceMunged([]byte(v), host, hostMunged)
-			dst.Add(k, string(vMunged))
+			dst.Add(k, v)
 		}
 	}
 }
 
-func copyAndReplace(w io.Writer, body io.Reader, host, hostMunged string) {
-	// ReadAll, not the most elegant solution...
-	b, _ := ioutil.ReadAll(body)
-	b = replaceMunged(b, host, hostMunged)
-	_, _ = w.Write(b)
+// interceptConnect creates a handler that calls the handler connect for the
+// CONNECT method and otherwise the handler other.
+func interceptConnect(connect, other http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodConnect {
+			connect.ServeHTTP(w, req)
+			return
+		}
+		other.ServeHTTP(w, req)
+	}
 }
 
-// replaceMunged replaces http://<host> or https://<host> with http://<hostMunged>, so
-// for example it replaces https://www.scionlab.org with http://www.scionlab.org.scion
-// This replacement is applied to both headers and html body so that most links and redirects
-// should work.
-func replaceMunged(s []byte, host, hostMunged string) []byte {
-	// compile and compile again, not super elegant either...
-	reOriginal := regexp.MustCompile(`http(s)?://` + regexp.QuoteMeta(host))
-	return reOriginal.ReplaceAll(s, []byte("http://"+hostMunged))
+func handleTunneling(w http.ResponseWriter, req *http.Request) {
+	session, err := appquic.Dial(
+		req.Host,
+		&tls.Config{
+			InsecureSkipVerify: true,
+			NextProtos:         []string{"raw"},
+		},
+		nil)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	destConn, err := session.OpenStream()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		panic("Hijacking not supported")
+	}
+	clientConn, _, err := hijacker.Hijack()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+	}
+	go transfer(destConn, clientConn)
+	go transfer(clientConn, destConn)
+}
+
+func transfer(dst io.WriteCloser, src io.ReadCloser) {
+	defer dst.Close()
+	defer src.Close()
+	buf := make([]byte, 1024)
+	var written int64
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw < 0 || nr < nw {
+				nw = 0
+				if ew == nil {
+					ew = errors.New("invalid write")
+				}
+			}
+			written += int64(nw)
+			if ew != nil || nr != nw {
+				break
+			}
+		}
+		if er != nil {
+			break
+		}
+	}
 }
 
 // demunge reverts the host name to a proper SCION address, from the format
@@ -154,7 +206,48 @@ func demunge(host string) string {
 			strings.ReplaceAll(parts[mungedScionAddrASIndex], "_", ":"),
 			parts[mungedScionAddrHostIndex],
 		)
-	} else {
-		return strings.TrimSuffix(host, ".scion")
 	}
+	return host
+}
+
+// loadHosts parses /etc/hosts and /etc/scion/hosts looking for SCION host addresses.
+// copied/simplified from pkg/appnet/hostsfile.go
+func loadHosts() []string {
+	h1 := loadHostsFile("/etc/hosts")
+	h2 := loadHostsFile("/etc/scion/hosts")
+	return append(h1, h2...)
+}
+
+func loadHostsFile(path string) []string {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	return parseHostsFile(file)
+}
+
+// parseHostsFile, copied/simplified from pkg/appnet/hostsfile.go
+func parseHostsFile(file *os.File) []string {
+	hosts := []string{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// ignore comments
+		cstart := strings.IndexRune(line, '#')
+		if cstart >= 0 {
+			line = line[:cstart]
+		}
+
+		// cut into fields: address name1 name2 ...
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if strings.Contains(fields[0], ",") { // looks like SCION
+			hosts = append(hosts, fields[1:]...)
+		}
+	}
+	return hosts
 }
