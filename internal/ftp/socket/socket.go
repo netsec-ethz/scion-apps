@@ -6,7 +6,6 @@
 package socket
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -58,30 +57,6 @@ func DialAddr(remoteAddr string) (*SingleStream, error) {
 	}
 
 	return &SingleStream{stream, session}, nil
-}
-
-// Accept accepts a QUIC session with exactly one stream on listener.
-// Note, that this function can not live at the listener due to hiding the session.
-func Accept(listener quic.Listener) (*SingleStream, error) {
-	session, err := listener.Accept(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	stream, err := session.AcceptStream(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	// AcceptStream() blocks until first data arrives, so we need to:
-	err = consumeHandshake(stream)
-	if err != nil {
-		return nil, err
-	}
-	return &SingleStream{
-		Stream:  stream,
-		session: session,
-	}, nil
 }
 
 func sendHandshake(rw io.ReadWriter) error {

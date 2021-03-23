@@ -15,6 +15,7 @@ import (
 	"net"
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
 // ServerOpts contains parameters for ftpd.NewServer()
@@ -52,7 +53,7 @@ type Opts struct {
 type Server struct {
 	*Opts
 	logger       logger.Logger
-	listener     *Listener
+	listener     *socket.Listener
 	ctx          context.Context
 	cancel       context.CancelFunc
 	feats        string
@@ -160,11 +161,11 @@ func (server *Server) newConn(tcpConn net.Conn, driver Driver) *Conn {
 // listening on the same port.
 //
 func (server *Server) ListenAndServe() error {
-	var listener *Listener
+	var listener *socket.Listener
 	var err error
 	var curFeats = featCmds
 
-	listener, err = ListenPort(server.Port, server.Certificate)
+	listener, err = socket.ListenPort(server.Port, server.Certificate)
 	if err != nil {
 		return err
 	}
@@ -183,7 +184,7 @@ func (server *Server) ListenAndServe() error {
 // Serve accepts connections on a given net.Listener and handles each
 // request in a new goroutine.
 //
-func (server *Server) Serve(l *Listener) error {
+func (server *Server) Serve(l *socket.Listener) error {
 	server.listener = l
 	server.ctx, server.cancel = context.WithCancel(context.Background())
 	sessionID := ""

@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/ftpd/internal/logger"
+	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 )
 
 const (
@@ -57,14 +58,14 @@ func (conn *Conn) IsLogin() bool {
 	return len(conn.user) > 0
 }
 
-func (conn *Conn) NewListener() (*Listener, error) {
+func (conn *Conn) NewListener() (*socket.Listener, error) {
 
 	var err error
-	var listener *Listener
+	var listener *socket.Listener
 
 	for i := 0; i < listenerRetries; i++ {
 
-		listener, err = ListenPort(0, conn.server.Certificate)
+		listener, err = socket.ListenPort(0, conn.server.Certificate)
 		if err == nil {
 			break
 		}

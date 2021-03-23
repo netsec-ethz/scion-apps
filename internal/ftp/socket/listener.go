@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package socket
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
-	"net"
 
 	"github.com/lucas-clemente/quic-go"
 
-	"github.com/netsec-ethz/scion-apps/internal/ftp/socket"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
@@ -49,6 +48,25 @@ func (listener *Listener) Close() error {
 	return listener.QuicListener.Close()
 }
 
-func (listener *Listener) Accept() (net.Conn, error) {
-	return socket.Accept(listener.QuicListener)
+// Accept accepts a QUIC session with exactly one stream on listener.
+func (listener *Listener) Accept() (*SingleStream, error) {
+	session, err := listener.QuicListener.Accept(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	stream, err := session.AcceptStream(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	// AcceptStream() blocks until first data arrives, so we need to:
+	err = consumeHandshake(stream)
+	if err != nil {
+		return nil, err
+	}
+	return &SingleStream{
+		Stream:  stream,
+		session: session,
+	}, nil
 }
