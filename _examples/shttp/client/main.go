@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -37,12 +38,17 @@ func main() {
 		os.Exit(2)
 	}
 
+	policy := pan.PolicyChain{
+		pan.PolicyFunc(func(paths []*pan.Path) []*pan.Path {
+			return paths[:3]
+		}),
+	}
 	// Create a standard server with our custom RoundTripper
 	c := &http.Client{
-		Transport: shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil),
+		Transport: shttp.NewRoundTripper(policy, &tls.Config{InsecureSkipVerify: true}, nil),
 	}
 	// (just for demonstration on how to use Close. Clients are safe for concurrent use and should be re-used)
-	defer c.Transport.(shttp.RoundTripper).Close()
+	defer c.Transport.(*shttp.RoundTripper).Close()
 
 	// Make a get request
 	start := time.Now()
@@ -57,6 +63,13 @@ func main() {
 	log.Printf("\nGET request succeeded in %v seconds", end.Sub(start).Seconds())
 	printResponse(resp)
 
+	// Set Policy: stupid example just to show that it works, re-initialize the
+	// interactive selection so it will prompt again, just to show that it works:
+	c.Transport.(*shttp.RoundTripper).SetPolicy(
+		&pan.InteractiveSelection{
+			Prompter: pan.CommandlinePrompter{},
+		},
+	)
 	start = time.Now()
 	query = fmt.Sprintf("https://%s/form", *serverAddrStr)
 	resp, err = c.Post(

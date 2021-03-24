@@ -59,7 +59,7 @@ func main() {
 	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
 
-	transport := shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
+	transport := shttp.NewRoundTripper(nil, &tls.Config{InsecureSkipVerify: true}, nil)
 	defer transport.Close()
 	proxy := &proxyHandler{
 		transport: transport,

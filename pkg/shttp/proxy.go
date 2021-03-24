@@ -17,6 +17,6 @@ func NewSingleSCIONHostReverseProxy(remote string, cliTLSCfg *tls.Config) (*http
 		return nil, err
 	}
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-	proxy.Transport = NewRoundTripper(cliTLSCfg, nil)
+	proxy.Transport = NewRoundTripper(nil, cliTLSCfg, nil) // XXX policy!
 	return proxy, nil
 }

@@ -125,8 +125,8 @@ func TestRoundTripper(t *testing.T) {
 		return nil, errors.New("just a test")
 	}
 
-	rt := NewRoundTripper(nil, nil)
-	rt.(*roundTripper).rt.Dial = testDial
+	rt := NewRoundTripper(nil, nil, nil)
+	rt.rt.Dial = testDial
 	c := &http.Client{Transport: rt}
 
 	for _, tc := range testCases {

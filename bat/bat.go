@@ -36,6 +36,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -97,7 +98,18 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	defaultSetting.Transport = shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
+	// XXX: just put something here. This should be controlled by commandline
+	// parameters, obviously.
+	policy := pan.PolicyChain{
+		/*pan.PolicyFunc(func(paths []*pan.Path) []*pan.Path {
+			return paths[:3]
+		}),*/
+		pan.LowestLatency{},
+		&pan.InteractiveSelection{
+			Prompter: pan.CommandlinePrompter{},
+		},
+	}
+	defaultSetting.Transport = shttp.NewRoundTripper(policy, &tls.Config{InsecureSkipVerify: true}, nil)
 }
 
 func parsePrintOption(s string) {
