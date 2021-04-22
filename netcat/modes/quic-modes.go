@@ -79,7 +79,7 @@ func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
 
 			stream, err := sess.AcceptStream(context.Background())
 			if err != nil {
-				log.Crit("Can't accept stream: %v", err)
+				log.Crit("Can't accept stream", "err", err)
 				continue
 			}
 
