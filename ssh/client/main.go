@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	log "github.com/inconshreveable/log15"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/scionproto/scion/go/lib/pathpol"
@@ -60,7 +60,7 @@ var (
 // PromptPassword prompts the user for a password to authenticate with.
 func PromptPassword() (secret string, err error) {
 	fmt.Printf("Password: ")
-	password, _ := terminal.ReadPassword(0)
+	password, _ := term.ReadPassword(0)
 	fmt.Println()
 	return string(password), nil
 }

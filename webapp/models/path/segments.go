@@ -50,7 +50,7 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 	// traverse the segments to ensure even number of inferfaces in hops
 	var err error
 	var theseg *seg.PathSegment
-	theseg, err = pathdb.UnpackSegment(common.RawBytes(packedSeg))
+	theseg, err = pathdb.UnpackSegment(packedSeg)
 	if CheckError(err) {
 		panic(err)
 	}

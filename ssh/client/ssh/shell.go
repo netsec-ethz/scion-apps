@@ -21,8 +21,7 @@ import (
 	"syscall"
 
 	"golang.org/x/crypto/ssh"
-
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 // Shell opens a new Shell session on the server this Client is connected to.
@@ -41,15 +40,15 @@ func (client *Client) Shell() error {
 
 	fd := int(os.Stdin.Fd())
 
-	if terminal.IsTerminal(fd) {
-		oldState, err := terminal.MakeRaw(fd)
+	if term.IsTerminal(fd) {
+		oldState, err := term.MakeRaw(fd)
 		if err != nil {
 			return err
 		}
 
-		defer terminal.Restore(fd, oldState)
+		defer term.Restore(fd, oldState)
 
-		w, h, err := terminal.GetSize(fd)
+		w, h, err := term.GetSize(fd)
 		if err == nil {
 			termWidth = w
 			termHeight = h
@@ -90,7 +89,7 @@ func monWinCh(session *ssh.Session, fd uintptr) {
 func termSize(fd uintptr) []byte {
 	size := make([]byte, 16)
 
-	width, height, err := terminal.GetSize(int(fd))
+	width, height, err := term.GetSize(int(fd))
 	if err != nil {
 		binary.BigEndian.PutUint32(size, uint32(80))
 		binary.BigEndian.PutUint32(size[4:], uint32(24))
