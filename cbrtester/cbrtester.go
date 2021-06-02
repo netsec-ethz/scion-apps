@@ -1,0 +1,147 @@
+// Copyright 2020 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// bwtestserver application
+// For more documentation on the application see:
+// https://github.com/netsec-ethz/scion-apps/blob/master/README.md
+// https://github.com/netsec-ethz/scion-apps/blob/master/bwtester/README.md
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/scionproto/scion/go/lib/snet"
+
+	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+)
+
+func main() {
+	port := flag.Uint("port", 0, "[Server] local port to listen on")
+	bw := flag.Uint("bw", (1024*1024)/8, "[Client] Rate to send at (in bps)")
+	payload := flag.Uint("payload", 100, "[Client] Size of each packet in bytes")
+	interactive := flag.Bool("interactive", false, "[Client] Select the path interactively")
+
+	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
+	flag.Parse()
+
+	if (*port > 0) == (len(*remoteAddr) > 0) {
+		fmt.Println("Either specify -port for server or -remote for client")
+		os.Exit(1)
+	}
+
+	var err error
+	if *port > 0 {
+		err = runServer(int(*port))
+	} else {
+		err = runClient(*remoteAddr, int(*bw), int(*payload), *interactive)
+	}
+	if err != nil {
+		fmt.Println("err", err)
+		os.Exit(1)
+	}
+}
+
+func runClient(address string, desiredThroughput int, payloadSize int, interactive bool) error {
+	addr, err := appnet.ResolveUDPAddr(address)
+	if err != nil {
+		return err
+	}
+	var path snet.Path
+	if interactive {
+		path, err = appnet.ChoosePathInteractive(addr.IA)
+		if err != nil {
+			return err
+		}
+		appnet.SetPath(addr, path)
+	} else {
+		paths, err := appnet.QueryPaths(addr.IA)
+		if err != nil {
+			return err
+		}
+		path = paths[0]
+	}
+
+	conn, err := appnet.DialAddr(addr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	fmt.Printf("Running client using payload size %v and rate %v via %v\n", payloadSize, desiredThroughput, path)
+
+	numberOfPacketsPerSecond := 8 * desiredThroughput / payloadSize
+	interval := time.Duration(float64(time.Second) / float64(numberOfPacketsPerSecond))
+
+	buffer := make([]byte, payloadSize)
+
+	for {
+		before := time.Now()
+		_, err = conn.Write(buffer)
+		if err != nil {
+			fmt.Println("error writing", err)
+		}
+		took := time.Since(before)
+
+		sleepAmount := interval - took
+
+		if sleepAmount > 0 {
+			time.Sleep(sleepAmount)
+		}
+	}
+}
+
+func runServer(port int) error {
+	listener, err := appnet.ListenPort(uint16(port))
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	fmt.Println(listener.LocalAddr())
+
+	lastReceived := time.Now().Add(time.Hour * 24 * 3)
+
+	buffer := make([]byte, 16*1024)
+
+	start := time.Now()
+	started := false
+	byteCount := 0
+	lastBWReport := 0
+	for {
+		count, _, err := listener.ReadFrom(buffer)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		byteCount += count
+
+		if !started {
+			start = time.Now()
+			started = true
+		}
+
+		elapsed := time.Since(lastReceived).Milliseconds()
+		if elapsed > 100 {
+			fmt.Printf("Freeze: %v s\n", float64(elapsed)/1000.0)
+		}
+
+		if int(time.Since(start).Seconds()) > lastBWReport && (int(time.Since(start).Seconds())%5) == 0 {
+			lastBWReport = int(time.Since(start).Seconds())
+			fmt.Printf("bandwidth: %v kbps\n", float64(byteCount)/time.Since(start).Seconds()/1024.0*8)
+		}
+		lastReceived = time.Now()
+	}
+}
