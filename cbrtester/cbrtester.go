@@ -24,6 +24,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
@@ -82,10 +83,11 @@ func runClient(address string, desiredThroughput int, payloadSize int, interacti
 	defer conn.Close()
 	fmt.Printf("Running client using payload size %v and rate %v via %v\n", payloadSize, desiredThroughput, path)
 
-	numberOfPacketsPerSecond := desiredThroughput / 8 / payloadSize
-	interval := time.Duration(float64(time.Second) / float64(numberOfPacketsPerSecond))
+	numberOfPacketsPerSecond := float64(desiredThroughput) / 8. / float64(payloadSize)
+	interval := time.Duration(float64(time.Second) / numberOfPacketsPerSecond)
 
 	buffer := make([]byte, payloadSize)
+	copy(buffer, []byte("cbrtester")) // allow easy identification of packets
 
 	for {
 		before := time.Now()
@@ -106,7 +108,7 @@ func runClient(address string, desiredThroughput int, payloadSize int, interacti
 func runServer(port int) error {
 	listener, err := appnet.ListenPort(uint16(port))
 	if err != nil {
-		return err
+		return serrors.WrapStr("can't listen:", err)
 	}
 	defer listener.Close()
 	fmt.Println(listener.LocalAddr())
