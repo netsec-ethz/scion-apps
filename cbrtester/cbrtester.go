@@ -82,7 +82,7 @@ func runClient(address string, desiredThroughput int, payloadSize int, interacti
 	defer conn.Close()
 	fmt.Printf("Running client using payload size %v and rate %v via %v\n", payloadSize, desiredThroughput, path)
 
-	numberOfPacketsPerSecond := 8 * desiredThroughput / payloadSize
+	numberOfPacketsPerSecond := desiredThroughput / 8 / payloadSize
 	interval := time.Duration(float64(time.Second) / float64(numberOfPacketsPerSecond))
 
 	buffer := make([]byte, payloadSize)
