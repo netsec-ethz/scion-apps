@@ -117,8 +117,9 @@ func runServer(port int) error {
 
 	start := time.Now()
 	started := false
-	byteCount := 0
-	lastBWReport := 0
+	totalByteCount := 0
+	instaByteCount := 0
+	lastBWReport := time.Now()
 	for {
 		count, _, err := listener.ReadFrom(buffer)
 		if err != nil {
@@ -126,7 +127,8 @@ func runServer(port int) error {
 			continue
 		}
 
-		byteCount += count
+		totalByteCount += count
+		instaByteCount += count
 
 		if !started {
 			start = time.Now()
@@ -135,12 +137,16 @@ func runServer(port int) error {
 
 		elapsed := time.Since(lastReceived).Milliseconds()
 		if elapsed > 100 {
-			fmt.Printf("Freeze: %v s\n", float64(elapsed)/1000.0)
+			fmt.Printf("Freeze: %.3f s\n", float64(elapsed)/1000.0)
 		}
 
-		if int(time.Since(start).Seconds()) > lastBWReport && (int(time.Since(start).Seconds())%5) == 0 {
-			lastBWReport = int(time.Since(start).Seconds())
-			fmt.Printf("bandwidth: %v kbps\n", float64(byteCount)/time.Since(start).Seconds()/1024.0*8)
+		if time.Since(lastBWReport) > 5*time.Second {
+			fmt.Printf("ave. bandwidth: %.3f kbps, insta. bandwidth: %.3f\n",
+				float64(totalByteCount)*8./1024./time.Since(start).Seconds(),
+				float64(instaByteCount)*8./1024./float64(time.Since(lastBWReport).Seconds()))
+
+			lastBWReport = time.Now()
+			instaByteCount = 0
 		}
 		lastReceived = time.Now()
 	}
