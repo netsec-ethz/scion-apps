@@ -73,7 +73,7 @@ func DoListenQUIC(port uint16) chan io.ReadWriteCloser {
 		for {
 			sess, err := listener.Accept(context.Background())
 			if err != nil {
-				log.Crit("Can't accept listener: %v", err)
+				log.Crit("Can't accept listener", "err", err)
 				continue
 			}
 
