@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// bwtestserver application
+// cbrtester application
 // For more documentation on the application see:
 // https://github.com/netsec-ethz/scion-apps/blob/master/README.md
 // https://github.com/netsec-ethz/scion-apps/blob/master/bwtester/README.md
+
 package main
 
 import (
@@ -32,11 +33,13 @@ import (
 
 func main() {
 	port := flag.Uint("port", 0, "[Server] local port to listen on")
+	timeout := flag.Uint("timeout", 100, "[Server] Size of gap between subsequent packets that is considered a freeze (in ms)")
+
 	bw := flag.Uint("bw", 1024 * 1024, "[Client] Rate to send at (in bps)")
 	payload := flag.Uint("payload", 100, "[Client] Size of each packet in bytes")
 	interactive := flag.Bool("interactive", false, "[Client] Select the path interactively")
-
 	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
+
 	flag.Parse()
 
 	if (*port > 0) == (len(*remoteAddr) > 0) {
@@ -46,7 +49,7 @@ func main() {
 
 	var err error
 	if *port > 0 {
-		err = runServer(int(*port))
+		err = runServer(int(*port), int64(*timeout))
 	} else {
 		err = runClient(*remoteAddr, int(*bw), int(*payload), *interactive)
 	}
@@ -86,6 +89,8 @@ func runClient(address string, desiredThroughput int, payloadSize int, interacti
 	numberOfPacketsPerSecond := float64(desiredThroughput) / 8. / float64(payloadSize)
 	interval := time.Duration(float64(time.Second) / numberOfPacketsPerSecond)
 
+	fmt.Printf("Sending %v packets per second with a gap of %v\n", numberOfPacketsPerSecond, interval);
+
 	buffer := make([]byte, payloadSize)
 	copy(buffer, []byte("cbrtester")) // allow easy identification of packets
 
@@ -105,7 +110,7 @@ func runClient(address string, desiredThroughput int, payloadSize int, interacti
 	}
 }
 
-func runServer(port int) error {
+func runServer(port int, timeout int64) error {
 	listener, err := appnet.ListenPort(uint16(port))
 	if err != nil {
 		return serrors.WrapStr("can't listen:", err)
@@ -138,7 +143,7 @@ func runServer(port int) error {
 		}
 
 		elapsed := time.Since(lastReceived).Milliseconds()
-		if elapsed > 100 {
+		if elapsed > timeout {
 			fmt.Printf("Freeze: %.3f s\n", float64(elapsed)/1000.0)
 		}
 
