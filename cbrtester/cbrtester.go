@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-	port := flag.Uint("port", 0, "[Server] local port to listen on")
+	port := flag.Uint("port", 0, "[Server] Local port to listen on")
 	timeout := flag.Uint("timeout", 100, "[Server] Size of gap between subsequent packets that is considered a freeze (in ms)")
 
 	bw := flag.Uint("bw", 1024*1024, "[Client] Rate to send at (in bps)")
@@ -118,7 +118,7 @@ func runServer(port int, timeout int64) error {
 	defer listener.Close()
 	fmt.Printf("%v,%v\n", appnet.DefNetwork().IA, listener.LocalAddr())
 
-	lastReceived := time.Now().Add(time.Hour * 24 * 3)
+	lastReceived := time.Now().Add(999 * time.Hour) // avoids elapsed > timeout in the 1st iter
 
 	buffer := make([]byte, 16*1024)
 
