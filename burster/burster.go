@@ -132,7 +132,7 @@ func runServer(port int) error {
 		return serrors.WrapStr("can't listen:", err)
 	}
 	defer listener.Close()
-	fmt.Println(listener.LocalAddr())
+	fmt.Printf("%v,%v\n", appnet.DefNetwork().IA, listener.LocalAddr())
 
 	buffer := make([]byte, 16*1024)
 	receivedCount := 0

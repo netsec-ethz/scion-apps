@@ -116,7 +116,7 @@ func runServer(port int, timeout int64) error {
 		return serrors.WrapStr("can't listen:", err)
 	}
 	defer listener.Close()
-	fmt.Println(listener.LocalAddr())
+	fmt.Printf("%v,%v\n", appnet.DefNetwork().IA, listener.LocalAddr())
 
 	lastReceived := time.Now().Add(time.Hour * 24 * 3)
 
