@@ -16,8 +16,8 @@ all: lint build
 
 build: scion-bat \
 	scion-bwtestclient scion-bwtestserver \
-	scion-cbrtester \
 	scion-burster \
+	scion-cbrtester \
 	scion-imagefetcher scion-imageserver \
 	scion-netcat \
 	scion-sensorfetcher scion-sensorserver \
@@ -63,13 +63,13 @@ scion-bwtestclient:
 scion-bwtestserver:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./bwtester/bwtestserver/
 
-.PHONY: scion-cbrtester
-scion-cbrtester:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./cbrtester/
-
 .PHONY: scion-burster
 scion-burster:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./burster/
+
+.PHONY: scion-cbrtester
+scion-cbrtester:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./cbrtester/
 
 .PHONY: scion-imagefetcher
 scion-imagefetcher:
