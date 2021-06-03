@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-	port := flag.Uint("port", 0, "[Server] local port to listen on")
+	port := flag.Uint("port", 0, "[Server] Local port to listen on")
 	size := flag.Uint("size", 300, "[Client] Burst size")
 	payload := flag.Uint("payload", 100, "[Client] Size of each packet in bytes")
 	interactive := flag.Bool("interactive", false, "[Client] Select the path interactively")
