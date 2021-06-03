@@ -115,6 +115,13 @@ The bandwidth testing application bwtester enables a variety of bandwidth tests 
 Installation and usage information is available on the [SCION Tutorials web page for bwtester](https://docs.scionlab.org/content/apps/bwtester.html).
 
 
+## burster
+
+A tool that helps identifying problems with border routers dropping packets. It can also be used to add load to border routers. [README](burster/README.md).
+
+## cbrtester
+
+A tool intended to detect conditions on border routers, where packets are delayed more than the ordinary. [README](cbrtester/README.md).
 ## camerapp
 
 Camerapp contains image fetcher and server applications, using the SCION network. Documentation of the code is available in the [camerapp README](camerapp/README.md).
