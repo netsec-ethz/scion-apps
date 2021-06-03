@@ -105,7 +105,7 @@ func runClient(address string, burstSize int, payloadSize int, interactive bool)
 
 		fmt.Println("Sleeping...")
 		
-		// Sent reset messages (duplicate in case of loss)
+		// Send reset message twice
 		time.Sleep(500 * time.Millisecond)
 
 		buffer[0] = 2
