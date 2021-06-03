@@ -35,7 +35,7 @@ func main() {
 	port := flag.Uint("port", 0, "[Server] local port to listen on")
 	timeout := flag.Uint("timeout", 100, "[Server] Size of gap between subsequent packets that is considered a freeze (in ms)")
 
-	bw := flag.Uint("bw", 1024 * 1024, "[Client] Rate to send at (in bps)")
+	bw := flag.Uint("bw", 1024*1024, "[Client] Rate to send at (in bps)")
 	payload := flag.Uint("payload", 100, "[Client] Size of each packet in bytes")
 	interactive := flag.Bool("interactive", false, "[Client] Select the path interactively")
 	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
@@ -89,7 +89,7 @@ func runClient(address string, desiredThroughput int, payloadSize int, interacti
 	numberOfPacketsPerSecond := float64(desiredThroughput) / 8. / float64(payloadSize)
 	interval := time.Duration(float64(time.Second) / numberOfPacketsPerSecond)
 
-	fmt.Printf("Sending %v packets per second with a gap of %v\n", numberOfPacketsPerSecond, interval);
+	fmt.Printf("Sending %v packets per second with a gap of %v\n", numberOfPacketsPerSecond, interval)
 
 	buffer := make([]byte, payloadSize)
 	copy(buffer, []byte("cbrtester")) // allow easy identification of packets
