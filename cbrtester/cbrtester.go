@@ -174,8 +174,8 @@ func runServer(port int, timeout int64) error {
 			format := "ave. bandwidth: %.3f kbps, insta. bandwidth: %.3f kbps"
 			params := []interface{}{float64(totalByteCount) * 8. / 1024. / time.Since(start).Seconds(),
 				float64(instaByteCount) * 8. / 1024. / float64(time.Since(lastBWReport).Seconds())}
-			if instaLatency.Nanoseconds() > 0 {
-				format += ", # packets: %d, ave. latency: %.3 ms"
+			if count >= len(pattern)+8 {
+				format += ", # packets: %d, ave. latency: %.3f ms"
 				params = append(params,
 					instaPacketCount, float64(instaLatency.Milliseconds())/float64(instaPacketCount))
 				instaPacketCount = 0
