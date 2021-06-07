@@ -20,6 +20,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
@@ -30,6 +31,8 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 )
+
+const pattern = "cbrtester" // allow easy identification of packets
 
 func main() {
 	port := flag.Uint("port", 0, "[Server] Local port to listen on")
@@ -92,11 +95,22 @@ func runClient(address string, desiredThroughput int, payloadSize int, interacti
 	fmt.Printf("Sending %v packets per second with a gap of %v\n", numberOfPacketsPerSecond, interval)
 
 	buffer := make([]byte, payloadSize)
-	copy(buffer, []byte("cbrtester")) // allow easy identification of packets
+	copy(buffer, []byte(pattern))
+
+	var writeFcn func([]byte, time.Time) (int, error)
+	writeFcn = func(buff []byte, _ time.Time) (int, error) {
+		return conn.Write(buff)
+	}
+	if payloadSize >= len(pattern)+8 {
+		writeFcn = func(buff []byte, now time.Time) (int, error) {
+			binary.LittleEndian.PutUint64(buff[len(pattern):], uint64(now.UnixNano()))
+			return conn.Write(buff)
+		}
+	}
 
 	for {
 		before := time.Now()
-		_, err = conn.Write(buffer)
+		_, err = writeFcn(buffer, before)
 		if err != nil {
 			fmt.Println("error writing", err)
 		}
@@ -126,6 +140,8 @@ func runServer(port int, timeout int64) error {
 	started := false
 	totalByteCount := 0
 	instaByteCount := 0
+	instaPacketCount := 0
+	var instaLatency time.Duration
 	lastBWReport := time.Now()
 	for {
 		count, _, err := listener.ReadFrom(buffer)
@@ -134,8 +150,15 @@ func runServer(port int, timeout int64) error {
 			continue
 		}
 
+		instaPacketCount++
 		totalByteCount += count
 		instaByteCount += count
+
+		if count >= len(pattern)+8 { // we are using timestamps
+			nanos := binary.LittleEndian.Uint64(buffer[len(pattern):])
+			sentTime := time.Unix(0, int64(nanos))
+			instaLatency += time.Since(sentTime)
+		}
 
 		if !started {
 			start = time.Now()
@@ -148,9 +171,17 @@ func runServer(port int, timeout int64) error {
 		}
 
 		if time.Since(lastBWReport) > 5*time.Second {
-			fmt.Printf("ave. bandwidth: %.3f kbps, insta. bandwidth: %.3f\n",
-				float64(totalByteCount)*8./1024./time.Since(start).Seconds(),
-				float64(instaByteCount)*8./1024./float64(time.Since(lastBWReport).Seconds()))
+			format := "ave. bandwidth: %.3f kbps, insta. bandwidth: %.3f kbps"
+			params := []interface{}{float64(totalByteCount) * 8. / 1024. / time.Since(start).Seconds(),
+				float64(instaByteCount) * 8. / 1024. / float64(time.Since(lastBWReport).Seconds())}
+			if instaLatency.Nanoseconds() > 0 {
+				format += ", # packets: %d, ave. latency: %.3 ms"
+				params = append(params,
+					instaPacketCount, float64(instaLatency.Milliseconds())/float64(instaPacketCount))
+				instaPacketCount = 0
+				instaLatency = 0
+			}
+			fmt.Printf(format+"\n", params...)
 
 			lastBWReport = time.Now()
 			instaByteCount = 0
