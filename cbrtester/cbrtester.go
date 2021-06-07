@@ -167,7 +167,7 @@ func runServer(port int, timeout int64) error {
 
 		elapsed := time.Since(lastReceived).Milliseconds()
 		if elapsed > timeout {
-			fmt.Printf("Freeze: %.3f s\n", float64(elapsed)/1000.0)
+			fmt.Printf("Freeze: %.3f s (at %v)\n", float64(elapsed)/1000.0, time.Now().Format(time.StampMilli))
 		}
 
 		if time.Since(lastBWReport) > 5*time.Second {
