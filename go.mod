@@ -21,4 +21,5 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
-replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20211005155700-e5719e3cd5ed
+// replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20211005155700-e5719e3cd5ed
+replace github.com/scionproto/scion => /home/juagargi/devel/ETH/scion.colibri
