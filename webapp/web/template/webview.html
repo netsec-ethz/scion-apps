@@ -1,0 +1,105 @@
+{{define "webview"}} {{template "header" .}}
+
+<div class="content">
+
+ <h2>SCION HTTP</h2>
+This page provides some default SCION HTTP endpoints and a searchbar for SCION HTTP URLs, to provide easy access to those resources. 
+ <br />
+ <br />
+<button id="webviewload" onclick="back()">Home</button>
+<input id="webviewinput" placeholder="https://19:1:ffaa[127.0.0.1]:8000" style="width: 800px">
+<button id="webviewload" onclick="loadSCIONUrl()">GO</button>
+</div>
+
+<iframe id="webview" src="about:blank" width="1600" height="900" frameborder="0" style="display: none;"></iframe>
+<div id="tabs" class="sb-default-tabs" style="display: block;">
+  <h3>Trending:</h3>
+  <div class="cards">
+    <div class="card">
+      <img src="https://docs.scionlab.org/favicon.ico" alt="Avatar" style="width:100%">
+      <div class="text-container">
+        <h4><b>DVB-T2 Live Stream</b></h4>
+        <p class="link" onclick="openLiveStream('https://19-ffaa:1:bcc,[127.0.0.1]:9001/bysid/769', 'DVB-T2 Live Stream')">Open Stream</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+showTabs = true;
+function getPosition(string, subString, index) {
+  return string.split(subString, index).join(subString).length;
+}
+  
+function back() {
+  showTabs = true;
+  $('#webview').hide();
+  $('#tabs').show();
+}
+
+function download(filename, text) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:video/mpeg;charset=utf-8,' + encodeURIComponent(text));
+    // element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    }
+
+  function openLiveStream(remote, title) {
+
+    var sRemotesIndex = getPosition(remote, '/', 3);
+    var sRemote = remote.substring(0, sRemotesIndex);
+    var sContext = remote.substring(sRemotesIndex, remote.length);
+
+    var str="#EXTM3U\n#EXTINF:5000,$title\n$target"; 
+    var target = 'http://' + window.location.hostname + ':8000/__proxy' + sContext;
+
+    str = str.replace('$title', title);
+    str = str.replace('$target', target);
+
+    $.ajax({
+          url : 'http://' + window.location.hostname + ':8000/__proxy/setconfig',
+          type : 'post',
+          dataType : "text",
+          data : JSON.stringify({
+              "remote" : sRemote.replace('https://','')
+          }),
+          timeout : 10000,
+          success : function(data, textStatus, jqXHR) {
+            download('stream.m3u', str);
+          },
+          error : function(jqXHR, textStatus, errorThrown) {
+              console.error(this.url + ' ' + textStatus + ': ' + errorThrown);
+          },
+      }); 
+  }
+
+function loadSCIONUrl(target) {
+    var remote = target || $('#webviewinput').val();
+    var sRemotesIndex = getPosition(remote, '/', 3);
+    var sRemote = remote.substring(0, sRemotesIndex);
+    var sContext = remote.substring(sRemotesIndex, remote.length);
+    showTabs = false;
+    $.ajax({
+        url : 'http://' + window.location.hostname + ':8000/__proxy/setconfig',
+        type : 'post',
+        dataType : "text",
+        data : JSON.stringify({
+            "remote" : sRemote.replace('https://','')
+        }),
+        timeout : 10000,
+        success : function(data, textStatus, jqXHR) {
+          $('#webview').show();
+          $('#tabs').hide();
+          document.getElementById('webview').src = 'http://' + window.location.hostname + ':8000/__proxy/' + sContext; //remote;
+        },
+        error : function(jqXHR, textStatus, errorThrown) {
+            console.error(this.url + ' ' + textStatus + ': ' + errorThrown);
+        },
+    });
+  }
+  </script>
+
+{{template "footer" .}} {{end}}
