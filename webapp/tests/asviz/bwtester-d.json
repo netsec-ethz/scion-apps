@@ -1,0 +1,16 @@
+{
+ "graph": [
+  {
+   "Inserted": 1562683731800,
+   "ActualDuration": 5041,
+   "CSBandwidth": 80000,
+   "CSThroughput": 80000,
+   "SCBandwidth": 80000,
+   "SCThroughput": 80000,
+   "Error": "",
+   "Path": "Hops: [1-ff00:0:111 103>4094 1-ff00:0:112] Mtu: 1450",
+   "Log": "t=2019-07-09T10:48:46-0400 lvl=dbug msg=\"Path selection algorithm choice\" path=\"Hops: [1-ff00:0:111 103>4094 1-ff00:0:112] Mtu: 1450\" score=0.993\nt=2019-07-09T10:48:46-0400 lvl=dbug msg=\"Registered with dispatcher\" addr=\"1-ff00:0:111,[127.0.0.1]:30001 (UDP)\"\nClient DC \tNext Hop [127.0.0.74]:31070\tServer Host [127.0.0.2]:30101\nt=2019-07-09T10:48:46-0400 lvl=dbug msg=\"Registered with dispatcher\" addr=\"1-ff00:0:111,[127.0.0.1]:30002 (UDP)\"\n\nTest parameters:\nclientDCAddr -> serverDCAddr 1-ff00:0:111,[127.0.0.1]:30002 (UDP) -> 1-ff00:0:112,[127.0.0.2]:30101 (UDP)\nclient->server: 3 seconds, 1000 bytes, 30 packets\nserver->client: 3 seconds, 1000 bytes, 30 packets\n\nS->C results\nAttempted bandwidth: 80000 bps / 0.08 Mbps\nAchieved bandwidth: 80000 bps / 0.08 Mbps\nLoss rate: 0 %\nInterarrival time variance: 23ms, average interarrival time: 103ms\nInterarrival time min: 82ms, interarrival time max: 127ms\nWe need to sleep for 2 seconds before we can get the results\n\nC->S results\nAttempted bandwidth: 80000 bps / 0.08 Mbps\nAchieved bandwidth: 80000 bps / 0.08 Mbps\nLoss rate: 0 %\nInterarrival time variance: 23ms, average interarrival time: 103ms\nInterarrival time min: 82ms, interarrival time max: 126ms\n"
+  }
+ ],
+ "active": false
+}
