@@ -42,7 +42,7 @@ type closerSession struct {
 	conn *snet.Conn
 }
 
-func (s *closerSession) CloseWithError(code quic.ErrorCode, desc string) error {
+func (s *closerSession) CloseWithError(code quic.ApplicationErrorCode, desc string) error {
 	s.conn.Close()
 	return s.Session.CloseWithError(code, desc)
 }
@@ -53,7 +53,7 @@ type closerEarlySession struct {
 	conn *snet.Conn
 }
 
-func (s *closerEarlySession) CloseWithError(code quic.ErrorCode, desc string) error {
+func (s *closerEarlySession) CloseWithError(code quic.ApplicationErrorCode, desc string) error {
 	s.conn.Close()
 	return s.EarlySession.CloseWithError(code, desc)
 }
