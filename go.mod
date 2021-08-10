@@ -9,11 +9,11 @@ require (
 	github.com/inconshreveable/log15 v0.0.0-20180818164646-67afb5ed74ec
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/kr/pty v1.1.8
-	github.com/lucas-clemente/quic-go v0.19.2
-	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
+	github.com/lucas-clemente/quic-go v0.21.1
+	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.2.0
-	github.com/pelletier/go-toml v1.8.1-0.20200708110244-34de94e6a887
+	github.com/pelletier/go-toml v1.9.3
 	github.com/scionproto/scion v0.6.0
 	github.com/smartystreets/goconvey v1.6.4
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
@@ -22,4 +22,4 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
-replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20210705084436-3295af71a57a
+replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20210714115737-74fc9cfb9644

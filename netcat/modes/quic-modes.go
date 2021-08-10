@@ -47,7 +47,7 @@ func (conn *sessConn) Close() error {
 		return err
 	}
 
-	err = conn.sess.CloseWithError(quic.ErrorCode(0), "")
+	err = conn.sess.CloseWithError(quic.ApplicationErrorCode(0), "")
 	if err != nil {
 		return err
 	}
