@@ -27,7 +27,7 @@ See '[Environment](../../README.md#Environment)' on how to set the dispatcher an
 
 ### Simple server example
 
-Open a shell in the root of the scion-apps repository and run `example-shttp-server`:
+Open a shell in the root of the scion-apps repository and run the `example-shttp-server`:
 
 ```
 bin/example-shttp-server
@@ -71,7 +71,7 @@ bin/scion-bat http://17-ffaa:1:a,127.0.0.1/
 The file server optionally supports serving via HTTPS.
 For this, we need a **hostname** for the server, as a raw SCION address cannot
 (currently) be used as the subject of a TLS certificate.
-Then, we'll need to create a **key** and obtain **certificate** for our server.
+Then, we'll need to create a **key** and obtain a **certificate** for our server.
 We use a self signed certificate here and we cheat by installing the self
 signed certificate to the host's root CA list.
 

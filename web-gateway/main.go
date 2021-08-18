@@ -111,8 +111,10 @@ func forwardTLSSession(hosts map[string]struct{}, sess quic.Session) {
 	transfer(clientConn, dstConn)
 }
 
-// logForwardTLS logs TLS forwarding in similar format to HTTP server logs
-// Status code is to show something like HTTP codes (arbitrary, this is not HTTP).
+// logForwardTLS logs TLS forwarding in something similar to the Common Log
+// Format, as used by the LoggingHandler above.
+// Status is a code that is part to the log line. This is not HTTP, but we
+// (re-)use the HTTP codes with a similar meaning.
 func logForwardTLS(client net.Addr, dest string, status int) {
 	ts := time.Now().Format("02/Jan/2006:15:04:05 -0700")
 	fmt.Printf("%s - - [%s] \"TUNNEL %s\" %d -\n", client, ts, dest, status)
