@@ -16,6 +16,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,6 +28,10 @@ import (
 )
 
 func main() {
+	certFile := flag.String("cert", "", "Path to TLS server certificate for optional https")
+	keyFile := flag.String("key", "", "Path to TLS server key for optional https")
+	flag.Parse()
+
 	m := http.NewServeMux()
 
 	// handler that responds with a friendly greeting
@@ -82,5 +87,8 @@ func main() {
 	})
 
 	handler := handlers.LoggingHandler(os.Stdout, m)
+	if *certFile != "" && *keyFile != "" {
+		go func() { log.Fatal(shttp.ListenAndServeTLS(":443", *certFile, *keyFile, handler)) }()
+	}
 	log.Fatal(shttp.ListenAndServe(":80", handler))
 }

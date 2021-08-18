@@ -127,14 +127,14 @@ func copyHeader(dst, src http.Header) {
 }
 
 // interceptConnect creates a handler that calls the handler connect for the
-// CONNECT method and otherwise the handler other.
-func interceptConnect(connect, other http.Handler) http.HandlerFunc {
+// CONNECT method and otherwise the next handler.
+func interceptConnect(connect, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == http.MethodConnect {
 			connect.ServeHTTP(w, req)
 			return
 		}
-		other.ServeHTTP(w, req)
+		next.ServeHTTP(w, req)
 	}
 }
 
