@@ -18,6 +18,9 @@ Start the gateway, telling it which TCP/IP hosts it should be mirroring:
 bin/scion-ip-gateway scionlab.org www.scionlab.org www.scion-architecture.net
 ```
 
+Note that the names we specify are individual host names, not domains, and
+every subdomain needs to be listed separately.
+
 While this server is running, you can access these websites over SCION, either
 using the [`scion-bat`](../bat/README.md) command line tool, or using the
 [`scion-skip`](../skip/README.md) browser integration.

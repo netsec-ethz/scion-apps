@@ -36,7 +36,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Create a standard client with our custom RoundTripper
+	// Create a standard client with our custom Transport/Dialer
 	c := &http.Client{
 		Transport: shttp.DefaultTransport,
 	}
