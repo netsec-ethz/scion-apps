@@ -63,7 +63,7 @@ func main() {
 	kingpin.Parse()
 
 	proxy := &proxyHandler{
-		transport: shttp.NewRoundTripper(),
+		transport: shttp.DefaultTransport,
 	}
 	mux := http.NewServeMux()
 	mux.Handle("localhost/skip.pac", http.HandlerFunc(handleWPAD))
@@ -159,7 +159,10 @@ func handleTunneling(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		panic("Hijacking not supported")
+		// Not expected to happen; the normal ResponseWriter for HTTP/1.x supports
+		// this and we're not serving HTTP/2 here (no HTTPS, thus HTTP/2 is
+		// disabled).
+		panic(fmt.Sprintf("Hijacking not supported for %#v", w))
 	}
 	clientConn, _, err := hijacker.Hijack()
 	if err != nil {

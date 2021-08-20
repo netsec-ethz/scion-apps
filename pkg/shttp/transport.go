@@ -21,27 +21,37 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
-// NewRoundTripper is a convenience function that creates a new http.Transport
-// with a SCION/QUIC Dialer.
-func NewRoundTripper() *http.Transport {
-	return &http.Transport{
-		DialContext: (&Dialer{
-			QuicConfig: nil,
-		}).DialContext,
-	}
+// DefaultTransport is the default RoundTripper that can be used for HTTP over
+// SCION/QUIC.
+// This is equivalent to net/http.DefaultTransport with DialContext overridden
+// to use shttp.Dialer, which dials connections over SCION/QUIC.
+var DefaultTransport = &http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&Dialer{
+		QuicConfig: nil,
+	}).DialContext,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
 }
 
-// Dialer dials an insecure QUIC connection over SCION (just pretend it's TCP).
+// Dialer dials an insecure, single-stream QUIC connection over SCION (just pretend it's TCP).
+// This is the Dialer used for shttp.DefaultTransport.
 type Dialer struct {
 	QuicConfig *quic.Config
 }
 
+// DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
+// as the DialContext function in net/http.Transport.
 func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	tlsCfg := &tls.Config{
 		NextProtos:         []string{nextProtoRaw},

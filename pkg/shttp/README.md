@@ -20,7 +20,7 @@ We use the standard net/http Client/Transport with a customized Dial function:
 ```Go
 // Create a client with our Transport/Dialer:
 client := &http.Client{
-    Transport: shttp.NewRoundTripper()
+    Transport: shttp.DefaultTransport,
 }
 // Make requests as usual
 resp, err := client.Get("http://server:8080/download")

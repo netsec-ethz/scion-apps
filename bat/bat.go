@@ -97,7 +97,7 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	defaultSetting.Transport = shttp.NewRoundTripper()
+	defaultSetting.Transport = shttp.DefaultTransport
 }
 
 func parsePrintOption(s string) {
