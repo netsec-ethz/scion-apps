@@ -25,12 +25,10 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
-// NewRoundTripper creates a new RoundTripper that can be used as the Transport
-// of an http.Client.
-func NewRoundTripper() *http3.RoundTripper {
-	return &http3.RoundTripper{
-		Dial: Dial,
-	}
+// DefaultTransport is the default RoundTripper that can be used for HTTP/3
+// over SCION.
+var DefaultTransport = &http3.RoundTripper{
+	Dial: Dial,
 }
 
 // Dial is the Dial function used in RoundTripper

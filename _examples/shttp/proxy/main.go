@@ -32,7 +32,7 @@ func main() {
 	}
 	proxy := httputil.NewSingleHostReverseProxy(remoteURL)
 	if remoteMangled != *remote {
-		proxy.Transport = shttp.NewRoundTripper()
+		proxy.Transport = shttp.DefaultTransport
 		log.Printf("Proxy to SCION remote %s\n", remoteURL)
 	} else {
 		log.Printf("Proxy to IP/TCP remote %s\n", remoteURL)

@@ -38,7 +38,7 @@ func main() {
 
 	// Create a standard client with our custom RoundTripper
 	c := &http.Client{
-		Transport: shttp.NewRoundTripper(),
+		Transport: shttp.DefaultTransport,
 	}
 
 	// Make a get request
