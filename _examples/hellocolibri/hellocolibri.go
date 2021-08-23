@@ -79,7 +79,9 @@ func server(serverChan chan []byte) {
 			n, from, err := conn.ReadFrom(buffer)
 			check(err)
 			data := buffer[:n]
-			fmt.Printf("server got %d bytes from %s: %s\n", n, from, data)
+			fromScion := from.(*snet.UDPAddr)
+			fmt.Printf("server got %d bytes from %s (path type%s). Message is: %s\n",
+				n, from, &fromScion.Path.Type, data)
 			serverChan <- data
 		}
 	}()
@@ -249,11 +251,14 @@ func client(serverChan chan []byte) {
 	fmt.Println("Reservation cleaned up")
 }
 
+// clientExtendedAPI shows an example of an upgrade of a regular SCION connection to a
+// COLIBRI one, and the use of the COLIBRI extended API.
 func clientExtendedAPI(serverChan chan []byte) {
 	fmt.Println("client started")
 	ctx, cancelF := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelF()
 
+	// setup the scenario with data from the local topology tiny.topo:
 	localUdpAddr, err := net.ResolveUDPAddr("udp", clientSciondPath)
 	check(err)
 	localUdpAddr.Port = 44321 // TODO(juagargi) or zero?
@@ -274,10 +279,17 @@ func clientExtendedAPI(serverChan chan []byte) {
 		Host: dstUdpAddr,
 	}
 
-	fmt.Println("deleteme 1")
+	// While we have no reservation yet, let's create a regular connection to the server.
+	// We will attempt to upgrade it to a colibri backed connection, later.
+	conn, err := scionNet.Dial(ctx, "udp", localUdpAddr, dstAddr, addr.SvcNone)
+	check(err)
+	// here we could send/receive data using the connection conn, while we create a reservation.
+	// ...
+
+	// create a reservation
 	capturedTrips := make([]*colibri.FullTrip, 0)
-	rsv, err := colapi.NewReservation(ctx, scionNet, daemon, dstAddr, 9, 0,
-		// record the trips, sort by BW and then sort by number of ASes:
+	rsv, err := colapi.NewReservation(ctx, daemon, localIA, dstIA, 9, 0,
+		// we record the trips, sort by BW and then sort by number of ASes:
 		fallingback.CaptureTrips(&capturedTrips), sorting.ByBW, sorting.ByNumberOfASes,
 	)
 	check(err)
@@ -285,10 +297,18 @@ func clientExtendedAPI(serverChan chan []byte) {
 
 	// Auto renew reservation, fallback to next trip without the failing interface.
 	// We could also provide our own fallback function instead.
-	err = rsv.Open(ctx, localUdpAddr, fallingback.SkipInterface(capturedTrips))
+	err = rsv.Open(ctx,
+		func(r *colapi.Reservation) { // on renewal, copy the path to dstAddr
+			// dstAddr.NextHop = r.UnderlayNextHop() // not strictly necessary, should be the same
+			dstAddr.Path = r.Path()
+		},
+		fallingback.SkipInterface(capturedTrips))
 	check(err)
+	// do not forget to update the dstAddr with the data from the first setup:
+	dstAddr.NextHop = rsv.UnderlayNextHop()
+	dstAddr.Path = rsv.Path()
+	// and do not forget to close the reservation
 	fmt.Println("deleteme 3")
-
 	defer func() {
 		fmt.Printf("closing reservation... ")
 		err = rsv.Close(ctx)
@@ -296,8 +316,10 @@ func clientExtendedAPI(serverChan chan []byte) {
 		fmt.Println("done.")
 	}()
 
+	// now, just use the connection `conn` normally
 	t1 := time.Now()
-	_, err = rsv.Write([]byte("hello there, colibri carried data with extended API"))
+	// use an existing connection to send colibri packets anytime (upgrade usage of `conn`)
+	_, err = conn.WriteTo([]byte("hello there, colibri carried data with extended API"), dstAddr)
 	check(err)
 	fmt.Println("deleteme 4")
 	data := <-serverChan
@@ -310,7 +332,8 @@ func clientExtendedAPI(serverChan chan []byte) {
 		fmt.Println("Awaken now")
 	}
 	fmt.Println("sending a second message to the server")
-	_, err = rsv.Write([]byte("hello again, probably using the first renewed reservation"))
+	_, err = conn.WriteTo([]byte("hello again, probably using the first renewed reservation"),
+		dstAddr)
 	check(err)
 	data = <-serverChan
 	fmt.Printf("server got data: %s\n", string(data))
@@ -338,9 +361,3 @@ func printPath(p *colpath.ColibriPath) string {
 		reservation.Tick(p.InfoField.ExpTick).ToTime(),
 		strings.Join(hfs, " -> "))
 }
-
-// TODO remove Write and Read from Reservation interface
-
-// TODO add a scenario showing a connection upgrade from regular scion to colibri
-
-// TODO add a fallback function to react to not admitted errors, with the information from the trail
