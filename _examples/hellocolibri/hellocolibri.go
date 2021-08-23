@@ -293,7 +293,6 @@ func clientExtendedAPI(serverChan chan []byte) {
 		fallingback.CaptureTrips(&capturedTrips), sorting.ByBW, sorting.ByNumberOfASes,
 	)
 	check(err)
-	fmt.Println("deleteme 2")
 
 	// Auto renew reservation, fallback to next trip without the failing interface.
 	// We could also provide our own fallback function instead.
@@ -308,7 +307,6 @@ func clientExtendedAPI(serverChan chan []byte) {
 	dstAddr.NextHop = rsv.UnderlayNextHop()
 	dstAddr.Path = rsv.Path()
 	// and do not forget to close the reservation
-	fmt.Println("deleteme 3")
 	defer func() {
 		fmt.Printf("closing reservation... ")
 		err = rsv.Close(ctx)
@@ -319,11 +317,12 @@ func clientExtendedAPI(serverChan chan []byte) {
 	// now, just use the connection `conn` normally
 	t1 := time.Now()
 	// use an existing connection to send colibri packets anytime (upgrade usage of `conn`)
-	_, err = conn.WriteTo([]byte("hello there, colibri carried data with extended API"), dstAddr)
+	_, err = conn.WriteTo([]byte("hello there, colibri carried data with extended API. "+
+		"If you don't see this message, you probably forgot to set the nexthop and path of"+
+		"the destination address right after opening the Reservation."), dstAddr)
 	check(err)
-	fmt.Println("deleteme 4")
 	data := <-serverChan
-	fmt.Printf("server got data: %s\n", string(data))
+	fmt.Printf("server got data: %d bytes\n", len(data))
 
 	elapsed := time.Since(t1)
 	if sleepDur := reservation.E2ERsvDuration - elapsed + time.Second; sleepDur > 0 {
@@ -332,11 +331,13 @@ func clientExtendedAPI(serverChan chan []byte) {
 		fmt.Println("Awaken now")
 	}
 	fmt.Println("sending a second message to the server")
-	_, err = conn.WriteTo([]byte("hello again, probably using the first renewed reservation"),
+	_, err = conn.WriteTo([]byte("hello again, probably using the first renewed reservation\n"+
+		"If you don't see this message, you probably forgot to update the destination address "+
+		"with the renewed colibri path, via the \"successFcn\" callback function in Open."),
 		dstAddr)
 	check(err)
 	data = <-serverChan
-	fmt.Printf("server got data: %s\n", string(data))
+	fmt.Printf("server got data: %d\n", len(data))
 }
 
 // check just ensures the error is nil, or complains and quits
