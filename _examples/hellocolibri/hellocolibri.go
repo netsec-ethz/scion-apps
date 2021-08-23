@@ -23,10 +23,12 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/colibri"
 	libcol "github.com/scionproto/scion/go/lib/colibri"
 	colapi "github.com/scionproto/scion/go/lib/colibri/client"
+	"github.com/scionproto/scion/go/lib/colibri/client/fallingback"
+	"github.com/scionproto/scion/go/lib/colibri/client/sorting"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -273,19 +275,17 @@ func clientExtendedAPI(serverChan chan []byte) {
 	}
 
 	fmt.Println("deleteme 1")
-	rsv, err := colapi.NewReservation(ctx, scionNet, daemon, dstAddr, 9, 0, func(a, b libcol.FullTrip) bool {
-		// sorting function, return true if a < b. The first trip will be the chosen one
-		return a.ExpirationTime().Before(b.ExpirationTime())
-	})
+	capturedTrips := make([]*colibri.FullTrip, 0)
+	rsv, err := colapi.NewReservation(ctx, scionNet, daemon, dstAddr, 9, 0,
+		// record the trips, sort by BW and then sort by number of ASes:
+		fallingback.CaptureTrips(&capturedTrips), sorting.ByBW, sorting.ByNumberOfASes,
+	)
 	check(err)
 	fmt.Println("deleteme 2")
 
-	// auto renew reservation
-	err = rsv.Open(ctx, localUdpAddr, func(r *colapi.Reservation, err error) {
-		fmt.Printf("aieeee, failed to renew, error type: %s, message: %s\n",
-			common.TypeOf(err), err)
-		panic("")
-	})
+	// Auto renew reservation, fallback to next trip without the failing interface.
+	// We could also provide our own fallback function instead.
+	err = rsv.Open(ctx, localUdpAddr, fallingback.SkipInterface(capturedTrips))
 	check(err)
 	fmt.Println("deleteme 3")
 
@@ -338,3 +338,9 @@ func printPath(p *colpath.ColibriPath) string {
 		reservation.Tick(p.InfoField.ExpTick).ToTime(),
 		strings.Join(hfs, " -> "))
 }
+
+// TODO remove Write and Read from Reservation interface
+
+// TODO add a scenario showing a connection upgrade from regular scion to colibri
+
+// TODO add a fallback function to react to not admitted errors, with the information from the trail
