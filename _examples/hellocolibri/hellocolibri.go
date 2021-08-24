@@ -44,10 +44,10 @@ const (
 func main() {
 	serverChan := make(chan []byte)
 	server(serverChan)
-	// client(serverChan)
+	client(serverChan)
 	fmt.Println("==============================================================================================")
 	// after client is finished, run the extended API example
-	clientExtendedAPI(serverChan)
+	// clientExtendedAPI(serverChan)
 }
 
 func server(serverChan chan []byte) {
@@ -137,7 +137,7 @@ func client(serverChan chan []byte) {
 		DstIA:       dstIA,
 		Index:       0, // new index
 		Segments:    trips[0].Segments(),
-		RequestedBW: 11,
+		RequestedBW: 13,
 	}
 	rand.Read(setupReq.Id.Suffix) // random suffix
 	_, err = daemon.ColibriSetupRsv(ctx, setupReq)
@@ -145,12 +145,14 @@ func client(serverChan chan []byte) {
 		check(fmt.Errorf("expected error but got nil"))
 	}
 	fmt.Printf("expected error in admission: %s\n", err)
-	if e2eerr, ok := err.(*libcol.E2ESetupError); ok {
-		fmt.Printf("admission error: failed at AS %d, trail: %v\n",
-			e2eerr.FailedAS, e2eerr.AllocationTrail)
+	admissionFailure, ok := err.(*libcol.E2ESetupError)
+	if !ok {
+		check(fmt.Errorf("expected error type E2ESetupError, but got %T", err))
 	}
+	fmt.Printf("admission error: failed at AS %d, trail: %v\n",
+		admissionFailure.FailedAS, admissionFailure.AllocationTrail)
 
-	setupReq.RequestedBW = 9
+	setupReq.RequestedBW = 11
 	fmt.Printf("\nGoing again with requested BW cls = %d, ID: %s\n",
 		setupReq.RequestedBW, setupReq.Id)
 	res, err := daemon.ColibriSetupRsv(ctx, setupReq)
@@ -165,7 +167,7 @@ func client(serverChan chan []byte) {
 		DstIA:       setupReq.DstIA,
 		Index:       0,
 		Segments:    setupReq.Segments,
-		RequestedBW: 9,
+		RequestedBW: 11,
 	}
 	rand.Read(setupReq2.Id.Suffix) // new reservation
 	fmt.Printf("\nRequesting a new reservation with same BW, new id: %s\n", setupReq2.Id)
@@ -173,12 +175,12 @@ func client(serverChan chan []byte) {
 	if err == nil {
 		check(fmt.Errorf("expected error but got nil"))
 	}
-	e2eerr, ok := err.(*libcol.E2ESetupError)
+	admissionFailure, ok = err.(*libcol.E2ESetupError)
 	if !ok {
 		check(fmt.Errorf("expected error type E2ESetupError, but got %T", err))
 	}
 	fmt.Printf("expected admission error: failed at AS %d, trail: %v\n",
-		e2eerr.FailedAS, e2eerr.AllocationTrail)
+		admissionFailure.FailedAS, admissionFailure.AllocationTrail)
 
 	// cleanup the first one and attempt again
 	fmt.Printf("\nWill clean first rsv, id: %s\n", setupReq.Id)
@@ -349,7 +351,7 @@ func check(err error) {
 			fmt.Printf("%s\nAllocTrail: %v\n", err, e2eerr.AllocationTrail)
 		case *libcol.E2EResponseError:
 		}
-		panic(fmt.Sprintf("%s Fatal error: %s", time.Now(), err))
+		panic(fmt.Sprintf("%s Fatal error: %s", time.Now().Format(time.StampMilli), err))
 	}
 }
 func printPath(p *colpath.ColibriPath) string {
