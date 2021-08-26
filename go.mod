@@ -3,7 +3,6 @@ module github.com/netsec-ethz/scion-apps
 go 1.16
 
 require (
-	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/bclicn/color v0.0.0-20180711051946-108f2023dc84
 	github.com/gorilla/handlers v1.5.1
 	github.com/inconshreveable/log15 v0.0.0-20180818164646-67afb5ed74ec
@@ -22,4 +21,4 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
-replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20210714115737-74fc9cfb9644
+replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.0.0-20210825190202-fc081bebc932
