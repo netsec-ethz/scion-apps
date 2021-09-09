@@ -44,10 +44,11 @@ const (
 func main() {
 	serverChan := make(chan []byte)
 	server(serverChan)
+	fmt.Println("=================================================================================")
 	client(serverChan)
-	fmt.Println("==============================================================================================")
+	fmt.Println("=================================================================================")
 	// after client is finished, run the extended API example
-	// clientExtendedAPI(serverChan)
+	clientExtendedAPI(serverChan)
 }
 
 func server(serverChan chan []byte) {
@@ -71,6 +72,29 @@ func server(serverChan chan []byte) {
 	fmt.Printf("server at %s\n", udpAddr)
 	conn, err := scionNet.Listen(context.Background(), "udp", udpAddr, addr.SvcNone)
 	check(err)
+
+	// periodically set ourselves as ready to receive reservations (whitelist all)
+	go func() {
+		for {
+			ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+			entry := &colibri.AdmissionEntry{
+				DstHost:         udpAddr.IP, // could be empty to detect it automatically
+				ValidUntil:      time.Now().Add(time.Minute),
+				RegexpIA:        "", // from any AS
+				RegexpHost:      "", // from any host
+				AcceptAdmission: true,
+			}
+			fmt.Printf("server, adding admission entry for %s\n", udpAddr.IP)
+			validUntil, err := daemon.ColibriAddAdmissionEntry(ctx, entry)
+			check(err)
+			if time.Until(validUntil).Seconds() < 45 {
+				check(fmt.Errorf("too short validity, something went wrong. "+
+					"Requested %s, got %s", entry.ValidUntil, validUntil))
+			}
+			cancelF()
+			time.Sleep(30 * time.Second)
+		}
+	}()
 
 	// serve detached
 	go func() {
@@ -128,6 +152,8 @@ func client(serverChan chan []byte) {
 	// reservation requests
 	fmt.Printf("\nThis first reservation should fail\n")
 
+	serverUDPAddr, err := net.ResolveUDPAddr("udp", serverSciondPath)
+	check(err)
 	setupReq := &libcol.E2EReservationSetup{
 		Id: reservation.ID{
 			ASID:   localIA.A,
@@ -135,6 +161,7 @@ func client(serverChan chan []byte) {
 		},
 		SrcIA:       localIA,
 		DstIA:       dstIA,
+		DstHost:     serverUDPAddr.IP,
 		Index:       0, // new index
 		Segments:    trips[0].Segments(),
 		RequestedBW: 13,
@@ -165,6 +192,7 @@ func client(serverChan chan []byte) {
 		Id:          *setupReq.Id.Copy(),
 		SrcIA:       setupReq.SrcIA,
 		DstIA:       setupReq.DstIA,
+		DstHost:     serverUDPAddr.IP,
 		Index:       0,
 		Segments:    setupReq.Segments,
 		RequestedBW: 11,
@@ -290,7 +318,7 @@ func clientExtendedAPI(serverChan chan []byte) {
 
 	// create a reservation
 	capturedTrips := make([]*colibri.FullTrip, 0)
-	rsv, err := colapi.NewReservation(ctx, daemon, localIA, dstIA, 9, 0,
+	rsv, err := colapi.NewReservation(ctx, daemon, localIA, dstIA, dstAddr.Host.IP, 9, 0,
 		// we record the trips, sort by BW and then sort by number of ASes:
 		fallingback.CaptureTrips(&capturedTrips), sorting.ByBW, sorting.ByNumberOfASes,
 	)
