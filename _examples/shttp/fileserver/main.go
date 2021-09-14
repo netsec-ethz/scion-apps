@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -28,12 +27,16 @@ import (
 )
 
 func main() {
-	port := flag.Uint("p", 443, "port the server listens on")
+	certFile := flag.String("cert", "", "Path to TLS server certificate for optional https")
+	keyFile := flag.String("key", "", "Path to TLS server key for optional https")
 	flag.Parse()
 
 	handler := handlers.LoggingHandler(
 		os.Stdout,
 		http.FileServer(http.Dir("")),
 	)
-	log.Fatal(shttp.ListenAndServe(fmt.Sprintf(":%d", *port), handler, nil))
+	if *certFile != "" && *keyFile != "" {
+		go func() { log.Fatal(shttp.ListenAndServeTLS(":443", *certFile, *keyFile, handler)) }()
+	}
+	log.Fatal(shttp.ListenAndServe(":80", handler))
 }

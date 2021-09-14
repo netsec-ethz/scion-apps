@@ -12,78 +12,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This is the low-level Transport implementation of the RoundTripper interface for use with SCION/QUIC
-// The high-level interface is in http/client.go
-
+// package shttp provides glue to use net/http libraries for HTTP over SCION.
 package shttp
 
 import (
+	"context"
 	"crypto/tls"
-	"io"
+	"net"
 	"net/http"
-	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
-// RoundTripper extends the http.RoundTripper interface with a Close
-type RoundTripper interface {
-	http.RoundTripper
-	io.Closer
+// DefaultTransport is the default RoundTripper that can be used for HTTP over
+// SCION/QUIC.
+// This is equivalent to net/http.DefaultTransport with DialContext overridden
+// to use shttp.Dialer, which dials connections over SCION/QUIC.
+var DefaultTransport = &http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&Dialer{
+		QuicConfig: nil,
+	}).DialContext,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
 }
 
-// NewRoundTripper creates a new RoundTripper that can be used as the Transport
-// of an http.Client.
-func NewRoundTripper(tlsClientCfg *tls.Config, quicCfg *quic.Config) RoundTripper {
-	return &roundTripper{
-		&http3.RoundTripper{
-			Dial:            dial,
-			QuicConfig:      quicCfg,
-			TLSClientConfig: tlsClientCfg,
-		},
+// Dialer dials an insecure, single-stream QUIC connection over SCION (just pretend it's TCP).
+// This is the Dialer used for shttp.DefaultTransport.
+type Dialer struct {
+	QuicConfig *quic.Config
+}
+
+// DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
+// as the DialContext function in net/http.Transport.
+func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	tlsCfg := &tls.Config{
+		NextProtos:         []string{nextProtoRaw},
+		InsecureSkipVerify: true,
 	}
-}
-
-var _ RoundTripper = (*roundTripper)(nil)
-
-// roundTripper implements the RoundTripper interface. It wraps a
-// http3.RoundTripper, making it compatible with SCION
-type roundTripper struct {
-	rt *http3.RoundTripper
-}
-
-// RoundTrip does a single round trip; retrieving a response for a given request
-func (t *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-
-	// If req.URL.Host is a SCION address, we need to mangle it so it passes through
-	// http3 without tripping up.
-	// Note: when using the http.Client, the URL must already arrive mangled
-	// here, otherwise it would not have parsed.
-	cpy := *req
-	cpy.URL = new(url.URL)
-	*cpy.URL = *req.URL
-	cpy.URL.Host = appnet.MangleSCIONAddr(req.URL.Host)
-
-	return t.rt.RoundTrip(&cpy)
-}
-
-// Close closes the QUIC connections that this RoundTripper has used
-func (t *roundTripper) Close() (err error) {
-
-	if t.rt != nil {
-		err = t.rt.Close()
+	sess, err := appquic.Dial(appnet.UnmangleSCIONAddr(addr), tlsCfg, d.QuicConfig)
+	if err != nil {
+		return nil, err
 	}
-
-	return err
-}
-
-// dial is the Dial function used in RoundTripper
-func dial(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
-	return appquic.DialEarly(appnet.UnmangleSCIONAddr(address), tlsCfg, cfg)
+	stream, err := sess.OpenStreamSync(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return singleStreamSession{sess, stream}, nil
 }
 
 var scionAddrURLRegexp = regexp.MustCompile(

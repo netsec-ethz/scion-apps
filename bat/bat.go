@@ -97,7 +97,7 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	defaultSetting.Transport = shttp.NewRoundTripper(&tls.Config{InsecureSkipVerify: true}, nil)
+	defaultSetting.Transport = shttp.DefaultTransport
 }
 
 func parsePrintOption(s string) {
@@ -164,7 +164,7 @@ func main() {
 	}
 
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
-		*URL = "https://" + *URL
+		*URL = "http://" + *URL
 	}
 	u, err := url.Parse(shttp.MangleSCIONAddrURL(*URL))
 	if err != nil {
@@ -190,7 +190,7 @@ func main() {
 	}
 	// Proxy Support
 	if proxy != "" {
-		purl, err := url.Parse(proxy)
+		purl, err := url.Parse(shttp.MangleSCIONAddrURL(proxy))
 		if err != nil {
 			log.Fatal("Proxy Url parse err", err)
 		}
@@ -359,7 +359,6 @@ Usage:
 	bat [flags] [METHOD] URL [ITEM [ITEM]]
 
 flags:
-  -l                          Local SCION address, omit to bind to localhost
   -a, -auth=USER[:PASS]       Pass a username:password pair as the argument
   -b, -bench=false            Sends bench requests to URL
   -b.N=1000                   Number of requests to run

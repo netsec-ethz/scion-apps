@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2021 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,83 +15,112 @@
 package shttp
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"net/http"
 
-	"github.com/lucas-clemente/quic-go/http3"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 )
 
-// Server wraps a http3.Server making it work with SCION
+const nextProtoRaw = "raw" // Used for pretend-its-TCP QUIC
+
+// Server wraps a http.Server making it work with SCION
 type Server struct {
-	*http3.Server
+	*http.Server
+}
+
+// ListenAndServe listens for HTTP connections on the SCION address addr and calls Serve
+// with handler to handle requests
+func ListenAndServe(addr string, handler http.Handler) error {
+	s := &Server{
+		Server: &http.Server{
+			Addr:    addr,
+			Handler: handler,
+		},
+	}
+	return s.ListenAndServe()
 }
 
 // ListenAndServe listens for HTTPS connections on the SCION address addr and calls Serve
 // with handler to handle requests
-func ListenAndServe(addr string, handler http.Handler, tlsConfig *tls.Config) error {
-
-	scionServer := &Server{
-		Server: &http3.Server{
-			Server: &http.Server{
-				Addr:    addr,
-				Handler: handler,
-			},
+func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) error {
+	s := &Server{
+		Server: &http.Server{
+			Addr:    addr,
+			Handler: handler,
 		},
 	}
-	scionServer.TLSConfig = tlsConfig
-	return scionServer.ListenAndServe()
+	return s.ListenAndServeTLS(certFile, keyFile)
 }
 
-// Serve creates a listener on conn and listens for HTTPS connections.
-// A new goroutine handles each request using handler
-func Serve(conn net.PacketConn, handler http.Handler) error {
+func (srv *Server) Serve(l net.Listener) error {
+	// Providing a custom listener defeats the purpose of this library.
+	panic("not implemented")
+}
 
-	scionServer := &Server{
-		Server: &http3.Server{
-			Server: &http.Server{
-				Handler: handler,
-			},
-		},
-	}
-
-	return scionServer.Serve(conn)
+func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
+	// Providing a custom listener defeats the purpose of this library.
+	panic("not implemented")
 }
 
 // ListenAndServe listens for QUIC connections on srv.Addr and
 // calls Serve to handle incoming requests
 func (srv *Server) ListenAndServe() error {
-
-	laddr, err := net.ResolveUDPAddr("udp", srv.Addr)
+	listener, err := listen(srv.Addr)
 	if err != nil {
-		return err
+		return nil
 	}
-	sconn, err := appnet.Listen(laddr)
-	if err != nil {
-		return err
-	}
-	return srv.Serve(sconn)
+	defer listener.Close()
+	return srv.Server.Serve(listener)
 }
 
-// Serve listens on conn and accepts incoming connections
-// a goroutine is spawned for every request and handled by srv.srv.handler
-func (srv *Server) Serve(conn net.PacketConn) error {
-
-	// set dummy TLS config if not set:
-	if srv.TLSConfig == nil {
-		srv.TLSConfig = &tls.Config{}
+func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+	listener, err := listen(srv.Addr)
+	if err != nil {
+		return nil
 	}
-	if len(srv.TLSConfig.Certificates) == 0 {
-		srv.TLSConfig.Certificates = appquic.GetDummyTLSCerts()
-	}
-
-	return srv.Server.Serve(conn)
+	defer listener.Close()
+	return srv.Server.ServeTLS(listener, certFile, keyFile)
 }
 
-// Close the server immediately, aborting requests and sending CONNECTION_CLOSE frames to connected clients
-// Close in combination with ListenAndServe (instead of Serve) may race if it is called before a UDP socket is established
-func (srv *Server) Close() error {
-	return srv.Server.Close()
+func listen(addr string) (net.Listener, error) {
+	tlsCfg := &tls.Config{
+		NextProtos:   []string{nextProtoRaw},
+		Certificates: appquic.GetDummyTLSCerts(),
+	}
+	laddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return nil, err
+	}
+	quicListener, err := appquic.Listen(laddr, tlsCfg, nil)
+	if err != nil {
+		return nil, err
+	}
+	return singleStreamListener{quicListener}, nil
+}
+
+type singleStreamListener struct {
+	quic.Listener
+}
+
+func (l singleStreamListener) Accept() (net.Conn, error) {
+	ctx := context.Background()
+	sess, err := l.Listener.Accept(ctx)
+	if err != nil {
+		return nil, err
+	}
+	str, err := sess.AcceptStream(ctx)
+	return singleStreamSession{sess, str}, err
+}
+
+type singleStreamSession struct {
+	quic.Session
+	quic.Stream
+}
+
+func (s singleStreamSession) Close() error {
+	s.Stream.Close()
+	return s.Session.CloseWithError(0, "")
 }
