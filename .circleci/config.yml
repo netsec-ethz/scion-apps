@@ -12,8 +12,8 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-pkg-cache-{{ checksum "go.sum" }}
-            - v1-pkg-cache
+            - v2-pkg-cache-{{ checksum "go.sum" }}
+            - v2-pkg-cache
       - run:
           name: Build
           command: make build
@@ -26,7 +26,7 @@ jobs:
           name: Run unit tests
           command: make test
       - save_cache:
-          key: v1-pkg-cache-{{ checksum "go.sum" }}
+          key: v2-pkg-cache-{{ checksum "go.sum" }}
           paths:
             - "/go/pkg"
 
