@@ -16,6 +16,7 @@ package pan
 
 import (
 	"net"
+	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -147,12 +148,38 @@ func (p snetPathWrapper) Metadata() *snet.PathMetadata {
 }
 
 // TODO: (optionally) fill missing latency info with geo coordinates
-// TODO: same for Bandwidth, etc.
 type LowestLatency struct{}
 
 func (p LowestLatency) Filter(paths []*Path) []*Path {
 	sortStablePartialOrder(paths, func(i, j int) (bool, bool) {
 		return paths[i].Metadata.LowerLatency(paths[j].Metadata)
+	})
+	return paths
+}
+
+type HighestBandwidth struct{}
+
+func (p HighestBandwidth) Filter(paths []*Path) []*Path {
+	sortStablePartialOrder(paths, func(i, j int) (bool, bool) {
+		return paths[i].Metadata.HigherBandwidth(paths[j].Metadata)
+	})
+	return paths
+}
+
+type LeastHops struct{}
+
+func (p LeastHops) Filter(paths []*Path) []*Path {
+	sort.SliceStable(paths, func(i, j int) bool {
+		return len(paths[i].Metadata.Interfaces) < len(paths[j].Metadata.Interfaces)
+	})
+	return paths
+}
+
+type HighestMTU struct{}
+
+func (p HighestMTU) Filter(paths []*Path) []*Path {
+	sort.SliceStable(paths, func(i, j int) bool {
+		return paths[i].Metadata.MTU < paths[j].Metadata.MTU
 	})
 	return paths
 }
