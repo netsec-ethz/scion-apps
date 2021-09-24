@@ -19,13 +19,15 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"sync"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 const (
@@ -78,13 +80,13 @@ func main() {
 	port := flag.Uint("p", 40002, "Server Port")
 	flag.Parse()
 
-	conn, err := appnet.ListenPort(uint16(*port))
+	conn, err := pan.ListenUDP(context.Background(), &net.UDPAddr{Port: int(*port)}, nil)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)
 	for {
-		_, clientAddress, err := conn.ReadFrom(receivePacketBuffer)
+		_, clientAddress, path, err := conn.ReadFromPath(receivePacketBuffer)
 		check(err)
 
 		// Packet received, send back response to same client
@@ -102,7 +104,7 @@ func main() {
 		sensorValues = timeStr + "\n" + sensorValues
 		copy(sendPacketBuffer, sensorValues)
 
-		_, err = conn.WriteTo(sendPacketBuffer[:len(sensorValues)], clientAddress)
+		_, err = conn.WriteToPath(sendPacketBuffer[:len(sensorValues)], clientAddress, path)
 		check(err)
 	}
 }
