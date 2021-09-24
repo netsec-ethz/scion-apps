@@ -18,12 +18,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 func check(e error) {
@@ -33,8 +35,13 @@ func check(e error) {
 }
 
 func main() {
-
 	serverAddrStr := flag.String("s", "", "Server address (<ISD-AS,[IP]:port> or <hostname:port>)")
+	interactive := flag.Bool("i", false, "Interactive path selection, prompt to choose path")
+	sequence := flag.String("sequence", "", "Sequence of space separated hop predicates to specify path")
+	preference := flag.String("preference", "", "Preference sorting order for paths. "+
+		"Comma-separated list of available sorting options: "+
+		strings.Join(pan.AvailablePreferencePolicies, "|"))
+
 	flag.Parse()
 
 	if len(*serverAddrStr) == 0 {
@@ -42,7 +49,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	conn, err := appnet.Dial(*serverAddrStr)
+	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive)
+	check(err)
+	serverAddr, err := pan.ResolveUDPAddr(*serverAddrStr)
+	check(err)
+	conn, err := pan.DialUDP(context.Background(), nil, serverAddr, policy, nil)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

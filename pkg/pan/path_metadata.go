@@ -16,6 +16,7 @@ package pan
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -128,6 +129,40 @@ func (pm *PathMetadata) latencySum() (time.Duration, pathHopSet) {
 		}
 	}
 	return sum, unknown
+}
+
+// HigherBandwidth compares the bandwidth of two paths.
+// Returns
+//  - true, true if a has strictly higher bandwidth than b
+//  - false, true if a has equal or lower bandwidth than b
+//  - _, false if not enough information is available to compare a and b
+func (pm *PathMetadata) HigherBandwidth(b *PathMetadata) (bool, bool) {
+	minA, unknownA := pm.bandwidthMin()
+	minB, unknownB := b.bandwidthMin()
+	if minA > minB && unknownA.subsetOf(unknownB) {
+		// min of known bigger and all unknown hops in A are also in B
+		return true, true
+	} else if minA <= minB && unknownB.subsetOf(unknownA) {
+		// total of known smaller/equal and all unknown hops in B are also in A
+		return false, true
+	}
+	return false, false
+}
+
+// bandwidthMin returns the min (bottleneck) bandwidth and the set of edges
+// with unknown bandwidth.
+func (pm *PathMetadata) bandwidthMin() (uint64, pathHopSet) {
+	min := uint64(math.MaxUint64)
+	unknown := make(pathHopSet)
+	for i := 0; i < len(pm.Interfaces)-1; i++ {
+		b := pm.Bandwidth[i]
+		if b != 0 && b < min {
+			min = b
+		} else if b == 0 {
+			unknown[pathHop{a: pm.Interfaces[i], b: pm.Interfaces[i+1]}] = struct{}{}
+		}
+	}
+	return min, unknown
 }
 
 func (pm *PathMetadata) fmtInterfaces() string {

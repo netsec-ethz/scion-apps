@@ -51,6 +51,7 @@ const (
 var (
 	interactive      bool
 	sequence         string
+	preference       string
 	ver              bool
 	form             bool
 	pretty           bool
@@ -74,6 +75,9 @@ var (
 func init() {
 	flag.BoolVar(&interactive, "interactive", false, "Prompt user for interactive path selection")
 	flag.StringVar(&sequence, "sequence", "", "Sequence of space separated hop predicates to specify path")
+	flag.StringVar(&preference, "preference", "", "Preference sorting order for paths. "+
+		"Comma-separated list of available sorting options: "+
+		strings.Join(pan.AvailablePreferencePolicies, "|"))
 	flag.BoolVar(&ver, "v", false, "Print Version Number")
 	flag.BoolVar(&ver, "version", false, "Print Version Number")
 	flag.BoolVar(&pretty, "pretty", true, "Print Json Pretty Format")
@@ -100,7 +104,7 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	policy, err := pan.PolicyFromCommandline(sequence, interactive)
+	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
 	if err != nil {
 		log.Fatal(err)
 	}

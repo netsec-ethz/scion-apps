@@ -14,6 +14,21 @@
 
 package pan
 
+import (
+	"fmt"
+	"strings"
+)
+
+var (
+	AvailablePreferencePolicies = []string{"latency", "bandwidth", "hops", "mtu"}
+	preferencePolicies          = map[string]Policy{
+		"latency":   LowestLatency{},
+		"bandwidth": HighestBandwidth{},
+		"hops":      LeastHops{},
+		"mtu":       HighestMTU{},
+	}
+)
+
 // PolicyFromCommandline is a utilty function to create a path policy
 // from command line options.
 //
@@ -24,8 +39,10 @@ package pan
 //
 // The options should be presented to the user as:
 //  -	a flag --interactve
+//  - an option --preference <preference>, sorting order for paths.
+//    Comma-separated list of available sorting options.
 //  - an option --sequence <sequence>, describing a hop-predicate sequence filter
-func PolicyFromCommandline(sequence string, interactive bool) (Policy, error) {
+func PolicyFromCommandline(sequence string, preference string, interactive bool) (Policy, error) {
 	chain := PolicyChain{}
 	if sequence != "" {
 		seq, err := NewSequence(sequence)
@@ -33,6 +50,17 @@ func PolicyFromCommandline(sequence string, interactive bool) (Policy, error) {
 			return nil, err
 		}
 		chain = append(chain, seq)
+	}
+	if preference != "" {
+		preferences := strings.Split(preference, ",")
+		// apply in reverse order (least important first)
+		for i := len(preferences) - 1; i >= 0; i-- {
+			if p, ok := preferencePolicies[preferences[i]]; ok {
+				chain = append(chain, p)
+			} else {
+				return nil, fmt.Errorf("unknown preference sorting policy '%s'", preferences[i])
+			}
+		}
 	}
 	if interactive {
 		chain = append(chain, &InteractiveSelection{
