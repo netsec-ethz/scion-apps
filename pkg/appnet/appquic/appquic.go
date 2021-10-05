@@ -20,8 +20,11 @@ package appquic
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/lucas-clemente/quic-go"
 
@@ -86,6 +89,10 @@ func DialAddr(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicConf *q
 		return nil, err
 	}
 	host = appnet.MangleSCIONAddr(host)
+	// HACK: we silence the log here to shut up quic-go's warning about trying to
+	// set receive buffer size (it's not a UDPConn, we know).
+	silenceLog()
+	defer unsilenceLog()
 	session, err := quic.Dial(sconn, raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
@@ -113,6 +120,10 @@ func DialAddrEarly(raddr *snet.UDPAddr, host string, tlsConf *tls.Config, quicCo
 		return nil, err
 	}
 	host = appnet.MangleSCIONAddr(host)
+	// HACK: we silence the log here to shut up quic-go's warning about trying to
+	// set receive buffer size (it's not a UDPConn, we know).
+	silenceLog()
+	defer unsilenceLog()
 	session, err := quic.DialEarly(sconn, raddr, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
@@ -132,11 +143,7 @@ func ensurePathDefined(raddr *snet.UDPAddr) error {
 //
 // See note on wildcard addresses in the appnet package documentation.
 func ListenPort(port uint16, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
-	sconn, err := appnet.ListenPort(port)
-	if err != nil {
-		return nil, err
-	}
-	return quic.Listen(sconn, tlsConf, quicConfig)
+	return Listen(&net.UDPAddr{Port: int(port)}, tlsConf, quicConfig)
 }
 
 func Listen(listen *net.UDPAddr, tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
@@ -144,6 +151,10 @@ func Listen(listen *net.UDPAddr, tlsConf *tls.Config, quicConfig *quic.Config) (
 	if err != nil {
 		return nil, err
 	}
+	// HACK: we silence the log here to shut up quic-go's warning about trying to
+	// set receive buffer size (it's not a UDPConn, we know).
+	silenceLog()
+	defer unsilenceLog()
 	return quic.Listen(sconn, tlsConf, quicConfig)
 }
 
@@ -162,4 +173,34 @@ func GetDummyTLSCerts() []tls.Certificate {
 		panic(initErr)
 	}
 	return srvTLSDummyCerts
+}
+
+var logSilencerCount int32
+var logSilencerOriginal io.Writer
+
+// silenceLog redirects the log.Default writer to a black hole.
+// It can be reenabled by calling unsilenceLog.
+// These functions can safely be called from multiple goroutines concurrently;
+// the log will remain silenced until unsilenceLog was called for each
+// silenceLog call.
+func silenceLog() {
+	count := atomic.AddInt32(&logSilencerCount, 1)
+	if count == 1 {
+		logSilencerOriginal = log.Default().Writer()
+		log.Default().SetOutput(blackhole{})
+	}
+}
+
+func unsilenceLog() {
+	count := atomic.AddInt32(&logSilencerCount, -1)
+	if count == 0 {
+		log.Default().SetOutput(logSilencerOriginal)
+		logSilencerOriginal = nil
+	}
+}
+
+type blackhole struct{}
+
+func (w blackhole) Write(p []byte) (n int, err error) {
+	return len(p), nil
 }
