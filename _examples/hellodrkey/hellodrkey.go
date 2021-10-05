@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
 	"github.com/scionproto/scion/go/lib/drkey/protocol"
-	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 const (
@@ -46,14 +46,14 @@ func check(e error) {
 }
 
 type Client struct {
-	sciond sciond.Connector
+	daemon daemon.Connector
 }
 
 func NewClient(sciondPath string) Client {
-	sciond, err := sciond.NewService(sciondPath).Connect(context.Background())
+	daemon, err := daemon.NewService(sciondPath).Connect(context.Background())
 	check(err)
 	return Client{
-		sciond: sciond,
+		daemon: daemon,
 	}
 }
 
@@ -62,7 +62,7 @@ func (c Client) HostKey(meta drkey.Lvl2Meta) drkey.Lvl2Key {
 	defer cancelF()
 
 	// get L2 key: (slow path)
-	key, err := c.sciond.DRKeyGetLvl2Key(ctx, meta, timestamp)
+	key, err := c.daemon.DRKeyGetLvl2Key(ctx, meta, timestamp)
 	check(err)
 	return key
 }
@@ -81,14 +81,14 @@ func ThisClientAndMeta() (Client, drkey.Lvl2Meta) {
 }
 
 type Server struct {
-	sciond sciond.Connector
+	daemon daemon.Connector
 }
 
 func NewServer(sciondPath string) Server {
-	sciond, err := sciond.NewService(sciondPath).Connect(context.Background())
+	daemon, err := daemon.NewService(sciondPath).Connect(context.Background())
 	check(err)
 	return Server{
-		sciond: sciond,
+		daemon: daemon,
 	}
 }
 
@@ -102,7 +102,7 @@ func (s Server) dsForServer(meta drkey.Lvl2Meta) drkey.DelegationSecret {
 		SrcIA:    meta.SrcIA,
 		DstIA:    meta.DstIA,
 	}
-	lvl2Key, err := s.sciond.DRKeyGetLvl2Key(ctx, dsMeta, timestamp)
+	lvl2Key, err := s.daemon.DRKeyGetLvl2Key(ctx, dsMeta, timestamp)
 	check(err)
 	fmt.Printf("Only the server obtains it: DS key = %s\n", hex.EncodeToString(lvl2Key.Key))
 	ds := drkey.DelegationSecret{

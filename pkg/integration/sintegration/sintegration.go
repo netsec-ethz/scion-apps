@@ -33,8 +33,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -268,5 +268,5 @@ func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], sciond.DefaultAPIPort), nil
+	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], daemon.DefaultAPIPort), nil
 }

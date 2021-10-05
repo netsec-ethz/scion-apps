@@ -31,7 +31,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/pelletier/go-toml"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/daemon"
 )
 
 // default params for localhost testing
@@ -198,7 +198,7 @@ func getSDFromSDTomlFile(path string) string {
 	if sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS"); ok {
 		return sd
 	}
-	return sciond.DefaultAPIAddress
+	return daemon.DefaultAPIAddress
 }
 
 // getIAFromTopologyFile returns IA from topology.json on the given path
