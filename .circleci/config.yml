@@ -32,7 +32,7 @@ jobs:
 
   integration:
     machine:
-      image: ubuntu-2004:202101-01
+      image: ubuntu-2004:202107-02
 
     steps:
       - checkout
@@ -92,9 +92,6 @@ jobs:
       - run:
           name: Integration tests
           command: |
-            # XXX: hack, don't build skip here, needs go-1.16, currently this runs on go-1.15.
-            # As there are currently no integration tests for scion-skip, we don't need it here.
-            sed -i '/^\s*scion-skip\s*\\$/d' Makefile
             make integration
       - store_artifacts:
           path: /tmp/scion-apps-integration/
