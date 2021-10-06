@@ -37,7 +37,7 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -70,11 +70,11 @@ func returnPathHandler(w http.ResponseWriter, pathJSON []byte, segJSON []byte, e
 
 // connect opens a connection to the scion daemon at sciondAddress or, if
 // empty, the default address.
-func connect(sciondAddress string) (sciond.Connector, error) {
+func connect(sciondAddress string) (daemon.Connector, error) {
 	if len(sciondAddress) == 0 {
-		sciondAddress = sciond.DefaultAPIAddress
+		sciondAddress = daemon.DefaultAPIAddress
 	}
-	sciondConn, err := sciond.NewService(sciondAddress).Connect(context.Background())
+	sciondConn, err := daemon.NewService(sciondAddress).Connect(context.Background())
 	if CheckError(err) {
 		return nil, err
 	}
@@ -236,9 +236,9 @@ func removeAllDir(dirName string) {
 	CheckError(err)
 }
 
-func getPathsJSON(sciondConn sciond.Connector, dstIA addr.IA) ([]byte, error) {
+func getPathsJSON(sciondConn daemon.Connector, dstIA addr.IA) ([]byte, error) {
 	ctx := context.Background()
-	paths, err := sciondConn.Paths(ctx, dstIA, addr.IA{}, sciond.PathReqFlags{})
+	paths, err := sciondConn.Paths(ctx, dstIA, addr.IA{}, daemon.PathReqFlags{})
 	if err != nil {
 		return nil, err
 	}

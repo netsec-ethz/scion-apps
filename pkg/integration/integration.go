@@ -17,7 +17,6 @@ package integration
 import (
 	"context"
 	"fmt"
-	"github.com/scionproto/scion/go/lib/snet"
 	"io"
 	"net"
 	"os"
@@ -26,9 +25,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/snet"
+
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration/sintegration"
@@ -179,12 +180,12 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 
 // HostAddr gets _a_ host address, the same way appnet does, for a given IA
 var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
-	sciond, err := getSCIONDAddress(ia)
+	daemon, err := getSCIONDAddress(ia)
 	if err != nil {
 		log.Error("Failed to get sciond address", "err", err)
 		return nil
 	}
-	hostIP, err := DefaultLocalIPAddress(sciond)
+	hostIP, err := DefaultLocalIPAddress(daemon)
 	if err != nil {
 		log.Error("Failed to get valid host IP", "err", err)
 		return nil
@@ -216,8 +217,8 @@ func DefaultLocalIPAddress(sciondAddress string) (net.IP, error) {
 	return addrutil.ResolveLocal(hostInLocalAS)
 }
 
-func connSciond(ctx context.Context, sciondAddress string) (sciond.Connector, error) {
-	sciondConn, err := sciond.NewService(sciondAddress).Connect(ctx)
+func connSciond(ctx context.Context, sciondAddress string) (daemon.Connector, error) {
+	sciondConn, err := daemon.NewService(sciondAddress).Connect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", sciondAddress, err)
 	}
@@ -225,8 +226,8 @@ func connSciond(ctx context.Context, sciondAddress string) (sciond.Connector, er
 }
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
-func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	bsAddr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
+func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net.IP, error) {
+	bsAddr, err := daemon.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}

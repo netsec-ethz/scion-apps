@@ -62,7 +62,7 @@ jobs:
             python3 --version
 
             cd ~/scion
-            for service in "posix-router" "cs" "dispatcher" "scion-pki" "sciond"; do
+            for service in "posix-router" "cs" "dispatcher" "scion-pki" "daemon"; do
               go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
             done
 
