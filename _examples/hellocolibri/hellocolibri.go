@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/client/fallingback"
 	"github.com/scionproto/scion/go/lib/colibri/client/sorting"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/daemon"
 	colpath "github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -56,10 +56,10 @@ func server(serverChan chan []byte) {
 	ctx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelF()
 
-	daemon, err := sciond.NewService(serverSciondPath).Connect(ctx)
+	connector, err := daemon.NewService(serverSciondPath).Connect(ctx)
 	check(err)
 
-	localIA, err := daemon.LocalIA(ctx)
+	localIA, err := connector.LocalIA(ctx)
 	check(err)
 	udpAddr, err := net.ResolveUDPAddr("udp", serverSciondPath)
 	check(err)
@@ -67,7 +67,7 @@ func server(serverChan chan []byte) {
 
 	// init network
 	dispatcher := reliable.NewDispatcher(reliable.DefaultDispPath)
-	scionNet := snet.NewNetwork(localIA, dispatcher, sciond.RevHandler{Connector: daemon})
+	scionNet := snet.NewNetwork(localIA, dispatcher, daemon.RevHandler{Connector: connector})
 
 	fmt.Printf("server at %s\n", udpAddr)
 	conn, err := scionNet.Listen(context.Background(), "udp", udpAddr, addr.SvcNone)
@@ -85,7 +85,7 @@ func server(serverChan chan []byte) {
 				AcceptAdmission: true,
 			}
 			fmt.Printf("server, adding admission entry for %s\n", udpAddr.IP)
-			validUntil, err := daemon.ColibriAddAdmissionEntry(ctx, entry)
+			validUntil, err := connector.ColibriAddAdmissionEntry(ctx, entry)
 			check(err)
 			if time.Until(validUntil).Seconds() < 45 {
 				check(fmt.Errorf("too short validity, something went wrong. "+
@@ -116,22 +116,22 @@ func client(serverChan chan []byte) {
 	ctx, cancelF := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelF()
 
-	daemon, err := sciond.NewService(clientSciondPath).Connect(ctx)
+	connector, err := daemon.NewService(clientSciondPath).Connect(ctx)
 	check(err)
 
-	localIA, err := daemon.LocalIA(ctx)
+	localIA, err := connector.LocalIA(ctx)
 	check(err)
 
 	// init network for later use
 	dispatcher := reliable.NewDispatcher(reliable.DefaultDispPath)
-	scionNet := snet.NewNetwork(localIA, dispatcher, sciond.RevHandler{Connector: daemon})
+	scionNet := snet.NewNetwork(localIA, dispatcher, daemon.RevHandler{Connector: connector})
 
 	dstIA, err := addr.IAFromString("1-ff00:0:112")
 	check(err)
 
 	var stitchable *libcol.StitchableSegments
 	for {
-		stitchable, err = daemon.ColibriListRsvs(ctx, dstIA)
+		stitchable, err = connector.ColibriListRsvs(ctx, dstIA)
 		check(err)
 		if stitchable != nil {
 			break
@@ -167,7 +167,7 @@ func client(serverChan chan []byte) {
 		RequestedBW: 13,
 	}
 	rand.Read(setupReq.Id.Suffix) // random suffix
-	_, err = daemon.ColibriSetupRsv(ctx, setupReq)
+	_, err = connector.ColibriSetupRsv(ctx, setupReq)
 	if err == nil {
 		check(fmt.Errorf("expected error but got nil"))
 	}
@@ -182,7 +182,7 @@ func client(serverChan chan []byte) {
 	setupReq.RequestedBW = 11
 	fmt.Printf("\nGoing again with requested BW cls = %d, ID: %s\n",
 		setupReq.RequestedBW, setupReq.Id)
-	res, err := daemon.ColibriSetupRsv(ctx, setupReq)
+	res, err := connector.ColibriSetupRsv(ctx, setupReq)
 	check(err)
 	fmt.Println("admitted")
 	fmt.Printf("path type: %s\n", res.Path().Type)
@@ -199,7 +199,7 @@ func client(serverChan chan []byte) {
 	}
 	rand.Read(setupReq2.Id.Suffix) // new reservation
 	fmt.Printf("\nRequesting a new reservation with same BW, new id: %s\n", setupReq2.Id)
-	_, err = daemon.ColibriSetupRsv(ctx, setupReq2)
+	_, err = connector.ColibriSetupRsv(ctx, setupReq2)
 	if err == nil {
 		check(fmt.Errorf("expected error but got nil"))
 	}
@@ -212,12 +212,12 @@ func client(serverChan chan []byte) {
 
 	// cleanup the first one and attempt again
 	fmt.Printf("\nWill clean first rsv, id: %s\n", setupReq.Id)
-	err = daemon.ColibriCleanupRsv(ctx, &setupReq.Id, setupReq.Index)
+	err = connector.ColibriCleanupRsv(ctx, &setupReq.Id, setupReq.Index)
 	check(err)
 	fmt.Printf("Cleaned first reservation\n")
 	// go again, this time it should succeed
 	fmt.Printf("Requesting a new reservation with same BW, id: %s\n", setupReq2.Id)
-	res, err = daemon.ColibriSetupRsv(ctx, setupReq2)
+	res, err = connector.ColibriSetupRsv(ctx, setupReq2)
 	check(err)
 	fmt.Println("admitted")
 	fmt.Printf("path type: %s\n", res.Path().Type)
@@ -226,8 +226,8 @@ func client(serverChan chan []byte) {
 	//////////////////////////////////////////////////////////////////////////////////
 	//
 	// find the server address
-	pathquerier := sciond.Querier{
-		Connector: daemon,
+	pathquerier := daemon.Querier{
+		Connector: connector,
 		IA:        localIA,
 	}
 	pathsToDst, err := pathquerier.Query(ctx, dstIA)
@@ -276,7 +276,7 @@ func client(serverChan chan []byte) {
 	conn.Close()
 
 	// clean the last reservation obtained
-	err = daemon.ColibriCleanupRsv(ctx, &setupReq2.Id, setupReq2.Index)
+	err = connector.ColibriCleanupRsv(ctx, &setupReq2.Id, setupReq2.Index)
 	check(err)
 	fmt.Println("Reservation cleaned up")
 }
@@ -298,12 +298,12 @@ func clientExtendedAPI(serverChan chan []byte) {
 	dstIA, err := addr.IAFromString("1-ff00:0:112")
 	check(err)
 
-	daemon, err := sciond.NewService(clientSciondPath).Connect(ctx)
+	connector, err := daemon.NewService(clientSciondPath).Connect(ctx)
 	check(err)
-	localIA, err := daemon.LocalIA(ctx)
+	localIA, err := connector.LocalIA(ctx)
 	check(err)
 	dispatcher := reliable.NewDispatcher(reliable.DefaultDispPath)
-	scionNet := snet.NewNetwork(localIA, dispatcher, sciond.RevHandler{Connector: daemon})
+	scionNet := snet.NewNetwork(localIA, dispatcher, daemon.RevHandler{Connector: connector})
 	dstAddr := &snet.UDPAddr{
 		IA:   dstIA,
 		Host: dstUdpAddr,
@@ -318,7 +318,7 @@ func clientExtendedAPI(serverChan chan []byte) {
 
 	// create a reservation
 	capturedTrips := make([]*colibri.FullTrip, 0)
-	rsv, err := colapi.NewReservation(ctx, daemon, localIA, dstIA, dstAddr.Host.IP, 9, 0,
+	rsv, err := colapi.NewReservation(ctx, connector, localIA, dstIA, dstAddr.Host.IP, 9, 0,
 		// we record the trips, sort by BW and then sort by number of ASes:
 		fallingback.CaptureTrips(&capturedTrips), sorting.ByBW, sorting.ByNumberOfASes,
 	)
