@@ -45,6 +45,10 @@ func ListenQUIC(ctx context.Context, local *net.UDPAddr, selector ReplySelector,
 	if err != nil {
 		return nil, err
 	}
+	// HACK: we silence the log here to shut up quic-go's warning about trying to
+	// set receive buffer size (it's not a UDPConn, we know).
+	silenceLog()
+	defer unsilenceLog()
 	listener, err := quic.Listen(conn, tlsConf, quicConfig)
 	if err != nil {
 		conn.Close()
