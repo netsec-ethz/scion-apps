@@ -85,11 +85,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		return nil, err
 	}
 	d.sessions = append(d.sessions, session)
-	stream, err := session.OpenStreamSync(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return singleStreamSession{session, stream}, nil
+	return pan.NewQUICSingleStream(session)
 }
 
 func (d *Dialer) SetPolicy(policy pan.Policy) {

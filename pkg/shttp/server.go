@@ -17,11 +17,9 @@ package shttp
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 
-	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -100,30 +98,5 @@ func listen(addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(quicListener.Addr())
-	return singleStreamListener{quicListener}, nil
-}
-
-type singleStreamListener struct {
-	quic.Listener
-}
-
-func (l singleStreamListener) Accept() (net.Conn, error) {
-	ctx := context.Background()
-	sess, err := l.Listener.Accept(ctx)
-	if err != nil {
-		return nil, err
-	}
-	str, err := sess.AcceptStream(ctx)
-	return singleStreamSession{sess, str}, err
-}
-
-type singleStreamSession struct {
-	quic.Session
-	quic.Stream
-}
-
-func (s singleStreamSession) Close() error {
-	s.Stream.Close()
-	return s.Session.CloseWithError(0, "")
+	return pan.QUICSingleStreamListener{Listener: quicListener}, nil
 }
