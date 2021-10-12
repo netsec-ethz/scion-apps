@@ -15,9 +15,11 @@
 package main
 
 import (
+	"context"
 	"io"
+	"net"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 // May not be accessed from multiple threads concurrently, especially Read(...) and Close(...)
@@ -43,13 +45,26 @@ func (conn *udpListenConn) Close() error {
 }
 
 // DoDialUDP dials with a UDP socket
-func DoDialUDP(remote string) (io.ReadWriteCloser, error) {
-	return appnet.Dial(remote)
+func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
+	remoteAddr, err := pan.ResolveUDPAddr(remote)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pan.DialUDP(context.Background(), nil, remoteAddr, policy, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 // DoListenUDP listens on a UDP socket
 func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
-	conn, err := appnet.ListenPort(port)
+	conn, err := pan.ListenUDP(
+		context.Background(),
+		&net.UDPAddr{IP: nil, Port: int(port)},
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -22,8 +22,11 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 var (
@@ -40,6 +43,10 @@ var (
 	commandString string
 
 	verboseMode bool
+
+	interactive bool
+	sequence    string
+	preference  string
 )
 
 func printUsage() {
@@ -73,6 +80,11 @@ func main() {
 	flag.BoolVar(&shutdownAfterEOF, "N", false, "Shutdown the network socket after EOF on the input.")
 	flag.DurationVar(&shutdownAfterEOFTimeout, "q", 0, "After EOF on stdin, wait the specified number of seconds and then quit. Implies -N.")
 	flag.StringVar(&commandString, "c", "", "Command")
+	flag.BoolVar(&interactive, "interactive", false, "Prompt user for interactive path selection")
+	flag.StringVar(&sequence, "sequence", "", "Sequence of space separated hop predicates to specify path")
+	flag.StringVar(&preference, "preference", "", "Preference sorting order for paths. "+
+		"Comma-separated list of available sorting options: "+
+		strings.Join(pan.AvailablePreferencePolicies, "|"))
 	flag.BoolVar(&verboseMode, "v", false, "Verbose mode")
 	flag.Parse()
 
@@ -115,7 +127,11 @@ func main() {
 		}
 	} else {
 		remoteAddr := tail[0]
-		conn, err := doDial(remoteAddr)
+		policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+		if err != nil {
+			log.Fatal(err)
+		}
+		conn, err := doDial(remoteAddr, policy)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -235,13 +251,13 @@ func pipeConn(conn io.ReadWriteCloser) {
 	logDebug("Connection closed", "conn", conn)
 }
 
-func doDial(remoteAddr string) (io.ReadWriteCloser, error) {
+func doDial(remoteAddr string, policy pan.Policy) (io.ReadWriteCloser, error) {
 	var conn io.ReadWriteCloser
 	var err error
 	if udpMode {
-		conn, err = DoDialUDP(remoteAddr)
+		conn, err = DoDialUDP(remoteAddr, policy)
 	} else {
-		conn, err = DoDialQUIC(remoteAddr)
+		conn, err = DoDialQUIC(remoteAddr, policy)
 	}
 	if err != nil {
 		return nil, err
