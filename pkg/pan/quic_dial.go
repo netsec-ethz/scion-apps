@@ -72,6 +72,10 @@ func DialQUIC(ctx context.Context,
 		return nil, err
 	}
 	pconn := connectedPacketConn{conn}
+	// HACK: we silence the log here to shut up quic-go's warning about trying to
+	// set receive buffer size (it's not a UDPConn, we know).
+	silenceLog()
+	defer unsilenceLog()
 	session, err := quic.DialContext(ctx, pconn, remote, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
@@ -89,6 +93,10 @@ func DialQUICEarly(ctx context.Context,
 		return nil, err
 	}
 	pconn := connectedPacketConn{conn}
+	// HACK: we silence the log here to shut up quic-go's warning about trying to
+	// set receive buffer size (it's not a UDPConn, we know).
+	silenceLog()
+	defer unsilenceLog()
 	session, err := quic.DialEarlyContext(ctx, pconn, remote, host, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
