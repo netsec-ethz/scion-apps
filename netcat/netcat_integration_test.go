@@ -17,12 +17,7 @@
 package main
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -30,152 +25,68 @@ import (
 )
 
 const (
-	name      = "netcat"
-	clientBin = "scion-netcat"
-	serverBin = "scion-netcat"
+	netcatBin = "scion-netcat"
 )
 
-func TestIntegrationScionNetcat(t *testing.T) {
-	if err := integration.Init(name); err != nil {
-		t.Fatalf("Failed to init: %s\n", err)
-	}
-	// Start a scion-netcat server socket and query it with a scion-netcat client
-	// Common arguments
-	cmnArgs := []string{"-v"}
-	// Server
-	serverPort := "1234"
-	serverArgs := []string{"-l", serverPort}
-	serverArgs = append(cmnArgs, serverArgs...)
+func TestMain(m *testing.M) {
+	integration.TestMain(m)
+}
 
-	testMessage := "Hello World!"
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-	clientBinWrapperCmd, err := wrapperCommand(tmpDir, fmt.Sprintf("echo -e '%s'", testMessage),
-		integration.AppBinPath(clientBin))
-	if err != nil {
-		t.Fatalf("Failed to wrap scion-netcat input: %s\n", err)
-	}
-	clientCmd := clientBinWrapperCmd
-	serverCmd := integration.AppBinPath(serverBin)
+// TestIntegrationScionNetcatCmd runs the netcat listeners in -c mode, returning a
+// fixed string for each newly connected client.
+// This mode is easiest to test here as it does not require any stdin/out redirections
+// and the clients can terminate succesfully without interrupting them.
+// XXX: This is testing the "happy" path only, meaning pretty much anything
+// else does not currently work.
+func TestIntegrationScionNetcatCmd(t *testing.T) {
+	netcatCmd := integration.AppBinPath(netcatBin)
 
-	// QUIC tests (default mode)
-	testCases := []struct {
-		Name              string
-		Args              []string
-		ServerOutMatchFun func(bool, string) bool
-		ServerErrMatchFun func(bool, string) bool
-		ClientOutMatchFun func(bool, string) bool
-		ClientErrMatchFun func(bool, string) bool
+	cases := []struct {
+		name    string
+		message string
+		flags   []string
 	}{
 		{
-			"client_help",
-			append(cmnArgs, "--help"),
-			nil,
-			nil,
-			integration.RegExp("^.*SCION.*$"),
-			nil,
+			name:    "QUIC",
+			message: "Hello QUIC World!",
+			flags:   nil,
 		},
 		{
-			"client_hello",
-			append(cmnArgs, integration.DstAddrPattern+":"+serverPort),
-			integration.RegExp(fmt.Sprintf("^%s$", testMessage)),
-			nil,
-			nil,
-			nil, // integration.NoPanic() // XXX: this requires specific log output
+			name:    "UDP",
+			message: "Hello UDP World!",
+			flags:   []string{"-u"},
 		},
 	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			serverPort := "1234"
+			serverArgs := concat(
+				tc.flags,
+				[]string{"-b", "-K", "-c", "echo " + tc.message, "-l", serverPort},
+			)
+			// NOTE: we need -b as the client does not otherwise send any data to make the "query"
+			// BUG: should also work with -k, but doesn't (!?)
 
-	for _, tc := range testCases {
-		in := integration.NewAppsIntegration(name, tc.Name, clientCmd, serverCmd, tc.Args, serverArgs, true)
-		in.ServerStdout(tc.ServerOutMatchFun)
-		in.ServerStderr(tc.ServerErrMatchFun)
-		in.ClientStdout(tc.ClientOutMatchFun)
-		in.ClientStderr(tc.ClientErrMatchFun)
+			clientScriptArgs := concat(
+				tc.flags,
+				[]string{"-b", "-q", "10ms", integration.DstAddrPattern + ":" + serverPort},
+			)
+			in := integration.NewAppsIntegration(netcatCmd, netcatCmd, clientScriptArgs, serverArgs)
+			in.ClientDelay = 250 * time.Millisecond
+			in.ClientOutMatch = integration.RegExp(fmt.Sprintf("(?m)^%s$", tc.message))
 
-		hostAddr := integration.HostAddr
-
-		IAPairs := integration.IAPairs(hostAddr)
-		IAPairs = IAPairs[:5]
-
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 250*time.Millisecond); err != nil {
-			t.Fatalf("Error during tests err: %v", err)
-		}
+			iaPairs := integration.DefaultIAPairs()
+			if err := in.Run(t, iaPairs); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
 
-func TestIntegrationScionNetcatUDP(t *testing.T) {
-	// UDP tests
-	// Common arguments
-	cmnArgs := []string{"-v", "-u"}
-
-	// Server
-	serverPort := "1234"
-	serverArgs := []string{"-l", serverPort}
-	serverArgs = append(cmnArgs, serverArgs...)
-
-	testMessage := "Hello UDP World!"
-	tmpDir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
+func concat(slices ...[]string) []string {
+	var r []string
+	for _, s := range slices {
+		r = append(r, s...)
 	}
-	defer os.RemoveAll(tmpDir)
-	clientBinWrapperCmd, err := wrapperCommand(tmpDir, fmt.Sprintf("echo -e '%s'", testMessage),
-		integration.AppBinPath(clientBin))
-	if err != nil {
-		t.Fatalf("Failed to wrap scion-netcat input: %s\n", err)
-	}
-	clientCmd := clientBinWrapperCmd
-	serverCmd := integration.AppBinPath(serverBin)
-
-	testCases := []struct {
-		Name              string
-		Args              []string
-		ServerOutMatchFun func(bool, string) bool
-		ServerErrMatchFun func(bool, string) bool
-		ClientOutMatchFun func(bool, string) bool
-		ClientErrMatchFun func(bool, string) bool
-	}{
-		{
-			"client_hello_UDP",
-			append(cmnArgs, integration.DstAddrPattern+":"+serverPort),
-			nil,
-			nil,
-			nil,
-			integration.RegExp("^.*Connected.*$"),
-		},
-	}
-
-	for _, tc := range testCases {
-		in := integration.NewAppsIntegration(name, tc.Name, clientCmd, serverCmd, tc.Args, serverArgs, true)
-		in.ServerStdout(tc.ServerOutMatchFun)
-		in.ServerStderr(tc.ServerErrMatchFun)
-		in.ClientStdout(tc.ClientOutMatchFun)
-		in.ClientStderr(tc.ClientErrMatchFun)
-
-		hostAddr := integration.HostAddr
-
-		IAPairs := integration.IAPairs(hostAddr)
-		IAPairs = IAPairs[:5]
-
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 250*time.Millisecond); err != nil {
-			t.Fatalf("Error during tests err: %v", err)
-		}
-	}
-}
-
-func wrapperCommand(tmpDir string, inputSource string, command string) (wrapperCmd string, err error) {
-	wrapperCmd = path.Join(tmpDir, fmt.Sprintf("%s_wrapper.sh", serverBin))
-	f, err := os.OpenFile(wrapperCmd, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("failed to create %s: %v", wrapperCmd, err))
-	}
-	defer f.Close()
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	_, _ = w.WriteString(fmt.Sprintf("#!/bin/bash\ntimeout 5 /bin/bash -c \"%s | %s $1 $2 $3 $4\" || true",
-		inputSource, command))
-	return wrapperCmd, nil
+	return r
 }

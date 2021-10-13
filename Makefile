@@ -50,7 +50,7 @@ install: all
 	cp -t $(DESTDIR) $(BIN)/scion-*
 
 integration: build
-	go test -v -tags=integration,$(TAGS) ./... ./_examples/helloworld/
+	go test -tags=integration,$(TAGS) --count=1 ./... ./_examples/helloworld/
 
 .PHONY: scion-bat
 scion-bat:

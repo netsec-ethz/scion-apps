@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -32,7 +33,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -41,7 +41,9 @@ import (
 
 const (
 	// StartServerTimeout is the timeout for starting a server.
-	StartServerTimeout = 40 * time.Second
+	StartServerTimeout = 5 * time.Second
+	// KillServerTimeout is the timeout for waiting for a server to finish
+	KillServerTimeout = 5 * time.Second
 	// SCIONDAddressesFile is the default file for SCIOND addresses in a topology created
 	// with the topology generator.
 	SCIONDAddressesFile = "sciond_addresses.json"
@@ -80,8 +82,6 @@ var (
 
 // Integration can be used to run integration tests.
 type Integration interface {
-	// Name returns the name of the test
-	Name() string
 	// StartServer should start the server listening on the address dst.
 	// StartServer should return after it is ready to accept clients.
 	// The context should be used to make the server cancellable.
@@ -101,8 +101,9 @@ type Waiter interface {
 
 // Init initializes the integration test, it adds and validates the command line flags,
 // and initializes logging.
-func Init() error {
-	addTestFlags()
+func Init(projectRoot string) error {
+	addTestFlags(projectRoot)
+
 	if err := validateFlags(); err != nil {
 		return err
 	}
@@ -114,13 +115,13 @@ func GenFile(file string) string {
 	return filepath.Join(outDir, "gen", file)
 }
 
-func addTestFlags() {
+func addTestFlags(defaultDir string) {
 	flag.StringVar(&logConsole, "log.console", "info",
 		"Console logging level: trace|debug|info|warn|error|crit")
 	flag.Var(&srcIAs, "src", "Source ISD-ASes (comma separated list)")
 	flag.Var(&dstIAs, "dst", "Destination ISD-ASes (comma separated list)")
-	flag.StringVar(&outDir, "outDir", ".",
-		"path to the output directory that contains gen and logs folders (default: .).")
+	flag.StringVar(&outDir, "outDir", defaultDir,
+		"path to the output directory that contains gen folder.")
 }
 
 func validateFlags() error {
@@ -129,7 +130,7 @@ func validateFlags() error {
 	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		flag.Usage()
-		return err
+		os.Exit(2)
 	}
 	var err error
 	asList, err := util.LoadASList(GenFile("as_list.yml"))
@@ -198,16 +199,9 @@ func shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-// WithTimestamp returns s with the now timestamp prefixed.
-// This is helpful for logging staments to stdout/stderr or in a file where the logger isn't used.
-func WithTimestamp(s string) string {
-	return fmt.Sprintf("%v %s", time.Now().UTC().Format(common.TimeFmt), s)
-}
-
 // RunClient runs a client on the given IAPair.
 // If the client does not finish until timeout it is killed.
 func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
-
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
@@ -218,22 +212,6 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 		return err
 	}
 	return nil
-}
-
-// ExecuteTimed executes f and prints how long f took to StdOut. Returns the error of f.
-func ExecuteTimed(name string, f func() error) error {
-	start := time.Now()
-	err := f()
-	elapsed := time.Since(start)
-
-	// XXX(roosd) This string is used by buildkite to group output blocks.
-	fmt.Printf("--- test results: %s\n", name)
-	if err != nil {
-		log.Error("Test failed", "name", name, "elapsed", elapsed)
-		return err
-	}
-	log.Info("Test successful", "name", name, "elapsed", elapsed)
-	return err
 }
 
 // ExtractUniqueDsts returns all unique destinations in pairs.
@@ -269,4 +247,36 @@ func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], daemon.DefaultAPIPort), nil
+}
+
+func (s *serverStop) Close() error {
+	s.cancel()
+
+	c := make(chan error)
+	go func() {
+		c <- s.wait.Wait()
+	}()
+	select {
+	case err := <-c:
+		return err
+	case <-time.After(KillServerTimeout):
+		return fmt.Errorf("timed out waiting for process to finish. May be hung up copying stdout/stderr")
+	}
+}
+
+type serverStop struct {
+	cancel context.CancelFunc
+	wait   Waiter
+}
+
+// StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
+// To start a server with a custom context use in.StartServer directly.
+func StartServer(in Integration, dst *snet.UDPAddr) (io.Closer, error) {
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	s, err := in.StartServer(serverCtx, dst)
+	if err != nil {
+		serverCancel()
+		return nil, err
+	}
+	return &serverStop{serverCancel, s}, nil
 }
