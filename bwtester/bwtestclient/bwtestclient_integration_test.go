@@ -17,66 +17,36 @@
 package main
 
 import (
-	"github.com/netsec-ethz/scion-apps/pkg/integration"
-	"strings"
 	"testing"
+
+	"github.com/netsec-ethz/scion-apps/pkg/integration"
 )
 
 const (
-	name      = "bwtester"
 	clientBin = "scion-bwtestclient"
 	serverBin = "scion-bwtestserver"
 )
 
-func TestIntegrationBwtestclient(t *testing.T) {
-	if err := integration.Init(name); err != nil {
-		t.Fatalf("Failed to init: %s\n", err)
-	}
-  clientCmd := integration.AppBinPath(clientBin)
-  serverCmd := integration.AppBinPath(serverBin)
+func TestMain(m *testing.M) {
+	integration.TestMain(m)
+}
 
-	// Common arguments
-	cmnArgs := []string{}
+func TestIntegrationBwtestclient(t *testing.T) {
+	clientCmd := integration.AppBinPath(clientBin)
+	serverCmd := integration.AppBinPath(serverBin)
+
 	// Server
 	serverPort := "40002"
 	serverArgs := []string{"-p", serverPort}
-	serverArgs = append(serverArgs, cmnArgs...)
+	// Client
+	clientArgs := []string{"-s", integration.DstAddrPattern + ":" + serverPort, "-cs", "1,?,?,1Mbps"}
 
-	testCases := []struct {
-		Name              string
-		Args              []string
-		ServerOutMatchFun func(bool, string) bool
-		ServerErrMatchFun func(bool, string) bool
-		ClientOutMatchFun func(bool, string) bool
-		ClientErrMatchFun func(bool, string) bool
-	}{
-		{
-			"bandwidth_client",
-			append([]string{"-s", integration.DstAddrPattern + ":" + serverPort, "-cs", "1Mbps"}, cmnArgs...),
-			func(prev bool, line string) bool {
-				res := strings.Contains(line, "Received request")
-				return prev || res // return true if any output line contains the string
-			},
-			nil,
-			integration.RegExp("^Achieved bandwidth: \\d+ bps / \\d+.\\d+ [Mk]bps$"),
-			nil,
-		},
-	}
+	in := integration.NewAppsIntegration(clientCmd, serverCmd, clientArgs, serverArgs)
+	in.ServerOutMatch = integration.Contains("Received request")
+	in.ClientOutMatch = integration.RegExp("(?m)^Achieved bandwidth: \\d+ bps / \\d+.\\d+ [Mk]bps$")
 
-	for _, tc := range testCases {
-		in := integration.NewAppsIntegration(name, tc.Name, clientCmd, serverCmd, tc.Args, serverArgs, true)
-		in.ServerStdout(tc.ServerOutMatchFun)
-		in.ServerStderr(tc.ServerErrMatchFun)
-		in.ClientStdout(tc.ClientOutMatchFun)
-		in.ClientStderr(tc.ClientErrMatchFun)
-
-		hostAddr := integration.HostAddr
-
-		IAPairs := integration.IAPairs(hostAddr)
-		IAPairs = IAPairs[:1]
-
-		if err := integration.RunTests(in, IAPairs, integration.DefaultClientTimeout, 0); err != nil {
-			t.Fatalf("Error during tests err: %v", err)
-		}
+	iaPairs := integration.DefaultIAPairs()
+	if err := in.Run(t, iaPairs); err != nil {
+		t.Error(err)
 	}
 }

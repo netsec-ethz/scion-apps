@@ -23,6 +23,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/snet"
@@ -52,7 +53,7 @@ const (
 	DstHostReplace = "<DSTHost>"
 	// DstAddrPattern is a placeholder for the destination address in the arguments.
 	DstAddrPattern = DstIAReplace + ",[" + DstHostReplace + "]"
-	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
+	// ReadySignal should be written to Stdout by the server once it is ready to accept clients.
 	// The message should always be `Listening ia=<IA>`
 	// where <IA> is the IA the server is listening on.
 	ReadySignal = "Listening ia="
@@ -67,38 +68,24 @@ const (
 
 var (
 	projectRoot string
-	pwd         string
 )
 
-// Init initializes the integration test, it adds and validates the command line flags,
-// and initializes logging.
-func Init(name string) (err error) {
-	if pwd, err = os.Getwd(); err != nil {
-		return err
+// TestMain should be called from the TestMain function in all test packages
+// with integration tests.
+// This calls Init to parse the supported command flags and load the
+// information about the local topology from the environment/files.
+func TestMain(m *testing.M) {
+	if err := Init(); err != nil {
+		log.Error("Failed to Init", "err", err)
+		os.Exit(1)
 	}
+	os.Exit(m.Run())
+}
 
-	// TODO: make PR to "github.com/scionproto/scion/go/lib/integration"
-	// to not rely on hardcoded paths, accept environment variable for gen location
-	if SC, ok := os.LookupEnv("SC"); ok {
-		if _, err := os.Stat(path.Join(projectRoot, "gen")); os.IsNotExist(err) {
-			_ = os.Symlink(path.Join(SC, "gen"), path.Join(projectRoot, "gen"))
-		}
-	}
+func Init() error {
 	_, file, _, _ := runtime.Caller(0)
 	projectRoot = path.Join(path.Dir(file), "../..")
-	if _, err := os.Stat("/etc/scion/gen"); err == nil {
-		if _, err := os.Stat(path.Join(projectRoot, "gen")); os.IsNotExist(err) {
-			_ = os.Symlink("/etc/scion/gen", path.Join(projectRoot, "gen"))
-		}
-	}
-
-	// Wrap call
-	_ = os.Chdir(projectRoot)
-	err = sintegration.Init()
-	// restore pwd
-	_ = os.Chdir(pwd)
-
-	return err
+	return sintegration.Init(projectRoot)
 }
 
 // AppBinPath returns the path to a scion-apps binary built with the projects Makefile.
@@ -106,86 +93,92 @@ func AppBinPath(name string) string {
 	return path.Join(projectRoot, "bin", name)
 }
 
-// IAPairs returns all IAPairs that should be tested.
-func IAPairs(hostAddr sintegration.HostAddr) []sintegration.IAPair {
-	if hostAddr == nil {
-		log.Error("Failed to get IAPairs", "err", "hostAddr is nil")
-		return []sintegration.IAPair{}
-	}
-	pairs := sintegration.IAPairs(hostAddr)
-	for _, pair := range pairs {
-		if pair.Src == nil || pair.Dst == nil {
-			log.Error("Invalid IAPairs",
-				"err", fmt.Sprintf("IAPair has invalid Src or Dst: %v", pair))
-			return []sintegration.IAPair{}
-		}
-	}
-	return pairs
+// AllIAPairs returns all IAPairs that should be tested.
+func AllIAPairs() []sintegration.IAPair {
+	return sintegration.IAPairs(hostAddr)
 }
 
-// RunTests runs the client and server for each IAPair.
-// In case of an error the function is terminated immediately.
-func RunTests(in sintegration.Integration, pairs []sintegration.IAPair, clientTimeout time.Duration, clientDelay time.Duration) error {
-	defer log.HandlePanic()
-	defer log.Flush()
-	return sintegration.ExecuteTimed(in.Name(), func() (clossingErr error) {
-		// First run all servers
-		dsts := sintegration.ExtractUniqueDsts(pairs)
-		var serverClosers []io.Closer
-		defer func(*[]io.Closer) {
-			initialClosingErr := clossingErr
-			var firstError error
-			for _, c := range serverClosers {
-				closerError := c.Close()
-				if firstError == nil {
-					firstError = closerError
-				}
+// DefaultIAPairs returns a small number of relevant IA pairs to be tested.
+// In particular, it will return at most one of each of
+// - src/dst in same AS, IPv4
+// - src/dst in same AS, IPv6
+// - src/dst in different AS, IPv4
+// - src/dst in different AS, IPv4 to IPv6
+// - src/dst in different AS, IPv6 to IPv4
+// - src/dst in different AS, IPv6
+// Depending on the topology on which these tests are being run, not all might
+// be available.
+func DefaultIAPairs() []sintegration.IAPair {
+	all := sintegration.IAPairs(hostAddr)
+	filtered := make([]sintegration.IAPair, 0, 6)
+
+	is4 := func(a *snet.UDPAddr) bool {
+		return a.Host.IP.To4() != nil
+	}
+	is6 := func(a *snet.UDPAddr) bool {
+		return !is4(a)
+	}
+
+	var hasSame4, hasSame6, has44, has46, has64, has66 bool
+	for _, p := range all {
+		if p.Src.IA == p.Dst.IA {
+			if !hasSame4 && is4(p.Src) {
+				filtered = append(filtered, p)
+				hasSame4 = true
 			}
-			if initialClosingErr == nil {
-				clossingErr = firstError
+			if !hasSame6 && is6(p.Src) {
+				filtered = append(filtered, p)
+				hasSame6 = true
 			}
-		}(&serverClosers)
-		for _, dst := range dsts {
-			c, err := StartServer(in, dst)
-			if err != nil {
-				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
-				return err
+		} else {
+			if !has44 && is4(p.Src) && is4(p.Dst) {
+				filtered = append(filtered, p)
+				has44 = true
 			}
-			serverClosers = append(serverClosers, c)
+			if !has46 && is4(p.Src) && is6(p.Dst) {
+				filtered = append(filtered, p)
+				has46 = true
+			}
+			if !has64 && is6(p.Src) && is4(p.Dst) {
+				filtered = append(filtered, p)
+				has46 = true
+			}
+			if !has66 && is6(p.Src) && is6(p.Dst) {
+				filtered = append(filtered, p)
+				has66 = true
+			}
 		}
-		time.Sleep(clientDelay)
-		// Now start the clients for srcDest pair
-		for i, conn := range pairs {
-			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
-			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
-			if err := sintegration.RunClient(in, conn, clientTimeout); err != nil {
-				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
-				return err
-			}
+	}
+	return filtered
+}
+
+func closeAll(closers []io.Closer) error {
+	var firstError error
+	for _, c := range closers {
+		err := c.Close()
+		if firstError == nil {
+			firstError = err
 		}
-		return nil
-	})
+	}
+	return firstError
 }
 
 func replacePattern(pattern string, replacement string, args []string) []string {
-	// first copy
-	argsCopy := append([]string(nil), args...)
-	for i, arg := range argsCopy {
-		if strings.Contains(arg, pattern) {
-			argsCopy[i] = strings.Replace(arg, pattern, replacement, -1)
-		}
+	ret := make([]string, len(args))
+	for i, arg := range args {
+		ret[i] = strings.Replace(arg, pattern, replacement, -1)
 	}
-	return argsCopy
+	return ret
 }
 
-// HostAddr gets _a_ host address, the same way appnet does, for a given IA
-var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
+// hostAddr gets _a_ host address, the same way appnet does, for a given IA
+func hostAddr(ia addr.IA) *snet.UDPAddr {
 	daemon, err := getSCIONDAddress(ia)
 	if err != nil {
 		log.Error("Failed to get sciond address", "err", err)
 		return nil
 	}
-	hostIP, err := DefaultLocalIPAddress(daemon)
+	hostIP, err := defaultLocalIPAddress(daemon)
 	if err != nil {
 		log.Error("Failed to get valid host IP", "err", err)
 		return nil
@@ -194,16 +187,10 @@ var HostAddr sintegration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
 }
 
 func getSCIONDAddress(ia addr.IA) (addr string, err error) {
-	// Wrap library call
-	_ = os.Chdir(projectRoot)
-	addr, err = sintegration.GetSCIONDAddress(sintegration.GenFile(sintegration.SCIONDAddressesFile), ia)
-	// restore pwd
-	_ = os.Chdir(pwd)
-
-	return
+	return sintegration.GetSCIONDAddress(sintegration.GenFile(sintegration.SCIONDAddressesFile), ia)
 }
 
-func DefaultLocalIPAddress(sciondAddress string) (net.IP, error) {
+func defaultLocalIPAddress(sciondAddress string) (net.IP, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	sciondConn, err := connSciond(ctx, sciondAddress)
@@ -232,28 +219,4 @@ func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net
 		return nil, err
 	}
 	return bsAddr.IP, nil
-}
-
-// Duplicated from "github.com/scionproto/scion/go/lib/integration", but do not swallow error
-func (s *serverStop) Close() error {
-	s.cancel()
-	err := s.wait.Wait()
-	return err // Do return the error
-}
-
-type serverStop struct {
-	cancel context.CancelFunc
-	wait   sintegration.Waiter
-}
-
-// StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
-// To start a server with a custom context use in.StartServer directly.
-func StartServer(in sintegration.Integration, dst *snet.UDPAddr) (io.Closer, error) {
-	serverCtx, serverCancel := context.WithCancel(context.Background())
-	s, err := in.StartServer(serverCtx, dst)
-	if err != nil {
-		serverCancel()
-		return nil, err
-	}
-	return &serverStop{serverCancel, s}, nil
 }
