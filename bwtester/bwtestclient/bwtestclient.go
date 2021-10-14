@@ -47,10 +47,6 @@ const (
 	WildcardChar            = "?"
 )
 
-var (
-	InferedPktSize int64
-)
-
 func prepareAESKey() []byte {
 	key := make([]byte, 16)
 	n, err := rand.Read(key)
@@ -81,7 +77,7 @@ func printUsage() {
 // Input format (time duration,packet size,number of packets,target bandwidth), no spaces, question mark ? is wildcard
 // The value of the wildcard is computed from the other values, if more than one wildcard is used,
 // all but the last one are set to the defaults values
-func parseBwtestParameters(s string) BwtestParameters {
+func parseBwtestParameters(s string, defaultPktSize int64) (BwtestParameters, error) {
 	if !strings.Contains(s, ",") {
 		// Using simple bandwidth setting with all defaults except bandwidth
 		s = "?,?,?," + s
@@ -102,7 +98,7 @@ func parseBwtestParameters(s string) BwtestParameters {
 	if a[0] == WildcardChar {
 		wildcards -= 1
 		if wildcards == 0 {
-			a2 = getPacketSize(a[1])
+			a2 = getPacketSize(a[1], defaultPktSize)
 			a3 = getPacketCount(a[2])
 			a4 = parseBandwidth(a[3])
 			a1 = (a2 * 8 * a3) / a4
@@ -131,10 +127,10 @@ func parseBwtestParameters(s string) BwtestParameters {
 			a4 = parseBandwidth(a[3])
 			a2 = (a4 * a1) / (a3 * 8)
 		} else {
-			a2 = InferedPktSize
+			a2 = int64(defaultPktSize)
 		}
 	} else {
-		a2 = getPacketSize(a[1])
+		a2 = getPacketSize(a[1], defaultPktSize)
 	}
 	if a[2] == WildcardChar {
 		wildcards -= 1
@@ -155,10 +151,15 @@ func parseBwtestParameters(s string) BwtestParameters {
 	} else {
 		a4 = parseBandwidth(a[3])
 		// allow a deviation of up to one packet per 1 second interval, since we do not send half-packets
-		if a2*a3*8/a1 > a4+a2*a1 || a2*a3*8/a1 < a4-a2*a1 {
-			Check(fmt.Errorf("Computed target bandwidth does not match parameters, "+
-				"use wildcard or specify correct bandwidth, expected %d, provided %d",
-				a2*a3*8/a1, a4))
+		expected := a2 * a3 * 8 / a1
+		leeway := 8 * a2 / a1
+		lo := expected - leeway
+		hi := expected + leeway
+		if a4 < lo || a4 > hi {
+			return BwtestParameters{},
+				fmt.Errorf("Computed target bandwidth does not match parameters, "+
+					"use wildcard or specify correct bandwidth, expected %d-%d, provided %d",
+					lo, hi, a4)
 		}
 	}
 	key := prepareAESKey()
@@ -168,7 +169,7 @@ func parseBwtestParameters(s string) BwtestParameters {
 		NumPackets:     a3,
 		PrgKey:         key,
 		Port:           0,
-	}
+	}, nil
 }
 
 func parseBandwidth(bw string) int64 {
@@ -223,11 +224,11 @@ func getDuration(duration string) int64 {
 	return a1
 }
 
-func getPacketSize(size string) int64 {
+func getPacketSize(size string, defaultPktSize int64) int64 {
 	a2, err := strconv.ParseInt(size, 10, 64)
 	if err != nil {
-		fmt.Printf("Invalid packet size %v provided, using default value %d\n", a2, InferedPktSize)
-		a2 = InferedPktSize
+		fmt.Printf("Invalid packet size %v provided, using default value %d\n", a2, defaultPktSize)
+		a2 = defaultPktSize
 	}
 
 	if a2 < MinPacketSize {
@@ -330,24 +331,25 @@ func main() {
 		context.TODO(), "udp", clientDCAddr, serverDCAddr, addr.SvcNone)
 	Check(err)
 
+	// use default packet size when within same AS and pathEntry is not set
+	inferedPktSize := int64(DefaultPktSize)
 	// update default packet size to max MTU on the selected path
 	if path != nil {
-		InferedPktSize = int64(path.Metadata().MTU)
-	} else {
-		// use default packet size when within same AS and pathEntry is not set
-		InferedPktSize = DefaultPktSize
+		inferedPktSize = int64(path.Metadata().MTU)
 	}
 	if !flagset["cs"] && flagset["sc"] { // Only one direction set, used same for reverse
 		clientBwpStr = serverBwpStr
 		fmt.Println("Only sc parameter set, using same values for cs")
 	}
-	clientBwp = parseBwtestParameters(clientBwpStr)
+	clientBwp, err = parseBwtestParameters(clientBwpStr, inferedPktSize)
+	Check(err)
 	clientBwp.Port = uint16(clientDCAddr.Port)
 	if !flagset["sc"] && flagset["cs"] { // Only one direction set, used same for reverse
 		serverBwpStr = clientBwpStr
 		fmt.Println("Only cs parameter set, using same values for sc")
 	}
-	serverBwp = parseBwtestParameters(serverBwpStr)
+	serverBwp, err = parseBwtestParameters(serverBwpStr, inferedPktSize)
+	Check(err)
 	serverBwp.Port = uint16(serverDCAddr.Host.Port)
 	fmt.Println("\nTest parameters:")
 	fmt.Println("clientDCAddr -> serverDCAddr", clientDCAddr, "->", serverDCAddr)

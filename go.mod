@@ -15,6 +15,7 @@ require (
 	github.com/pelletier/go-toml v1.9.3
 	github.com/scionproto/scion v0.6.1-0.20210929154253-764d6e2afe47
 	github.com/smartystreets/goconvey v1.6.4
+	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
