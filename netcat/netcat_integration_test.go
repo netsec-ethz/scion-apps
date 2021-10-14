@@ -41,7 +41,7 @@ func TestIntegrationScionNetcat(t *testing.T) {
 	}
 	// Start a scion-netcat server socket and query it with a scion-netcat client
 	// Common arguments
-	cmnArgs := []string{"-vv"}
+	cmnArgs := []string{"-v"}
 	// Server
 	serverPort := "1234"
 	serverArgs := []string{"-l", serverPort}
@@ -84,7 +84,7 @@ func TestIntegrationScionNetcat(t *testing.T) {
 			integration.RegExp(fmt.Sprintf("^%s$", testMessage)),
 			nil,
 			nil,
-			integration.NoPanic(),
+			nil, // integration.NoPanic() // XXX: this requires specific log output
 		},
 	}
 
@@ -109,7 +109,7 @@ func TestIntegrationScionNetcat(t *testing.T) {
 func TestIntegrationScionNetcatUDP(t *testing.T) {
 	// UDP tests
 	// Common arguments
-	cmnArgs := []string{"-vv", "-u"}
+	cmnArgs := []string{"-v", "-u"}
 
 	// Server
 	serverPort := "1234"
@@ -143,8 +143,8 @@ func TestIntegrationScionNetcatUDP(t *testing.T) {
 			append(cmnArgs, integration.DstAddrPattern+":"+serverPort),
 			nil,
 			nil,
-			integration.RegExp("^.*Connected.*$"),
 			nil,
+			integration.RegExp("^.*Connected.*$"),
 		},
 	}
 

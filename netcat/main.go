@@ -18,16 +18,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	golog "log"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"sync"
-
-	"github.com/netsec-ethz/scion-apps/netcat/modes"
-	scionlog "github.com/scionproto/scion/go/lib/log"
-
-	log "github.com/inconshreveable/log15"
+	"time"
 )
 
 var (
@@ -36,13 +32,14 @@ var (
 
 	udpMode bool
 
-	repeatAfter  bool
-	repeatDuring bool
+	repeatAfter             bool
+	repeatDuring            bool
+	shutdownAfterEOF        bool
+	shutdownAfterEOFTimeout time.Duration
 
 	commandString string
 
-	verboseMode     bool
-	veryVerboseMode bool
+	verboseMode bool
 )
 
 func printUsage() {
@@ -58,33 +55,26 @@ func printUsage() {
 	fmt.Println("  -l: Listen mode")
 	fmt.Println("  -k: After the connection ended, accept new connections. Requires -l flag. If -u flag is present, requires -c flag. Incompatible with -K flag")
 	fmt.Println("  -K: After the connection has been established, accept new connections. Requires -l and -c flags. Incompatible with -k flag")
+	fmt.Println("  -N: shutdown the network socket after EOF on the input.")
+	fmt.Println("  -q: after EOF on stdin, wait the specified duration and then quit. Implies -N.")
 	fmt.Println("  -c: Instead of piping the connection to stdin/stdout, run the given command using /bin/sh")
 	fmt.Println("  -u: UDP mode")
 	fmt.Println("  -b: Send or expect an extra (throw-away) byte before the actual data")
 	fmt.Println("  -v: Enable verbose mode")
-	fmt.Println("  -vv: Enable very verbose mode")
 }
 
 func main() {
-
 	flag.Usage = printUsage
 	flag.BoolVar(&extraByte, "b", false, "Expect extra byte")
 	flag.BoolVar(&listen, "l", false, "Listen mode")
 	flag.BoolVar(&udpMode, "u", false, "UDP mode")
 	flag.BoolVar(&repeatAfter, "k", false, "Accept new connections after connection end")
 	flag.BoolVar(&repeatDuring, "K", false, "Accept multiple connections concurrently")
+	flag.BoolVar(&shutdownAfterEOF, "N", false, "Shutdown the network socket after EOF on the input.")
+	flag.DurationVar(&shutdownAfterEOFTimeout, "q", 0, "After EOF on stdin, wait the specified number of seconds and then quit. Implies -N.")
 	flag.StringVar(&commandString, "c", "", "Command")
 	flag.BoolVar(&verboseMode, "v", false, "Verbose mode")
-	flag.BoolVar(&veryVerboseMode, "vv", false, "Very verbose mode")
 	flag.Parse()
-
-	if veryVerboseMode {
-		_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "debug"}})
-	} else if verboseMode {
-		_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "info"}})
-	} else {
-		_ = scionlog.Setup(scionlog.Config{Console: scionlog.ConsoleConfig{Level: "error"}})
-	}
 
 	tail := flag.Args()
 	if len(tail) != 1 {
@@ -92,26 +82,24 @@ func main() {
 		if listen {
 			expected = "port"
 		}
-		golog.Panicf("Incorrect number of arguments! Expected %s, got: %v", expected, tail)
+		log.Fatalf("Incorrect number of arguments! Expected %s, got: %v", expected, tail)
 	}
 
 	if repeatAfter && repeatDuring {
-		golog.Panicf("-k and -K flags are exclusive!")
+		log.Fatalf("-k and -K flags are exclusive!")
 	}
 	if repeatAfter && !listen {
-		golog.Panicf("-k flag requires -l flag!")
+		log.Fatalf("-k flag requires -l flag!")
 	}
 	if repeatDuring && !listen {
-		golog.Panicf("-K flag requires -l flag!")
+		log.Fatalf("-K flag requires -l flag!")
 	}
 	if repeatAfter && udpMode && commandString == "" {
-		golog.Panicf("-k flag in UDP mode requires -c flag!")
+		log.Fatalf("-k flag in UDP mode requires -c flag!")
 	}
 	if repeatDuring && commandString == "" {
-		golog.Panicf("-K flag requires -c flag!")
+		log.Fatalf("-K flag requires -c flag!")
 	}
-
-	log.Info("Launching netcat")
 
 	var conns chan io.ReadWriteCloser
 
@@ -119,13 +107,20 @@ func main() {
 		port, err := strconv.Atoi(tail[0])
 		if err != nil {
 			printUsage()
-			golog.Panicf("Invalid port %s: %v", tail[0], err)
+			log.Fatalf("Invalid port %s: %v", tail[0], err)
 		}
-		conns = doListen(uint16(port))
+		conns, err = doListen(uint16(port))
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
 		remoteAddr := tail[0]
+		conn, err := doDial(remoteAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
 		conns = make(chan io.ReadWriteCloser, 1)
-		conns <- doDial(remoteAddr)
+		conns <- conn
 	}
 
 	if repeatAfter {
@@ -137,7 +132,7 @@ func main() {
 					pipeConn(conn)
 					<-isAvailable
 				default:
-					log.Info("Closing new connection as there's already a connection", "conn", conn)
+					logDebug("Closing new connection as there's already a connection", "conn", conn)
 					conn.Close()
 				}
 			}(conn)
@@ -159,58 +154,56 @@ func main() {
 
 	// Note that we don't close the connection currently
 
-	log.Debug("Done, closing now")
+	logDebug("Done, closing now")
 }
 
 func pipeConn(conn io.ReadWriteCloser) {
 	closeThis := func() {
-		log.Debug("Closing connection...", "conn", conn)
+		logDebug("Closing connection...", "conn", conn)
 		err := conn.Close()
 		if err != nil {
-			log.Crit("Error closing connection", "conn", conn)
+			logError("Error closing connection", "conn", conn)
 		}
 	}
 
-	log.Info("Piping new connection", "conn", conn)
+	logDebug("Piping new connection", "conn", conn)
 
+	var readerDesc, writerDesc string
 	var reader io.Reader
-	var writer io.Writer
+	var writer io.WriteCloser
 	if commandString == "" {
 		reader = os.Stdin
+		readerDesc = "stdin"
 		writer = os.Stdout
+		writerDesc = "stdout"
 	} else {
 		cmd := exec.Command("/bin/sh", "-c", commandString)
-		log.Debug("Created cmd object", "cmd", cmd, "commandString", commandString)
+		logDebug("Created cmd object", "cmd", cmd, "commandString", commandString)
 		var err error
 		writer, err = cmd.StdinPipe()
 		if err != nil {
-			log.Crit("Error getting command's stdin pipe", "cmd", cmd, "err", err)
+			logError("Error getting command's stdin pipe", "cmd", cmd, "err", err)
 			return
 		}
+		writerDesc = "process input"
 		reader, err = cmd.StdoutPipe()
 		if err != nil {
-			log.Crit("Error getting command's stdout pipe", "cmd", cmd, "err", err)
+			logError("Error getting command's stdout pipe", "cmd", cmd, "err", err)
 			return
 		}
-		errreader, err := cmd.StderrPipe()
-		if err != nil {
-			log.Crit("Error getting command's stderr pipe", "cmd", cmd, "err", err)
-			return
-		}
-		go func() {
-			io.Copy(os.Stderr, errreader) //nolint:errcheck // XXX(matzf): should an error here be handled?
-		}()
+		readerDesc = "process output"
+		cmd.Stderr = os.Stderr
 		err = cmd.Start()
 		if err != nil {
-			log.Crit("Error starting command", "cmd", cmd, "err", err)
+			logError("Error starting command", "cmd", cmd, "err", err)
 			return
 		}
 		prevCloseThis := closeThis
 		closeThis = func() {
-			log.Debug("Waiting for command to end...")
+			logDebug("Waiting for command to end...")
 			err := cmd.Wait()
 			if err != nil {
-				log.Warn("Command exited with error", "err", err)
+				logError("Command exited with error", "err", err)
 			}
 			prevCloseThis()
 		}
@@ -221,67 +214,100 @@ func pipeConn(conn io.ReadWriteCloser) {
 
 	go func() {
 		_, err := io.Copy(conn, reader)
-		log.Debug("Done copying from (std/process) input", "conn", conn, "error", err)
+		logDebug(fmt.Sprintf("Done copying from %s", readerDesc), "conn", conn, "error", err)
+		if shutdownAfterEOF || shutdownAfterEOFTimeout > 0 {
+			time.Sleep(shutdownAfterEOFTimeout)
+			if cw, ok := conn.(interface{ CloseWrite() error }); ok { // quic mode, close stream for writing
+				_ = cw.CloseWrite()
+			} else {
+				_ = conn.Close()
+			}
+		}
 		pipesWait.Done()
 	}()
 	_, err := io.Copy(writer, conn)
-	log.Debug("Done copying to (std/process) output", "conn", conn, "error", err)
+	logDebug(fmt.Sprintf("Done copying to %s", writerDesc), "conn", conn, "error", err)
 	pipesWait.Done()
 
 	pipesWait.Wait()
 	closeThis()
 
-	log.Info("Connection closed", "conn", conn)
+	logDebug("Connection closed", "conn", conn)
 }
 
-func doDial(remoteAddr string) io.ReadWriteCloser {
+func doDial(remoteAddr string) (io.ReadWriteCloser, error) {
 	var conn io.ReadWriteCloser
+	var err error
 	if udpMode {
-		conn = modes.DoDialUDP(remoteAddr)
+		conn, err = DoDialUDP(remoteAddr)
 	} else {
-		conn = modes.DoDialQUIC(remoteAddr)
+		conn, err = DoDialQUIC(remoteAddr)
 	}
+	if err != nil {
+		return nil, err
+	}
+	logDebug("Connected")
 
 	if extraByte {
 		_, err := conn.Write([]byte{88}) // ascii('X')
 		if err != nil {
-			golog.Panicf("Error writing extra byte: %v", err)
+			return nil, fmt.Errorf("error writing extra byte: %w", err)
 		}
-
-		log.Debug("Sent extra byte!")
+		logDebug("Sent extra byte!")
 	}
 
-	return conn
+	return conn, nil
 }
 
-func doListen(port uint16) chan io.ReadWriteCloser {
+func doListen(port uint16) (chan io.ReadWriteCloser, error) {
 	var conns chan io.ReadWriteCloser
+	var err error
 	if udpMode {
-		conns = modes.DoListenUDP(port)
+		conns, err = DoListenUDP(port)
 	} else {
-		conns = modes.DoListenQUIC(port)
+		conns, err = DoListenQUIC(port)
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	var nconns chan io.ReadWriteCloser
 	if extraByte {
-		nconns = make(chan io.ReadWriteCloser, 16)
+		nconns := make(chan io.ReadWriteCloser, 16)
 		go func() {
 			for conn := range conns {
 				buf := make([]byte, 1)
 				_, err := io.ReadAtLeast(conn, buf, 1)
 				if err != nil {
-					log.Crit("Failed to read extra byte!", "err", err, "conn", conn)
+					logError("Failed to read extra byte!", "err", err, "conn", conn)
 					continue
 				}
 
-				log.Debug("Received extra byte", "connection", conn, "extraByte", buf)
+				logDebug("Received extra byte", "connection", conn, "extraByte", buf)
 
 				nconns <- conn
 			}
 		}()
+		return nconns, nil
 	} else {
-		nconns = conns
+		return conns, nil
 	}
+}
 
-	return nconns
+func logDebug(msg string, ctx ...interface{}) {
+	if !verboseMode {
+		return
+	}
+	logWithCtx("DEBUG: ", msg, ctx...)
+}
+
+func logError(msg string, ctx ...interface{}) {
+	logWithCtx("ERROR: ", msg, ctx...)
+}
+
+func logWithCtx(prefix, msg string, ctx ...interface{}) {
+	line := prefix + msg
+	for i := 0; i < len(ctx); i += 2 {
+		line += fmt.Sprintf(" %s=%v", ctx[i], ctx[i+1])
+	}
+	log.Println(line)
 }

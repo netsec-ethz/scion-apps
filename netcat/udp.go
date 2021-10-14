@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package modes
+package main
 
 import (
 	"io"
-	golog "log"
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-
-	log "github.com/inconshreveable/log15"
 )
 
 // May not be accessed from multiple threads concurrently, especially Read(...) and Close(...)
@@ -46,22 +43,15 @@ func (conn *udpListenConn) Close() error {
 }
 
 // DoDialUDP dials with a UDP socket
-func DoDialUDP(remoteAddr string) io.ReadWriteCloser {
-	conn, err := appnet.Dial(remoteAddr)
-	if err != nil {
-		golog.Panicf("Can't dial remote address %v: %v", remoteAddr, err)
-	}
-
-	log.Debug("Connected!")
-
-	return conn
+func DoDialUDP(remote string) (io.ReadWriteCloser, error) {
+	return appnet.Dial(remote)
 }
 
 // DoListenUDP listens on a UDP socket
-func DoListenUDP(port uint16) chan io.ReadWriteCloser {
+func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
 	conn, err := appnet.ListenPort(port)
 	if err != nil {
-		golog.Panicf("Can't listen on port %d: %v", port, err)
+		return nil, err
 	}
 
 	readRequests := make(map[string](chan []byte))
@@ -74,7 +64,9 @@ func DoListenUDP(port uint16) chan io.ReadWriteCloser {
 		for {
 			n, addr, err := conn.ReadFrom(buf)
 			if err != nil {
-				golog.Panicf("Error reading from UDP socket: %v", err)
+				logError("reading from UDP socket: %v", err)
+				close(conns)
+				return
 			}
 			addrStr := addr.String()
 
@@ -82,7 +74,7 @@ func DoListenUDP(port uint16) chan io.ReadWriteCloser {
 			nrespChan := readResponses[addrStr]
 			if !contained {
 				// create new UDP connection
-				log.Info("New UDP connection", "addr", addrStr)
+				logDebug("New UDP connection", "addr", addrStr)
 				nbufChan = make(chan []byte)
 				nrespChan = make(chan int, 1)
 
@@ -109,7 +101,7 @@ func DoListenUDP(port uint16) chan io.ReadWriteCloser {
 			for from < n {
 				nbuf, open := <-nbufChan
 				if !open {
-					log.Debug("UDP connection closed with unread data remaining in buffer, discarding it")
+					logDebug("UDP connection closed with unread data remaining in buffer, discarding it")
 					break
 				}
 				written := copy(nbuf, buf[from:n])
@@ -119,5 +111,5 @@ func DoListenUDP(port uint16) chan io.ReadWriteCloser {
 		}
 	}()
 
-	return conns
+	return conns, nil
 }
