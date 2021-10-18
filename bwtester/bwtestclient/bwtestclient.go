@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"strconv"
@@ -40,7 +41,7 @@ import (
 
 const (
 	DefaultBwtestParameters = "3,1000,30,80kbps"
-	DefaultDuration         = 3
+	DefaultDuration         = 3 * time.Second
 	DefaultPktSize          = 1000
 	DefaultPktCount         = 30
 	DefaultBW               = 3000
@@ -103,19 +104,19 @@ func parseBwtestParameters(s string, defaultPktSize int64) (BwtestParameters, er
 			a4 = parseBandwidth(a[3])
 			a1 = (a2 * 8 * a3) / a4
 			if time.Second*time.Duration(a1) > MaxDuration {
-				fmt.Printf("Duration is exceeding MaxDuration: %v > %v, using default value %d\n",
-					a1, MaxDuration/time.Second, DefaultDuration)
+				fmt.Printf("Duration is exceeding MaxDuration: %v > %v, using default value %f\n",
+					a1, MaxDuration/time.Second, DefaultDuration.Seconds())
 				fmt.Println("Target bandwidth might no be reachable with that parameter.")
-				a1 = DefaultDuration
+				a1 = int64(math.Round(DefaultDuration.Seconds()))
 			}
 			if a1 < 1 {
-				fmt.Printf("Duration is too short: %v , using default value %d\n",
-					a1, DefaultDuration)
+				fmt.Printf("Duration is too short: %v , using default value %f\n",
+					a1, DefaultDuration.Seconds())
 				fmt.Println("Target bandwidth might no be reachable with that parameter.")
-				a1 = DefaultDuration
+				a1 = int64(math.Round(DefaultDuration.Seconds()))
 			}
 		} else {
-			a1 = DefaultDuration
+			a1 = int64(math.Round(DefaultDuration.Seconds()))
 		}
 	} else {
 		a1 = getDuration(a[0])
@@ -213,13 +214,13 @@ func parseBandwidth(bw string) int64 {
 func getDuration(duration string) int64 {
 	a1, err := strconv.ParseInt(duration, 10, 64)
 	if err != nil || a1 <= 0 {
-		fmt.Printf("Invalid duration %v provided, using default value %d\n", a1, DefaultDuration)
-		a1 = DefaultDuration
+		fmt.Printf("Invalid duration %v provided, using default value %f\n", a1, DefaultDuration.Seconds())
+		a1 = int64(math.Round(DefaultDuration.Seconds()))
 	}
 	d := time.Second * time.Duration(a1)
 	if d > MaxDuration {
 		Check(fmt.Errorf("Duration is exceeding MaxDuration: %d > %d", a1, MaxDuration/time.Second))
-		a1 = DefaultDuration
+		a1 = int64(math.Round(DefaultDuration.Seconds()))
 	}
 	return a1
 }

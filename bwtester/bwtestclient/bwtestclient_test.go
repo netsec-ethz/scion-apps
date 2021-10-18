@@ -22,7 +22,7 @@ import (
 )
 
 func TestParseParameters(t *testing.T) {
-	defaultDuration := time.Second * DefaultDuration // XXX should be defined as Duration
+	defaultDuration := DefaultDuration
 
 	cases := []struct {
 		name               string
