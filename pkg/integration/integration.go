@@ -120,6 +120,7 @@ func DefaultIAPairs() []sintegration.IAPair {
 	}
 
 	var hasSame4, hasSame6, has44, has46, has64, has66 bool
+	const numCases = 6 // number of hasX cases, for loop break
 	for _, p := range all {
 		if p.Src.IA == p.Dst.IA {
 			if !hasSame4 && is4(p.Src) {
@@ -147,6 +148,9 @@ func DefaultIAPairs() []sintegration.IAPair {
 				filtered = append(filtered, p)
 				has66 = true
 			}
+		}
+		if len(filtered) == numCases {
+			break
 		}
 	}
 	return filtered
