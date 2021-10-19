@@ -27,24 +27,37 @@ var (
 	nextProtos = []string{
 		// generic "proto" that we use e.g. for HTTP-over-QUIC
 		"raw",
-		// accept all sorts of stuff from
+		// we accept anything -- use full list of protocol IDs from
 		// https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
-		"h2",
-		"h3",
-		"h3-29",
-		"h3-32",
-		"h3-34",
-		"dot",
-		"ftp",
 		"http/0.9",
 		"http/1.0",
 		"http/1.1",
-		"imap",
-		"irc",
-		"pop",
+		"spdy/1",
+		"spdy/2",
+		"spdy/3",
+		"stun.turn",
+		"stun.nat-discovery",
+		"h2",
+		"h2c",
 		"webrtc",
+		"c-webrtc",
+		"ftp",
+		"imap",
+		"pop3",
+		"managesieve",
+		"coap",
 		"xmpp-client",
 		"xmpp-server",
+		"acme-tls/1",
+		"mqtt",
+		"dot",
+		"ntske/1",
+		"sunrpc",
+		"h3",
+		"smb",
+		"irc",
+		"nntp",
+		"nnsp",
 	}
 )
 
