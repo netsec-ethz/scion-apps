@@ -18,14 +18,15 @@ import (
 	"context"
 	"crypto/tls"
 	golog "log"
+	"net"
 	"os"
 	"strconv"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
-	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"github.com/netsec-ethz/scion-apps/ssh/server/serverconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/server/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
@@ -87,34 +88,28 @@ func main() {
 	if err != nil {
 		golog.Panicf("Can't parse port %v: %v", conf.Port, err)
 	}
-
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
-	listener, err := appquic.ListenPort(
-		uint16(port),
-		&tls.Config{
-			Certificates: appquic.GetDummyTLSCerts(),
-			NextProtos:   []string{quicconn.ProtoSSH},
-		},
-		nil)
+
+	local := &net.UDPAddr{
+		IP:   nil,
+		Port: port,
+	}
+	tlsConf := &tls.Config{
+		Certificates: appquic.GetDummyTLSCerts(),
+		NextProtos:   []string{"raw"},
+	}
+	ql, err := pan.ListenQUIC(context.Background(), local, nil, tlsConf, nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
+	listener := pan.QUICSingleStreamListener{Listener: ql}
 
 	log.Debug("Starting to wait for connections")
 	for {
-		//TODO: Check when to close the connections
-		sess, err := listener.Accept(context.Background())
+		conn, err := listener.Accept()
 		if err != nil {
-			log.Debug("Failed to accept session: %v", err)
-			continue
+			golog.Fatalf("Failed to accept session: %v", err)
 		}
-		stream, err := sess.AcceptStream(context.Background())
-		if err != nil {
-			log.Debug("Failed to accept incoming connection (%v)", err)
-			continue
-		}
-
-		qc := &quicconn.QuicConn{Session: sess, Stream: stream}
-		go sshServer.HandleConnection(qc)
+		go sshServer.HandleConnection(conn)
 	}
 }
