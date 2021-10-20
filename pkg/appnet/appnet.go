@@ -140,11 +140,12 @@ func Listen(listen *net.UDPAddr) (*snet.Conn, error) {
 		listen = &net.UDPAddr{IP: localIP, Port: listen.Port, Zone: listen.Zone}
 	}
 	defNetwork := DefNetwork()
+	c, err := defNetwork.Listen(context.Background(), "udp", listen, addr.SvcNone)
 	integrationEnv, _ := os.LookupEnv("SCION_GO_INTEGRATION")
-	if integrationEnv == "1" || integrationEnv == "true" || integrationEnv == "TRUE" {
-		fmt.Printf("Listening ia=:%v\n", defNetwork.IA)
+	if err == nil && (integrationEnv == "1" || integrationEnv == "true" || integrationEnv == "TRUE") {
+		fmt.Printf("Listening ia=%v addr=%v\n", defNetwork.IA, listen)
 	}
-	return defNetwork.Listen(context.Background(), "udp", listen, addr.SvcNone)
+	return c, err
 }
 
 // ListenPort is a shortcut to Listen on a specific port with a wildcard IP address.
