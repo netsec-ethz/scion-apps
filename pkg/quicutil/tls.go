@@ -1,4 +1,4 @@
-// Copyright 2020 ETH Zurich
+// Copyright 2021 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package appquic
+package quicutil
 
 import (
 	"bytes"
@@ -27,9 +27,21 @@ import (
 	"time"
 )
 
-// generateKeyAndCert generates a private key and a self-signed dummy
-// certificate usable for quic TLS with "InsecureSkipVerify==true"
-func generateKeyAndCert() (*tls.Certificate, error) {
+// MustGenerateSelfSignedCert generates private key and a self-signed dummy
+// certificate usable for TLS with InsecureSkipVerify: true.
+// Like GenerateSelfSignedCert but panics on error and returns a slice with a
+// single entry, for convenience when initializing a tls.Config structure.
+func MustGenerateSelfSignedCert() []tls.Certificate {
+	cert, err := GenerateSelfSignedCert()
+	if err != nil {
+		panic(err)
+	}
+	return []tls.Certificate{*cert}
+}
+
+// GenerateSelfSignedCert generates a private key and a self-signed dummy
+// certificate usable for TLS with InsecureSkipVerify: true
+func GenerateSelfSignedCert() (*tls.Certificate, error) {
 	priv, err := rsaGenerateKey()
 	if err != nil {
 		return nil, nil

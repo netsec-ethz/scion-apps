@@ -24,8 +24,8 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
 	"github.com/netsec-ethz/scion-apps/ssh/server/serverconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/server/ssh"
@@ -95,14 +95,14 @@ func main() {
 		Port: port,
 	}
 	tlsConf := &tls.Config{
-		Certificates: appquic.GetDummyTLSCerts(),
-		NextProtos:   []string{"raw"},
+		Certificates: quicutil.MustGenerateSelfSignedCert(),
+		NextProtos:   []string{quicutil.SingleStreamProto},
 	}
 	ql, err := pan.ListenQUIC(context.Background(), local, nil, tlsConf, nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
-	listener := pan.QUICSingleStreamListener{Listener: ql}
+	listener := quicutil.SingleStreamListener{Listener: ql}
 
 	log.Debug("Starting to wait for connections")
 	for {

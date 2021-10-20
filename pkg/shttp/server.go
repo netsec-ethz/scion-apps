@@ -20,11 +20,9 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
-
-const nextProtoRaw = "raw" // Used for pretend-its-TCP QUIC
 
 // Server wraps a http.Server making it work with SCION
 type Server struct {
@@ -87,8 +85,8 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 func listen(addr string) (net.Listener, error) {
 	tlsCfg := &tls.Config{
-		NextProtos:   []string{nextProtoRaw},
-		Certificates: appquic.GetDummyTLSCerts(),
+		NextProtos:   []string{quicutil.SingleStreamProto},
+		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
 	laddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
@@ -98,5 +96,5 @@ func listen(addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pan.QUICSingleStreamListener{Listener: quicListener}, nil
+	return quicutil.SingleStreamListener{Listener: quicListener}, nil
 }

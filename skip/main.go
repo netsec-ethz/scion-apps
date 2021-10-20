@@ -35,6 +35,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -155,7 +156,7 @@ func handleTunneling(w http.ResponseWriter, req *http.Request) {
 		req.Host,
 		&tls.Config{
 			InsecureSkipVerify: true,
-			NextProtos:         []string{"raw"},
+			NextProtos:         []string{quicutil.SingleStreamProto},
 		},
 		nil)
 	if err != nil {
@@ -163,7 +164,7 @@ func handleTunneling(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	destConn, err := session.OpenStream()
+	destConn, err := quicutil.NewSingleStream(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return

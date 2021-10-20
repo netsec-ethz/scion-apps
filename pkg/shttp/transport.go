@@ -25,6 +25,7 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
 
 // DefaultTransport is the default RoundTripper that can be used for HTTP over
@@ -71,7 +72,7 @@ type Dialer struct {
 // as the DialContext function in net/http.Transport.
 func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	tlsCfg := &tls.Config{
-		NextProtos:         []string{nextProtoRaw},
+		NextProtos:         []string{quicutil.SingleStreamProto},
 		InsecureSkipVerify: true,
 	}
 
@@ -85,7 +86,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		return nil, err
 	}
 	d.sessions = append(d.sessions, session)
-	return pan.NewQUICSingleStream(session)
+	return quicutil.NewSingleStream(session)
 }
 
 func (d *Dialer) SetPolicy(policy pan.Policy) {

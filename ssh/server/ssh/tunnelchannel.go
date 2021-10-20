@@ -26,6 +26,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
 
 func handleTunnelForRemoteConnection(connection ssh.Channel, remoteConnection net.Conn) {
@@ -86,14 +87,14 @@ func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) er
 		return fmt.Errorf("could not resolve remote address: %w", err)
 	}
 	tlsConf := &tls.Config{
-		NextProtos:         []string{"raw"},
+		NextProtos:         []string{quicutil.SingleStreamProto},
 		InsecureSkipVerify: true,
 	}
 	sess, err := pan.DialQUIC(ctx, nil, remote, nil, nil, "", tlsConf, nil)
 	if err != nil {
 		return fmt.Errorf("could not open remote connection: %w", err)
 	}
-	remoteConnection, err := pan.NewQUICSingleStream(sess)
+	remoteConnection, err := quicutil.NewSingleStream(sess)
 	if err != nil {
 		return err
 	}
