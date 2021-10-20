@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2021 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,19 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/lucas-clemente/quic-go"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
 
 func main() {
@@ -37,7 +41,7 @@ func main() {
 	flag.Parse()
 
 	if (listen.Get().Port() > 0) == (len(*remoteAddr) > 0) {
-		check(fmt.Errorf("Either specify -listen for server or -remote for client"))
+		check(fmt.Errorf("Either specify -port for server or -remote for client"))
 	}
 
 	if listen.Get().Port() > 0 {
@@ -50,24 +54,50 @@ func main() {
 }
 
 func runServer(listen netaddr.IPPort) error {
-	conn, err := pan.ListenUDP(context.Background(), listen, nil)
+	tlsCfg := &tls.Config{
+		Certificates: quicutil.MustGenerateSelfSignedCert(),
+		NextProtos:   []string{"hello-quic"},
+	}
+	listener, err := pan.ListenQUIC(context.Background(), listen, nil, tlsCfg, nil)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-	fmt.Println(conn.LocalAddr())
+	defer listener.Close()
+	fmt.Println(listener.Addr())
 
-	buffer := make([]byte, 16*1024)
 	for {
-		n, from, err := conn.ReadFrom(buffer)
+		session, err := listener.Accept(context.Background())
 		if err != nil {
 			return err
 		}
-		data := buffer[:n]
-		fmt.Printf("Received %s: %s\n", from, data)
-		msg := fmt.Sprintf("take it back! %s", time.Now().Format("15:04:05.0"))
-		n, err = conn.WriteTo([]byte(msg), from)
-		fmt.Printf("Wrote %d bytes.\n", n)
+		fmt.Println("New session", session.RemoteAddr())
+		go func() {
+			err := workSession(session)
+			if err != nil && !errors.Is(err, &quic.ApplicationError{}) {
+				fmt.Println("Error in session", session.RemoteAddr(), err)
+			}
+		}()
+	}
+}
+
+func workSession(session quic.Session) error {
+	for {
+		stream, err := session.AcceptStream(context.Background())
+		if err != nil {
+			return err
+		}
+		defer stream.Close()
+		data, err := ioutil.ReadAll(stream)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\n", data)
+		_, err = stream.Write([]byte("gotcha: "))
+		_, err = stream.Write(data)
+		if err != nil {
+			return err
+		}
+		stream.Close()
 	}
 }
 
@@ -76,30 +106,34 @@ func runClient(address string, count int) error {
 	if err != nil {
 		return err
 	}
-	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, addr, nil, nil)
+	tlsCfg := &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"hello-quic"},
+	}
+	// Set Pinging Selector with active probing on two paths
+	selector := &pan.PingingSelector{
+		Interval: 2 * time.Second,
+		Timeout:  time.Second,
+	}
+	selector.SetActive(2)
+	session, err := pan.DialQUIC(context.Background(), netaddr.IPPort{}, addr, nil, selector, "", tlsCfg, nil)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-
 	for i := 0; i < count; i++ {
-		nBytes, err := conn.Write([]byte(fmt.Sprintf("hello world %s", time.Now().Format("15:04:05.0"))))
+		stream, err := session.OpenStream()
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Wrote %d bytes.\n", nBytes)
-
-		buffer := make([]byte, 16*1024)
-		conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-		n, err := conn.Read(buffer)
-		if errors.Is(err, os.ErrDeadlineExceeded) {
-			continue
-		} else if err != nil {
+		_, err = stream.Write([]byte(fmt.Sprintf("hi dude, %d", i)))
+		if err != nil {
 			return err
 		}
-		data := buffer[:n]
-		fmt.Printf("Received reply: %s\n", data)
+		stream.Close()
+		reply, err := ioutil.ReadAll(stream)
+		fmt.Printf("%s\n", reply)
 	}
+	session.CloseWithError(quic.ApplicationErrorCode(0), "")
 	return nil
 }
 

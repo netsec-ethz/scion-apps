@@ -19,6 +19,7 @@ import (
 	"net"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -31,8 +32,8 @@ var (
 )
 
 var (
-	addrRegexp     = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),\[([^\]]+)\]$`)
-	hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(\[[^\]]+\]|[^\]:]+))):(\d+)$`)
+	addrRegexp     = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),(\[[^\]]+\]|[^\[\]]+)$`)
+	hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(?:\[[^\]]+\]|[^\[\]:]+))):(\d+)$`)
 )
 
 const (
@@ -157,7 +158,6 @@ func UnmangleSCIONAddr(address string) string {
 // addrFromString parses a string to a snet.SCIONAddress
 // XXX(matzf) this would optimally be part of snet
 func addrFromString(address string) (snet.SCIONAddress, error) {
-
 	parts := addrRegexp.FindStringSubmatch(address)
 	if parts == nil {
 		return snet.SCIONAddress{}, fmt.Errorf("no valid SCION address: %q", address)
@@ -167,14 +167,15 @@ func addrFromString(address string) (snet.SCIONAddress, error) {
 		return snet.SCIONAddress{},
 			fmt.Errorf("invalid IA string: %v", parts[addrRegexpIaIndex])
 	}
+	l3Trimmed := strings.Trim(parts[addrRegexpL3Index], "[]")
 	var l3 addr.HostAddr
-	if hostSVC := addr.HostSVCFromString(parts[addrRegexpL3Index]); hostSVC != addr.SvcNone {
+	if hostSVC := addr.HostSVCFromString(l3Trimmed); hostSVC != addr.SvcNone {
 		l3 = hostSVC
 	} else {
-		l3 = addr.HostFromIPStr(parts[addrRegexpL3Index])
+		l3 = addr.HostFromIPStr(l3Trimmed)
 		if l3 == nil {
 			return snet.SCIONAddress{},
-				fmt.Errorf("invalid IP address string: %v", parts[addrRegexpL3Index])
+				fmt.Errorf("invalid IP address string: %v", l3Trimmed)
 		}
 	}
 	return snet.SCIONAddress{IA: ia, Host: l3}, nil

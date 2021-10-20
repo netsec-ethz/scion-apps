@@ -1,6 +1,7 @@
 # Hello World
 
-A simple application using SCION that sends one packet from a client to a server.
+A simple application using SCION that sends one packet from a client to a server
+which replies back.
 
 Server:
 ```
@@ -18,14 +19,15 @@ Replace `17-ffaa:1:a` with the address of the AS in which the server is running.
 
 This SCION application is very simple, and it demonstrates what is needed to send data using SCION:
 
-1. Validate command-line arguments.
 
 Server:
-2. Open listener connection (appnet.ListenPort).
-3. Read packets from connection.
-4. Close listener connection.
+1. Open listener connection (`pan.ListenUDP`).
+1. Read packets from connection (`conn.ReadFrom`).
+1. Write reply packet (`conn.WriteTo`).
+1. Close listener connection.
 
 Client:
-2. Open client connection (appnet.Dial).
-3. Write packet to connection.
-4. Close client connection.
+1. Open client connection (`pan.Dial`).
+1. Write packet to connection (`conn.Write`).
+1. Read reply packet (`conn.Read`), with timeout
+1. Close client connection.
