@@ -24,8 +24,7 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 // DefaultTransport is the default RoundTripper that can be used for HTTP over
@@ -36,6 +35,7 @@ var DefaultTransport = &http.Transport{
 	Proxy: http.ProxyFromEnvironment,
 	DialContext: (&Dialer{
 		QuicConfig: nil,
+		Policy:     nil,
 	}).DialContext,
 	ForceAttemptHTTP2:     true,
 	MaxIdleConns:          100,
@@ -44,10 +44,27 @@ var DefaultTransport = &http.Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
+// NewTransport creates a new RoundTripper that can be used for HTTP over
+// SCION/QUIC, providing a custom QuicConfig and Policy to the Dialer.
+// This equivalent to net/http.DefaultTransport with an overridden DialContext.
+// Both the Transport and the Dialer are returned, as the Dialer is not otherwise
+// accessible from the Transport.
+func NewTransport(quicCfg *quic.Config, policy pan.Policy) (*http.Transport, *Dialer) {
+	dialer := &Dialer{
+		QuicConfig: quicCfg,
+		Policy:     policy,
+	}
+	transport := DefaultTransport.Clone()
+	transport.DialContext = dialer.DialContext
+	return transport, dialer
+}
+
 // Dialer dials an insecure, single-stream QUIC connection over SCION (just pretend it's TCP).
 // This is the Dialer used for shttp.DefaultTransport.
 type Dialer struct {
 	QuicConfig *quic.Config
+	Policy     pan.Policy
+	sessions   []*pan.QUICSession
 }
 
 // DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
@@ -57,15 +74,29 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		NextProtos:         []string{nextProtoRaw},
 		InsecureSkipVerify: true,
 	}
-	sess, err := appquic.Dial(appnet.UnmangleSCIONAddr(addr), tlsCfg, d.QuicConfig)
+
+	remote, err := pan.ResolveUDPAddr(pan.UnmangleSCIONAddr(addr))
 	if err != nil {
 		return nil, err
 	}
-	stream, err := sess.OpenStreamSync(ctx)
+
+	session, err := pan.DialQUIC(ctx, nil, remote, d.Policy, nil, addr, tlsCfg, d.QuicConfig)
 	if err != nil {
 		return nil, err
 	}
-	return singleStreamSession{sess, stream}, nil
+	d.sessions = append(d.sessions, session)
+	stream, err := session.OpenStreamSync(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return singleStreamSession{session, stream}, nil
+}
+
+func (d *Dialer) SetPolicy(policy pan.Policy) {
+	d.Policy = policy
+	for _, s := range d.sessions {
+		s.SetPolicy(policy)
+	}
 }
 
 var scionAddrURLRegexp = regexp.MustCompile(
@@ -84,5 +115,5 @@ func MangleSCIONAddrURL(url string) string {
 	userInfoPart := match[2]
 	hostPart := match[3]
 	tail := match[4]
-	return schemePart + userInfoPart + appnet.MangleSCIONAddr(hostPart) + tail
+	return schemePart + userInfoPart + pan.MangleSCIONAddr(hostPart) + tail
 }

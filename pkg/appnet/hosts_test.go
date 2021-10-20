@@ -44,7 +44,7 @@ func TestSplitHostPort(t *testing.T) {
 			t.Errorf("Failed, but shouldn't have. input: %s, error: %s", c.input, err)
 		} else if err == nil && c.err {
 			t.Errorf("Did not fail, but should have. input: %s, host: %s, port: %s", c.input, host, port)
-		} else if err != nil {
+		} else if err == nil {
 			if host != c.host || port != c.port {
 				t.Errorf("Bad result. input: %s, host: %s, port: %s", c.input, host, port)
 			}
