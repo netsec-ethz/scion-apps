@@ -15,16 +15,17 @@
 package ssh
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
 	"sync"
 
-	log "github.com/inconshreveable/log15"
-
-	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 func handleTunnelForRemoteConnection(connection ssh.Channel, remoteConnection net.Conn) {
@@ -45,7 +46,7 @@ func handleTunnelForRemoteConnection(connection ssh.Channel, remoteConnection ne
 	}()
 }
 
-func handleTCPTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
+func handleTCPTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 	extraData := newChannel.ExtraData()
 	addressLen := binary.BigEndian.Uint32(extraData[0:4])
 	address := string(extraData[4 : addressLen+4])
@@ -53,39 +54,50 @@ func handleTCPTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 
 	connection, requests, err := newChannel.Accept()
 	if err != nil {
-		log.Debug("Could not accept channel (%s)", err)
-		return
+		return fmt.Errorf("could not accept channel: %w", err)
 	}
 
 	go ssh.DiscardRequests(requests)
 
 	remoteConnection, err := net.Dial("tcp", fmt.Sprintf("%s:%v", address, port))
 	if err != nil {
-		log.Debug("Could not open remote connection (%s)", err)
-		return
+		return fmt.Errorf("could not open remote connection: %w", err)
 	}
 
 	handleTunnelForRemoteConnection(connection, remoteConnection)
+	return nil
 }
 
-func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
+func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 	extraData := newChannel.ExtraData()
 	addressLen := binary.BigEndian.Uint32(extraData[0:4])
 	address := string(extraData[4 : addressLen+4])
 
 	connection, requests, err := newChannel.Accept()
 	if err != nil {
-		log.Debug("Could not accept channel (%s)", err)
-		return
+		return fmt.Errorf("could not accept channel: %w", err)
 	}
 
 	go ssh.DiscardRequests(requests)
 
-	remoteConnection, err := quicconn.Dial(address)
+	ctx := context.Background()
+	remote, err := pan.ResolveUDPAddr(address)
 	if err != nil {
-		log.Debug("Could not open remote connection (%s)", err)
-		return
+		return fmt.Errorf("could not resolve remote address: %w", err)
+	}
+	tlsConf := &tls.Config{
+		NextProtos:         []string{"raw"},
+		InsecureSkipVerify: true,
+	}
+	sess, err := pan.DialQUIC(ctx, nil, remote, nil, nil, "", tlsConf, nil)
+	if err != nil {
+		return fmt.Errorf("could not open remote connection: %w", err)
+	}
+	remoteConnection, err := pan.NewQUICSingleStream(sess)
+	if err != nil {
+		return err
 	}
 
 	handleTunnelForRemoteConnection(connection, remoteConnection)
+	return nil
 }
