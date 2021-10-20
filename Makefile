@@ -12,7 +12,7 @@ DESTDIR = $(shell set -a; eval $$( go env ); gopath=$${GOPATH%:*}; echo $${GOBIN
 # HINT: build with TAGS=norains to build without rains support
 TAGS =
 
-all: lint build
+all: build lint
 
 build: scion-bat \
 	scion-bwtestclient scion-bwtestserver \
@@ -26,6 +26,7 @@ build: scion-bat \
 	scion-webapp \
 	scion-web-gateway \
 	example-helloworld \
+	example-helloquic \
 	example-hellodrkey \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
 
@@ -115,6 +116,10 @@ scion-web-gateway:
 .PHONY: example-helloworld
 example-helloworld:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/helloworld/
+
+.PHONY: example-helloquic
+example-helloquic:
+	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/helloquic/
 
 .PHONY: example-shttp-client
 example-shttp-client:
