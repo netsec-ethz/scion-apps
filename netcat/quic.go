@@ -21,46 +21,12 @@ import (
 	"net"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
 
 var (
-	nextProtos = []string{
-		// generic "proto" that we use e.g. for HTTP-over-QUIC
-		"raw",
-		// we accept anything -- use full list of protocol IDs from
-		// https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
-		"http/0.9",
-		"http/1.0",
-		"http/1.1",
-		"spdy/1",
-		"spdy/2",
-		"spdy/3",
-		"stun.turn",
-		"stun.nat-discovery",
-		"h2",
-		"h2c",
-		"webrtc",
-		"c-webrtc",
-		"ftp",
-		"imap",
-		"pop3",
-		"managesieve",
-		"coap",
-		"xmpp-client",
-		"xmpp-server",
-		"acme-tls/1",
-		"mqtt",
-		"dot",
-		"ntske/1",
-		"sunrpc",
-		"h3",
-		"smb",
-		"irc",
-		"nntp",
-		"nnsp",
-	}
+	nextProtos = []string{quicutil.SingleStreamProto}
 )
 
 // DoListenQUIC listens on a QUIC socket
@@ -70,7 +36,7 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 		&net.UDPAddr{IP: nil, Port: int(port)},
 		nil,
 		&tls.Config{
-			Certificates: appquic.GetDummyTLSCerts(),
+			Certificates: quicutil.MustGenerateSelfSignedCert(),
 			NextProtos:   nextProtos,
 		},
 		&quic.Config{KeepAlive: true},
@@ -78,7 +44,7 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	listener := pan.QUICSingleStreamListener{Listener: quicListener}
+	listener := quicutil.SingleStreamListener{Listener: quicListener}
 
 	conns := make(chan io.ReadWriteCloser)
 	go func() {
@@ -119,5 +85,5 @@ func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 
-	return pan.NewQUICSingleStream(sess)
+	return quicutil.NewSingleStream(sess)
 }

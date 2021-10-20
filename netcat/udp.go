@@ -18,20 +18,27 @@ import (
 	"context"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
-// May not be accessed from multiple threads concurrently, especially Read(...) and Close(...)
 type udpListenConn struct {
 	requests  chan<- []byte
 	responses <-chan int
 	isClosed  bool
 	write     func(b []byte) (int, error)
 	close     func() error
+	mutex     sync.Mutex
 }
 
 func (conn *udpListenConn) Read(b []byte) (int, error) {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	if conn.requests == nil {
+		return 0, io.EOF
+	}
 	conn.requests <- b
 	return <-conn.responses, nil
 }
@@ -41,6 +48,8 @@ func (conn *udpListenConn) Write(b []byte) (int, error) {
 }
 
 func (conn *udpListenConn) Close() error {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
 	return conn.close()
 }
 

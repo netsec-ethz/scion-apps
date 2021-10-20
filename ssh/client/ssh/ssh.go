@@ -32,6 +32,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh/knownhosts"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
@@ -198,13 +199,13 @@ func (client *Client) StartTunnel(local *net.UDPAddr, addr string) error {
 	var localListener net.Listener
 	if strings.Contains(addr, ",") {
 		tlsConf := &tls.Config{
-			NextProtos: []string{"raw"},
+			NextProtos: []string{quicutil.SingleStreamProto},
 		}
 		ql, err := pan.ListenQUIC(context.Background(), local, nil, tlsConf, nil)
 		if err != nil {
 			return err
 		}
-		localListener = pan.QUICSingleStreamListener{Listener: ql}
+		localListener = quicutil.SingleStreamListener{Listener: ql}
 	} else {
 		// That's right, TCP listen on UDPAddr. XXX replace with netip.AddrPort once available
 		tl, err := net.Listen("tcp", local.String())

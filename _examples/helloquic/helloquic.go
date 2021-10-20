@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
 
 func main() {
@@ -51,8 +51,8 @@ func main() {
 
 func runServer(port int) error {
 	tlsCfg := &tls.Config{
-		Certificates: appquic.GetDummyTLSCerts(), // XXX
-		NextProtos:   []string{"foo"},
+		Certificates: quicutil.MustGenerateSelfSignedCert(),
+		NextProtos:   []string{"hello-quic"},
 	}
 	listener, err := pan.ListenQUIC(context.Background(), &net.UDPAddr{Port: port}, nil, tlsCfg, nil)
 	if err != nil {
@@ -105,7 +105,7 @@ func runClient(address string) error {
 	}
 	tlsCfg := &tls.Config{
 		InsecureSkipVerify: true,
-		NextProtos:         []string{"foo"},
+		NextProtos:         []string{"hello-quic"},
 	}
 	// Set Pinging Selector with active probing on two paths
 	selector := &pan.PingingSelector{

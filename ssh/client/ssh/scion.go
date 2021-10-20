@@ -20,6 +20,7 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -39,7 +40,7 @@ func dialSCION(ctx context.Context,
 		return nil, err
 	}
 	tlsConf := &tls.Config{
-		NextProtos:         []string{"raw"},
+		NextProtos:         []string{quicutil.SingleStreamProto},
 		InsecureSkipVerify: true,
 	}
 	quicConf := &quic.Config{
@@ -49,7 +50,7 @@ func dialSCION(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	stream, err := pan.NewQUICSingleStream(sess)
+	stream, err := quicutil.NewSingleStream(sess)
 	if err != nil {
 		return nil, err
 	}
