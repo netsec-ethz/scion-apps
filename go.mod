@@ -17,9 +17,9 @@ require (
 	github.com/smartystreets/goconvey v1.6.7
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
+	inet.af/netaddr v0.0.0-20210903134321-85fa6c94624e
 )
 
 replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20211105095954-71d7a8c0af81

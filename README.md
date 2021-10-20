@@ -93,13 +93,16 @@ resolver, in the form `<ISD>-<AS>,[<IP>]`.
 
 ## _examples
 
-The directory _examples contains a minimal "hello, world" application using SCION that sends one packet from a client to a server,
-as well as a simple "hello DRKey" application, showing how to use DRKey.
-The directory also contains small example programs that show how HTTP can be used over SCION/QUIC for servers, proxies, and clients.
+The directory _examples contains examples for the usage of the SCION libraries.
 
-More documentation is available in the [helloworld README](_examples/helloworld/README.md), in the [hellodrkey README](_examples/hellodrkey/README.md)
-and in the [shttp README](_examples/shttp/README.md).
-
+* [_examples/helloworld](_examples/helloworld/README.md):
+  A minimal "hello, world" application using UDP over SCION.
+* [_examples/helloquic](_examples/helloquic/README.md):
+  Example for the use of QUIC over SCION.
+* [_examples/hellodrkey](_examples/hellodrkey/README.md):
+  Example for the the use of DRKey.
+* [_examples/shttp](_examples/shttp/README.md):
+  Examples for using HTTP over SCION/QUIC, examples for servers, proxies, and clients.
 
 ## bat
 
@@ -124,10 +127,10 @@ netcat contains a SCION port of the netcat application. See the [netcat README](
 
 Pkg contains underlaying library code for scion-apps.
 
-- appnet: simplified and functionally extended wrapper interfaces for the SCION core libraries
-- appquic: a simple interface to use QUIC over SCION
+- pan: Policy-based, path aware networking library, wrapper for the SCION core libraries
 - shttp: glue library to use net/http libraries for HTTP over SCION
 - shttp3: glue library to use quic-go/http3 for HTTP/3 over SCION
+- quicutil: contains utilities for working with QUIC
 - integration: a simple framework to support intergration testing for the demo applications in this repository
 
 

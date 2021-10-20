@@ -143,7 +143,7 @@ func Listen(listen *net.UDPAddr) (*snet.Conn, error) {
 	c, err := defNetwork.Listen(context.Background(), "udp", listen, addr.SvcNone)
 	integrationEnv, _ := os.LookupEnv("SCION_GO_INTEGRATION")
 	if err == nil && (integrationEnv == "1" || integrationEnv == "true" || integrationEnv == "TRUE") {
-		fmt.Printf("Listening ia=%v addr=%v\n", defNetwork.IA, listen)
+		fmt.Printf("Listening addr=%v\n", listen)
 	}
 	return c, err
 }
