@@ -29,12 +29,11 @@ var (
 	// an opaque, bi-directional data stream using quic. This is intended as a
 	// drop-in replacement for TCP.
 	//
-	// This is more fiddly than perhaps expected because quic-go does not have
-	// any API that allows to wait until the send buffer is drained and save
+	// This is more fiddly than perhaps expected because quic-go does not _currently_
+	// have any API that allows to wait until the send buffer is drained and save
 	// shutdown (of the UDP socket, or the application) is possible.
-	// Their stance is that this needs to be addressed with signalling in the
-	// application layer (which does not make sense to me, but ok here we are).
-	// With different quic implementations, this would not seem make much sense.
+	// See https://github.com/lucas-clemente/quic-go/issues/3291.
+	// TODO: simplify this once possible (as a protocol breaking change)
 	//
 	// The "protocol" is:
 	//  - each peer opens a Unidirectional stream for sending data
