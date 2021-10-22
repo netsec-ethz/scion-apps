@@ -62,9 +62,8 @@ func ListenUDP(ctx context.Context, local *net.UDPAddr,
 		return nil, err
 	}
 
-	integrationEnv, _ := os.LookupEnv("SCION_GO_INTEGRATION")
-	if integrationEnv == "1" || integrationEnv == "true" || integrationEnv == "TRUE" {
-		fmt.Printf("Listening ia=:%v\n", slocal.IA)
+	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
+		fmt.Printf("Listening addr=%s\n", slocal)
 	}
 
 	return &listenConn{

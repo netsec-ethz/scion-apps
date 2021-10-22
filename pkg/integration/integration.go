@@ -54,9 +54,9 @@ const (
 	// DstAddrPattern is a placeholder for the destination address in the arguments.
 	DstAddrPattern = DstIAReplace + ",[" + DstHostReplace + "]"
 	// ReadySignal should be written to Stdout by the server once it is ready to accept clients.
-	// The message should always be `Listening ia=<IA>`
-	// where <IA> is the IA the server is listening on.
-	ReadySignal = "Listening ia="
+	// The message should always be `Listening addr=<addr>`
+	// where <addr> is the address the server is listening on.
+	ReadySignal = "Listening addr="
 	// GoIntegrationEnv is an environment variable that is set for the binary under test.
 	// It can be used to guard certain statements, like printing the ReadySignal,
 	// in a program under test.
