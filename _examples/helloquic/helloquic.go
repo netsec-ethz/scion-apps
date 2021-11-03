@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -34,6 +35,7 @@ func main() {
 	// get local and remote addresses from program arguments:
 	port := flag.Uint("port", 0, "[Server] local port to listen on")
 	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
+	count := flag.Uint("count", 1, "[Client] Number of messages to send")
 	flag.Parse()
 
 	if (*port > 0) == (len(*remoteAddr) > 0) {
@@ -44,7 +46,7 @@ func main() {
 		err = runServer(int(*port))
 		check(err)
 	} else {
-		err = runClient(*remoteAddr)
+		err = runClient(*remoteAddr, int(*count))
 		check(err)
 	}
 }
@@ -62,16 +64,15 @@ func runServer(port int) error {
 	fmt.Println(listener.Addr())
 
 	for {
-		fmt.Println("listen")
 		session, err := listener.Accept(context.Background())
 		if err != nil {
 			return err
 		}
-		fmt.Println("new session", session.RemoteAddr())
+		fmt.Println("New session", session.RemoteAddr())
 		go func() {
 			err := workSession(session)
-			if err != nil {
-				fmt.Println("error in session", session.RemoteAddr(), err)
+			if err != nil && !errors.Is(err, &quic.ApplicationError{}) {
+				fmt.Println("Error in session", session.RemoteAddr(), err)
 			}
 		}()
 	}
@@ -98,7 +99,7 @@ func workSession(session quic.Session) error {
 	}
 }
 
-func runClient(address string) error {
+func runClient(address string, count int) error {
 	addr, err := pan.ResolveUDPAddr(address)
 	if err != nil {
 		return err
@@ -117,20 +118,21 @@ func runClient(address string) error {
 	if err != nil {
 		return err
 	}
-	for {
+	for i := 0; i < count; i++ {
 		stream, err := session.OpenStream()
 		if err != nil {
 			return err
 		}
-		_, err = stream.Write([]byte("hi dude"))
+		_, err = stream.Write([]byte(fmt.Sprintf("hi dude, %d", i)))
 		if err != nil {
 			return err
 		}
 		stream.Close()
 		reply, err := ioutil.ReadAll(stream)
 		fmt.Printf("%s\n", reply)
-		time.Sleep(time.Second)
 	}
+	session.CloseWithError(quic.ApplicationErrorCode(0), "")
+	return nil
 }
 
 // Check just ensures the error is nil, or complains and quits
