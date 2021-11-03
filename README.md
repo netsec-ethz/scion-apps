@@ -93,13 +93,16 @@ resolver, in the form `<ISD>-<AS>,[<IP>]`.
 
 ## _examples
 
-The directory _examples contains a minimal "hello, world" application using SCION that sends one packet from a client to a server,
-as well as a simple "hello DRKey" application, showing how to use DRKey.
-The directory also contains small example programs that show how HTTP can be used over SCION/QUIC for servers, proxies, and clients.
+The directory _examples contains examples for the usage of the SCION libraries.
 
-More documentation is available in the [helloworld README](_examples/helloworld/README.md), in the [hellodrkey README](_examples/hellodrkey/README.md)
-and in the [shttp README](_examples/shttp/README.md).
-
+* [_examples/helloworld](_examples/helloworld/README.md):
+  A minimal "hello, world" application using UDP over SCION.
+* [_examples/helloquic](_examples/helloquic/README.md):
+  Example for the use of QUIC over SCION.
+* [_examples/hellodrkey](_examples/hellodrkey/README.md):
+  Example for the the use of DRKey.
+* [_examples/shttp](_examples/shttp/README.md):
+  Examples for using HTTP over SCION/QUIC, examples for servers, proxies, and clients.
 
 ## bat
 
