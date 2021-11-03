@@ -31,6 +31,7 @@ func main() {
 	// get local and remote addresses from program arguments:
 	port := flag.Uint("port", 0, "[Server] local port to listen on")
 	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
+	count := flag.Uint("count", 1, "[Client] Number of messages to send")
 	flag.Parse()
 
 	if (*port > 0) == (len(*remoteAddr) > 0) {
@@ -41,7 +42,7 @@ func main() {
 		err = runServer(int(*port))
 		check(err)
 	} else {
-		err = runClient(*remoteAddr)
+		err = runClient(*remoteAddr, int(*count))
 		check(err)
 	}
 }
@@ -68,7 +69,7 @@ func runServer(port int) error {
 	}
 }
 
-func runClient(address string) error {
+func runClient(address string, count int) error {
 	addr, err := pan.ResolveUDPAddr(address)
 	if err != nil {
 		return err
@@ -79,7 +80,7 @@ func runClient(address string) error {
 	}
 	defer conn.Close()
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < count; i++ {
 		nBytes, err := conn.Write([]byte(fmt.Sprintf("hello world %s", time.Now().Format("15:04:05.0"))))
 		if err != nil {
 			return err
