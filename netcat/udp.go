@@ -26,10 +26,9 @@ import (
 type udpListenConn struct {
 	requests  chan<- []byte
 	responses <-chan int
-	isClosed  bool
+	mutex     sync.Mutex // protects Read's requests/responses channel from concurrent Close
 	write     func(b []byte) (int, error)
 	close     func() error
-	mutex     sync.Mutex
 }
 
 func (conn *udpListenConn) Read(b []byte) (int, error) {
@@ -108,7 +107,6 @@ func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
 				conns <- &udpListenConn{
 					requests:  nbufChan,
 					responses: nrespChan,
-					isClosed:  false,
 					write: func(b []byte) (n int, err error) {
 						return conn.WriteTo(b, addr)
 					},
