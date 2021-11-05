@@ -59,6 +59,6 @@ func (d *Dialer) Dial(network, addr string, tlsCfg *tls.Config,
 func (d *Dialer) SetPolicy(policy pan.Policy) {
 	d.Policy = policy
 	for _, s := range d.sessions {
-		s.SetPolicy(policy)
+		s.Conn.SetPolicy(policy)
 	}
 }

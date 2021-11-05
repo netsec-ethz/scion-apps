@@ -109,7 +109,7 @@ func (p *pathPool) entry(dstIA IA) (pathPoolDst, bool) {
 
 func (e *pathPoolDst) update(paths []*Path) {
 	now := time.Now()
-	expiryDropTime := now.Add(-pathExpiryPruneLeadTime)
+	expiryDropTime := now.Add(-pathPruneLeadTime)
 
 	// the updated entry includes all new paths.
 	// Any non-expired old path not included in the new paths is appended to the

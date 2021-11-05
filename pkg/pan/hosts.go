@@ -31,7 +31,7 @@ var (
 	resolveRains         resolver = nil
 )
 
-// ResolveUDPAddrAt parses the address and resolves the hostname.
+// resolveUDPAddrAt parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
 // If the address is in the form of a hostname, resolver is used to resolve the name.
@@ -87,7 +87,7 @@ const (
 	addrRegexpL3Index = 2
 )
 
-// ParseSCIONAddr converts an SCION address string to a SCION address.
+// parseSCIONAddr converts an SCION address string to a SCION address.
 func parseSCIONAddr(address string) (scionAddr, error) {
 	parts := addrRegexp.FindStringSubmatch(address)
 	if parts == nil {

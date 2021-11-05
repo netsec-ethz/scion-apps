@@ -36,11 +36,11 @@ var (
 	// TODO: simplify this once possible (as a protocol breaking change)
 	//
 	// The "protocol" is:
-	//  - each peer opens a Unidirectional stream for sending data
+	//  - each peer opens a unidirectional stream for sending data
 	//  - once the data was read in full (i.e. the FIN frame was received, EOF
 	//    condition on the stream), we explicitly signal this to the peer.
-	//		The signal is opening and directly closing a second Unidirectional
-	//		stream.
+	//    The signal is opening and directly closing a second unidirectional
+	//    stream.
 	SingleStreamProto = "qs"
 )
 
