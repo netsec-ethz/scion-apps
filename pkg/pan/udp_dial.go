@@ -33,6 +33,15 @@ type Conn interface {
 	ReadPath(b []byte) (int, *Path, error)
 }
 
+// DialUDP opens a SCION/UDP socket, connected to the remote address.
+// If the local address, or either its IP or port, are left unspecified, they
+// will be automatically chosen.
+//
+// DialUDP looks up SCION paths to the destination AS. The policy defines the
+// allowed paths and their preference order. The selector dynamically selects
+// a path among this set for each Write operation.
+// If the policy is nil, all paths are allowed.
+// If the selector is nil, a DefaultSelector is used.
 func DialUDP(ctx context.Context, local *net.UDPAddr, remote UDPAddr,
 	policy Policy, selector Selector) (Conn, error) {
 
