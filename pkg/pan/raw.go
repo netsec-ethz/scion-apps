@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -54,9 +55,9 @@ func openBaseUDPConn(ctx context.Context, local *net.UDPAddr) (snet.PacketConn, 
 type baseUDPConn struct {
 	raw         snet.PacketConn
 	readMutex   sync.Mutex
-	readBuffer  snet.Bytes
+	readBuffer  []byte
 	writeMutex  sync.Mutex
-	writeBuffer snet.Bytes
+	writeBuffer []byte
 }
 
 func (c *baseUDPConn) SetDeadline(t time.Time) error {
@@ -95,9 +96,15 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		spath = path.ForwardingPath.spath
 	}
 
+	c.writeMutex.Lock()
+	defer c.writeMutex.Unlock()
+	if c.writeBuffer == nil {
+		c.writeBuffer = make([]byte, common.SupportedMTU)
+	}
+
 	pkt := &snet.Packet{
 		Bytes: c.writeBuffer,
-		PacketInfo: snet.PacketInfo{ // bah
+		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   addr.IA(src.IA),
 				Host: addr.HostFromIP(src.IP),
@@ -115,8 +122,6 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		},
 	}
 
-	c.writeMutex.Lock()
-	defer c.writeMutex.Unlock()
 	err := c.raw.WriteTo(pkt, nextHop)
 	if err != nil {
 		return 0, err
@@ -130,6 +135,10 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
+	if c.readBuffer == nil {
+		c.readBuffer = make([]byte, common.SupportedMTU)
+	}
+
 	for {
 		pkt := snet.Packet{
 			Bytes: c.readBuffer,
