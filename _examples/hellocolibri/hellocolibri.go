@@ -48,7 +48,7 @@ func main() {
 	client(serverChan)
 	fmt.Println("=================================================================================")
 	// after client is finished, run the extended API example
-	clientExtendedAPI(serverChan)
+	// clientExtendedAPI(serverChan)
 }
 
 func server(serverChan chan []byte) {
@@ -154,19 +154,27 @@ func client(serverChan chan []byte) {
 
 	serverUDPAddr, err := net.ResolveUDPAddr("udp", serverSciondPath)
 	check(err)
+	udpAddr, err := net.ResolveUDPAddr("udp", clientSciondPath)
+	check(err)
+
 	setupReq := &libcol.E2EReservationSetup{
-		Id: reservation.ID{
-			ASID:   localIA.A,
-			Suffix: make([]byte, 12),
+		BaseRequest: libcol.BaseRequest{
+			Id: reservation.ID{
+				ASID:   localIA.A,
+				Suffix: make([]byte, 12),
+			},
+			Index:     0, // new index
+			TimeStamp: time.Now(),
+			SrcHost:   udpAddr.IP,
+			DstHost:   serverUDPAddr.IP,
+			Path:      trips[0].Path(),
 		},
-		SrcIA:       localIA,
-		DstIA:       dstIA,
-		DstHost:     serverUDPAddr.IP,
-		Index:       0, // new index
-		Segments:    trips[0].Segments(),
 		RequestedBW: 13,
+		Segments:    trips[0].Segments(),
 	}
 	rand.Read(setupReq.Id.Suffix) // random suffix
+	err = setupReq.CreateAuthenticators(ctx, connector)
+	check(err)
 	_, err = connector.ColibriSetupRsv(ctx, setupReq)
 	if err == nil {
 		check(fmt.Errorf("expected error but got nil"))
@@ -174,30 +182,42 @@ func client(serverChan chan []byte) {
 	fmt.Printf("expected error in admission: %s\n", err)
 	admissionFailure, ok := err.(*libcol.E2ESetupError)
 	if !ok {
-		check(fmt.Errorf("expected error type E2ESetupError, but got %T", err))
+		check(fmt.Errorf("expected error type E2ESetupError, but got %T. Error is: %s", err, err))
 	}
 	fmt.Printf("admission error: failed at AS %d, trail: %v\n",
 		admissionFailure.FailedAS, admissionFailure.AllocationTrail)
 
 	setupReq.RequestedBW = 11
+	err = setupReq.CreateAuthenticators(ctx, connector)
+	check(err)
 	fmt.Printf("\nGoing again with requested BW cls = %d, ID: %s\n",
 		setupReq.RequestedBW, setupReq.Id)
 	res, err := connector.ColibriSetupRsv(ctx, setupReq)
 	check(err)
+	err = res.ValidateAuthenticators(ctx, connector, setupReq.Path, setupReq.SrcHost,
+		setupReq.TimeStamp)
+	check(err)
 	fmt.Println("admitted")
-	fmt.Printf("path type: %s\n", res.Path().Type)
+	fmt.Printf("path type: %s\n", res.ColibriPath.Path().Type)
 
 	// try to get again a new reservation. It should fail as there is no more bandwidth.
 	setupReq2 := &libcol.E2EReservationSetup{
-		Id:          *setupReq.Id.Copy(),
-		SrcIA:       setupReq.SrcIA,
-		DstIA:       setupReq.DstIA,
-		DstHost:     serverUDPAddr.IP,
-		Index:       0,
-		Segments:    setupReq.Segments,
+		BaseRequest: libcol.BaseRequest{
+			Id:             *setupReq.Id.Copy(),
+			Index:          0,
+			TimeStamp:      setupReq.TimeStamp,
+			SrcHost:        setupReq.SrcHost,
+			DstHost:        setupReq.DstHost,
+			Path:           setupReq.Path,
+			Authenticators: setupReq.Authenticators,
+		},
 		RequestedBW: 11,
+		Segments:    setupReq.Segments,
 	}
 	rand.Read(setupReq2.Id.Suffix) // new reservation
+	err = setupReq2.CreateAuthenticators(ctx, connector)
+	check(err)
+
 	fmt.Printf("\nRequesting a new reservation with same BW, new id: %s\n", setupReq2.Id)
 	_, err = connector.ColibriSetupRsv(ctx, setupReq2)
 	if err == nil {
@@ -212,16 +232,21 @@ func client(serverChan chan []byte) {
 
 	// cleanup the first one and attempt again
 	fmt.Printf("\nWill clean first rsv, id: %s\n", setupReq.Id)
-	err = connector.ColibriCleanupRsv(ctx, &setupReq.Id, setupReq.Index)
+	err = setupReq.BaseRequest.CreateAuthenticators(ctx, connector)
+	check(err)
+	err = connector.ColibriCleanupRsv(ctx, &setupReq.BaseRequest)
 	check(err)
 	fmt.Printf("Cleaned first reservation\n")
 	// go again, this time it should succeed
 	fmt.Printf("Requesting a new reservation with same BW, id: %s\n", setupReq2.Id)
 	res, err = connector.ColibriSetupRsv(ctx, setupReq2)
 	check(err)
+	err = res.ValidateAuthenticators(ctx, connector, setupReq.Path, setupReq.SrcHost,
+		setupReq.TimeStamp)
+	check(err)
 	fmt.Println("admitted")
-	fmt.Printf("path type: %s\n", res.Path().Type)
-	colibriPath := res.Path()
+	fmt.Printf("path type: %s\n", res.ColibriPath.Path().Type)
+	colibriPath := res.ColibriPath.Path()
 
 	//////////////////////////////////////////////////////////////////////////////////
 	//
@@ -245,8 +270,6 @@ func client(serverChan chan []byte) {
 		NextHop: p.UnderlayNextHop(),
 	}
 	// connect to the server
-	udpAddr, err := net.ResolveUDPAddr("udp", clientSciondPath)
-	check(err)
 	udpAddr.Port = 44321 // TODO(juagargi) or zero?
 
 	// connect to server
@@ -276,7 +299,9 @@ func client(serverChan chan []byte) {
 	conn.Close()
 
 	// clean the last reservation obtained
-	err = connector.ColibriCleanupRsv(ctx, &setupReq2.Id, setupReq2.Index)
+	err = setupReq2.BaseRequest.CreateAuthenticators(ctx, connector)
+	check(err)
+	err = connector.ColibriCleanupRsv(ctx, &setupReq2.BaseRequest)
 	check(err)
 	fmt.Println("Reservation cleaned up")
 }
@@ -318,7 +343,8 @@ func clientExtendedAPI(serverChan chan []byte) {
 
 	// create a reservation
 	capturedTrips := make([]*colibri.FullTrip, 0)
-	rsv, err := colapi.NewReservation(ctx, connector, localIA, dstIA, dstAddr.Host.IP, 9, 0,
+	rsv, err := colapi.NewReservation(ctx, connector, localIA, localUdpAddr.IP,
+		dstIA, dstAddr.Host.IP, 9, 0,
 		// we record the trips, sort by BW and then sort by number of ASes:
 		fallingback.CaptureTrips(&capturedTrips), sorting.ByBW, sorting.ByNumberOfASes,
 	)
