@@ -30,7 +30,6 @@ webapp -h
 ## SCION Binaries Used/Checked (should be somewhere on $PATH)
 - scion (for scion ping and scion traceroute)
 - scion-bwtestclient
-- scion-imagefetcher
 - scion-sensorfetcher
 
 ## Scripts/Directories Used/Checked
@@ -56,5 +55,4 @@ webapp -h
 ## Static Webserver Generated
 - $srvroot/webapp.db
 - $srvroot/data/
-- $srvroot/data/images/
 - $srvroot/logs/

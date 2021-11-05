@@ -18,7 +18,6 @@ build: scion-bat \
 	scion-bwtestclient scion-bwtestserver \
 	scion-burster \
 	scion-cbrtester \
-	scion-imagefetcher scion-imageserver \
 	scion-netcat \
 	scion-sensorfetcher scion-sensorserver \
 	scion-skip \
@@ -71,14 +70,6 @@ scion-burster:
 .PHONY: scion-cbrtester
 scion-cbrtester:
 	go build -tags=$(TAGS) -o $(BIN)/$@ ./cbrtester/
-
-.PHONY: scion-imagefetcher
-scion-imagefetcher:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./camerapp/imagefetcher/
-
-.PHONY: scion-imageserver
-scion-imageserver:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./camerapp/imageserver/
 
 .PHONY: scion-netcat
 scion-netcat:

@@ -140,7 +140,6 @@ func main() {
 	}
 	go model.MaintainDatabase()
 	ensurePath(options.StaticRoot, "data")
-	ensurePath(options.StaticRoot, "data/images")
 
 	checkPath(options.ScionGen)
 	checkPath(options.ScionGenCache)
@@ -152,7 +151,6 @@ func main() {
 	lib.GenServerNodeDefaults(&options, localIAs)
 
 	appsBuildCheck("bwtester")
-	appsBuildCheck("camerapp")
 	appsBuildCheck("sensorapp")
 	appsBuildCheck("echo")
 	appsBuildCheck("traceroute")
@@ -200,8 +198,6 @@ func initServeHandlers() {
 	http.Handle("/files/", http.StripPrefix("/files/", fsFileBrowser))
 
 	http.HandleFunc("/command", commandHandler)
-	http.HandleFunc("/imglast", findImageHandler)
-	http.HandleFunc("/txtlast", findImageInfoHandler)
 	http.HandleFunc("/getnodes", getNodesHandler)
 	http.HandleFunc("/getbwbytime", getBwByTimeHandler)
 	http.HandleFunc("/healthcheck", healthCheckHandler)
@@ -344,7 +340,7 @@ func parseCmdItem2Cmd(dOrinial model.CmdItem, appSel string, pathStr string) []s
 	appBin := getAppBin(appSel)
 	log.Info(fmt.Sprintf("App tag is %s...", appSel))
 	switch appSel {
-	case "bwtester", "camerapp", "sensorapp":
+	case "bwtester", "sensorapp":
 		d, ok := dOrinial.(model.BwTestItem)
 		if !ok {
 			log.Error("Parsing error, CmdItem category doesn't match its name")
@@ -529,8 +525,6 @@ func getClientCwd(app string) string {
 	switch app {
 	case "sensorapp":
 		cwd = path.Join(options.StaticRoot, "data")
-	case "camerapp":
-		cwd = path.Join(options.StaticRoot, "data/images")
 	case "bwtester":
 		cwd = path.Join(options.StaticRoot, "data")
 	case "echo", "traceroute":
@@ -545,8 +539,6 @@ func getAppBin(app string) string {
 	switch app {
 	case "sensorapp":
 		appName = "scion-sensorfetcher"
-	case "camerapp":
-		appName = "scion-imagefetcher"
 	case "bwtester":
 		appName = "scion-bwtestclient"
 	case "echo", "traceroute":
@@ -691,15 +683,6 @@ func getEchoByTimeHandler(w http.ResponseWriter, r *http.Request) {
 
 func getTracerouteByTimeHandler(w http.ResponseWriter, r *http.Request) {
 	lib.GetTracerouteByTimeHandler(w, r, contCmdActive)
-}
-
-// Handles locating most recent image formatting it for graphic display in response.
-func findImageHandler(w http.ResponseWriter, r *http.Request) {
-	lib.FindImageHandler(w, r, &options)
-}
-
-func findImageInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.FindImageInfoHandler(w, r, &options)
 }
 
 func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {

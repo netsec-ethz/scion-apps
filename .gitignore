@@ -38,22 +38,6 @@ vendor/*/
 
 # generated binaries
 bin/
-bat/bat
-bwtester/bwtestclient/bwtestclient
-bwtester/bwtestserver/bwtestserver
-camerapp/imagefetcher/imagefetcher
-camerapp/imageserver/imageserver
-sensorapp/sensorfetcher/sensorfetcher
-sensorapp/sensorserver/sensorserver
-webapp/webapp
-netcat/netcat
-ssh/client/client
-ssh/server/server
-roughtime/timeclient/timeclient
-roughtime/timeserver/timeserver
-_examples/helloworld/helloworld
-_examples/shttp/client/client
-_examples/shttp/server/server
 
 # vscode workspace
 *.code-workspace

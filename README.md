@@ -122,12 +122,6 @@ A tool that helps identifying problems with border routers dropping packets. It 
 ## cbrtester
 
 A tool intended to detect conditions on border routers, where packets are delayed more than the ordinary. [README](cbrtester/README.md).
-## camerapp
-
-Camerapp contains image fetcher and server applications, using the SCION network. Documentation of the code is available in the [camerapp README](camerapp/README.md).
-
-Installation and usage information is available on the [SCION Tutorials web page for camerapp](https://docs.scionlab.org/content/apps/access_camera.html).
-
 
 ## netcat
 

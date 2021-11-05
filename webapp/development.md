@@ -16,7 +16,7 @@ Webapp is a go application designed to operate a web server for purposes of visu
 * **Developers**: Visualize and test any topology you create on `localhost`.
 
 ## Structure
-* `lib/` - go modules governing sciond, images, health checks, command-line app parsing
+* `lib/` - go modules governing sciond, health checks, command-line app parsing
 * `models/` - go webapp database schema and CRUD operations
 * `tests/` - scripts and offline versions of data retrieval for testing
 * `util/` - go logging and other universally useful code
@@ -44,7 +44,7 @@ Webapp is a go application designed to operate a web server for purposes of visu
 1. **Launch Config**: Several command line parameters allow you to define multiple locations where your SCION deployment is running and where this website should be served from and to.
 1. **Health Checks**: The default first page in the Health Checks that will run several bash scripts checking for common SCION misconfiguration and operational requirements.
 1. **AS Address (IA)**: On a local development topology you can switch perspective to any AS in the topology from the Navbar. Unless your production deployment co-locates multiple ASes, in production usually only one AS will be available.
-1. **Apps Tests**: On the Apps menu, run test for bandwidth, latency, routing, and IoT sensors at ETH (camera, temperature, humidity, ambient noise, etc.). Many of these tests can be run continuously and graphs are provided to show performance over time. Expanding the available paths tree in many cases will select the path to run a test app on.
+1. **Apps Tests**: On the Apps menu, run test for bandwidth, latency, routing, and IoT sensors at ETH (temperature, humidity, ambient noise, etc.). Many of these tests can be run continuously and graphs are provided to show performance over time. Expanding the available paths tree in many cases will select the path to run a test app on.
 1. **Paths Visualization**: A graph is provided by default to visualize available paths to the user's AS, and to allow visual examination of individual path routes through the SCION instrstrcutre.
 
 ## Future Features
