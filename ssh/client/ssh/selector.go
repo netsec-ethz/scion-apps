@@ -63,7 +63,7 @@ func (s *roundRobinSelector) Path() *pan.Path {
 		return nil
 	}
 	p := s.paths[s.current]
-	s.current += 1
+	s.current = (s.current + 1) % len(s.paths)
 	return p
 }
 
