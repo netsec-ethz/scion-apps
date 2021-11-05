@@ -92,7 +92,7 @@ func (p Preferred) Filter(paths []*Path) []*Path {
 	return append(preferred, rest...)
 }
 
-// Sequence is a Policy filtering paths matching a textual pattern. The sequence pattern is
+// Sequence is a policy filtering paths matching a textual pattern. The sequence pattern is
 // space separated sequence of hop predicates.
 // See https://scion.docs.anapaya.net/en/latest/PathPolicy.html#sequence.
 type Sequence struct {
@@ -179,7 +179,7 @@ type HighestMTU struct{}
 
 func (p HighestMTU) Filter(paths []*Path) []*Path {
 	sort.SliceStable(paths, func(i, j int) bool {
-		return paths[i].Metadata.MTU < paths[j].Metadata.MTU
+		return paths[i].Metadata.MTU > paths[j].Metadata.MTU
 	})
 	return paths
 }

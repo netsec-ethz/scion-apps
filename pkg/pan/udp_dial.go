@@ -63,7 +63,7 @@ func DialUDP(ctx context.Context, local *net.UDPAddr, remote UDPAddr,
 		local:      slocal,
 		remote:     remote,
 		subscriber: subscriber,
-		Selector:   selector,
+		selector:   selector,
 	}, nil
 }
 
@@ -73,7 +73,7 @@ type dialedConn struct {
 	local      UDPAddr
 	remote     UDPAddr
 	subscriber *pathRefreshSubscriber
-	Selector   Selector
+	selector   Selector
 }
 
 func (c *dialedConn) SetPolicy(policy Policy) {
@@ -93,7 +93,7 @@ func (c *dialedConn) RemoteAddr() net.Addr {
 func (c *dialedConn) Write(b []byte) (int, error) {
 	var path *Path
 	if c.local.IA != c.remote.IA {
-		path = c.Selector.Path()
+		path = c.selector.Path()
 		if path == nil {
 			return 0, errNoPathTo(c.remote.IA)
 		}
@@ -139,8 +139,8 @@ func (c *dialedConn) Close() error {
 	if c.subscriber != nil {
 		_ = c.subscriber.Close()
 	}
-	if c.Selector != nil {
-		_ = c.Selector.Close()
+	if c.selector != nil {
+		_ = c.selector.Close()
 	}
 	return c.baseUDPConn.Close()
 }

@@ -41,6 +41,8 @@ func unsilenceLog() {
 	if count == 0 {
 		log.Default().SetOutput(logSilencerOriginal)
 		logSilencerOriginal = nil
+	} else if count < 0 {
+		panic("unsilenceLog called more often than silenceLog")
 	}
 }
 

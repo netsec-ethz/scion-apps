@@ -38,7 +38,7 @@ var (
 // library.
 //
 // The options should be presented to the user as:
-//  -	a flag --interactve
+//  - a flag --interactive
 //  - an option --preference <preference>, sorting order for paths.
 //    Comma-separated list of available sorting options.
 //  - an option --sequence <sequence>, describing a hop-predicate sequence filter

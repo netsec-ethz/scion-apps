@@ -143,7 +143,7 @@ func reversePathFingerprint(spath spath.Path) (PathFingerprint, error) {
 	return rpf, nil
 }
 
-// forwardingPathInfo contains information extracted from a dataplane forwardng path.
+// forwardingPathInfo contains information extracted from a dataplane forwarding path.
 type forwardingPathInfo struct {
 	expiry       time.Time
 	interfaceIDs []IfID

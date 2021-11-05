@@ -121,7 +121,7 @@ func (r *refresher) refresh() {
 
 func (r *refresher) shouldRefresh(now, expiry, lastQuery time.Time) bool {
 	earliestAllowedRefresh := lastQuery.Add(pathRefreshMinInterval)
-	timeForRefresh := expiry.Add(-pathExpiryRefreshLeadTime)
+	timeForRefresh := expiry.Add(-pathRefreshLeadTime)
 	return now.After(earliestAllowedRefresh) && now.After(timeForRefresh)
 }
 
@@ -137,7 +137,7 @@ func (r *refresher) nextRefresh(prevRefresh time.Time) time.Time {
 
 	expiry := r.pool.earliestPathExpiry()
 	randOffset := time.Duration(rand.Intn(10)) * time.Second // avoid everbody refreshing simultaneously
-	expiryRefresh := expiry.Add(-pathExpiryRefreshLeadTime + randOffset)
+	expiryRefresh := expiry.Add(-pathRefreshLeadTime + randOffset)
 
 	if expiryRefresh.Before(nextRefresh) {
 		nextRefresh = expiryRefresh

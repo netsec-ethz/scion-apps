@@ -155,7 +155,7 @@ func (s *pathStatsDB) FirstMoreAlive(p *Path, paths []*Path) int {
 // IsMoreAlive checks if a is strictly "less down" / "more alive" than b.
 // Returns true if a does not have any recent down notifications and b does, or
 // (more generally) if all down notifications for a are strictly older
-// than any down notificating for b.
+// than any down notification for b.
 func (s *pathStatsDB) IsMoreAlive(a, b *Path) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()

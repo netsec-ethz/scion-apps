@@ -34,7 +34,7 @@ Connections allow to change the path policy at any time.
 Selector:
 A path selector is a stateful controller associated with a connection/socket.
 It receives the paths filtered by the Policy as an input. For each packet
-sent, the selector choses the path.
+sent, the selector chooses the path.
 The default selector keeps using the first chosen path unless SCMP path down
 notifications are encountered, in which case it will always switch to the next
 alive path.
@@ -49,10 +49,9 @@ is in control of the path used.
 The listening side (for "servers") only replies on the paths last used by each
 client, by means of a customizable reply path selector. The listening side does
 not implement any policy, nor does it do anything to keep the paths fresh.
-The default reply path selector records a fixed number of paths last uses
-replies on the path last used by a client. It normally uses the path last used
-by the client, but does use other recorded paths to try routing around
-temporarily broken paths.
+The default reply path selector records a fixed number of paths used by a client.
+It normally uses the path last used by the client for replies, but does use other
+recorded paths to try routing around temporarily broken paths.
 
 Notes:
  - pan only performs path lookups for destinations requested by the application.
@@ -88,7 +87,7 @@ Differences to previous approach "pkg/appnet" and scionproto/scion's snet:
    just keeps replying using the path on which the first packet arrived. This
    will seem to work initially, but can't work once this path expires -- working
    around this requires tricksery.
- - policy/selector as the main concept that applications use to chose paths for
+ - policy/selector as the main concept that applications use to choose paths for
    a connection. Allows the library to implement path updates, fallback,
    performance optimisations, etc. behind the scenes.
 
