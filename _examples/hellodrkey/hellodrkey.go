@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	sciondForClient = "[fd00:f00d:cafe::7f00:b]:30255"
-	sciondForServer = "127.0.0.19:30255"
+	sciondForClient = "[fd00:f00d:cafe::7f00:c]:30255"
+	sciondForServer = "127.0.0.20:30255"
 )
 
 // These next variables are also used as constants in the code
@@ -50,7 +50,9 @@ type Client struct {
 }
 
 func NewClient(sciondPath string) Client {
-	daemon, err := daemon.NewService(sciondPath).Connect(context.Background())
+	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancelF()
+	daemon, err := daemon.NewService(sciondPath).Connect(ctx)
 	check(err)
 	return Client{
 		daemon: daemon,
