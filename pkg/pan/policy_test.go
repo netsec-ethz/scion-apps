@@ -363,3 +363,109 @@ func TestSequencePolicy(t *testing.T) {
 		})
 	}
 }
+
+// TestACLPolicy checks that the glue logic for invoking the pathpol.ACL
+// works correctly. We do not need to extensively test the sequence
+// language itself here.
+func TestACLPolicy(t *testing.T) {
+	asA := IA{1, 0xff00_0000_000a}
+	asB := IA{1, 0xff00_0000_000b}
+	asC := IA{1, 0xff00_0000_000c}
+	pAB := &Path{
+		Metadata: &PathMetadata{
+			Interfaces: []PathInterface{
+				{IA: asA, IfID: 1},
+				{IA: asB, IfID: 2},
+			},
+		},
+	}
+	pACB := &Path{
+		Metadata: &PathMetadata{
+			Interfaces: []PathInterface{
+				{IA: asA, IfID: 1},
+				{IA: asB, IfID: 2},
+				{IA: asB, IfID: 3},
+				{IA: asC, IfID: 4},
+			},
+		},
+	}
+	cases := []struct {
+		name       string
+		acl        []string
+		in         []*Path
+		out        []*Path
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		{
+			name:       "nil",
+			acl:        nil,
+			in:         nil,
+			out:        []*Path{},
+			assertFunc: assert.Error,
+		},
+		{
+			name:       "empty",
+			acl:        []string{},
+			in:         nil,
+			out:        []*Path{},
+			assertFunc: assert.Error,
+		},
+		{
+			name:       "malformed",
+			acl:        []string{""},
+			in:         nil,
+			out:        []*Path{},
+			assertFunc: assert.Error,
+		},
+		{
+			name:       "any",
+			acl:        []string{"+"},
+			in:         []*Path{pAB, pACB},
+			out:        []*Path{pAB, pACB},
+			assertFunc: assert.NoError,
+		},
+		{
+			name:       "blacklist C",
+			acl:        []string{"- 1-ff00:0:c", "+"},
+			in:         []*Path{pAB, pACB},
+			out:        []*Path{pAB},
+			assertFunc: assert.NoError,
+		},
+		{
+			name:       "blacklist B",
+			acl:        []string{"- 1-ff00:0:B", "+"},
+			in:         []*Path{pAB, pACB},
+			out:        []*Path{},
+			assertFunc: assert.NoError,
+		},
+		{
+			name:       "blacklist C, white ISD 1",
+			acl:        []string{"- 1-ff00:0:C", "+ 1", "-"},
+			in:         []*Path{pAB, pACB},
+			out:        []*Path{pAB},
+			assertFunc: assert.NoError,
+		},
+		{
+			name:       "whitelist only AB",
+			acl:        []string{"+ 1-ff00:0:B", "+ 1-ff00:0:A", "-"},
+			in:         []*Path{pAB, pACB},
+			out:        []*Path{pAB},
+			assertFunc: assert.NoError,
+		},
+		{
+			name:       "none",
+			acl:        []string{"-"},
+			in:         []*Path{pAB, pACB},
+			out:        []*Path{},
+			assertFunc: assert.NoError,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			acl, err := NewACL(c.acl)
+			c.assertFunc(t, err)
+			actual := acl.Filter(c.in)
+			assert.Equal(t, c.out, actual)
+		})
+	}
+}

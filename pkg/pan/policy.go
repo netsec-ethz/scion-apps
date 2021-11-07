@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/pathpol"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -111,6 +112,45 @@ func (s Sequence) Filter(paths []*Path) []*Path {
 		wps[i] = snetPathWrapper{wrapped: paths[i]}
 	}
 	wps = s.sequence.Eval(wps)
+	ps := make([]*Path, len(wps))
+	for i := range wps {
+		ps[i] = wps[i].(snetPathWrapper).wrapped
+	}
+	return ps
+}
+
+// ACL is a policy filtering paths matching an ACL pattern. The ACL pattern is
+// an ordered list of allow/deny actions over hop predicates.
+// See https://scion.docs.anapaya.net/en/latest/PathPolicy.html#acl.
+type ACL struct {
+	entries *pathpol.ACL
+}
+
+// NewACL creates a new ACL from a string list
+func NewACL(list []string) (ACL, error) {
+	aclEntries := make([]*pathpol.ACLEntry, len(list))
+	for i, entry := range list {
+		aclEntry := &pathpol.ACLEntry{}
+		if err := aclEntry.LoadFromString(entry); err != nil {
+			return ACL{}, serrors.WrapStr("parsing ACL entries", err)
+		}
+		aclEntries[i] = aclEntry
+	}
+	acl, err := pathpol.NewACL(aclEntries...)
+	if err != nil {
+		return ACL{}, serrors.WrapStr("creating ACL", err)
+	}
+	return ACL{entries: acl}, nil
+}
+
+// Filter evaluates the interface ACL and returns the set of paths
+// that match the list
+func (l ACL) Filter(paths []*Path) []*Path {
+	wps := make([]snet.Path, len(paths))
+	for i := range paths {
+		wps[i] = snetPathWrapper{wrapped: paths[i]}
+	}
+	wps = l.entries.Eval(wps)
 	ps := make([]*Path, len(wps))
 	for i := range wps {
 		ps[i] = wps[i].(snetPathWrapper).wrapped
