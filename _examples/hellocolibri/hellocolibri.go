@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"net"
 	"strings"
@@ -157,23 +156,7 @@ func client(serverChan chan []byte) {
 	udpAddr, err := net.ResolveUDPAddr("udp", clientSciondPath)
 	check(err)
 
-	setupReq := &libcol.E2EReservationSetup{
-		BaseRequest: libcol.BaseRequest{
-			Id: reservation.ID{
-				ASID:   localIA.A,
-				Suffix: make([]byte, 12),
-			},
-			Index:     0, // new index
-			TimeStamp: time.Now(),
-			SrcHost:   udpAddr.IP,
-			DstHost:   serverUDPAddr.IP,
-			Path:      trips[0].Path(),
-		},
-		RequestedBW: 13,
-		Segments:    trips[0].Segments(),
-	}
-	rand.Read(setupReq.Id.Suffix) // random suffix
-	err = setupReq.CreateAuthenticators(ctx, connector)
+	setupReq, err := libcol.NewReservation(ctx, connector, trips[0], udpAddr.IP, serverUDPAddr.IP, 13)
 	check(err)
 	_, err = connector.ColibriSetupRsv(ctx, setupReq)
 	if err == nil {
@@ -187,6 +170,7 @@ func client(serverChan chan []byte) {
 	fmt.Printf("admission error: failed at AS %d, trail: %v\n",
 		admissionFailure.FailedAS, admissionFailure.AllocationTrail)
 
+	// manually modify parameters (and recompute authenticators):
 	setupReq.RequestedBW = 11
 	err = setupReq.CreateAuthenticators(ctx, connector)
 	check(err)
@@ -201,21 +185,8 @@ func client(serverChan chan []byte) {
 	fmt.Printf("path type: %s\n", res.ColibriPath.Path().Type)
 
 	// try to get again a new reservation. It should fail as there is no more bandwidth.
-	setupReq2 := &libcol.E2EReservationSetup{
-		BaseRequest: libcol.BaseRequest{
-			Id:             *setupReq.Id.Copy(),
-			Index:          0,
-			TimeStamp:      setupReq.TimeStamp,
-			SrcHost:        setupReq.SrcHost,
-			DstHost:        setupReq.DstHost,
-			Path:           setupReq.Path,
-			Authenticators: setupReq.Authenticators,
-		},
-		RequestedBW: 11,
-		Segments:    setupReq.Segments,
-	}
-	rand.Read(setupReq2.Id.Suffix) // new reservation
-	err = setupReq2.CreateAuthenticators(ctx, connector)
+	setupReq2, err := libcol.NewReservation(ctx, connector, trips[0],
+		udpAddr.IP, serverUDPAddr.IP, 11)
 	check(err)
 
 	fmt.Printf("\nRequesting a new reservation with same BW, new id: %s\n", setupReq2.Id)
