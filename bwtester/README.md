@@ -1,4 +1,3 @@
-
 # bwtester
 
 The bandwidth testing application `bwtester` enables a variety of bandwidth tests on the SCION network. This document describes the design of the code and protocol. Instructions on the installation and usage are described in the main [README.md](https://github.com/netsec-ethz/scion-apps/blob/master/README.md).
@@ -45,22 +44,16 @@ The wireline protocol is as follows:
 
 ## bwtestclient
 
-The client application reads the command line parameters and establishes two SCION UDP connections to the bwtestserver: a Control Connection (CC) and a Data Connection (DC). The port numbers for the DC are simply picked as one larger than the respective ports of the CC (the CC port numbers are passed on the command line). (Note: if the application is executed locally, the client and server port numbers should be picked with a difference of at least 2, otherwise the same local port numbers would be used which results in an error.)
+The client application reads the command line parameters and establishes two SCION UDP connections to the bwtestserver: a Control Connection (CC) and a Data Connection (DC). The port numbers for the DC are simply picked as one larger than the respective ports of the CC (the CC port numbers are passed on the command line).
 
-To achieve reliability for the initial request, the SetReadDeadline function is used. If the server responds with a number of seconds to wait, that amount of time is waited off before another request is sent (as the server only serves a single client at a time). Reliability for fetching the results is achieved in the same way.
+To achieve reliability for the initial request, it may be retried up to 5 times. If the server responds with a number of seconds to wait, that amount of time is waited off before another request is sent (as the server only serves a single client at a time). Reliability for fetching the results is achieved in the same way.
 
 ## bwtestserver
 
 The server runs a main loop that handles the CC. Not to bias the bwtest results, the server handles a single client at a time. The total time for the test is estimated, and other clients are told for how long to wait if they arrive during a running test.
 
-For each client request, the server establishes a new SCION UDP connection to the client. For this, the server needs to perform a path lookup, so the path client->server may be different from the path server->client for the DC. In some rare cases, the server path lookup may fail, which results in an error message that is sent to the client, encouraging the client to try again in 1 second.
+For each client request, the server establishes a new SCION UDP Data Connection (DC). For the traffic sent on this DC, the server uses the (reversed) path used by the client on the control channel.
 
 The server starts sending right after it established the DC. Since the client already set up the receiving function, the server->client bwtest starts right away. The client only starts sending after it receives a successful server response.
 
-To estimate the running time, sending and receiving time estimates are computed. From the server's perspective, since there is uncertainty for the running time of the client->server bwtest, the estimate is updated after the first packet is received.
-
-Instead of using channels to synchronize the main loop with the sending and receiving functions, we make use of the time estimate and the value of the results, where a positive value for the number of packets counted indicates that the receiving has been completed. Since there is no uncertainty on the completion of the sending function, the receiving function will close the DC.
-
-The results are stored in a map, indexed by the client SCION address (ISD, AS, IP) plus the port number. The goroutine `purgeOldResults` takes care of deleting results that are older than 1 minute. To ensure that the correct results are returned, we also use the AES key of the client->server direction as identifier of the connection (to prevent an erroneous client who fetches the results too early to obtain the results of a previous run). If the results are requested too early, the server indicates how many additional seconds to wait until the results will be ready.
-
-***
+The results are stored in a map, indexed by the client SCION address (ISD, AS, IP) plus the port number. To ensure that the correct results are returned, we also use the AES key of the client->server direction as identifier of the connection (to prevent an erroneous client who fetches the results too early to obtain the results of a previous run). If the results are requested too early, the server indicates how many additional seconds to wait until the results will be ready.
