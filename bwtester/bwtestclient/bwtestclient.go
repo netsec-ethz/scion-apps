@@ -34,9 +34,7 @@ import (
 	"unicode"
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 const (
@@ -248,21 +246,41 @@ func getPacketCount(count string) int64 {
 	return a3
 }
 
+func usageErr(msg string) {
+	printUsage()
+	if msg != "" {
+		fmt.Println("\nError:", msg)
+	}
+	os.Exit(2)
+}
+
+func checkUsageErr(err error) {
+	if err != nil {
+		usageErr(err.Error())
+	}
+}
+
 func main() {
 	var (
+		localStr        string
 		serverCCAddrStr string
 		clientBwpStr    string
 		serverBwpStr    string
 		interactive     bool
-		pathAlgo        string
+		sequence        string
+		preference      string
 	)
 
 	flag.Usage = printUsage
+	flag.StringVar(&localStr, "local", "", "Local address")
 	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
 	flag.StringVar(&serverBwpStr, "sc", DefaultBwtestParameters, "Server->Client test parameter")
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
 	flag.BoolVar(&interactive, "i", false, "Interactive path selection, prompt to choose path")
-	flag.StringVar(&pathAlgo, "pathAlgo", "", "Path selection algorithm / metric (\"shortest\", \"mtu\")")
+	flag.StringVar(&sequence, "sequence", "", "Sequence of space separated hop predicates to specify path")
+	flag.StringVar(&preference, "preference", "", "Preference sorting order for paths. "+
+		"Comma-separated list of available sorting options: "+
+		strings.Join(pan.AvailablePreferencePolicies, "|"))
 
 	flag.Parse()
 	flagset := make(map[string]bool)
@@ -270,61 +288,45 @@ func main() {
 	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
 
 	if flag.NFlag() == 0 {
-		// no flag was set, only print usage and exit
-		printUsage()
-		os.Exit(2)
+		usageErr("")
 	}
 	if len(serverCCAddrStr) == 0 {
-		printUsage()
-		fmt.Println("\nServer address needs to be specified with -s")
-		os.Exit(2)
+		usageErr("server address needs to be specified with -s")
 	}
-	serverCCAddr, err := appnet.ResolveUDPAddr(serverCCAddrStr)
-	Check(err)
+	serverCCAddr, err := pan.ResolveUDPAddr(serverCCAddrStr)
+	checkUsageErr(err)
+	local, err := net.ResolveUDPAddr("udp", localStr)
+	checkUsageErr(err)
+	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+	checkUsageErr(err)
 
-	var path snet.Path
-	if interactive {
-		path, err = appnet.ChoosePathInteractive(serverCCAddr.IA)
-		Check(err)
-	} else {
-		var metric int
-		if pathAlgo == "mtu" {
-			metric = appnet.MTU
-		} else if pathAlgo == "shortest" {
-			metric = appnet.Shortest
-		}
-		path, err = appnet.ChoosePathByMetric(metric, serverCCAddr.IA)
-		Check(err)
-	}
-	if path != nil {
-		appnet.SetPath(serverCCAddr, path)
-	}
-
-	// use default packet size when within same AS and pathEntry is not set
+	// use default packet size when within same AS
 	inferedPktSize := int64(DefaultPktSize)
 	// update default packet size to max MTU on the selected path
-	if path != nil {
+	// TODO(matzf): evaluate policy, set pkt size to MTU of most preferred path,
+	//							append filter to policy to allow only paths with MTU >= pkt size.
+	/*if path != nil {
 		inferedPktSize = int64(path.Metadata().MTU)
-	}
+	}*/
 	if !flagset["cs"] && flagset["sc"] { // Only one direction set, used same for reverse
 		clientBwpStr = serverBwpStr
 		fmt.Println("Only sc parameter set, using same values for cs")
 	}
 	clientBwp, err := parseBwtestParameters(clientBwpStr, inferedPktSize)
-	Check(err)
+	checkUsageErr(err)
 	if !flagset["sc"] && flagset["cs"] { // Only one direction set, used same for reverse
 		serverBwpStr = clientBwpStr
 		fmt.Println("Only cs parameter set, using same values for sc")
 	}
 	serverBwp, err := parseBwtestParameters(serverBwpStr, inferedPktSize)
-	Check(err)
+	checkUsageErr(err)
 	fmt.Println("\nTest parameters:")
 	fmt.Printf("client->server: %d seconds, %d bytes, %d packets\n",
 		int(clientBwp.BwtestDuration/time.Second), clientBwp.PacketSize, clientBwp.NumPackets)
 	fmt.Printf("server->client: %d seconds, %d bytes, %d packets\n",
 		int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
 
-	clientRes, serverRes, err := runBwtest(serverCCAddr, clientBwp, serverBwp)
+	clientRes, serverRes, err := runBwtest(local, serverCCAddr, policy, clientBwp, serverBwp)
 	Check(err)
 
 	fmt.Println("\nS->C results")
@@ -334,31 +336,30 @@ func main() {
 }
 
 // runBwtest runs the bandwidth test with the given parameters against the server at serverCCAddr.
-func runBwtest(serverCCAddr *snet.UDPAddr,
+func runBwtest(local *net.UDPAddr, serverCCAddr pan.UDPAddr, policy pan.Policy,
 	clientBwp, serverBwp BwtestParameters) (clientRes, serverRes BwtestResult, err error) {
 
 	// Control channel connection
-	ccConn, err := appnet.DialAddr(serverCCAddr)
+	ccSelector := &pan.DefaultSelector{}
+	ccConn, err := pan.DialUDP(context.Background(), local, serverCCAddr, policy, ccSelector)
 	if err != nil {
 		return
 	}
-	clientCCAddr := ccConn.LocalAddr().(*net.UDPAddr)
 
-	// Address of client data channel (DC)
-	clientDCAddr := &net.UDPAddr{IP: clientCCAddr.IP, Port: clientCCAddr.Port + 1}
+	dcLocal := &net.UDPAddr{IP: local.IP}
 	// Address of server data channel (DC)
-	serverDCAddr := serverCCAddr.Copy()
-	serverDCAddr.Host.Port = serverCCAddr.Host.Port + 1
-	// DC ports are passed in the request
-	clientBwp.Port = uint16(clientDCAddr.Port)
-	serverBwp.Port = uint16(serverDCAddr.Host.Port)
+	serverDCAddr := serverCCAddr
+	serverDCAddr.Port = serverCCAddr.Port + 1
 
 	// Data channel connection
-	dcConn, err := appnet.DefNetwork().Dial(
-		context.TODO(), "udp", clientDCAddr, serverDCAddr, addr.SvcNone)
+	dcConn, err := pan.DialUDP(context.Background(), dcLocal, serverDCAddr, policy, nil)
 	if err != nil {
 		return
 	}
+	clientDCAddr := dcConn.LocalAddr().(pan.UDPAddr)
+	// DC ports are passed in the request
+	clientBwp.Port = uint16(clientDCAddr.Port)
+	serverBwp.Port = uint16(serverDCAddr.Port)
 
 	// Start receiver before even sending the request so it will be ready.
 	receiveRes := make(chan BwtestResult, 1)
@@ -381,6 +382,11 @@ func runBwtest(serverCCAddr *snet.UDPAddr,
 	if err = dcConn.SetWriteDeadline(finishTimeSend); err != nil {
 		dcConn.Close()
 		return
+	}
+
+	// Pin DC to path used for request
+	if serverDCAddr.IA != clientDCAddr.IA {
+		dcConn.SetPolicy(pan.Pinned{ccSelector.Path().Fingerprint})
 	}
 
 	// Start blasting client->server
