@@ -49,13 +49,11 @@ func (p PolicyChain) Filter(paths []*Path) []*Path {
 
 // Pinned is a policy that keeps only a preselected set of paths.
 // This can be used to implement interactive hard path selection.
-type Pinned struct {
-	sequence []PathFingerprint
-}
+type Pinned []PathFingerprint
 
 func (p Pinned) Filter(paths []*Path) []*Path {
-	filtered := make([]*Path, 0, len(p.sequence))
-	for _, s := range p.sequence {
+	filtered := make([]*Path, 0, len(p))
+	for _, s := range p {
 		for _, path := range paths {
 			if path.Fingerprint == s {
 				filtered = append(filtered, path)

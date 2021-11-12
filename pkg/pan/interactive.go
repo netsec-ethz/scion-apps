@@ -43,7 +43,7 @@ func (p *InteractiveSelection) Filter(paths []*Path) []*Path {
 		}
 		p.choices[dstIA] = choice
 	}
-	return Pinned{choice}.Filter(paths)
+	return Pinned(choice).Filter(paths)
 }
 
 // Prompter is used by InteractiveSelection to prompt a user for path

@@ -213,7 +213,7 @@ func TestPinnedPolicy(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			paths := testdataPathsFromFingerprints(c.in)
-			filtered := Pinned{c.pinned}.Filter(paths)
+			filtered := Pinned(c.pinned).Filter(paths)
 			actual := fingerprintsFromTestdataPaths(filtered)
 			assert.Equal(t, c.out, actual)
 		})
@@ -261,7 +261,7 @@ func TestPreferredPolicy(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			paths := testdataPathsFromFingerprints(c.in)
-			filtered := Preferred{Pinned{c.preferred}}.Filter(paths)
+			filtered := Preferred{Pinned(c.preferred)}.Filter(paths)
 			actual := fingerprintsFromTestdataPaths(filtered)
 			assert.Equal(t, c.out, actual)
 		})
