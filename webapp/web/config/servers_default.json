@@ -43,14 +43,6 @@
    "port": 30100
   }
  ],
- "camerapp": [
-  {
-   "name": "17-ffaa:0:1102 ETHZ",
-   "isdas": "17-ffaa:0:1102",
-   "addr": "192.33.93.166",
-   "port": 42002
-  }
- ],
  "sensorapp": [
   {
    "name": "17-ffaa:0:1102 ETHZ",

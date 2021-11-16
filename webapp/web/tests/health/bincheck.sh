@@ -3,7 +3,7 @@
 
 # check for required binaries which may not have been built and installed
 missingbin=false
-declare -a apps=("scion" "scion-bwtestclient" "scion-imagefetcher" "scion-sensorfetcher" )
+declare -a apps=("scion" "scion-bwtestclient" "scion-sensorfetcher" )
 for a in "${apps[@]}"; do
     path=$(which $a)
     if [ -x "$path" ]; then

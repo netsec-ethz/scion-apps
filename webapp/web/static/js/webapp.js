@@ -70,7 +70,6 @@ var dial_prop_text = {
 
 // instruction information
 var bwText = 'Bandwidth test dial values can be typed, edited, clicked, or scrolled to change.';
-var imageText = 'Execute camerapp to retrieve an image.';
 var sensorText = 'Execute sensorapp to retrieve sensor data.';
 var bwgraphsText = 'Click legend to hide/show data when continuous test is on.';
 var cont_disable_msg = 'Continuous testing disabled.'
@@ -136,10 +135,9 @@ function initBwGraphs() {
 function showOnlyConsoleGraphs(activeApp) {
     $('#bwtest-continuous').css("display",
             (activeApp == "bwtester") ? "block" : "none");
-    $('#images').css("display", (activeApp == "camerapp") ? "block" : "none");
     $('#echo-continuous').css("display",
             (activeApp == "echo") ? "block" : "none");
-    var isConsole = (activeApp == "bwtester" || activeApp == "camerapp"
+    var isConsole = (activeApp == "bwtester"
             || activeApp == "sensorapp" || activeApp == "echo" || activeApp == "traceroute");
     $('.stdout').css("display", isConsole ? "block" : "none");
 }
@@ -665,11 +663,6 @@ function command(continuous) {
             value : $('#echo_sec').val()
         });
     }
-    if (activeApp == "camerapp") {
-        // clear for new image request
-        $('#images').empty();
-        $('#image_text').text(imageText);
-    }
     if (!continuous) {
         $("#results").empty();
         handleStartCmdDisplay(activeApp);
@@ -684,10 +677,6 @@ function command(continuous) {
             handleEndCmdDisplay(resp);
         }
         switch (activeApp) {
-        case "camerapp":
-            // check for new images once, on command complete
-            handleImageResponse(resp);
-            break;
         case "bwtester":
         case "echo":
         case "traceroute":
@@ -739,7 +728,6 @@ function enableContControls(enable) {
 
 function lockTab(href) {
     enableTab("bwtester", "bwtester" == href);
-    enableTab("camerapp", "camerapp" == href);
     enableTab("sensorapp", "sensorapp" == href);
     enableTab("echo", "echo" == href);
     enableTab("traceroute", "traceroute" == href);
@@ -747,7 +735,6 @@ function lockTab(href) {
 
 function releaseTabs() {
     enableTab("bwtester", true);
-    enableTab("camerapp", true);
     enableTab("sensorapp", true);
     enableTab("echo", true);
     enableTab("traceroute", true);
@@ -766,15 +753,6 @@ function enableTab(href, enable) {
 }
 
 function handleGeneralResponse() {
-    enableTestControls(true);
-    releaseTabs();
-}
-
-function handleImageResponse(resp) {
-    if (resp.includes('Done, exiting')) {
-        $('#image_text').load('/txtlast');
-        $('#images').load('/imglast');
-    }
     enableTestControls(true);
     releaseTabs();
 }
@@ -909,8 +887,6 @@ function setDefaults() {
         endProgress();
     }
     $("#results").empty();
-    $('#images').empty();
-    $('#image_text').text(imageText);
     $('#stats_text').text(sensorText);
     $('#bwtest_text').text(bwText);
     $('#bwgraphs_text').text(bwgraphsText);
