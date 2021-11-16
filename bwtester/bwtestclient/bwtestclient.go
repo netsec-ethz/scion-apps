@@ -523,7 +523,11 @@ func printBwtestResult(bwp BwtestParameters, res BwtestResult) {
 	ach := 8 * bwp.PacketSize * res.CorrectlyReceived / int64(bwp.BwtestDuration/time.Second)
 	fmt.Printf("Attempted bandwidth: %d bps / %.2f Mbps\n", att, float64(att)/1000000)
 	fmt.Printf("Achieved bandwidth: %d bps / %.2f Mbps\n", ach, float64(ach)/1000000)
-	fmt.Println("Loss rate:", (bwp.NumPackets-res.CorrectlyReceived)*100/bwp.NumPackets, "%")
+	loss := 0.0
+	if bwp.NumPackets > 0 {
+		loss = float64(bwp.NumPackets-res.CorrectlyReceived) * 100.0 / float64(bwp.NumPackets)
+	}
+	fmt.Printf("Loss rate: %.1f%%\n", loss)
 	fmt.Printf("Interarrival time min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n",
 		float64(res.IPAmin)/1e6,
 		float64(res.IPAavg)/1e6,
