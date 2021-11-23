@@ -17,21 +17,19 @@ package bwtestlib
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"encoding/binary"
 	"encoding/gob"
+	"fmt"
+	"io"
 	"os"
 	"sort"
-	"sync"
 	"time"
-
-	log "github.com/inconshreveable/log15"
-
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
 	// Maximum duration of a bandwidth test
-	MaxDuration time.Duration = time.Second * 10
+	MaxDuration time.Duration = time.Minute * 5
 	// Maximum amount of time to wait for straggler packets
 	StragglerWaitPeriod time.Duration = time.Second
 	// Allow sending beyond the finish time by this amount
@@ -44,7 +42,7 @@ const (
 	// Make sure the port number is a port the server application can connect to
 	MinPort uint16 = 1024
 
-	MaxTries int64         = 5 // Number of times to try to reach server
+	MaxTries               = 5 // Number of times to try to reach server
 	Timeout  time.Duration = time.Millisecond * 500
 	MaxRTT   time.Duration = time.Millisecond * 1000
 )
@@ -66,153 +64,122 @@ type BwtestResult struct {
 	IPAmax             int64
 	// Contains the client's sending PRG key, so that the result can be uniquely identified
 	// Only requests that contain the correct key can obtain the result
-	PrgKey             []byte
-	ExpectedFinishTime time.Time
+	PrgKey []byte
 }
 
 func Check(e error) {
 	if e != nil {
-		LogFatal("Fatal error. Exiting.", "err", e)
+		fmt.Fprintln(os.Stderr, "Fatal:", e)
+		os.Exit(1)
 	}
 }
 
-func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
-	os.Exit(1)
+type prgFiller struct {
+	aes cipher.Block
+	buf []byte
 }
 
-// Fill buffer with AES PRG in counter mode
-// The value of the ith 16-byte block is simply an encryption of i under the key
-func PrgFill(key []byte, iv int, data []byte) {
-	i := uint32(iv)
+func newPrgFiller(key []byte) *prgFiller {
 	aesCipher, err := aes.NewCipher(key)
 	Check(err)
-	pt := make([]byte, aes.BlockSize)
+	return &prgFiller{
+		aes: aesCipher,
+		buf: make([]byte, aes.BlockSize),
+	}
+}
+
+// Fill the buffer with AES PRG in counter mode
+// The value of the ith 16-byte block is simply an encryption of i under the key
+func (f *prgFiller) Fill(iv int, data []byte) {
+	i := uint32(iv)
 	j := 0
 	for j <= len(data)-aes.BlockSize {
-		binary.LittleEndian.PutUint32(pt, i)
-		aesCipher.Encrypt(data, pt)
+		binary.LittleEndian.PutUint32(f.buf, i)
+		f.aes.Encrypt(data, f.buf)
 		j = j + aes.BlockSize
 		i = i + uint32(aes.BlockSize)
 	}
 	// Check if fewer than BlockSize bytes are required for the final block
 	if j < len(data) {
-		binary.LittleEndian.PutUint32(pt, i)
-		aesCipher.Encrypt(pt, pt)
-		copy(data[j:], pt[:len(data)-j])
+		binary.LittleEndian.PutUint32(f.buf, i)
+		f.aes.Encrypt(f.buf, f.buf)
+		copy(data[j:], f.buf[:len(data)-j])
 	}
 }
 
 // Encode BwtestResult into a sufficiently large byte buffer that is passed in, return the number of bytes written
-func EncodeBwtestResult(res *BwtestResult, buf []byte) int {
+func EncodeBwtestResult(res BwtestResult, buf []byte) (int, error) {
 	var bb bytes.Buffer
 	enc := gob.NewEncoder(&bb)
-	err := enc.Encode(*res)
-	Check(err)
+	err := enc.Encode(res)
 	copy(buf, bb.Bytes())
-	return bb.Len()
+	return bb.Len(), err
 }
 
 // Decode BwtestResult from byte buffer that is passed in, returns BwtestResult structure and number of bytes consumed
-func DecodeBwtestResult(buf []byte) (*BwtestResult, int, error) {
+func DecodeBwtestResult(buf []byte) (BwtestResult, int, error) {
 	bb := bytes.NewBuffer(buf)
 	is := bb.Len()
 	dec := gob.NewDecoder(bb)
 	var v BwtestResult
 	err := dec.Decode(&v)
-	return &v, is - bb.Len(), err
+	return v, is - bb.Len(), err
 }
 
 // Encode BwtestParameters into a sufficiently large byte buffer that is passed in, return the number of bytes written
-func EncodeBwtestParameters(bwtp *BwtestParameters, buf []byte) int {
+func EncodeBwtestParameters(bwtp BwtestParameters, buf []byte) (int, error) {
 	var bb bytes.Buffer
 	enc := gob.NewEncoder(&bb)
-	err := enc.Encode(*bwtp)
-	Check(err)
+	err := enc.Encode(bwtp)
 	copy(buf, bb.Bytes())
-	return bb.Len()
+	return bb.Len(), err
 }
 
 // Decode BwtestParameters from byte buffer that is passed in, returns BwtestParameters structure and number of bytes consumed
-func DecodeBwtestParameters(buf []byte) (*BwtestParameters, int, error) {
+func DecodeBwtestParameters(buf []byte) (BwtestParameters, int, error) {
 	bb := bytes.NewBuffer(buf)
 	is := bb.Len()
 	dec := gob.NewDecoder(bb)
 	var v BwtestParameters
 	err := dec.Decode(&v)
-	// Make sure that arguments are within correct parameter ranges
-	if v.BwtestDuration > MaxDuration {
-		v.BwtestDuration = MaxDuration
-	}
-	if v.BwtestDuration < time.Duration(0) {
-		v.BwtestDuration = time.Duration(0)
-	}
-	if v.PacketSize < MinPacketSize {
-		v.PacketSize = MinPacketSize
-	}
-	if v.PacketSize > MaxPacketSize {
-		v.PacketSize = MaxPacketSize
-	}
-	if v.Port < MinPort {
-		v.Port = MinPort
-	}
-	return &v, is - bb.Len(), err
+	return v, is - bb.Len(), err
 }
 
-func HandleDCConnSend(bwp *BwtestParameters, udpConnection *snet.Conn) {
+func HandleDCConnSend(bwp BwtestParameters, udpConnection io.Writer) error {
 	sb := make([]byte, bwp.PacketSize)
-	var i int64 = 0
 	t0 := time.Now()
-	finish := t0.Add(bwp.BwtestDuration + GracePeriodSend)
-	var interPktInterval time.Duration
+	interPktInterval := bwp.BwtestDuration
 	if bwp.NumPackets > 1 {
 		interPktInterval = bwp.BwtestDuration / time.Duration(bwp.NumPackets-1)
-	} else {
-		interPktInterval = bwp.BwtestDuration
 	}
-	for i < bwp.NumPackets {
-		// Compute how long to wait
-		t1 := time.Now()
-		if t1.After(finish) {
-			// We've been sending for too long, sending bandwidth must be insufficient. Abort sending.
-			return
-		}
-		t2 := t0.Add(interPktInterval * time.Duration(i))
-		if t1.Before(t2) {
-			time.Sleep(t2.Sub(t1))
-		}
+	prgFiller := newPrgFiller(bwp.PrgKey)
+	for i := int64(0); i < bwp.NumPackets; i++ {
+		time.Sleep(time.Until(t0.Add(interPktInterval * time.Duration(i))))
 		// Send packet now
-		PrgFill(bwp.PrgKey, int(i*bwp.PacketSize), sb)
+		prgFiller.Fill(int(i*bwp.PacketSize), sb)
 		// Place packet number at the beginning of the packet, overwriting some PRG data
 		binary.LittleEndian.PutUint32(sb, uint32(i*bwp.PacketSize))
 		_, err := udpConnection.Write(sb)
-		Check(err)
-		i++
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func HandleDCConnReceive(bwp *BwtestParameters, udpConnection *snet.Conn, res *BwtestResult, resLock *sync.Mutex, done *sync.Mutex) {
-	resLock.Lock()
-	finish := res.ExpectedFinishTime
-	resLock.Unlock()
-	var numPacketsReceived, correctlyReceived int64 = 0, 0
-	InterPacketArrivalTime := make(map[int]int64)
-	_ = udpConnection.SetReadDeadline(finish)
+func HandleDCConnReceive(bwp BwtestParameters, udpConnection io.Reader) BwtestResult {
+	var numPacketsReceived int64
+	var correctlyReceived int64
+	interPacketArrivalTime := make(map[int]int64, bwp.NumPackets)
+
 	// Make the receive buffer a bit larger to enable detection of packets that are too large
-	recBuf := make([]byte, bwp.PacketSize+1000)
+	recBuf := make([]byte, bwp.PacketSize+1)
 	cmpBuf := make([]byte, bwp.PacketSize)
-	for time.Now().Before(finish) && correctlyReceived < bwp.NumPackets {
+	prgFiller := newPrgFiller(bwp.PrgKey)
+	for correctlyReceived < bwp.NumPackets {
 		n, err := udpConnection.Read(recBuf)
-		// Ignore errors, todo: detect type of error and quit if it was because of a SetReadDeadline
-		if err != nil {
-			// If the ReadDeadline expired, then we should extend the finish time, which is
-			// extended on the client side if no response is received from the server. On the server
-			// side, however, a short BwtestDuration with several consecutive packet losses would
-			// lead to closing the connection.
-			resLock.Lock()
-			finish = res.ExpectedFinishTime
-			resLock.Unlock()
-			continue
+		if err != nil { // Deadline exceeded or read error
+			break
 		}
 		numPacketsReceived++
 		if int64(n) != bwp.PacketSize {
@@ -228,52 +195,21 @@ func HandleDCConnReceive(bwp *BwtestParameters, udpConnection *snet.Conn, res *B
 		// entire packet
 		iv := int64(binary.LittleEndian.Uint32(recBuf))
 		seqNo := int(iv / bwp.PacketSize)
-		InterPacketArrivalTime[seqNo] = time.Now().UnixNano()
-		PrgFill(bwp.PrgKey, int(iv), cmpBuf)
+		interPacketArrivalTime[seqNo] = time.Now().UnixNano()
+		prgFiller.Fill(int(iv), cmpBuf)
 		binary.LittleEndian.PutUint32(cmpBuf, uint32(iv))
 		if bytes.Equal(recBuf[:bwp.PacketSize], cmpBuf) {
-			if correctlyReceived == 0 {
-				// Adjust finish time after first correctly received packet
-				// Note that we should check that we're not too far away from the beginning of the
-				// bwtest, otherwise we're extending the time for too long. If the server's 'N' response
-				// packet was not dropped, then sending should start within MaxRTT at most.
-				newFinish := time.Now().Add(bwp.BwtestDuration + StragglerWaitPeriod)
-				if newFinish.After(finish) {
-					finish = newFinish
-					_ = udpConnection.SetReadDeadline(finish)
-					resLock.Lock()
-					if res.ExpectedFinishTime.Before(finish) {
-						// Most likely what happened is that the server's 'N' response packet got dropped (in case this
-						// is the receive function on the server side) or the client's request packet got dropped (in
-						// case this is the receive function on the client side). In both cases the ExpectedFinishTime
-						// needs to be updated
-						res.ExpectedFinishTime = finish
-					}
-					resLock.Unlock()
-				}
-			}
 			correctlyReceived++
 		}
 	}
 
-	resLock.Lock()
-	res.NumPacketsReceived = numPacketsReceived
-	res.CorrectlyReceived = correctlyReceived
-	res.IPAvar, res.IPAmin, res.IPAavg, res.IPAmax = aggrInterArrivalTime(InterPacketArrivalTime)
-
-	// We're done here, let's see if we need to wait for the send function to complete so we can close the connection
-	// Note: the locking here is not strictly necessary, since ExpectedFinishTime is only updated right after
-	// initialization and in the code above, but it's good practice to do always lock when using the variable
-	eft := res.ExpectedFinishTime
-	resLock.Unlock()
-	if done != nil {
-		// Signal that we're done
-		done.Unlock()
+	res := BwtestResult{
+		NumPacketsReceived: numPacketsReceived,
+		CorrectlyReceived:  correctlyReceived,
+		PrgKey:             bwp.PrgKey,
 	}
-	if time.Now().Before(eft) {
-		time.Sleep(time.Until(eft))
-	}
-	_ = udpConnection.Close()
+	res.IPAvar, res.IPAmin, res.IPAavg, res.IPAmax = aggrInterArrivalTime(interPacketArrivalTime)
+	return res
 }
 
 func aggrInterArrivalTime(bwr map[int]int64) (IPAvar, IPAmin, IPAavg, IPAmax int64) {

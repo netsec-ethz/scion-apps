@@ -21,15 +21,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
-	"os"
-	"sync"
 	"time"
-
-	log "github.com/inconshreveable/log15"
-	"github.com/kormat/fmt15"
 
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
 	"github.com/netsec-ethz/scion-apps/pkg/appnet"
@@ -37,252 +33,257 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-var (
-	resultsMap     map[string]*BwtestResult
-	resultsMapLock sync.Mutex
-	currentBwtest  string // Contains connection parameters, in case server's ack packet was lost
+const (
+	resultExpiry = time.Minute
 )
 
-// Deletes the old entries in resultsMap
-func purgeOldResults() {
-	for {
-		time.Sleep(time.Minute * time.Duration(5))
-		resultsMapLock.Lock()
-		// Erase entries that are older than 1 minute
-		t := time.Now().Add(-time.Minute)
-		for k, v := range resultsMap {
-			if v.ExpectedFinishTime.Before(t) {
-				delete(resultsMap, k)
-			}
-		}
-		resultsMapLock.Unlock()
-	}
-}
-
 func main() {
-	resultsMap = make(map[string]*BwtestResult)
-	go purgeOldResults()
-
 	// Fetch arguments from command line
 	serverPort := flag.Uint("p", 40002, "Port")
-	id := flag.String("id", "bwtester", "Element ID")
-	logDir := flag.String("log_dir", "./logs", "Log directory")
-
 	flag.Parse()
 
-	// Setup logging
-	if _, err := os.Stat(*logDir); os.IsNotExist(err) {
-		err := os.Mkdir(*logDir, 0744)
-		if err != nil {
-			LogFatal("Unable to create log dir", "err", err)
-		}
-	}
-	log.Root().SetHandler(log.MultiHandler(
-		log.LvlFilterHandler(log.LvlDebug,
-			log.StreamHandler(os.Stderr, fmt15.Fmt15Format(fmt15.ColorMap))),
-		log.LvlFilterHandler(log.LvlDebug,
-			log.Must.FileHandler(fmt.Sprintf("%s/%s.log", *logDir, *id),
-				fmt15.Fmt15Format(nil)))))
-
 	err := runServer(uint16(*serverPort))
-	if err != nil {
-		LogFatal("Unable to start server", "err", err)
-	}
+	Check(err)
 }
 
 func runServer(port uint16) error {
+	receivePacketBuffer := make([]byte, 2500)
 
-	conn, err := appnet.ListenPort(port)
+	var currentBwtest string
+	var currentBwtestFinish time.Time
+	currentResult := make(chan BwtestResult)
+
+	results := make(resultsMap)
+
+	ccConn, err := appnet.ListenPort(port)
 	if err != nil {
 		return err
 	}
-
-	receivePacketBuffer := make([]byte, 2500)
-	sendPacketBuffer := make([]byte, 2500)
-	handleClients(conn, receivePacketBuffer, sendPacketBuffer)
-	return nil
-}
-
-func handleClients(CCConn *snet.Conn, receivePacketBuffer []byte, sendPacketBuffer []byte) {
-
+	serverCCAddr := ccConn.LocalAddr().(*net.UDPAddr)
 	for {
 		// Handle client requests
-		n, fromAddr, err := CCConn.ReadFrom(receivePacketBuffer)
-		clientCCAddr := fromAddr.(*snet.UDPAddr)
+		n, clientCCAddr, err := ccConn.ReadFrom(receivePacketBuffer)
 		if err != nil {
-			// Todo: check error in detail, but for now simply continue
-			continue
+			return err
 		}
-		if n < 1 {
+		request := receivePacketBuffer[:n]
+		if n < 1 || (request[0] != 'N' && request[0] != 'R') {
 			continue
 		}
 
-		t := time.Now()
-		// Check if a current test is ongoing, and if it completed
-		if len(currentBwtest) > 0 {
-			v, ok := resultsMap[currentBwtest]
-			if !ok {
-				// This can only happen if client aborted and never picked up results
-				// then information got removed by purgeOldResults goroutine
-				currentBwtest = ""
-			} else if t.After(v.ExpectedFinishTime) {
-				// The bwtest should be finished by now, check if results are written
-				if v.NumPacketsReceived >= 0 {
-					// Indeed, the bwtest has completed
-					currentBwtest = ""
-				}
-			}
+		// Check (non-blocking) for result from test running in background:
+		select {
+		case res := <-currentResult:
+			results.insert(currentBwtest, res)
+			currentBwtest = ""
+			currentBwtestFinish = time.Time{}
+		default:
 		}
+
 		clientCCAddrStr := clientCCAddr.String()
-		fmt.Println("Received request:", clientCCAddrStr)
+		fmt.Println("Received request:", string(request[0]), clientCCAddrStr)
 
-		if receivePacketBuffer[0] == 'N' {
+		if request[0] == 'N' {
 			// New bwtest request
 			if len(currentBwtest) != 0 {
-				fmt.Println("A bwtest is already ongoing")
+				fmt.Println("A bwtest is already ongoing", currentBwtest)
 				if clientCCAddrStr == currentBwtest {
 					// The request is from the same client for which the current test is already ongoing
 					// If the response packet was dropped, then the client would send another request
 					// We simply send another response packet, indicating success
-					fmt.Println("error, clientCCAddrStr == currentBwtest")
-					sendPacketBuffer[0] = 'N'
-					sendPacketBuffer[1] = byte(0)
-					_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
-					// Ignore error
-					continue
-				}
-
-				// The request is from a different client
-				// A bwtest is currently ongoing, so send back remaining duration
-				resultsMapLock.Lock()
-				v, ok := resultsMap[currentBwtest]
-				if !ok {
-					// This should never happen
-					resultsMapLock.Unlock()
-					continue
-				}
-				resultsMapLock.Unlock()
-
-				// Compute for how much longer the current test is running
-				remTime := t.Sub(v.ExpectedFinishTime)
-				sendPacketBuffer[0] = 'N'
-				sendPacketBuffer[1] = byte(remTime/time.Second) + 1
-				_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
-				// Ignore error
-				continue
-			}
-
-			// This is a new request
-			clientBwp, n1, err := DecodeBwtestParameters(receivePacketBuffer[1:])
-			if err != nil {
-				fmt.Println("Decoding error")
-				// Decoding error, continue
-				continue
-			}
-			serverBwp, n2, err := DecodeBwtestParameters(receivePacketBuffer[n1+1:])
-			if err != nil {
-				fmt.Println("Decoding error")
-				// Decoding error, continue
-				continue
-			}
-			if n != 1+n1+n2 {
-				fmt.Println("Error, packet size incorrect")
-				// Do not send a response packet for malformed request
-				continue
-			}
-
-			// Address of client Data Connection (DC)
-			clientDCAddr := clientCCAddr.Copy()
-			clientDCAddr.Host.Port = int(clientBwp.Port)
-
-			// Address of server Data Connection (DC)
-			serverCCAddr := CCConn.LocalAddr().(*net.UDPAddr)
-			serverDCAddr := &net.UDPAddr{IP: serverCCAddr.IP, Port: int(serverBwp.Port)}
-
-			// Open Data Connection
-			DCConn, err := appnet.DefNetwork().Dial(
-				context.TODO(), "udp", serverDCAddr, clientDCAddr, addr.SvcNone)
-			if err != nil {
-				// An error happened, ask the client to try again in 1 second
-				sendPacketBuffer[0] = 'N'
-				sendPacketBuffer[1] = byte(1)
-				_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
-				// Ignore error
-				continue
-			}
-
-			// Nothing needs to be added to account for network delay, since sending starts right away
-			expFinishTimeSend := t.Add(serverBwp.BwtestDuration + GracePeriodSend)
-			expFinishTimeReceive := t.Add(clientBwp.BwtestDuration + StragglerWaitPeriod)
-			// We use resultsMapLock also for the bres variable
-			bres := BwtestResult{
-				NumPacketsReceived: -1,
-				CorrectlyReceived:  -1,
-				IPAvar:             -1,
-				IPAmin:             -1,
-				IPAavg:             -1,
-				IPAmax:             -1,
-				PrgKey:             clientBwp.PrgKey,
-				ExpectedFinishTime: expFinishTimeReceive,
-			}
-			if expFinishTimeReceive.Before(expFinishTimeSend) {
-				// The receiver will close the DC connection, so it will wait long enough until the
-				// sender is also done
-				bres.ExpectedFinishTime = expFinishTimeSend
-			}
-			resultsMapLock.Lock()
-			resultsMap[clientCCAddrStr] = &bres
-			resultsMapLock.Unlock()
-
-			// go HandleDCConnReceive(clientBwp, DCConn, resChan)
-			go HandleDCConnReceive(clientBwp, DCConn, &bres, &resultsMapLock, nil)
-			go HandleDCConnSend(serverBwp, DCConn)
-
-			// Send back success
-			sendPacketBuffer[0] = 'N'
-			sendPacketBuffer[1] = byte(0)
-			_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
-			// Ignore error
-			// Everything succeeded, now set variable that bwtest is ongoing
-			currentBwtest = clientCCAddrStr
-		} else if receivePacketBuffer[0] == 'R' {
-			// This is a request for the results
-			sendPacketBuffer[0] = 'R'
-			// Make sure that the client is known and that the results are ready
-			v, ok := resultsMap[clientCCAddrStr]
-			if !ok {
-				// There are no results for this client, return an error
-				sendPacketBuffer[1] = byte(127)
-				_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
-				continue
-			}
-			// Make sure the PRG key is correct
-			if n != 1+len(v.PrgKey) || !bytes.Equal(v.PrgKey, receivePacketBuffer[1:1+len(v.PrgKey)]) {
-				// Error, the sent PRG is incorrect
-				sendPacketBuffer[1] = byte(127)
-				_, _ = CCConn.WriteTo(sendPacketBuffer[:2], clientCCAddr)
-				continue
-			}
-			// Note: it would be better to have the resultsMap key consist only of the PRG key,
-			// so that a repeated bwtest from the same client with the same port gets a
-			// different resultsMap entry. However, in practice, a client would not run concurrent
-			// bwtests, as long as the results are fetched before a new bwtest is initiated, this
-			// code will work fine.
-			if v.NumPacketsReceived == -1 {
-				// The results are not yet ready
-				if t.After(v.ExpectedFinishTime) {
-					// The results should be ready, but are not yet written into the data
-					// structure, so let's let client wait for 1 second
-					sendPacketBuffer[1] = byte(1)
+					fmt.Println("clientCCAddrStr == currentBwtest")
+					writeResponseN(ccConn, clientCCAddr, 0)
 				} else {
-					sendPacketBuffer[1] = byte(v.ExpectedFinishTime.Sub(t)/time.Second) + 1
+					// A bwtest is currently ongoing, so send back remaining duration
+					writeResponseN(ccConn, clientCCAddr, retryWaitTime(currentBwtestFinish))
 				}
-				_, _ = CCConn.WriteTo(sendPacketBuffer[:n], clientCCAddr)
 				continue
 			}
-			sendPacketBuffer[1] = byte(0)
-			n = EncodeBwtestResult(v, sendPacketBuffer[2:])
-			_, _ = CCConn.WriteTo(sendPacketBuffer[:n+2], clientCCAddr)
+
+			clientBwp, serverBwp, err := decodeRequestN(request)
+			if err != nil {
+				continue
+			}
+			finishTime, err := startBwtestBackground(serverCCAddr, clientCCAddr.(*snet.UDPAddr),
+				clientBwp, serverBwp, currentResult)
+			if err != nil {
+				// Ask the client to try again in 1 second
+				writeResponseN(ccConn, clientCCAddr, 1)
+				continue
+			}
+			currentBwtest = clientCCAddrStr
+			currentBwtestFinish = finishTime
+			// Send back success
+			writeResponseN(ccConn, clientCCAddr, 0)
+		} else if request[0] == 'R' {
+			if clientCCAddrStr == currentBwtest {
+				// test is still ongoing, send back remaining duration
+				writeResponseR(ccConn, clientCCAddr, retryWaitTime(currentBwtestFinish), nil)
+				continue
+			}
+
+			v, ok := results[clientCCAddrStr]
+			if !ok || !bytes.Equal(v.PrgKey, request[1:]) {
+				// There are no results for this client or incorrect PRG, return an error
+				writeResponseR(ccConn, clientCCAddr, 127, nil)
+				continue
+			}
+			writeResponseR(ccConn, clientCCAddr, 0, &v.BwtestResult)
+		}
+	}
+}
+
+// startBwtestBackground starts a bandwidth test, in the background.
+// Returns the expected finish time of the test, or any error during the setup.
+func startBwtestBackground(serverCCAddr *net.UDPAddr, clientCCAddr *snet.UDPAddr,
+	clientBwp, serverBwp BwtestParameters, res chan<- BwtestResult) (time.Time, error) {
+
+	// Data Connection addresses:
+	clientDCAddr := clientCCAddr.Copy()
+	clientDCAddr.Host.Port = int(clientBwp.Port)
+	serverDCAddr := &net.UDPAddr{IP: serverCCAddr.IP, Port: int(serverBwp.Port)}
+
+	// Open Data Connection
+	dcConn, err := appnet.DefNetwork().Dial(
+		context.TODO(), "udp", serverDCAddr, clientDCAddr, addr.SvcNone)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	now := time.Now()
+	finishTimeSend := now.Add(serverBwp.BwtestDuration + GracePeriodSend)
+	finishTimeReceive := now.Add(clientBwp.BwtestDuration + StragglerWaitPeriod)
+	finishTime := finishTimeReceive
+	if finishTime.Before(finishTimeSend) {
+		finishTime = finishTimeSend
+	}
+	if err := dcConn.SetReadDeadline(finishTimeReceive); err != nil {
+		dcConn.Close()
+		return time.Time{}, err
+	}
+	if err := dcConn.SetWriteDeadline(finishTimeSend); err != nil {
+		dcConn.Close()
+		return time.Time{}, err
+	}
+
+	sendDone := make(chan struct{})
+	go func() {
+		_ = HandleDCConnSend(serverBwp, dcConn)
+		close(sendDone)
+	}()
+	go func() {
+		r := HandleDCConnReceive(clientBwp, dcConn)
+		<-sendDone
+		dcConn.Close()
+		res <- r
+	}()
+	return finishTime, nil
+}
+
+// writeResponseN writes the response to an 'N' (new bandwidth test) request.
+// The waitTime field is
+//  - 0:   Ok, the test starts immediately
+//  - N>0: please try again in N seconds
+func writeResponseN(ccConn net.PacketConn, addr net.Addr, waitTime byte) {
+	var response [2]byte
+	response[0] = 'N'
+	response[1] = waitTime
+	_, _ = ccConn.WriteTo(response[:], addr)
+}
+
+// writeResponseN writes the response to an 'R' (fetch results) request.
+// The code field is
+//  - 0:   Ok, the rest of the response is the encoded result
+//  - N>0: please try again in N seconds
+//  - 127: error, go away (why 127? I guess we have 7-bit bytes or something...)
+func writeResponseR(ccConn net.PacketConn, addr net.Addr, code byte, res *BwtestResult) {
+	response := make([]byte, 2000)
+	response[0] = 'R'
+	response[1] = code
+	n := 0
+	if res != nil {
+		n, _ = EncodeBwtestResult(*res, response[2:])
+	}
+	_, _ = ccConn.WriteTo(response[:2+n], addr)
+}
+
+// retryWaitTime gives back the "encoded" number of seconds for a client to wait until t.
+// Clips to at least 1 second wait time, even if t is closer or in the past.
+func retryWaitTime(t time.Time) byte {
+	remTime := time.Until(t)
+	// Ensure non-negative; should already have finished, but apparently hasn't.
+	if remTime < 0 {
+		remTime = 0
+	}
+	return byte(remTime/time.Second) + 1
+}
+
+// decodeRequestN decodes and checks the bandwidth test parameters contained in
+// an 'N' (new bandwidth test) request.
+func decodeRequestN(request []byte) (clientBwp, serverBwp BwtestParameters, err error) {
+	clientBwp, n1, err := DecodeBwtestParameters(request[1:])
+	if err != nil {
+		err = fmt.Errorf("decoding client->server parameters: %w", err)
+		return
+	}
+	if err = validateBwtestParameters(clientBwp); err != nil {
+		err = fmt.Errorf("invalid client->server parameters: %w", err)
+		return
+	}
+	serverBwp, n2, err := DecodeBwtestParameters(request[n1+1:])
+	if err != nil {
+		err = fmt.Errorf("decoding server->client parameters: %w", err)
+		return
+	}
+	if err = validateBwtestParameters(serverBwp); err != nil {
+		err = fmt.Errorf("invalid server->client parameters: %w", err)
+		return
+	}
+	if len(request) != 1+n1+n2 {
+		err = errors.New("packet size incorrect")
+	}
+	return
+}
+
+func validateBwtestParameters(bwp BwtestParameters) error {
+	if bwp.BwtestDuration > MaxDuration {
+		return fmt.Errorf("duration exceeds max: %s > %s", bwp.BwtestDuration, MaxDuration)
+	}
+	if bwp.PacketSize < MinPacketSize {
+		return fmt.Errorf("packet size too small: %d < %d", bwp.PacketSize, MinPacketSize)
+	}
+	if bwp.PacketSize > MaxPacketSize {
+		return fmt.Errorf("packet size exceeds max: %d > %d", bwp.PacketSize, MaxPacketSize)
+	}
+	if bwp.Port < MinPort {
+		return fmt.Errorf("invalid port: %d", bwp.Port)
+	}
+	if len(bwp.PrgKey) != 16 {
+		return fmt.Errorf("invalid key size: %d != 16", len(bwp.PrgKey))
+	}
+	return nil
+}
+
+type bwtestResultWithExpiry struct {
+	BwtestResult
+	Expiry time.Time
+}
+
+type resultsMap map[string]bwtestResultWithExpiry
+
+func (r resultsMap) insert(client string, res BwtestResult) {
+	r.purgeExpired()
+	r[client] = bwtestResultWithExpiry{
+		BwtestResult: res,
+		Expiry:       time.Now().Add(resultExpiry),
+	}
+}
+
+func (r resultsMap) purgeExpired() {
+	now := time.Now()
+	for k, v := range r {
+		if v.Expiry.Before(now) {
+			delete(r, k)
 		}
 	}
 }
