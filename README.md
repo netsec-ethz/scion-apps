@@ -135,10 +135,10 @@ netcat contains a SCION port of the netcat application. See the [netcat README](
 
 Pkg contains underlaying library code for scion-apps.
 
-- appnet: simplified and functionally extended wrapper interfaces for the SCION core libraries
-- appquic: a simple interface to use QUIC over SCION
+- pan: Policy-based, path aware networking library, wrapper for the SCION core libraries
 - shttp: glue library to use net/http libraries for HTTP over SCION
 - shttp3: glue library to use quic-go/http3 for HTTP/3 over SCION
+- quicutil: contains utilities for working with QUIC
 - integration: a simple framework to support intergration testing for the demo applications in this repository
 
 
