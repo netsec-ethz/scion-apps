@@ -16,10 +16,10 @@ package pan
 
 import (
 	"fmt"
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"inet.af/netaddr"
 )
 
 const hostsTestFile = "hosts_test_file"
@@ -132,22 +132,22 @@ func TestParseSCIONAddr(t *testing.T) {
 		{
 			input:     "1-ff00:0:0,[1.1.1.1]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: net.ParseIP("1.1.1.1")},
+			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("1.1.1.1")},
 		},
 		{
 			input:     "1-ff00:0:0,1.1.1.1",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: net.ParseIP("1.1.1.1")},
+			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("1.1.1.1")},
 		},
 		{
 			input:     "1-ff00:0:0,[::]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: net.ParseIP("::")},
+			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("::")},
 		},
 		{
 			input:     "1-ff00:0:0,::",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: net.ParseIP("::")},
+			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("::")},
 		},
 		{input: "1-ff00:0:0,[[::]]", assertErr: assert.Error},
 		{input: "1-ff00:0:0,::]", assertErr: assert.Error},

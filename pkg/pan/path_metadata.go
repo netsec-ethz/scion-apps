@@ -23,6 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+type IfID uint64
+
 type PathInterface struct {
 	IA   IA
 	IfID IfID

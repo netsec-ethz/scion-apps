@@ -17,14 +17,12 @@ package pan
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan/internal/ping"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"inet.af/netaddr"
 )
 
 // Selector controls the path used by a single **dialed** socket. Stateful.
@@ -129,8 +127,8 @@ type PingingSelector struct {
 	mutex   sync.Mutex
 	paths   []*Path
 	current int
-	local   UDPAddr
-	remote  UDPAddr
+	local   scionAddr
+	remote  scionAddr
 
 	numActive    int64
 	pingerCtx    context.Context
@@ -158,17 +156,9 @@ func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.local = UDPAddr{
-		IA:   local.IA,
-		IP:   append(net.IP{}, local.IP...),
-		Port: local.Port,
-	}
-	s.remote = UDPAddr{
-		IA:   remote.IA,
-		IP:   append(net.IP{}, remote.IP...),
-		Port: remote.Port,
-	}
-	s.current = stats.LowestLatency(s.remote.IA, s.remote.IP, s.paths)
+	s.local = local.scionAddr()
+	s.remote = remote.scionAddr()
+	s.current = stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) Refresh(paths []*Path) {
@@ -176,7 +166,7 @@ func (s *PingingSelector) Refresh(paths []*Path) {
 	defer s.mutex.Unlock()
 
 	s.paths = paths
-	s.current = stats.LowestLatency(s.remote.IA, s.remote.IP, s.paths)
+	s.current = stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) PathDown(pf PathFingerprint, pi PathInterface) {
@@ -187,7 +177,7 @@ func (s *PingingSelector) reselectPath() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.current = stats.LowestLatency(s.remote.IA, s.remote.IP, s.paths)
+	s.current = stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) ensureRunning() {
@@ -197,12 +187,7 @@ func (s *PingingSelector) ensureRunning() {
 		return
 	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
-	local := &snet.UDPAddr{
-		IA: addr.IA(s.local.IA),
-		Host: &net.UDPAddr{
-			IP: s.local.IP,
-		},
-	}
+	local := s.local.snetUDPAddr()
 	pinger, err := ping.NewPinger(s.pingerCtx, host().dispatcher, local)
 	if err != nil {
 		return
@@ -253,7 +238,7 @@ func (s *PingingSelector) run() {
 				continue // already handled above
 			}
 			for pf := range replyPending {
-				stats.RecordLatency(s.remote.IA, s.remote.IP, pf, s.Timeout)
+				stats.RecordLatency(s.remote, pf, s.Timeout)
 				delete(replyPending, pf)
 			}
 			s.reselectPath()
@@ -263,14 +248,9 @@ func (s *PingingSelector) run() {
 
 func (s *PingingSelector) sendPings(paths []*Path, sequenceNo uint16) {
 	for _, p := range paths {
-		remote := &snet.UDPAddr{
-			IA:   addr.IA(s.remote.IA),
-			Path: p.ForwardingPath.spath,
-			Host: &net.UDPAddr{
-				IP: s.remote.IP,
-			},
-			NextHop: p.ForwardingPath.underlay,
-		}
+		remote := s.remote.snetUDPAddr()
+		remote.Path = p.ForwardingPath.spath
+		remote.NextHop = p.ForwardingPath.underlay.UDPAddr()
 		err := s.pinger.Send(s.pingerCtx, remote, sequenceNo, 16)
 		if err != nil {
 			panic(err)
@@ -306,9 +286,12 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		return
 	}
 
-	srcIA := IA(reply.Source.IA)
-	srcIP := reply.Source.Host.IP()
-	if srcIA != s.remote.IA || !srcIP.Equal(s.remote.IP) || reply.Reply.SeqNumber != expectedSequenceNo {
+	srcIP, _ := netaddr.FromStdIP(reply.Source.Host.IP())
+	src := scionAddr{
+		IA: IA(reply.Source.IA),
+		IP: srcIP,
+	}
+	if src != s.remote || reply.Reply.SeqNumber != expectedSequenceNo {
 		return
 	}
 	pf, err := reversePathFingerprint(reply.Path)
@@ -318,7 +301,7 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 	if _, expected := expectedReplies[pf]; !expected {
 		return
 	}
-	stats.RecordLatency(s.remote.IA, s.remote.IP, pf, reply.RTT())
+	stats.RecordLatency(s.remote, pf, reply.RTT())
 	delete(expectedReplies, pf)
 }
 

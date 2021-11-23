@@ -18,11 +18,11 @@ import (
 	"context"
 	"crypto/tls"
 	golog "log"
-	"net"
 	"os"
 	"strconv"
 
 	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
@@ -84,16 +84,13 @@ func main() {
 		golog.Panicf("Error creating ssh server: %v", err)
 	}
 
-	port, err := strconv.Atoi(conf.Port)
+	port, err := strconv.ParseUint(conf.Port, 10, 16)
 	if err != nil {
 		golog.Panicf("Can't parse port %v: %v", conf.Port, err)
 	}
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
 
-	local := &net.UDPAddr{
-		IP:   nil,
-		Port: port,
-	}
+	local := netaddr.IPPortFrom(netaddr.IP{}, uint16(port))
 	tlsConf := &tls.Config{
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{quicutil.SingleStreamProto},

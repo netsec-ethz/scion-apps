@@ -17,10 +17,10 @@ package main
 import (
 	"context"
 	"io"
-	"net"
 	"sync"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"inet.af/netaddr"
 )
 
 type udpListenConn struct {
@@ -58,7 +58,7 @@ func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := pan.DialUDP(context.Background(), nil, remoteAddr, policy, nil)
+	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, remoteAddr, policy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
 	conn, err := pan.ListenUDP(
 		context.Background(),
-		&net.UDPAddr{IP: nil, Port: int(port)},
+		netaddr.IPPortFrom(netaddr.IP{}, port),
 		nil,
 	)
 	if err != nil {

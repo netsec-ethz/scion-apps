@@ -22,12 +22,12 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net"
 	"os"
 	"strings"
 	"sync"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"inet.af/netaddr"
 )
 
 const (
@@ -80,7 +80,8 @@ func main() {
 	port := flag.Uint("p", 40002, "Server Port")
 	flag.Parse()
 
-	conn, err := pan.ListenUDP(context.Background(), &net.UDPAddr{Port: int(*port)}, nil)
+	local := netaddr.IPPortFrom(netaddr.IP{}, uint16(*port))
+	conn, err := pan.ListenUDP(context.Background(), local, nil)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

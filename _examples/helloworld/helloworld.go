@@ -19,9 +19,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"time"
+
+	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -29,17 +30,18 @@ import (
 func main() {
 	var err error
 	// get local and remote addresses from program arguments:
-	port := flag.Uint("port", 0, "[Server] local port to listen on")
+	var listen pan.IPPortValue
+	flag.Var(&listen, "listen", "[Server] local IP:port to listen on")
 	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
 	count := flag.Uint("count", 1, "[Client] Number of messages to send")
 	flag.Parse()
 
-	if (*port > 0) == (len(*remoteAddr) > 0) {
-		check(fmt.Errorf("Either specify -port for server or -remote for client"))
+	if (listen.Get().Port() > 0) == (len(*remoteAddr) > 0) {
+		check(fmt.Errorf("Either specify -listen for server or -remote for client"))
 	}
 
-	if *port > 0 {
-		err = runServer(int(*port))
+	if listen.Get().Port() > 0 {
+		err = runServer(listen.Get())
 		check(err)
 	} else {
 		err = runClient(*remoteAddr, int(*count))
@@ -47,8 +49,8 @@ func main() {
 	}
 }
 
-func runServer(port int) error {
-	conn, err := pan.ListenUDP(context.Background(), &net.UDPAddr{Port: port}, nil)
+func runServer(listen netaddr.IPPort) error {
+	conn, err := pan.ListenUDP(context.Background(), listen, nil)
 	if err != nil {
 		return err
 	}
@@ -74,7 +76,7 @@ func runClient(address string, count int) error {
 	if err != nil {
 		return err
 	}
-	conn, err := pan.DialUDP(context.Background(), nil, addr, nil, nil)
+	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, addr, nil, nil)
 	if err != nil {
 		return err
 	}

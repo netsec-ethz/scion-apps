@@ -19,9 +19,11 @@ import (
 	"crypto/tls"
 
 	"github.com/lucas-clemente/quic-go"
+	"golang.org/x/crypto/ssh"
+	"inet.af/netaddr"
+
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
-	"golang.org/x/crypto/ssh"
 )
 
 // dialSCION starts a client connection to the given SSH server over SCION using QUIC.
@@ -46,7 +48,7 @@ func dialSCION(ctx context.Context,
 	quicConf := &quic.Config{
 		KeepAlive: true,
 	}
-	sess, err := pan.DialQUIC(ctx, nil, remote, policy, sel, "", tlsConf, quicConf)
+	sess, err := pan.DialQUIC(ctx, netaddr.IPPort{}, remote, policy, sel, "", tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}

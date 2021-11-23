@@ -22,6 +22,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"inet.af/netaddr"
 )
 
 var errBadDstAddress error = errors.New("dst address not a UDPAddr")
@@ -55,7 +57,7 @@ type ListenConn interface {
 	WriteToPath(b []byte, dst UDPAddr, path *Path) (int, error)
 }
 
-func ListenUDP(ctx context.Context, local *net.UDPAddr,
+func ListenUDP(ctx context.Context, local netaddr.IPPort,
 	selector ReplySelector) (ListenConn, error) {
 
 	local, err := defaultLocalAddr(local)
@@ -140,12 +142,12 @@ func (c *listenConn) Close() error {
 
 type DefaultReplySelector struct {
 	mtx     sync.RWMutex
-	remotes map[udpAddrKey]remoteEntry
+	remotes map[UDPAddr]remoteEntry
 }
 
 func NewDefaultReplySelector() *DefaultReplySelector {
 	return &DefaultReplySelector{
-		remotes: make(map[udpAddrKey]remoteEntry),
+		remotes: make(map[UDPAddr]remoteEntry),
 	}
 }
 
@@ -155,7 +157,7 @@ func (s *DefaultReplySelector) Initialize(local UDPAddr) {
 func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	r, ok := s.remotes[makeKey(remote)]
+	r, ok := s.remotes[remote]
 	if !ok || len(r.paths) == 0 {
 		return nil
 	}
@@ -170,11 +172,10 @@ func (s *DefaultReplySelector) Record(remote UDPAddr, path *Path) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	k := makeKey(remote)
-	r := s.remotes[k]
+	r := s.remotes[remote]
 	r.seen = time.Now()
 	r.paths.insert(path, defaultSelectorMaxReplyPaths)
-	s.remotes[k] = r
+	s.remotes[remote] = r
 }
 
 func (s *DefaultReplySelector) PathDown(PathFingerprint, PathInterface) {
@@ -183,21 +184,6 @@ func (s *DefaultReplySelector) PathDown(PathFingerprint, PathInterface) {
 
 func (s *DefaultReplySelector) Close() error {
 	return nil
-}
-
-type udpAddrKey struct {
-	IA   IA
-	IP   [16]byte
-	Port int
-}
-
-func makeKey(a UDPAddr) udpAddrKey {
-	k := udpAddrKey{
-		IA:   a.IA,
-		Port: a.Port,
-	}
-	copy(k.IP[:], a.IP.To16())
-	return k
 }
 
 type remoteEntry struct {

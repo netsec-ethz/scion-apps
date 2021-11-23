@@ -88,7 +88,7 @@ func listen(addr string) (net.Listener, error) {
 		NextProtos:   []string{quicutil.SingleStreamProto},
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
-	laddr, err := net.ResolveUDPAddr("udp", addr)
+	laddr, err := pan.ParseOptionalIPPort(addr)
 	if err != nil {
 		return nil, err
 	}

@@ -33,6 +33,8 @@ import (
 	"time"
 	"unicode"
 
+	"inet.af/netaddr"
+
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -262,18 +264,18 @@ func checkUsageErr(err error) {
 
 func main() {
 	var (
-		localStr        string
-		serverCCAddrStr string
-		clientBwpStr    string
-		serverBwpStr    string
-		interactive     bool
-		sequence        string
-		preference      string
+		local        pan.IPPortValue
+		serverCCAddr pan.UDPAddr
+		clientBwpStr string
+		serverBwpStr string
+		interactive  bool
+		sequence     string
+		preference   string
 	)
 
 	flag.Usage = printUsage
-	flag.StringVar(&localStr, "local", "", "Local address")
-	flag.StringVar(&serverCCAddrStr, "s", "", "Server SCION Address")
+	flag.Var(&local, "local", "Local address")
+	flag.Var(&serverCCAddr, "s", "Server SCION Address")
 	flag.StringVar(&serverBwpStr, "sc", DefaultBwtestParameters, "Server->Client test parameter")
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
 	flag.BoolVar(&interactive, "i", false, "Interactive path selection, prompt to choose path")
@@ -290,13 +292,9 @@ func main() {
 	if flag.NFlag() == 0 {
 		usageErr("")
 	}
-	if len(serverCCAddrStr) == 0 {
+	if !serverCCAddr.IsValid() {
 		usageErr("server address needs to be specified with -s")
 	}
-	serverCCAddr, err := pan.ResolveUDPAddr(serverCCAddrStr)
-	checkUsageErr(err)
-	local, err := net.ResolveUDPAddr("udp", localStr)
-	checkUsageErr(err)
 	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
 	checkUsageErr(err)
 
@@ -326,7 +324,7 @@ func main() {
 	fmt.Printf("server->client: %d seconds, %d bytes, %d packets\n",
 		int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
 
-	clientRes, serverRes, err := runBwtest(local, serverCCAddr, policy, clientBwp, serverBwp)
+	clientRes, serverRes, err := runBwtest(local.Get(), serverCCAddr, policy, clientBwp, serverBwp)
 	Check(err)
 
 	fmt.Println("\nS->C results")
@@ -336,7 +334,7 @@ func main() {
 }
 
 // runBwtest runs the bandwidth test with the given parameters against the server at serverCCAddr.
-func runBwtest(local *net.UDPAddr, serverCCAddr pan.UDPAddr, policy pan.Policy,
+func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
 	clientBwp, serverBwp BwtestParameters) (clientRes, serverRes BwtestResult, err error) {
 
 	// Control channel connection
@@ -346,10 +344,9 @@ func runBwtest(local *net.UDPAddr, serverCCAddr pan.UDPAddr, policy pan.Policy,
 		return
 	}
 
-	dcLocal := &net.UDPAddr{IP: local.IP}
+	dcLocal := local.WithPort(0)
 	// Address of server data channel (DC)
-	serverDCAddr := serverCCAddr
-	serverDCAddr.Port = serverCCAddr.Port + 1
+	serverDCAddr := serverCCAddr.WithPort(serverCCAddr.Port + 1)
 
 	// Data channel connection
 	dcConn, err := pan.DialUDP(context.Background(), dcLocal, serverDCAddr, policy, nil)

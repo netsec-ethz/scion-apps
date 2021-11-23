@@ -34,7 +34,7 @@ func TestHelloworldSample(t *testing.T) {
 	cmd := integration.AppBinPath(bin)
 	// Server
 	serverPort := "12345"
-	serverArgs := []string{"-port", serverPort}
+	serverArgs := []string{"-listen", ":" + serverPort}
 
 	// Client
 	clientArgs := []string{"-remote", integration.DstAddrPattern + ":" + serverPort}

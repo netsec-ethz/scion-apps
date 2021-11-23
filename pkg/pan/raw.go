@@ -28,22 +28,23 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
+	"inet.af/netaddr"
 )
 
 // openBaseUDPConn opens new raw SCION UDP conn.
-func openBaseUDPConn(ctx context.Context, local *net.UDPAddr) (snet.PacketConn, UDPAddr, error) {
+func openBaseUDPConn(ctx context.Context, local netaddr.IPPort) (snet.PacketConn, UDPAddr, error) {
 	dispatcher := host().dispatcher
 	ia := host().ia
 
-	rconn, port, err := dispatcher.Register(ctx, addr.IA(ia), local, addr.SvcNone)
+	rconn, port, err := dispatcher.Register(ctx, addr.IA(ia), local.UDPAddr(), addr.SvcNone)
 	if err != nil {
 		return nil, UDPAddr{}, err
 	}
 	conn := snet.NewSCIONPacketConn(rconn, scmpHandler{}, true)
 	slocal := UDPAddr{
 		IA:   ia,
-		IP:   local.IP,
-		Port: int(port),
+		IP:   local.IP(),
+		Port: port,
 	}
 	return conn, slocal, nil
 }
@@ -85,12 +86,9 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 	}
 
 	var spath spath.Path
-	var nextHop *net.UDPAddr
+	var nextHop netaddr.IPPort
 	if src.IA == dst.IA {
-		nextHop = &net.UDPAddr{
-			IP:   dst.IP,
-			Port: underlay.EndhostPort,
-		}
+		nextHop = netaddr.IPPortFrom(dst.IP, underlay.EndhostPort)
 	} else {
 		nextHop = path.ForwardingPath.underlay
 		spath = path.ForwardingPath.spath
@@ -107,11 +105,11 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   addr.IA(src.IA),
-				Host: addr.HostFromIP(src.IP),
+				Host: addr.HostFromIP(src.IP.IPAddr().IP),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   addr.IA(dst.IA),
-				Host: addr.HostFromIP(dst.IP),
+				Host: addr.HostFromIP(dst.IP.IPAddr().IP),
 			},
 			Path: spath,
 			Payload: snet.UDPPayload{
@@ -122,7 +120,7 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		},
 	}
 
-	err := c.raw.WriteTo(pkt, nextHop)
+	err := c.raw.WriteTo(pkt, nextHop.UDPAddr())
 	if err != nil {
 		return 0, err
 	}
@@ -162,14 +160,22 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 		if !ok {
 			continue // ignore non-UDP packet
 		}
+		srcIP, ok := netaddr.FromStdIP(pkt.Source.Host.IP())
+		if !ok {
+			continue // ignore non-IP destination
+		}
 		remote := UDPAddr{
 			IA:   IA(pkt.Source.IA),
-			IP:   append(net.IP{}, pkt.Source.Host.IP()...),
-			Port: int(udp.SrcPort),
+			IP:   srcIP,
+			Port: udp.SrcPort,
+		}
+		underlay, ok := netaddr.FromStdAddr(lastHop.IP, lastHop.Port, lastHop.Zone)
+		if !ok {
+			continue // ignore bad Underlay
 		}
 		fw := ForwardingPath{
 			spath:    pkt.Path.Copy(),
-			underlay: &lastHop,
+			underlay: underlay,
 		}
 		n := copy(b, udp.Payload)
 		return n, remote, fw, nil

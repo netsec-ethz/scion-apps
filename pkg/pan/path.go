@@ -16,13 +16,13 @@ package pan
 
 import (
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/spath"
+	"inet.af/netaddr"
 )
 
 // TODO: revisit: pointer or value type? what goes where? should ForwardingPath be exported?
@@ -62,7 +62,7 @@ type ForwardingPath struct {
 	spath spath.Path
 	// NOTE: could have global lookup table with ifID->UDP instead of passing this around.
 	// Might also allow to "properly" bind to wildcard (cache correct source address per ifID).
-	underlay *net.UDPAddr
+	underlay netaddr.IPPort
 }
 
 func (p ForwardingPath) IsEmpty() bool {
@@ -71,12 +71,8 @@ func (p ForwardingPath) IsEmpty() bool {
 
 func (p ForwardingPath) Copy() ForwardingPath {
 	return ForwardingPath{
-		spath: p.spath.Copy(),
-		underlay: &net.UDPAddr{
-			IP:   append(net.IP{}, p.underlay.IP...),
-			Port: p.underlay.Port,
-			Zone: p.underlay.Zone,
-		},
+		spath:    p.spath.Copy(),
+		underlay: p.underlay,
 	}
 }
 

@@ -15,7 +15,6 @@
 package pan
 
 import (
-	"net"
 	"testing"
 	"time"
 
@@ -25,8 +24,7 @@ import (
 func TestRecordLatency(t *testing.T) {
 	stats = newPathStatsDB()
 
-	ia, _ := ParseIA("1-ff00:0:110")
-	ip := net.ParseIP("192.0.2.1")
+	dst := mustParseSCIONAddr("1-ff00:0:110,192.0.2.1")
 	p := PathFingerprint("x")
 
 	// latency values to insert
@@ -44,9 +42,9 @@ func TestRecordLatency(t *testing.T) {
 	}
 
 	for step, v := range values {
-		stats.RecordLatency(ia, ip, p, v)
+		stats.RecordLatency(dst, p, v)
 
-		actualStats := stats.destinations[makeSCIONAddrKey(ia, ip)].Latency[p]
+		actualStats := stats.destinations[dst].Latency[p]
 		actual := make([]time.Duration, len(actualStats))
 		for j, a := range actualStats {
 			actual[j] = a.Value
@@ -56,8 +54,7 @@ func TestRecordLatency(t *testing.T) {
 }
 
 func TestLowestLatency(t *testing.T) {
-	ia, _ := ParseIA("1-ff00:0:110")
-	ip := net.ParseIP("192.0.2.1")
+	dst := mustParseSCIONAddr("1-ff00:0:110,192.0.2.1")
 
 	p0 := &Path{Fingerprint: "p0"}
 	p1 := &Path{Fingerprint: "p1"}
@@ -88,7 +85,7 @@ func TestLowestLatency(t *testing.T) {
 		{
 			name: "only path with latency data",
 			setup: func(stats *pathStatsDB) {
-				stats.RecordLatency(ia, ip, p1.Fingerprint, 10*time.Millisecond)
+				stats.RecordLatency(dst, p1.Fingerprint, 10*time.Millisecond)
 			},
 			paths:    testPaths,
 			expected: 1,
@@ -96,7 +93,7 @@ func TestLowestLatency(t *testing.T) {
 		{
 			name: "only path with latency data is down",
 			setup: func(stats *pathStatsDB) {
-				stats.RecordLatency(ia, ip, p1.Fingerprint, 10*time.Millisecond)
+				stats.RecordLatency(dst, p1.Fingerprint, 10*time.Millisecond)
 				stats.NotifyPathDown(p1.Fingerprint, PathInterface{})
 			},
 			paths:    testPaths,
@@ -105,7 +102,7 @@ func TestLowestLatency(t *testing.T) {
 		{
 			name: "only path with no down notification",
 			setup: func(stats *pathStatsDB) {
-				stats.RecordLatency(ia, ip, p1.Fingerprint, 10*time.Millisecond)
+				stats.RecordLatency(dst, p1.Fingerprint, 10*time.Millisecond)
 				stats.NotifyPathDown(p1.Fingerprint, PathInterface{})
 				stats.NotifyPathDown(p0.Fingerprint, PathInterface{})
 			},
@@ -115,7 +112,7 @@ func TestLowestLatency(t *testing.T) {
 		{
 			name: "path with oldest down notification",
 			setup: func(stats *pathStatsDB) {
-				stats.RecordLatency(ia, ip, p1.Fingerprint, 10*time.Millisecond)
+				stats.RecordLatency(dst, p1.Fingerprint, 10*time.Millisecond)
 				stats.NotifyPathDown(p1.Fingerprint, PathInterface{})
 				stats.NotifyPathDown(p0.Fingerprint, PathInterface{})
 				stats.NotifyPathDown(p2.Fingerprint, PathInterface{})
@@ -126,8 +123,8 @@ func TestLowestLatency(t *testing.T) {
 		{
 			name: "lowest latency",
 			setup: func(stats *pathStatsDB) {
-				stats.RecordLatency(ia, ip, p1.Fingerprint, 10*time.Millisecond)
-				stats.RecordLatency(ia, ip, p2.Fingerprint, 4*time.Millisecond)
+				stats.RecordLatency(dst, p1.Fingerprint, 10*time.Millisecond)
+				stats.RecordLatency(dst, p2.Fingerprint, 4*time.Millisecond)
 			},
 			paths:    testPaths,
 			expected: 2,
@@ -137,8 +134,8 @@ func TestLowestLatency(t *testing.T) {
 			setup: func(stats *pathStatsDB) {
 				stats.NotifyPathDown(p1.Fingerprint, PathInterface{})
 				stats.NotifyPathDown(p2.Fingerprint, PathInterface{})
-				stats.RecordLatency(ia, ip, p1.Fingerprint, 10*time.Millisecond)
-				stats.RecordLatency(ia, ip, p2.Fingerprint, 4*time.Millisecond)
+				stats.RecordLatency(dst, p1.Fingerprint, 10*time.Millisecond)
+				stats.RecordLatency(dst, p2.Fingerprint, 4*time.Millisecond)
 			},
 			paths:    testPaths,
 			expected: 2,
@@ -149,7 +146,7 @@ func TestLowestLatency(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			stats := newPathStatsDB()
 			c.setup(&stats)
-			actual := stats.LowestLatency(ia, ip, c.paths)
+			actual := stats.LowestLatency(dst, c.paths)
 			assert.Equal(t, c.expected, actual)
 		})
 	}

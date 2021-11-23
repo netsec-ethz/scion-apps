@@ -20,6 +20,7 @@ import (
 	"net"
 
 	"github.com/lucas-clemente/quic-go"
+	"inet.af/netaddr"
 )
 
 // closerListener is a wrapper around quic.Listener that always closes the
@@ -38,7 +39,7 @@ func (l closerListener) Close() error {
 // ListenQUIC listens for QUIC connections on a SCION/UDP port.
 //
 // See note on wildcard addresses in the package documentation.
-func ListenQUIC(ctx context.Context, local *net.UDPAddr, selector ReplySelector,
+func ListenQUIC(ctx context.Context, local netaddr.IPPort, selector ReplySelector,
 	tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
 
 	conn, err := ListenUDP(ctx, local, selector)

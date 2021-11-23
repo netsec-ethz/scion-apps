@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"inet.af/netaddr"
 )
 
 func check(e error) {
@@ -53,7 +54,7 @@ func main() {
 	check(err)
 	serverAddr, err := pan.ResolveUDPAddr(*serverAddrStr)
 	check(err)
-	conn, err := pan.DialUDP(context.Background(), nil, serverAddr, policy, nil)
+	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, serverAddr, policy, nil)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

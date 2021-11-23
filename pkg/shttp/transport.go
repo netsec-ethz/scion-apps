@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"inet.af/netaddr"
+
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
@@ -63,6 +65,7 @@ func NewTransport(quicCfg *quic.Config, policy pan.Policy) (*http.Transport, *Di
 // Dialer dials an insecure, single-stream QUIC connection over SCION (just pretend it's TCP).
 // This is the Dialer used for shttp.DefaultTransport.
 type Dialer struct {
+	Local      netaddr.IPPort
 	QuicConfig *quic.Config
 	Policy     pan.Policy
 	sessions   []*pan.QUICSession
@@ -81,7 +84,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		return nil, err
 	}
 
-	session, err := pan.DialQUIC(ctx, nil, remote, d.Policy, nil, addr, tlsCfg, d.QuicConfig)
+	session, err := pan.DialQUIC(ctx, d.Local, remote, d.Policy, nil, addr, tlsCfg, d.QuicConfig)
 	if err != nil {
 		return nil, err
 	}

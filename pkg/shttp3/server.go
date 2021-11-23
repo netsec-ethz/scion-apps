@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"github.com/lucas-clemente/quic-go/http3"
+
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
@@ -56,7 +57,7 @@ func ListenAndServe(addr string, certFile, keyFile string, handler http.Handler)
 // ListenAndServe listens on the UDP address s.Addr and calls s.Handler to
 // handle HTTP/3 requests on incoming connections.
 func (s *Server) ListenAndServe() error {
-	laddr, err := net.ResolveUDPAddr("udp", s.Addr)
+	laddr, err := pan.ParseOptionalIPPort(s.Addr)
 	if err != nil {
 		return err
 	}

@@ -21,11 +21,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
+	"inet.af/netaddr"
+
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
@@ -33,17 +34,18 @@ import (
 func main() {
 	var err error
 	// get local and remote addresses from program arguments:
-	port := flag.Uint("port", 0, "[Server] local port to listen on")
+	var listen pan.IPPortValue
+	flag.Var(&listen, "listen", "[Server] local IP:port to listen on")
 	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
 	count := flag.Uint("count", 1, "[Client] Number of messages to send")
 	flag.Parse()
 
-	if (*port > 0) == (len(*remoteAddr) > 0) {
+	if (listen.Get().Port() > 0) == (len(*remoteAddr) > 0) {
 		check(fmt.Errorf("Either specify -port for server or -remote for client"))
 	}
 
-	if *port > 0 {
-		err = runServer(int(*port))
+	if listen.Get().Port() > 0 {
+		err = runServer(listen.Get())
 		check(err)
 	} else {
 		err = runClient(*remoteAddr, int(*count))
@@ -51,12 +53,12 @@ func main() {
 	}
 }
 
-func runServer(port int) error {
+func runServer(listen netaddr.IPPort) error {
 	tlsCfg := &tls.Config{
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{"hello-quic"},
 	}
-	listener, err := pan.ListenQUIC(context.Background(), &net.UDPAddr{Port: port}, nil, tlsCfg, nil)
+	listener, err := pan.ListenQUIC(context.Background(), listen, nil, tlsCfg, nil)
 	if err != nil {
 		return err
 	}
@@ -114,7 +116,7 @@ func runClient(address string, count int) error {
 		Timeout:  time.Second,
 	}
 	selector.SetActive(2)
-	session, err := pan.DialQUIC(context.Background(), nil, addr, nil, selector, "", tlsCfg, nil)
+	session, err := pan.DialQUIC(context.Background(), netaddr.IPPort{}, addr, nil, selector, "", tlsCfg, nil)
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"inet.af/netaddr"
 )
 
 // hostContext contains the information needed to connect to the host's local SCION stack,
@@ -149,21 +150,23 @@ func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net
 // The purpose of this function is to workaround not being able to bind to
 // wildcard addresses in snet.
 // See note on wildcard addresses in the package documentation.
-func defaultLocalIP() (net.IP, error) {
-	return addrutil.ResolveLocal(host().hostInLocalAS)
+func defaultLocalIP() (netaddr.IP, error) {
+	stdIP, err := addrutil.ResolveLocal(host().hostInLocalAS)
+	ip, ok := netaddr.FromStdIP(stdIP)
+	if err != nil || !ok {
+		return netaddr.IP{}, fmt.Errorf("unable to resolve default local address %w", err)
+	}
+	return ip, nil
 }
 
 // defaultLocalAddr fills in a missing or unspecified IP field with defaultLocalIP.
-func defaultLocalAddr(local *net.UDPAddr) (*net.UDPAddr, error) {
-	if local == nil {
-		local = &net.UDPAddr{}
-	}
-	if local.IP == nil || local.IP.IsUnspecified() {
+func defaultLocalAddr(local netaddr.IPPort) (netaddr.IPPort, error) {
+	if local.IP().IsZero() || local.IP().IsUnspecified() {
 		localIP, err := defaultLocalIP()
 		if err != nil {
-			return nil, err
+			return netaddr.IPPort{}, err
 		}
-		local = &net.UDPAddr{IP: localIP, Port: local.Port}
+		local = local.WithIP(localIP)
 	}
 	return local, nil
 }
@@ -187,6 +190,11 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			InternalHops: snetMetadata.InternalHops,
 			Notes:        snetMetadata.Notes,
 		}
+		underlayStd := p.UnderlayNextHop()
+		underlay, ok := netaddr.FromStdAddr(underlayStd.IP, underlayStd.Port, underlayStd.Zone)
+		if !ok {
+			continue // ignore bad next hop
+		}
 		paths[i] = &Path{
 			Source:      h.ia,
 			Destination: dst,
@@ -195,7 +203,7 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			Expiry:      snetMetadata.Expiry,
 			ForwardingPath: ForwardingPath{
 				spath:    p.Path(),
-				underlay: p.UnderlayNextHop(),
+				underlay: underlay,
 			},
 		}
 	}

@@ -29,6 +29,7 @@ import (
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
 )
 
 const (
@@ -36,15 +37,15 @@ const (
 )
 
 func main() {
-	var listen *net.TCPAddr // we want UDPAddr, but it's all the same...
-	kingpin.Flag("listen", "Address to listen on").Default(":40002").TCPVar(&listen)
+	var listen pan.IPPortValue
+	kingpin.Flag("listen", "Address to listen on").Default(":40002").SetValue(&listen)
 	kingpin.Parse()
 
-	err := runServer(&net.UDPAddr{IP: listen.IP, Port: listen.Port})
+	err := runServer(listen.Get())
 	Check(err)
 }
 
-func runServer(listen *net.UDPAddr) error {
+func runServer(listen netaddr.IPPort) error {
 	receivePacketBuffer := make([]byte, 2500)
 
 	var currentBwtest string
@@ -140,8 +141,8 @@ func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 
 	// Data Connection addresses:
 	clientDCAddr := clientCCAddr
-	clientDCAddr.Port = int(clientBwp.Port)
-	serverDCAddr := &net.UDPAddr{IP: serverCCAddr.IP, Port: int(serverBwp.Port)}
+	clientDCAddr.Port = clientBwp.Port
+	serverDCAddr := netaddr.IPPortFrom(serverCCAddr.IP, serverBwp.Port)
 
 	// Open Data Connection
 	dcSelector := initializedReplySelector(clientDCAddr, path)
@@ -288,7 +289,7 @@ func (r resultsMap) purgeExpired() {
 	}
 }
 
-func listenConnected(local *net.UDPAddr, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
+func listenConnected(local netaddr.IPPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
 	conn, err := pan.ListenUDP(context.Background(), local, selector)
 	return connectedPacketConn{
 		ListenConn: conn,
@@ -310,7 +311,7 @@ func (c connectedPacketConn) Read(buf []byte) (int, error) {
 		if err != nil {
 			return n, err
 		}
-		if !c.remote.Equal(addr.(pan.UDPAddr)) {
+		if c.remote != addr.(pan.UDPAddr) {
 			continue
 		}
 		return n, err

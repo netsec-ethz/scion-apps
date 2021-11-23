@@ -177,64 +177,7 @@ TODO pick name. Other ideas: supa sap scope, ship: helm, rudder, pilot, scout, s
 
 import (
 	"fmt"
-	"net"
-
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
 )
-
-// FIXME: leaking addr.I, addr.A
-type IA addr.IA
-
-func (ia IA) String() string {
-	return addr.IA(ia).String()
-}
-
-func ParseIA(s string) (IA, error) {
-	ia, err := addr.IAFromString(s)
-	return IA(ia), err
-}
-
-type IfID uint64
-
-// UDPAddr is an address for a SCION/UDP end point.
-// TODO: change net.IP to net/netaddr.IP, or too annoying?
-type UDPAddr struct {
-	IA   IA
-	IP   net.IP
-	Port int
-}
-
-func (a UDPAddr) Network() string {
-	return "scion+udp"
-}
-
-func (a UDPAddr) String() string {
-	if a.IP.To4() == nil {
-		return fmt.Sprintf("%s,[%s]:%d", a.IA, a.IP, a.Port)
-	} else {
-		return fmt.Sprintf("%s,%s:%d", a.IA, a.IP, a.Port)
-	}
-}
-
-func (a UDPAddr) Equal(x UDPAddr) bool {
-	return a.IA == x.IA &&
-		a.IP.Equal(x.IP) &&
-		a.Port == x.Port
-}
-
-// ParseUDPAddr converts an address string to a SCION address.
-func ParseUDPAddr(s string) (UDPAddr, error) {
-	addr, err := snet.ParseUDPAddr(s)
-	if err != nil {
-		return UDPAddr{}, err
-	}
-	return UDPAddr{
-		IA:   IA(addr.IA),
-		IP:   addr.Host.IP,
-		Port: addr.Host.Port,
-	}, nil
-}
 
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")

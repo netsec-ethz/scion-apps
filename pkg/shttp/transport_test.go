@@ -25,9 +25,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 func TestMangleSCIONAddrURL(t *testing.T) {
@@ -109,8 +111,8 @@ func TestRoundTripper(t *testing.T) {
 			require.Equal(t, hostStr, "host")
 			hostIA, err := pan.ParseIA("1-ff00:0:1")
 			require.NoError(t, err)
-			hostIP := net.ParseIP("192.0.2.1")
-			remote := pan.UDPAddr{IA: hostIA, IP: hostIP, Port: port}
+			hostIP := netaddr.MustParseIP("192.0.2.1")
+			remote := pan.UDPAddr{IA: hostIA, IP: hostIP, Port: uint16(port)}
 			assert.Equal(t, expected, remote.String())
 		} else {
 			remote, err := pan.ParseUDPAddr(unmangled)

@@ -15,7 +15,6 @@
 package pan
 
 import (
-	"net"
 	"sync"
 	"time"
 )
@@ -34,12 +33,6 @@ type PathStats struct {
 type PathInterfaceStats struct {
 	// Was notified down at the recorded time (0 for never notified down)
 	IsNotifiedDown time.Time
-}
-
-// scionAddrKey is effectively a host address (IA,IP), just hashable.
-type scionAddrKey struct {
-	ia IA
-	ip [16]byte
 }
 
 type DestinationStats struct {
@@ -66,7 +59,7 @@ type pathStatsDB struct {
 	// consecutive (unordered?) interface IDs.
 	interfaces map[PathInterface]PathInterfaceStats
 	// TODO: cleanup of this map on connection end, reference counted handle?
-	destinations map[scionAddrKey]DestinationStats
+	destinations map[scionAddr]DestinationStats
 
 	subscribers []pathDownNotifyee
 }
@@ -75,21 +68,20 @@ func newPathStatsDB() pathStatsDB {
 	return pathStatsDB{
 		paths:        make(map[PathFingerprint]PathStats),
 		interfaces:   make(map[PathInterface]PathInterfaceStats),
-		destinations: make(map[scionAddrKey]DestinationStats),
+		destinations: make(map[scionAddr]DestinationStats),
 	}
 }
 
-func (s *pathStatsDB) RecordLatency(ia IA, ip net.IP, p PathFingerprint, latency time.Duration) {
+func (s *pathStatsDB) RecordLatency(dst scionAddr, p PathFingerprint, latency time.Duration) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	dstK := makeSCIONAddrKey(ia, ip)
-	dstStats := s.destinations[dstK]
+	dstStats := s.destinations[dst]
 	if dstStats.Latency == nil {
 		dstStats.Latency = make(map[PathFingerprint]StatsLatencySamples)
 	}
 	dstStats.Latency[p] = dstStats.Latency[p].insert(latency)
-	s.destinations[dstK] = dstStats
+	s.destinations[dst] = dstStats
 }
 
 // LowestLatency returns the index of the path with lowest recorded latency.
@@ -98,15 +90,14 @@ func (s *pathStatsDB) RecordLatency(ia IA, ip net.IP, p PathFingerprint, latency
 // recorded down notification for the corresponding path are ignored. Paths
 // with no recorded latency value, or with down notifications, are treated with
 // least priority.
-func (s *pathStatsDB) LowestLatency(ia IA, ip net.IP, paths []*Path) int {
+func (s *pathStatsDB) LowestLatency(dst scionAddr, paths []*Path) int {
 	if len(paths) == 0 {
 		return -1
 	}
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	dstK := makeSCIONAddrKey(ia, ip)
-	dstStats := s.destinations[dstK]
+	dstStats := s.destinations[dst]
 
 	best := -1
 	bestDown := maxTime
@@ -128,12 +119,6 @@ func (s *pathStatsDB) LowestLatency(ia IA, ip net.IP, paths []*Path) int {
 		}
 	}
 	return best
-}
-
-func makeSCIONAddrKey(ia IA, ip net.IP) scionAddrKey {
-	k := scionAddrKey{ia: ia}
-	copy(k.ip[:], ip[:])
-	return k
 }
 
 // FirstMoreAlive returns the index of the first path in paths that is strictly "more

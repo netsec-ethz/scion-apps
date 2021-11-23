@@ -38,6 +38,7 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
 )
 
 var (
@@ -149,7 +150,7 @@ func handleTunneling(w http.ResponseWriter, req *http.Request) {
 	}
 	session, err := pan.DialQUIC(
 		context.Background(),
-		nil,
+		netaddr.IPPort{},
 		hostAddr,
 		nil,
 		nil,

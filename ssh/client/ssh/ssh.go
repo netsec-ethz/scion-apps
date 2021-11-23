@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	log "github.com/inconshreveable/log15"
+	"inet.af/netaddr"
 
 	"golang.org/x/crypto/ssh"
 
@@ -195,7 +196,7 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 // StartTunnel creates a new tunnel to the given address, forwarding all
 // connections on the given port over the server to the given address. If the
 // given address is a SCION address, QUIC is used; else TCP.
-func (client *Client) StartTunnel(local *net.UDPAddr, addr string) error {
+func (client *Client) StartTunnel(local netaddr.IPPort, addr string) error {
 	var localListener net.Listener
 	if strings.Contains(addr, ",") {
 		tlsConf := &tls.Config{

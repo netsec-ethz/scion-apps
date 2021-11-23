@@ -22,6 +22,8 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
+	"inet.af/netaddr"
+
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
@@ -36,6 +38,7 @@ var DefaultTransport = &http3.RoundTripper{
 // Dialer dials a QUIC connection over SCION.
 // This is the Dialer used for shttp3.DefaultTransport.
 type Dialer struct {
+	Local    netaddr.IPPort
 	Policy   pan.Policy
 	sessions []*pan.QUICEarlySession
 }
@@ -48,7 +51,7 @@ func (d *Dialer) Dial(network, addr string, tlsCfg *tls.Config,
 	if err != nil {
 		return nil, err
 	}
-	session, err := pan.DialQUICEarly(context.TODO(), nil, remote, d.Policy, nil, addr, tlsCfg, cfg)
+	session, err := pan.DialQUICEarly(context.TODO(), d.Local, remote, d.Policy, nil, addr, tlsCfg, cfg)
 	if err != nil {
 		return nil, err
 	}

@@ -17,6 +17,8 @@ package pan
 import (
 	"context"
 	"net"
+
+	"inet.af/netaddr"
 )
 
 // Conn represents a _dialed_ connection.
@@ -42,7 +44,7 @@ type Conn interface {
 // a path among this set for each Write operation.
 // If the policy is nil, all paths are allowed.
 // If the selector is nil, a DefaultSelector is used.
-func DialUDP(ctx context.Context, local *net.UDPAddr, remote UDPAddr,
+func DialUDP(ctx context.Context, local netaddr.IPPort, remote UDPAddr,
 	policy Policy, selector Selector) (Conn, error) {
 
 	local, err := defaultLocalAddr(local)
@@ -119,7 +121,7 @@ func (c *dialedConn) Read(b []byte) (int, error) {
 		if err != nil {
 			return n, err
 		}
-		if !remote.Equal(c.remote) {
+		if remote != c.remote {
 			continue // connected! Ignore spurious packets from wrong source
 		}
 		return n, err
@@ -132,7 +134,7 @@ func (c *dialedConn) ReadPath(b []byte) (int, *Path, error) {
 		if err != nil {
 			return n, nil, err
 		}
-		if !remote.Equal(c.remote) {
+		if remote != c.remote {
 			continue // connected! Ignore spurious packets from wrong source
 		}
 		path, err := reversePathFromForwardingPath(c.remote.IA, c.local.IA, fwPath)

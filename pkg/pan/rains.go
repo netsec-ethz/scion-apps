@@ -19,14 +19,11 @@ package pan
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/netsec-ethz/rains/pkg/rains"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const rainsConfigPath = "/etc/scion/rains.cfg"
@@ -77,13 +74,7 @@ func rainsQuery(server UDPAddr, hostname string) (scionAddr, error) {
 	// - return HostNotFoundError error if all went well, but host not found
 	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
 	// The timeout value has been decreased to counter this behavior until the problem is resolved.
-	srv := &snet.UDPAddr{
-		IA: addr.IA(server.IA),
-		Host: &net.UDPAddr{
-			IP:   server.IP,
-			Port: server.Port,
-		},
-	}
+	srv := server.snetUDPAddr()
 	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, srv)
 	if err != nil {
 		return scionAddr{}, fmt.Errorf("address for host %q not found: %v", hostname, err)
