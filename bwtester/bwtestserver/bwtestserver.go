@@ -103,7 +103,7 @@ func runServer(listen *net.UDPAddr) error {
 			if err != nil {
 				continue
 			}
-			path := ccSelector.ReplyPath(ccConn.LocalAddr().(pan.UDPAddr), clientCCAddr.(pan.UDPAddr))
+			path := ccSelector.Path(clientCCAddr.(pan.UDPAddr))
 			finishTime, err := startBwtestBackground(serverCCAddr, clientCCAddr.(pan.UDPAddr), path,
 				clientBwp, serverBwp, currentResult)
 			if err != nil {
@@ -326,11 +326,11 @@ func (c connectedPacketConn) RemoteAddr() net.Addr {
 }
 
 // initializedReplySelector creates a pan.DefaultReplySelector, initialized with path for dst.
-func initializedReplySelector(dst pan.UDPAddr, path *pan.Path) pan.ReplySelector {
-	if path != nil && path.Destination != dst.IA {
+func initializedReplySelector(remote pan.UDPAddr, path *pan.Path) pan.ReplySelector {
+	if path != nil && path.Destination != remote.IA {
 		panic("path destination should match address")
 	}
 	selector := pan.NewDefaultReplySelector()
-	selector.OnPacketReceived(dst, pan.UDPAddr{}, path) // "dst" is ignored here...
+	selector.Record(remote, path)
 	return selector
 }

@@ -67,14 +67,21 @@ func (s *roundRobinSelector) Path() *pan.Path {
 	return p
 }
 
-func (s *roundRobinSelector) SetPaths(remote pan.UDPAddr, paths []*pan.Path) {
+func (s *roundRobinSelector) Initialize(local, remote pan.UDPAddr, paths []*pan.Path) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.paths = paths
+	s.current = 0
+}
+
+func (s *roundRobinSelector) Refresh(paths []*pan.Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.paths = paths
 	s.current = 0 // just start at the beginning again
 }
 
-func (s *roundRobinSelector) OnPathDown(pf pan.PathFingerprint, pi pan.PathInterface) {
+func (s *roundRobinSelector) PathDown(pf pan.PathFingerprint, pi pan.PathInterface) {
 	// ignore dead paths, just send on these anyway
 }
 
@@ -99,13 +106,19 @@ func (s *randomSelector) Path() *pan.Path {
 	return p
 }
 
-func (s *randomSelector) SetPaths(remote pan.UDPAddr, paths []*pan.Path) {
+func (s *randomSelector) Initialize(local, remote pan.UDPAddr, paths []*pan.Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.paths = paths
 }
 
-func (s *randomSelector) OnPathDown(pf pan.PathFingerprint, pi pan.PathInterface) {
+func (s *randomSelector) Refresh(paths []*pan.Path) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.paths = paths
+}
+
+func (s *randomSelector) PathDown(pf pan.PathFingerprint, pi pan.PathInterface) {
 	// ignore dead paths, just send on these anyway
 }
 

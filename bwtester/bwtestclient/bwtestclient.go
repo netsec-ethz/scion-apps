@@ -340,7 +340,7 @@ func runBwtest(local *net.UDPAddr, serverCCAddr pan.UDPAddr, policy pan.Policy,
 	clientBwp, serverBwp BwtestParameters) (clientRes, serverRes BwtestResult, err error) {
 
 	// Control channel connection
-	ccSelector := &pan.DefaultSelector{}
+	ccSelector := pan.NewDefaultSelector()
 	ccConn, err := pan.DialUDP(context.Background(), local, serverCCAddr, policy, ccSelector)
 	if err != nil {
 		return

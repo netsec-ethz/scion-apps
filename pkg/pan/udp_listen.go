@@ -26,11 +26,22 @@ import (
 
 var errBadDstAddress error = errors.New("dst address not a UDPAddr")
 
-// ReplySelector selects the reply path for WriteTo in a listenConn.
+// ReplySelector controls the reply path in a **listening** socket. Stateful.
 type ReplySelector interface {
-	ReplyPath(src, dst UDPAddr) *Path
-	OnPacketReceived(src, dst UDPAddr, path *Path)
-	OnPathDown(PathFingerprint, PathInterface)
+	// Path selects the path for the next packet to remote.
+	// Invoked for each packet sent with WriteTo.
+	Path(remote UDPAddr) *Path
+	// Initialize the selector.
+	// Invoked once during the creation of a ListenConn.
+	Initialize(local UDPAddr)
+	// Record a path used by the remote for a packet received.
+	// Invoked whenever a packet is received.
+	// The path is reversed, i.e. it's the path from here to remote.
+	Record(remote UDPAddr, path *Path)
+	// PathDown is called whenever an SCMP down notification is received on any
+	// connection so that the selector can adapt its path choice. The down
+	// notification may be for unrelated paths not used by this selector.
+	PathDown(PathFingerprint, PathInterface)
 	Close() error
 }
 
@@ -38,7 +49,6 @@ type ListenConn interface {
 	net.PacketConn
 	// ReadFromPath reads a message and returns the (return-)path via which the
 	// message was received.
-	// This bypasses selector's OnPacketReceived used for ReadFrom.
 	ReadFromPath(b []byte) (int, UDPAddr, *Path, error)
 	// WriteToPath writes a message to the remote address via the given path.
 	// This bypasses selector used for WriteTo.
@@ -61,6 +71,7 @@ func ListenUDP(ctx context.Context, local *net.UDPAddr,
 	if err != nil {
 		return nil, err
 	}
+	selector.Initialize(slocal)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", slocal)
@@ -87,8 +98,7 @@ func (c *listenConn) LocalAddr() net.Addr {
 }
 
 func (c *listenConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	n, remote, path, err := c.ReadFromPath(b)
-	c.selector.OnPacketReceived(remote, c.local, path)
+	n, remote, _, err := c.ReadFromPath(b)
 	return n, remote, err
 }
 
@@ -98,6 +108,7 @@ func (c *listenConn) ReadFromPath(b []byte) (int, UDPAddr, *Path, error) {
 		return n, UDPAddr{}, nil, err
 	}
 	path, err := reversePathFromForwardingPath(remote.IA, c.local.IA, fwPath)
+	c.selector.Record(remote, path)
 	return n, remote, path, err
 }
 
@@ -108,7 +119,7 @@ func (c *listenConn) WriteTo(b []byte, dst net.Addr) (int, error) {
 	}
 	var path *Path
 	if c.local.IA != sdst.IA {
-		path = c.selector.ReplyPath(c.local, sdst)
+		path = c.selector.Path(sdst)
 		if path == nil {
 			return 0, errNoPathTo(sdst.IA)
 		}
@@ -138,17 +149,20 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 	}
 }
 
-func (s *DefaultReplySelector) ReplyPath(src, dst UDPAddr) *Path {
+func (s *DefaultReplySelector) Initialize(local UDPAddr) {
+}
+
+func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	r, ok := s.remotes[makeKey(dst)]
+	r, ok := s.remotes[makeKey(remote)]
 	if !ok || len(r.paths) == 0 {
 		return nil
 	}
 	return r.paths[0]
 }
 
-func (s *DefaultReplySelector) OnPacketReceived(src, dst UDPAddr, path *Path) {
+func (s *DefaultReplySelector) Record(remote UDPAddr, path *Path) {
 	if path == nil {
 		return
 	}
@@ -156,14 +170,14 @@ func (s *DefaultReplySelector) OnPacketReceived(src, dst UDPAddr, path *Path) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	ksrc := makeKey(src)
-	r := s.remotes[ksrc]
+	k := makeKey(remote)
+	r := s.remotes[k]
 	r.seen = time.Now()
 	r.paths.insert(path, defaultSelectorMaxReplyPaths)
-	s.remotes[ksrc] = r
+	s.remotes[k] = r
 }
 
-func (s *DefaultReplySelector) OnPathDown(PathFingerprint, PathInterface) {
+func (s *DefaultReplySelector) PathDown(PathFingerprint, PathInterface) {
 	// TODO failover.
 }
 

@@ -54,7 +54,7 @@ type StatsLatencySample struct {
 }
 
 type pathDownNotifyee interface {
-	OnPathDown(PathFingerprint, PathInterface)
+	PathDown(PathFingerprint, PathInterface)
 }
 
 type pathStatsDB struct {
@@ -219,7 +219,7 @@ func (s *pathStatsDB) unsubscribe(subscriber pathDownNotifyee) {
 func (s *pathStatsDB) NotifyPathDown(pf PathFingerprint, pi PathInterface) {
 	s.recordPathDown(pf, pi)
 	for _, subscriber := range s.subscribers {
-		subscriber.OnPathDown(pf, pi)
+		subscriber.PathDown(pf, pi)
 	}
 }
 

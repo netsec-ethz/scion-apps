@@ -28,15 +28,22 @@ import (
 )
 
 // Selector controls the path used by a single **dialed** socket. Stateful.
-// The Path() function is invoked for every single packet.
-// SetPaths is invoked with the set of paths filtered/ordered by the Policy on
-// the connection. Whenever the Policy is changed or paths are refreshed,
-// SetPaths is called again.
-// OnPathDown is invoked when SCMP path down notifications are received.
 type Selector interface {
+	// Path selects the path for the next packet.
+	// Invoked for each packet sent with Write.
 	Path() *Path
-	SetPaths(UDPAddr, []*Path)
-	OnPathDown(PathFingerprint, PathInterface)
+	// Initialize the selector for a connection with the initial list of paths,
+	// filtered/ordered by the Policy.
+	// Invoked once during the creation of a Conn.
+	Initialize(local, remote UDPAddr, paths []*Path)
+	// Refresh updates the paths. This is called whenever the Policy is changed or
+	// when paths were about to expire and are refreshed from the SCION daemon.
+	// The set and order of paths may differ from previous invocations.
+	Refresh([]*Path)
+	// PathDown is called whenever an SCMP down notification is received on any
+	// connection so that the selector can adapt its path choice. The down
+	// notification may be for unrelated paths not used by this selector.
+	PathDown(PathFingerprint, PathInterface)
 	Close() error
 }
 
@@ -53,6 +60,10 @@ type DefaultSelector struct {
 	current int
 }
 
+func NewDefaultSelector() *DefaultSelector {
+	return &DefaultSelector{}
+}
+
 func (s *DefaultSelector) Path() *Path {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -63,7 +74,15 @@ func (s *DefaultSelector) Path() *Path {
 	return s.paths[s.current]
 }
 
-func (s *DefaultSelector) SetPaths(remote UDPAddr, paths []*Path) {
+func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.paths = paths
+	s.current = 0
+}
+
+func (s *DefaultSelector) Refresh(paths []*Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -81,7 +100,7 @@ func (s *DefaultSelector) SetPaths(remote UDPAddr, paths []*Path) {
 	s.current = newcurrent
 }
 
-func (s *DefaultSelector) OnPathDown(pf PathFingerprint, pi PathInterface) {
+func (s *DefaultSelector) PathDown(pf PathFingerprint, pi PathInterface) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -110,6 +129,7 @@ type PingingSelector struct {
 	mutex   sync.Mutex
 	paths   []*Path
 	current int
+	local   UDPAddr
 	remote  UDPAddr
 
 	numActive    int64
@@ -134,20 +154,32 @@ func (s *PingingSelector) Path() *Path {
 	return s.paths[s.current]
 }
 
-func (s *PingingSelector) SetPaths(remote UDPAddr, paths []*Path) {
+func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	s.local = UDPAddr{
+		IA:   local.IA,
+		IP:   append(net.IP{}, local.IP...),
+		Port: local.Port,
+	}
 	s.remote = UDPAddr{
 		IA:   remote.IA,
 		IP:   append(net.IP{}, remote.IP...),
 		Port: remote.Port,
 	}
+	s.current = stats.LowestLatency(s.remote.IA, s.remote.IP, s.paths)
+}
+
+func (s *PingingSelector) Refresh(paths []*Path) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	s.paths = paths
 	s.current = stats.LowestLatency(s.remote.IA, s.remote.IP, s.paths)
 }
 
-func (s *PingingSelector) OnPathDown(pf PathFingerprint, pi PathInterface) {
+func (s *PingingSelector) PathDown(pf PathFingerprint, pi PathInterface) {
 	s.reselectPath()
 }
 
@@ -165,14 +197,10 @@ func (s *PingingSelector) ensureRunning() {
 		return
 	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
-	localIP, err := defaultLocalIP() // FIXME: should get this from Conn!
-	if err != nil {
-		return
-	}
 	local := &snet.UDPAddr{
-		IA: addr.IA(host().ia),
+		IA: addr.IA(s.local.IA),
 		Host: &net.UDPAddr{
-			IP: localIP,
+			IP: s.local.IP,
 		},
 	}
 	pinger, err := ping.NewPinger(s.pingerCtx, host().dispatcher, local)

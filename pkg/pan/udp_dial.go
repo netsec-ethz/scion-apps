@@ -50,17 +50,16 @@ func DialUDP(ctx context.Context, local *net.UDPAddr, remote UDPAddr,
 		return nil, err
 	}
 
-	if selector == nil {
-		selector = &DefaultSelector{}
-	}
-
 	raw, slocal, err := openBaseUDPConn(ctx, local)
 	if err != nil {
 		return nil, err
 	}
 	var subscriber *pathRefreshSubscriber
 	if remote.IA != slocal.IA {
-		subscriber, err = openPathRefreshSubscriber(ctx, remote, policy, selector)
+		if selector == nil {
+			selector = NewDefaultSelector()
+		}
+		subscriber, err = openPathRefreshSubscriber(ctx, slocal, remote, policy, selector)
 		if err != nil {
 			return nil, err
 		}
@@ -158,48 +157,49 @@ func (c *dialedConn) Close() error {
 // pool. It gets the paths to dst and sets the filtered path set on the
 // target Selector.
 type pathRefreshSubscriber struct {
-	remote UDPAddr
-	policy Policy
-	target Selector
+	remoteIA IA
+	policy   Policy
+	target   Selector
 }
 
-func openPathRefreshSubscriber(ctx context.Context, remote UDPAddr, policy Policy,
+func openPathRefreshSubscriber(ctx context.Context, local, remote UDPAddr, policy Policy,
 	target Selector) (*pathRefreshSubscriber, error) {
 
 	s := &pathRefreshSubscriber{
-		remote: remote,
-		policy: policy,
-		target: target,
+		remoteIA: remote.IA,
+		policy:   policy,
+		target:   target,
 	}
 	paths, err := pool.subscribe(ctx, remote.IA, s)
 	if err != nil {
 		return nil, nil
 	}
-	s.setFiltered(paths)
+	s.target.Initialize(local, remote, filtered(s.policy, paths))
 	return s, nil
 }
 
 func (s *pathRefreshSubscriber) Close() error {
-	pool.unsubscribe(s.remote.IA, s)
+	pool.unsubscribe(s.remoteIA, s)
 	return nil
 }
 
 func (s *pathRefreshSubscriber) setPolicy(policy Policy) {
 	s.policy = policy
-	s.setFiltered(pool.cachedPaths(s.remote.IA))
+	paths := pool.cachedPaths(s.remoteIA)
+	s.target.Refresh(filtered(s.policy, paths))
 }
 
 func (s *pathRefreshSubscriber) refresh(dst IA, paths []*Path) {
-	s.setFiltered(paths)
+	s.target.Refresh(filtered(s.policy, paths))
 }
 
-func (s *pathRefreshSubscriber) OnPathDown(pf PathFingerprint, pi PathInterface) {
-	s.target.OnPathDown(pf, pi)
+func (s *pathRefreshSubscriber) PathDown(pf PathFingerprint, pi PathInterface) {
+	s.target.PathDown(pf, pi)
 }
 
-func (s *pathRefreshSubscriber) setFiltered(paths []*Path) {
-	if s.policy != nil {
-		paths = s.policy.Filter(paths)
+func filtered(policy Policy, paths []*Path) []*Path {
+	if policy != nil {
+		return policy.Filter(paths)
 	}
-	s.target.SetPaths(s.remote, paths)
+	return paths
 }
