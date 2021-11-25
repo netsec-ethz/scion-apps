@@ -253,10 +253,8 @@ func (s pathSequence) Reversed() pathSequence {
 	return pathSequence{InterfaceIDs: rev}
 }
 
-// TODO: rename. "PathSequenceKey"?
 // PathFingerprint is an opaque identifier for a path. It identifies a path by
-// its source and destination IA and the sequence of interface identifiers
-// along the path.
+// the sequence of interface identifiers along the path.
 type PathFingerprint string
 
 func pathFingerprints(paths []*Path) []PathFingerprint {

@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -144,16 +143,6 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 		var lastHop net.UDPAddr
 		err := c.raw.ReadFrom(&pkt, &lastHop)
 		if err != nil {
-			// FIXME:HACK: snet does not properly parse all SCMP types; just do *something*
-			if strings.HasPrefix(err.Error(), "decoding packet\n    unhandled SCMP type") {
-				// cant get this out without parsing the string
-				err = SCMPError{
-					typeCode: slayers.CreateSCMPTypeCode(
-						slayers.SCMPTypeParameterProblem,
-						slayers.SCMPCodeInvalidPacketSize,
-					),
-				}
-			}
 			return 0, UDPAddr{}, ForwardingPath{}, err
 		}
 		udp, ok := pkt.Payload.(snet.UDPPayload)
@@ -217,10 +206,11 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		stats.NotifyPathDown(pf, pi)
 		return nil
 	default:
+		ip, _ := netaddr.FromStdIP(pkt.Source.Host.IP())
 		return SCMPError{
 			typeCode: slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
 			ErrorIA:  IA(pkt.Source.IA),
-			ErrorIP:  append(net.IP{}, pkt.Source.Host.IP()...),
+			ErrorIP:  ip,
 		}
 	}
 }
@@ -230,7 +220,7 @@ type SCMPError struct {
 	// ErrorIA is the source IA of the SCMP error message
 	ErrorIA IA
 	// ErrorIP is the source IP of the SCMP error message
-	ErrorIP net.IP
+	ErrorIP netaddr.IP
 	// TODO: include quote information (pkt destinition, path, ...)
 }
 
