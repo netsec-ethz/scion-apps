@@ -39,7 +39,8 @@ const (
 	// that is no longer returned from a path query is dropped from the cache.
 	pathPruneLeadTime = pathRefreshMinInterval
 
-	pathDownNotificationTimeout = 10 * time.Second
+	pathDownNotificationTimeout         = 10 * time.Second
+	pathDownNotificationChannelCapacity = 8
 
 	defaultSelectorMaxReplyPaths = 4
 

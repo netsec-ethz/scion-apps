@@ -21,6 +21,40 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNotifyPathDown(t *testing.T) {
+	stats = newPathStatsDB()
+
+	pf := PathFingerprint("x")
+	pi := PathInterface{
+		IA:   MustParseIA("1-ff00:0:110"),
+		IfID: 5,
+	}
+
+	// subscribe, signal on channel when notification happened
+	subscriber := &dummyPathDownSubscriber{notified: make(chan struct{})}
+	stats.subscribe(subscriber)
+
+	stats.NotifyPathDown(pf, pi)
+
+	timeout := time.Second
+	select {
+	case <-subscriber.notified:
+	case <-time.NewTimer(timeout).C:
+		assert.FailNow(t, "stats.NotifyPathDown did not notify subscriber before timeout", timeout)
+	}
+
+	stats.unsubscribe(subscriber)
+	assert.Empty(t, stats.notifier.subscribers)
+}
+
+type dummyPathDownSubscriber struct {
+	notified chan struct{}
+}
+
+func (s *dummyPathDownSubscriber) PathDown(_ PathFingerprint, _ PathInterface) {
+	s.notified <- struct{}{}
+}
+
 func TestRecordLatency(t *testing.T) {
 	stats = newPathStatsDB()
 

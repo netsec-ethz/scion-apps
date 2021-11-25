@@ -61,7 +61,7 @@ type pathStatsDB struct {
 	// TODO: cleanup of this map on connection end, reference counted handle?
 	destinations map[scionAddr]DestinationStats
 
-	subscribers []pathDownNotifyee
+	notifier pathDownNotifier
 }
 
 func newPathStatsDB() pathStatsDB {
@@ -185,27 +185,16 @@ func (s *pathStatsDB) oldestDownNotification(p *Path) time.Time {
 }
 
 func (s *pathStatsDB) subscribe(subscriber pathDownNotifyee) {
-	s.subscribers = append(s.subscribers, subscriber)
+	s.notifier.subscribe(subscriber)
 }
 
 func (s *pathStatsDB) unsubscribe(subscriber pathDownNotifyee) {
-	idx := -1
-	for i, v := range s.subscribers {
-		if subscriber == v {
-			idx = i
-			break
-		}
-	}
-	if idx >= 0 {
-		s.subscribers = append(s.subscribers[:idx], s.subscribers[idx+1:]...)
-	}
+	s.notifier.unsubscribe(subscriber)
 }
 
 func (s *pathStatsDB) NotifyPathDown(pf PathFingerprint, pi PathInterface) {
 	s.recordPathDown(pf, pi)
-	for _, subscriber := range s.subscribers {
-		subscriber.PathDown(pf, pi)
-	}
+	s.notifier.notifyAsync(pf, pi)
 }
 
 func (s *pathStatsDB) recordPathDown(pf PathFingerprint, pi PathInterface) {
@@ -232,4 +221,64 @@ func (s StatsLatencySamples) insert(latency time.Duration) StatsLatencySamples {
 		Value: latency,
 	}
 	return s
+}
+
+type pathDownNotifier struct {
+	mutex         sync.Mutex
+	subscribers   []pathDownNotifyee
+	runOnce       sync.Once
+	notifications chan<- pathDownNotification
+}
+
+func (n *pathDownNotifier) subscribe(subscriber pathDownNotifyee) {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	n.subscribers = append(n.subscribers, subscriber)
+}
+
+func (n *pathDownNotifier) unsubscribe(subscriber pathDownNotifyee) {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	idx := -1
+	for i, v := range n.subscribers {
+		if subscriber == v {
+			idx = i
+			break
+		}
+	}
+	if idx >= 0 {
+		n.subscribers = append(n.subscribers[:idx], n.subscribers[idx+1:]...)
+	}
+}
+
+func (n *pathDownNotifier) run() {
+	notifications := make(chan pathDownNotification, pathDownNotificationChannelCapacity)
+	n.notifications = notifications
+
+	go func() {
+		for notification := range notifications {
+			n.notify(notification.Fingerprint, notification.Interface)
+		}
+	}()
+}
+
+func (n *pathDownNotifier) notifyAsync(pf PathFingerprint, pi PathInterface) {
+	n.runOnce.Do(n.run)
+	n.notifications <- pathDownNotification{Fingerprint: pf, Interface: pi}
+}
+
+func (n *pathDownNotifier) notify(pf PathFingerprint, pi PathInterface) {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	for _, s := range n.subscribers {
+		s.PathDown(pf, pi)
+	}
+}
+
+type pathDownNotification struct {
+	Fingerprint PathFingerprint
+	Interface   PathInterface
 }
