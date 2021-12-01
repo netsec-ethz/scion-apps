@@ -17,9 +17,10 @@ package pan
 import (
 	"io"
 	"log"
-	"sync/atomic"
+	"sync"
 )
 
+var logSilencerMutex sync.Mutex
 var logSilencerCount int32
 var logSilencerOriginal io.Writer
 
@@ -29,25 +30,25 @@ var logSilencerOriginal io.Writer
 // the log will remain silenced until unsilenceLog was called for each
 // silenceLog call.
 func silenceLog() {
-	count := atomic.AddInt32(&logSilencerCount, 1)
-	if count == 1 {
+	logSilencerMutex.Lock()
+	defer logSilencerMutex.Unlock()
+
+	logSilencerCount++
+	if logSilencerCount == 1 {
 		logSilencerOriginal = log.Default().Writer()
-		log.Default().SetOutput(blackhole{})
+		log.Default().SetOutput(io.Discard)
 	}
 }
 
 func unsilenceLog() {
-	count := atomic.AddInt32(&logSilencerCount, -1)
-	if count == 0 {
+	logSilencerMutex.Lock()
+	defer logSilencerMutex.Unlock()
+
+	logSilencerCount--
+	if logSilencerCount == 0 {
 		log.Default().SetOutput(logSilencerOriginal)
 		logSilencerOriginal = nil
-	} else if count < 0 {
+	} else if logSilencerCount < 0 {
 		panic("unsilenceLog called more often than silenceLog")
 	}
-}
-
-type blackhole struct{}
-
-func (w blackhole) Write(p []byte) (n int, err error) {
-	return len(p), nil
 }
