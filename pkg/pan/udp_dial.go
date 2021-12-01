@@ -27,12 +27,12 @@ type Conn interface {
 	// SetPolicy allows to set the path policy for paths used by Write, at any
 	// time.
 	SetPolicy(policy Policy)
-	// WritePath writes a message to the remote address via the given path.
+	// WriteVia writes a message to the remote address via the given path.
 	// This bypasses the path policy and selector used for Write.
-	WritePath(path *Path, b []byte) (int, error)
-	// ReadPath reads a message and returns the (return-)path via which the
+	WriteVia(path *Path, b []byte) (int, error)
+	// ReadVia reads a message and returns the (return-)path via which the
 	// message was received.
-	ReadPath(b []byte) (int, *Path, error)
+	ReadVia(b []byte) (int, *Path, error)
 }
 
 // DialUDP opens a SCION/UDP socket, connected to the remote address.
@@ -111,7 +111,7 @@ func (c *dialedConn) Write(b []byte) (int, error) {
 	return c.baseUDPConn.writeMsg(c.local, c.remote, path, b)
 }
 
-func (c *dialedConn) WritePath(path *Path, b []byte) (int, error) {
+func (c *dialedConn) WriteVia(path *Path, b []byte) (int, error) {
 	return c.baseUDPConn.writeMsg(c.local, c.remote, path, b)
 }
 
@@ -128,7 +128,7 @@ func (c *dialedConn) Read(b []byte) (int, error) {
 	}
 }
 
-func (c *dialedConn) ReadPath(b []byte) (int, *Path, error) {
+func (c *dialedConn) ReadVia(b []byte) (int, *Path, error) {
 	for {
 		n, remote, fwPath, err := c.baseUDPConn.readMsg(b)
 		if err != nil {

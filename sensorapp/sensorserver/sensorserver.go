@@ -87,7 +87,7 @@ func main() {
 	receivePacketBuffer := make([]byte, 2500)
 	sendPacketBuffer := make([]byte, 2500)
 	for {
-		_, clientAddress, path, err := conn.ReadFromPath(receivePacketBuffer)
+		_, clientAddress, path, err := conn.ReadFromVia(receivePacketBuffer)
 		check(err)
 
 		// Packet received, send back response to same client
@@ -105,7 +105,7 @@ func main() {
 		sensorValues = timeStr + "\n" + sensorValues
 		copy(sendPacketBuffer, sensorValues)
 
-		_, err = conn.WriteToPath(sendPacketBuffer[:len(sensorValues)], clientAddress, path)
+		_, err = conn.WriteToVia(sendPacketBuffer[:len(sensorValues)], clientAddress, path)
 		check(err)
 	}
 }

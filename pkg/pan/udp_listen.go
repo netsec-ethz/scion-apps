@@ -49,12 +49,12 @@ type ReplySelector interface {
 
 type ListenConn interface {
 	net.PacketConn
-	// ReadFromPath reads a message and returns the (return-)path via which the
+	// ReadFromVia reads a message and returns the (return-)path via which the
 	// message was received.
-	ReadFromPath(b []byte) (int, UDPAddr, *Path, error)
-	// WriteToPath writes a message to the remote address via the given path.
+	ReadFromVia(b []byte) (int, UDPAddr, *Path, error)
+	// WriteToVia writes a message to the remote address via the given path.
 	// This bypasses selector used for WriteTo.
-	WriteToPath(b []byte, dst UDPAddr, path *Path) (int, error)
+	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
 }
 
 func ListenUDP(ctx context.Context, local netaddr.IPPort,
@@ -100,11 +100,11 @@ func (c *listenConn) LocalAddr() net.Addr {
 }
 
 func (c *listenConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	n, remote, _, err := c.ReadFromPath(b)
+	n, remote, _, err := c.ReadFromVia(b)
 	return n, remote, err
 }
 
-func (c *listenConn) ReadFromPath(b []byte) (int, UDPAddr, *Path, error) {
+func (c *listenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
 	n, remote, fwPath, err := c.baseUDPConn.readMsg(b)
 	if err != nil {
 		return n, UDPAddr{}, nil, err
@@ -126,10 +126,10 @@ func (c *listenConn) WriteTo(b []byte, dst net.Addr) (int, error) {
 			return 0, errNoPathTo(sdst.IA)
 		}
 	}
-	return c.WriteToPath(b, sdst, path)
+	return c.WriteToVia(b, sdst, path)
 }
 
-func (c *listenConn) WriteToPath(b []byte, dst UDPAddr, path *Path) (int, error) {
+func (c *listenConn) WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error) {
 	return c.baseUDPConn.writeMsg(c.local, dst, path, b)
 }
 
