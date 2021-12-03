@@ -36,10 +36,9 @@ func TestIntegrationBwtestclient(t *testing.T) {
 	serverCmd := integration.AppBinPath(serverBin)
 
 	// Server
-	serverPort := "40002"
-	serverArgs := []string{"-p", serverPort}
+	serverArgs := []string{}
 	// Client
-	clientArgs := []string{"-s", integration.DstAddrPattern + ":" + serverPort, "-cs", "1,?,?,1Mbps"}
+	clientArgs := []string{"-s", integration.DstAddrPattern + ":40002", "-cs", "1,?,?,1Mbps"}
 
 	in := integration.NewAppsIntegration(clientCmd, serverCmd, clientArgs, serverArgs)
 	in.ServerOutMatch = integration.Contains("Received request")
