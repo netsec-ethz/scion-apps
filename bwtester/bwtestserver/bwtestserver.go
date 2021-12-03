@@ -22,15 +22,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"time"
 
+	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
+
 	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 const (
@@ -38,15 +38,15 @@ const (
 )
 
 func main() {
-	// Fetch arguments from command line
-	serverPort := flag.Uint("p", 40002, "Port")
-	flag.Parse()
+	var listen pan.IPPortValue
+	kingpin.Flag("listen", "Address to listen on").Default(":40002").SetValue(&listen)
+	kingpin.Parse()
 
-	err := runServer(uint16(*serverPort))
+	err := runServer(listen.Get())
 	Check(err)
 }
 
-func runServer(port uint16) error {
+func runServer(listen netaddr.IPPort) error {
 	receivePacketBuffer := make([]byte, 2500)
 
 	var currentBwtest string
@@ -55,11 +55,12 @@ func runServer(port uint16) error {
 
 	results := make(resultsMap)
 
-	ccConn, err := appnet.ListenPort(port)
+	ccSelector := pan.NewDefaultReplySelector()
+	ccConn, err := pan.ListenUDP(context.Background(), listen, ccSelector)
 	if err != nil {
 		return err
 	}
-	serverCCAddr := ccConn.LocalAddr().(*net.UDPAddr)
+	serverCCAddr := ccConn.LocalAddr().(pan.UDPAddr)
 	for {
 		// Handle client requests
 		n, clientCCAddr, err := ccConn.ReadFrom(receivePacketBuffer)
@@ -104,7 +105,8 @@ func runServer(port uint16) error {
 			if err != nil {
 				continue
 			}
-			finishTime, err := startBwtestBackground(serverCCAddr, clientCCAddr.(*snet.UDPAddr),
+			path := ccSelector.Path(clientCCAddr.(pan.UDPAddr))
+			finishTime, err := startBwtestBackground(serverCCAddr, clientCCAddr.(pan.UDPAddr), path,
 				clientBwp, serverBwp, currentResult)
 			if err != nil {
 				// Ask the client to try again in 1 second
@@ -135,17 +137,17 @@ func runServer(port uint16) error {
 
 // startBwtestBackground starts a bandwidth test, in the background.
 // Returns the expected finish time of the test, or any error during the setup.
-func startBwtestBackground(serverCCAddr *net.UDPAddr, clientCCAddr *snet.UDPAddr,
-	clientBwp, serverBwp BwtestParameters, res chan<- BwtestResult) (time.Time, error) {
+func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
+	path *pan.Path, clientBwp, serverBwp BwtestParameters, res chan<- BwtestResult) (time.Time, error) {
 
 	// Data Connection addresses:
-	clientDCAddr := clientCCAddr.Copy()
-	clientDCAddr.Host.Port = int(clientBwp.Port)
-	serverDCAddr := &net.UDPAddr{IP: serverCCAddr.IP, Port: int(serverBwp.Port)}
+	clientDCAddr := clientCCAddr
+	clientDCAddr.Port = clientBwp.Port
+	serverDCAddr := netaddr.IPPortFrom(serverCCAddr.IP, serverBwp.Port)
 
 	// Open Data Connection
-	dcConn, err := appnet.DefNetwork().Dial(
-		context.TODO(), "udp", serverDCAddr, clientDCAddr, addr.SvcNone)
+	dcSelector := initializedReplySelector(clientDCAddr, path)
+	dcConn, err := listenConnected(serverDCAddr, clientDCAddr, dcSelector)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -286,4 +288,51 @@ func (r resultsMap) purgeExpired() {
 			delete(r, k)
 		}
 	}
+}
+
+func listenConnected(local netaddr.IPPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
+	conn, err := pan.ListenUDP(context.Background(), local, selector)
+	return connectedPacketConn{
+		ListenConn: conn,
+		remote:     remote,
+	}, err
+}
+
+// connectedPacketConn connects a net.PacketConn to a fixed remote address,
+// i.e. it uses the fixed remote address to wrap the ReadFrom/WriteTo of a
+// net.PacketConn into Read/Write of a net.Conn.
+type connectedPacketConn struct {
+	pan.ListenConn
+	remote pan.UDPAddr
+}
+
+func (c connectedPacketConn) Read(buf []byte) (int, error) {
+	for {
+		n, addr, err := c.ListenConn.ReadFrom(buf)
+		if err != nil {
+			return n, err
+		}
+		if c.remote != addr.(pan.UDPAddr) {
+			continue
+		}
+		return n, err
+	}
+}
+
+func (c connectedPacketConn) Write(buf []byte) (int, error) {
+	return c.ListenConn.WriteTo(buf, c.remote)
+}
+
+func (c connectedPacketConn) RemoteAddr() net.Addr {
+	return c.remote
+}
+
+// initializedReplySelector creates a pan.DefaultReplySelector, initialized with path for dst.
+func initializedReplySelector(remote pan.UDPAddr, path *pan.Path) pan.ReplySelector {
+	if path != nil && path.Destination != remote.IA {
+		panic("path destination should match address")
+	}
+	selector := pan.NewDefaultReplySelector()
+	selector.Record(remote, path)
+	return selector
 }
