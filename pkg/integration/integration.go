@@ -174,7 +174,7 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	return ret
 }
 
-// hostAddr gets _a_ host address, the same way appnet does, for a given IA
+// hostAddr gets _a_ host address, the same way pan does, for a given IA
 func hostAddr(ia addr.IA) *snet.UDPAddr {
 	daemon, err := getSCIONDAddress(ia)
 	if err != nil {
