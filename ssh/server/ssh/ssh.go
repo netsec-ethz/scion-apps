@@ -21,7 +21,6 @@ import (
 	"strconv"
 
 	log "github.com/inconshreveable/log15"
-
 	"golang.org/x/crypto/ssh"
 
 	"github.com/netsec-ethz/scion-apps/ssh/server/serverconfig"
@@ -29,7 +28,7 @@ import (
 )
 
 // ChannelHandlerFunction is a type for channel handlers, such as terminal sessions, tunnels, or X11 forwarding.
-type ChannelHandlerFunction func(perms *ssh.Permissions, newChannel ssh.NewChannel)
+type channelHandlerFunction func(perms *ssh.Permissions, newChannel ssh.NewChannel) error
 
 // Server is a struct containing information about SSH servers.
 type Server struct {
@@ -37,14 +36,14 @@ type Server struct {
 
 	configuration *ssh.ServerConfig
 
-	channelHandlers map[string]ChannelHandlerFunction
+	channelHandlers map[string]channelHandlerFunction
 }
 
 // Create creates a new unconnected Server object.
 func Create(config *serverconfig.ServerConfig, version string) (*Server, error) {
 	server := &Server{
 		authorizedKeysFile: config.AuthorizedKeysFile,
-		channelHandlers:    make(map[string]ChannelHandlerFunction),
+		channelHandlers:    make(map[string]channelHandlerFunction),
 	}
 
 	maxAuthTries, _ := strconv.Atoi(config.MaxAuthTries)
@@ -81,7 +80,10 @@ func (s *Server) handleChannels(perms *ssh.Permissions, chans <-chan ssh.NewChan
 
 func (s *Server) handleChannel(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 	if handler, exists := s.channelHandlers[newChannel.ChannelType()]; exists {
-		handler(perms, newChannel)
+		err := handler(perms, newChannel)
+		if err != nil {
+			log.Error("error handling channel", "type", newChannel.ChannelType(), "err", err)
+		}
 	} else {
 		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", newChannel.ChannelType()))
 		return
