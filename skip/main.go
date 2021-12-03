@@ -19,6 +19,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	_ "embed"
 	"errors"
@@ -33,9 +34,12 @@ import (
 	"text/template"
 
 	"github.com/gorilla/handlers"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
 var (
@@ -139,11 +143,22 @@ func interceptConnect(connect, next http.Handler) http.HandlerFunc {
 }
 
 func handleTunneling(w http.ResponseWriter, req *http.Request) {
-	session, err := appquic.Dial(
+	hostAddr, err := pan.ResolveUDPAddr(req.Host)
+	if err != nil {
+		fmt.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	session, err := pan.DialQUIC(
+		context.Background(),
+		netaddr.IPPort{},
+		hostAddr,
+		nil,
+		nil,
 		req.Host,
 		&tls.Config{
 			InsecureSkipVerify: true,
-			NextProtos:         []string{"raw"},
+			NextProtos:         []string{quicutil.SingleStreamProto},
 		},
 		nil)
 	if err != nil {
@@ -151,7 +166,7 @@ func handleTunneling(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	destConn, err := session.OpenStream()
+	destConn, err := quicutil.NewSingleStream(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -203,7 +218,7 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 func demunge(host string) string {
 	parts := mungedScionAddr.FindStringSubmatch(host)
 	if parts != nil {
-		// directly apply mangling as in appnet.MangleSCIONAddr
+		// directly apply mangling as in pan.MangleSCIONAddr
 		return fmt.Sprintf("[%s-%s,%s]",
 			parts[mungedScionAddrIAIndex],
 			strings.ReplaceAll(parts[mungedScionAddrASIndex], "_", ":"),
@@ -214,7 +229,7 @@ func demunge(host string) string {
 }
 
 // loadHosts parses /etc/hosts and /etc/scion/hosts looking for SCION host addresses.
-// copied/simplified from pkg/appnet/hostsfile.go
+// copied/simplified from pkg/pan/hostsfile.go
 func loadHosts() []string {
 	h1 := loadHostsFile("/etc/hosts")
 	h2 := loadHostsFile("/etc/scion/hosts")
@@ -230,7 +245,7 @@ func loadHostsFile(path string) []string {
 	return parseHostsFile(file)
 }
 
-// parseHostsFile, copied/simplified from pkg/appnet/hostsfile.go
+// parseHostsFile, copied/simplified from pkg/pan/hostsfile.go
 func parseHostsFile(file *os.File) []string {
 	hosts := []string{}
 	scanner := bufio.NewScanner(file)

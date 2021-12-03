@@ -17,21 +17,51 @@
 package shttp3
 
 import (
+	"context"
 	"crypto/tls"
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 // DefaultTransport is the default RoundTripper that can be used for HTTP/3
 // over SCION.
 var DefaultTransport = &http3.RoundTripper{
-	Dial: Dial,
+	Dial: (&Dialer{
+		Policy: nil,
+	}).Dial,
 }
 
-// Dial is the Dial function used in RoundTripper
-func Dial(network, address string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlySession, error) {
-	return appquic.DialEarly(appnet.UnmangleSCIONAddr(address), tlsCfg, cfg)
+// Dialer dials a QUIC connection over SCION.
+// This is the Dialer used for shttp3.DefaultTransport.
+type Dialer struct {
+	Local    netaddr.IPPort
+	Policy   pan.Policy
+	sessions []*pan.QUICEarlySession
+}
+
+// Dial dials a QUIC connection over SCION.
+func (d *Dialer) Dial(network, addr string, tlsCfg *tls.Config,
+	cfg *quic.Config) (quic.EarlySession, error) {
+
+	remote, err := pan.ResolveUDPAddr(pan.UnmangleSCIONAddr(addr))
+	if err != nil {
+		return nil, err
+	}
+	session, err := pan.DialQUICEarly(context.TODO(), d.Local, remote, d.Policy, nil, addr, tlsCfg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	d.sessions = append(d.sessions, session)
+	return session, nil
+}
+
+func (d *Dialer) SetPolicy(policy pan.Policy) {
+	d.Policy = policy
+	for _, s := range d.sessions {
+		s.Conn.SetPolicy(policy)
+	}
 }

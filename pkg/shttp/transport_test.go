@@ -21,12 +21,15 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 func TestMangleSCIONAddrURL(t *testing.T) {
@@ -63,7 +66,7 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 			if _, _, err := net.SplitHostPort(u.Host); err != nil {
 				continue
 			}
-			unmangled := appnet.UnmangleSCIONAddr(u.Host)
+			unmangled := pan.UnmangleSCIONAddr(u.Host)
 			if unmangled != tc.HostPort {
 				t.Fatalf("UnmangleSCIONAddr('%s') returned different result, actual='%s', expected='%s'", u.Host, unmangled, tc.HostPort)
 			}
@@ -71,27 +74,7 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 	}
 }
 
-type mockResolver struct {
-	table map[string]string
-}
-
-func (r *mockResolver) Resolve(name string) (*snet.SCIONAddress, error) {
-	address, ok := r.table[name]
-	if !ok {
-		return nil, &appnet.HostNotFoundError{Host: name}
-	} else {
-		a, err := snet.ParseUDPAddr(address)
-		if err != nil {
-			panic(fmt.Sprintf("test input must parse %s", err))
-		}
-		return &snet.SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)}, nil
-	}
-}
-
 func TestRoundTripper(t *testing.T) {
-
-	resolver := &mockResolver{map[string]string{"host": "1-ff00:0:1,[192.0.2.1]"}}
-
 	testCases := []struct {
 		HostPort string
 		Expected string
@@ -106,22 +89,37 @@ func TestRoundTripper(t *testing.T) {
 	}
 
 	urlPatterns := hostURLPatterns()
+	errJustATest := errors.New("just a test")
 
 	// We replace the actual dial function of the roundtripper with this function that only
 	// checks wether the address can be successfully unmangled and resolved.
 	// expected will be set in the test loop, below
 	var expected string
 	testDial := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		unmangled := appnet.UnmangleSCIONAddr(addr)
-		resolvedAddr, err := appnet.ResolveUDPAddrAt(unmangled, resolver)
-		if err != nil {
-			t.Fatalf("unexpected error when resolving address '%s' in roundtripper: %s", unmangled, err)
+		// The actual Dialer.DialContext does
+		//  remote, err := pan.ResolveUDPAddr(pan.UnmangleSCIONAddr(addr))
+		// We mock pan.ResolveUDPAddr here; don't want to rely on hosts files etc
+		// for this test.
+		unmangled := pan.UnmangleSCIONAddr(addr)
+		if strings.HasPrefix(unmangled, "host") {
+			_, err := pan.ParseUDPAddr(unmangled)
+			require.Error(t, err)
+			hostStr, portStr, err := net.SplitHostPort(unmangled)
+			require.NoError(t, err)
+			port, err := strconv.Atoi(portStr)
+			require.NoError(t, err)
+			require.Equal(t, hostStr, "host")
+			hostIA, err := pan.ParseIA("1-ff00:0:1")
+			require.NoError(t, err)
+			hostIP := netaddr.MustParseIP("192.0.2.1")
+			remote := pan.UDPAddr{IA: hostIA, IP: hostIP, Port: uint16(port)}
+			assert.Equal(t, expected, remote.String())
+		} else {
+			remote, err := pan.ParseUDPAddr(unmangled)
+			require.NoError(t, err)
+			assert.Equal(t, expected, remote.String())
 		}
-		actual := resolvedAddr.String()
-		if actual != expected {
-			t.Fatalf("unexpected address resolved in roundtripper, actual='%s', expected='%s'", actual, expected)
-		}
-		return nil, errors.New("just a test")
+		return nil, errJustATest
 	}
 
 	c := &http.Client{
@@ -136,11 +134,7 @@ func TestRoundTripper(t *testing.T) {
 
 			url := fmt.Sprintf(urlPattern, tc.HostPort)
 			_, err := c.Get(MangleSCIONAddrURL(url))
-			if err == nil {
-				panic("unexpected success!")
-			} else if !strings.Contains(err.Error(), "just a test") {
-				t.Fatalf("unexpected error: %s", err)
-			}
+			assert.ErrorIs(t, err, errJustATest)
 		}
 	}
 }
