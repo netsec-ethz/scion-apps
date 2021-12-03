@@ -15,21 +15,30 @@
 package main
 
 import (
+	"context"
 	"io"
+	"sync"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
-// May not be accessed from multiple threads concurrently, especially Read(...) and Close(...)
 type udpListenConn struct {
 	requests  chan<- []byte
 	responses <-chan int
-	isClosed  bool
+	mutex     sync.Mutex // protects Read's requests/responses channel from concurrent Close
 	write     func(b []byte) (int, error)
 	close     func() error
 }
 
 func (conn *udpListenConn) Read(b []byte) (int, error) {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
+	if conn.requests == nil {
+		return 0, io.EOF
+	}
 	conn.requests <- b
 	return <-conn.responses, nil
 }
@@ -39,17 +48,32 @@ func (conn *udpListenConn) Write(b []byte) (int, error) {
 }
 
 func (conn *udpListenConn) Close() error {
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
 	return conn.close()
 }
 
 // DoDialUDP dials with a UDP socket
-func DoDialUDP(remote string) (io.ReadWriteCloser, error) {
-	return appnet.Dial(remote)
+func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
+	remoteAddr, err := pan.ResolveUDPAddr(remote)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, remoteAddr, policy, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 // DoListenUDP listens on a UDP socket
 func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
-	conn, err := appnet.ListenPort(port)
+	conn, err := pan.ListenUDP(
+		context.Background(),
+		netaddr.IPPortFrom(netaddr.IP{}, port),
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +108,6 @@ func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
 				conns <- &udpListenConn{
 					requests:  nbufChan,
 					responses: nrespChan,
-					isClosed:  false,
 					write: func(b []byte) (n int, err error) {
 						return conn.WriteTo(b, addr)
 					},
