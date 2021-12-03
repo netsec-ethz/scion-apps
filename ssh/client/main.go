@@ -15,9 +15,8 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io/ioutil"
 	golog "log"
 	"net"
 	"os"
@@ -28,13 +27,12 @@ import (
 	log "github.com/inconshreveable/log15"
 	"golang.org/x/term"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
 
-	"github.com/scionproto/scion/go/lib/pathpol"
-
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 )
 
@@ -46,9 +44,12 @@ var (
 	localForward  = kingpin.Flag("local-forward", "Forward remote address connections to listening port. Format: listening_port:remote_address").Short('L').String()
 	options       = kingpin.Flag("option", "Set an option").Short('o').Strings()
 	configFiles   = kingpin.Flag("config", "Configuration files").Short('c').Default("/etc/ssh/ssh_config", "~/.ssh/config").Strings()
-	policyFile    = kingpin.Flag("policy-file", "Path to the JSON policy file").Default("").String()
-	policyName    = kingpin.Flag("policy-name", "Name of policy to be applied.").Default("").String()
-	pathSelection = kingpin.Flag("selection", "Path selection mode").Default("arbitrary").Enum("static", "arbitrary", "random", "round-robin")
+	interactive   = kingpin.Flag("interactive", "Prompt user for interactive path selection").Bool()
+	sequence      = kingpin.Flag("sequence", "Sequence of space separated hop predicates to specify path").Default("").String()
+	preference    = kingpin.Flag("preference", "Preference sorting order for paths. "+
+		"Comma-separated list of available sorting options: "+
+		strings.Join(pan.AvailablePreferencePolicies, "|")).Default("").String()
+	pathSelector = kingpin.Flag("selector", "Path selection mode").Default("default").Enum(ssh.AvailablePathSelectors...)
 
 	// TODO: additional file paths
 	knownHostsFile = kingpin.Flag("known-hosts", "File where known hosts are stored").ExistingFile()
@@ -145,37 +146,20 @@ func main() {
 	if remoteUsername == "" {
 		remoteUsername = localUser.Username
 	}
-	var policyMap pathpol.PolicyMap
-	var policy *pathpol.Policy
-	if *policyFile != "" {
-		file, err := ioutil.ReadFile(*policyFile)
-		if err != nil {
-			golog.Panicf("Cannot read policy file: %v", err)
-		}
-		err = json.Unmarshal(file, &policyMap)
-		if err != nil {
-			golog.Panicf("Cannot unmarshal policy form file: %v", err)
-		}
-		extPolicy, policyExists := policyMap[*policyName]
-
-		if !policyExists {
-			golog.Panicf("No policy with name %s exists", *policyName)
-		}
-		policy = extPolicy.Policy
-	}
-	appConf, err := scionutils.NewPathAppConf(policy, *pathSelection)
-	if err != nil {
-		golog.Panicf("Invalid application config: %v", err)
-	}
-
-	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler, appConf)
+	sshClient, err := ssh.Create(remoteUsername, conf, PromptPassword, verifyNewKeyHandler)
 	if err != nil {
 		golog.Panicf("Error creating ssh client: %v", err)
 	}
 
+	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive)
+	if err != nil {
+		golog.Fatal(err)
+	}
+
 	serverAddress := fmt.Sprintf("%s:%v", conf.HostAddress, conf.Port)
 
-	err = sshClient.Connect(serverAddress)
+	ctx := context.Background()
+	err = sshClient.Connect(ctx, serverAddress, policy, *pathSelector)
 	if err != nil {
 		golog.Panicf("Error connecting: %v", err)
 	}
@@ -189,7 +173,8 @@ func main() {
 			golog.Panicf("Error parsing forwarding port: %v", err)
 		}
 
-		err = sshClient.StartTunnel(uint16(port), localForward[1])
+		local := netaddr.IPPortFrom(netaddr.IP{}, uint16(port))
+		err = sshClient.StartTunnel(local, localForward[1])
 		if err != nil {
 			golog.Panicf("Error starting tunnel: %v", err)
 		}
@@ -204,7 +189,7 @@ func main() {
 			golog.Panicf("Error starting shell: %v", err)
 		}
 	} else {
-		log.Debug("Running command: %s", runCommand)
+		log.Debug("Running command", "cmd", runCommand)
 
 		err = sshClient.ConnectPipes(os.Stdin, os.Stdout)
 		if err != nil {

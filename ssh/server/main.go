@@ -21,16 +21,16 @@ import (
 	"os"
 	"strconv"
 
+	log "github.com/inconshreveable/log15"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/ssh/config"
-	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
 	"github.com/netsec-ethz/scion-apps/ssh/server/serverconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/server/ssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
-
-	log "github.com/inconshreveable/log15"
 )
 
 const (
@@ -83,38 +83,29 @@ func main() {
 		golog.Panicf("Error creating ssh server: %v", err)
 	}
 
-	port, err := strconv.Atoi(conf.Port)
+	port, err := strconv.ParseUint(conf.Port, 10, 16)
 	if err != nil {
 		golog.Panicf("Can't parse port %v: %v", conf.Port, err)
 	}
-
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
-	listener, err := appquic.ListenPort(
-		uint16(port),
-		&tls.Config{
-			Certificates: appquic.GetDummyTLSCerts(),
-			NextProtos:   []string{quicconn.ProtoSSH},
-		},
-		nil)
+
+	local := netaddr.IPPortFrom(netaddr.IP{}, uint16(port))
+	tlsConf := &tls.Config{
+		Certificates: quicutil.MustGenerateSelfSignedCert(),
+		NextProtos:   []string{quicutil.SingleStreamProto},
+	}
+	ql, err := pan.ListenQUIC(context.Background(), local, nil, tlsConf, nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
+	listener := quicutil.SingleStreamListener{Listener: ql}
 
 	log.Debug("Starting to wait for connections")
 	for {
-		//TODO: Check when to close the connections
-		sess, err := listener.Accept(context.Background())
+		conn, err := listener.Accept()
 		if err != nil {
-			log.Debug("Failed to accept session: %v", err)
-			continue
+			golog.Fatalf("Failed to accept session: %v", err)
 		}
-		stream, err := sess.AcceptStream(context.Background())
-		if err != nil {
-			log.Debug("Failed to accept incoming connection (%v)", err)
-			continue
-		}
-
-		qc := &quicconn.QuicConn{Session: sess, Stream: stream}
-		go sshServer.HandleConnection(qc)
+		go sshServer.HandleConnection(conn)
 	}
 }

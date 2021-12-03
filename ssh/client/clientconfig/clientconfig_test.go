@@ -19,8 +19,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/netsec-ethz/scion-apps/ssh/config"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/netsec-ethz/scion-apps/ssh/config"
 )
 
 func TestDefaultConfig(t *testing.T) {

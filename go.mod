@@ -4,10 +4,10 @@ go 1.16
 
 require (
 	github.com/bclicn/color v0.0.0-20180711051946-108f2023dc84
+	github.com/creack/pty v1.1.17
 	github.com/gorilla/handlers v1.5.1
 	github.com/inconshreveable/log15 v0.0.0-20180818164646-67afb5ed74ec
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
-	github.com/kr/pty v1.1.8
 	github.com/lucas-clemente/quic-go v0.23.0
 	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9

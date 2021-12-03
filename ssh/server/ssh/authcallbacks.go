@@ -18,9 +18,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/msteinert/pam"
+	"golang.org/x/crypto/ssh"
 )
 
 // PasswordAuth authenticates the client using password authentication.

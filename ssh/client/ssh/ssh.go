@@ -17,6 +17,7 @@ package ssh
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,15 +28,13 @@ import (
 	"sync"
 
 	log "github.com/inconshreveable/log15"
-
 	"golang.org/x/crypto/ssh"
+	"inet.af/netaddr"
 
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/client/ssh/knownhosts"
-	"github.com/netsec-ethz/scion-apps/ssh/quicconn"
-	"github.com/netsec-ethz/scion-apps/ssh/scionutils"
-	"github.com/netsec-ethz/scion-apps/ssh/sssh"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 )
 
@@ -54,17 +53,15 @@ type Client struct {
 
 	client  *ssh.Client
 	session *ssh.Session
-	appConf *scionutils.PathAppConf
 }
 
 // Create creates a new unconnected Client.
 func Create(username string, config *clientconfig.ClientConfig, passAuthHandler AuthenticationHandler,
-	verifyNewKeyHandler VerifyHostKeyHandler, appConf *scionutils.PathAppConf) (*Client, error) {
+	verifyNewKeyHandler VerifyHostKeyHandler) (*Client, error) {
 	client := &Client{
 		config: &ssh.ClientConfig{
 			User: username,
 		},
-		appConf: appConf,
 	}
 
 	var authMethods []ssh.AuthMethod
@@ -117,8 +114,8 @@ func Create(username string, config *clientconfig.ClientConfig, passAuthHandler 
 }
 
 // Connect connects the Client to the given address.
-func (client *Client) Connect(addr string) error {
-	goClient, err := sssh.DialSCIONWithConf(addr, client.config, client.appConf)
+func (client *Client) Connect(ctx context.Context, addr string, policy pan.Policy, selector string) error {
+	goClient, err := dialSCION(ctx, addr, policy, selector, client.config)
 	if err != nil {
 		return err
 	}
@@ -195,81 +192,57 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 	return nil
 }
 
-// StartTunnel creates a new tunnel to the given address, forwarding all connections on the given port over the server to the given address. If the given address is a SCION address, QUIC is used; else TCP.
-func (client *Client) StartTunnel(localPort uint16, addr string) error {
+// StartTunnel creates a new tunnel to the given address, forwarding all
+// connections on the given port over the server to the given address. If the
+// given address is a SCION address, QUIC is used; else TCP.
+func (client *Client) StartTunnel(local netaddr.IPPort, addr string) error {
+	var localListener net.Listener
 	if strings.Contains(addr, ",") {
-		localListener, err := appquic.ListenPort(localPort, nil, nil)
+		tlsConf := &tls.Config{
+			NextProtos: []string{quicutil.SingleStreamProto},
+		}
+		ql, err := pan.ListenQUIC(context.Background(), local, nil, tlsConf, nil)
 		if err != nil {
 			return err
 		}
-
-		go func() {
-			defer localListener.Close()
-			for {
-				sess, err := localListener.Accept(context.Background())
-				if err != nil {
-					log.Debug("Error accepting tunnel listener: ", err)
-					continue
-				}
-
-				stream, err := sess.AcceptStream(context.Background())
-				if err != nil {
-					log.Debug("Error accepting tunnel listener session: ", err)
-					continue
-				}
-
-				err = client.forward(addr, &quicconn.QuicConn{Session: sess, Stream: stream})
-				if err != nil {
-					log.Debug("Error forwarding connection: ", err)
-					continue
-				}
-			}
-		}()
+		localListener = quicutil.SingleStreamListener{Listener: ql}
 	} else {
-		localListener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", localPort))
+		// That's right, TCP listen on UDPAddr. XXX replace with netip.AddrPort once available
+		tl, err := net.Listen("tcp", local.String())
 		if err != nil {
 			return err
 		}
-
-		go func() {
-			defer localListener.Close()
-			for {
-				localConn, err := localListener.Accept()
-				if err != nil {
-					log.Debug("Error accepting tunnel listener: ", err)
-					continue
-				}
-
-				err = client.forward(addr, localConn)
-				if err != nil {
-					log.Debug("Error forwarding connection: ", err)
-					continue
-				}
-			}
-		}()
+		localListener = tl
 	}
+
+	go func() {
+		// FIXME: this will run forever
+		defer localListener.Close()
+		for {
+			localConn, err := localListener.Accept()
+			if err != nil {
+				log.Debug("Error accepting tunnel listener: ", err)
+				continue
+			}
+
+			err = client.forward(addr, localConn)
+			if err != nil {
+				log.Debug("Error forwarding connection: ", err)
+				continue
+			}
+		}
+	}()
 
 	return nil
 }
 
-// Dial dials the given address over a tunnel to the server. If the given address is a SCION address, QUIC is used; else TCP.
-func (client *Client) Dial(addr string) (net.Conn, error) {
+// Dial dials the given address over a tunnel to the server. If the given
+// address is a SCION address, QUIC is used; else TCP.
+func (client *Client) Dial(addr string) (io.ReadWriteCloser, error) {
 	if strings.Contains(addr, ",") {
-		conn, err := client.DialSCION(addr)
-		return conn, err
+		return tunnelDialSCION(client.client, addr)
 	}
-	conn, err := client.DialTCP(addr)
-	return conn, err
-}
-
-// DialTCP dials the given address using TCP over a tunnel to the server.
-func (client *Client) DialTCP(addr string) (net.Conn, error) {
 	return client.client.Dial("tcp", addr)
-}
-
-// DialSCION dials the given address using QUIC over a tunnel to the server. If the given address is a SCION address, QUIC is used; else TCP.
-func (client *Client) DialSCION(addr string) (net.Conn, error) {
-	return sssh.TunnelDialSCION(client.client, addr)
 }
 
 // CloseSession closes the current session
@@ -297,7 +270,7 @@ func loadPrivateKey(filePath string) (ssh.AuthMethod, error) {
 }
 
 func (client *Client) verifyHostKey(hostname string, remote net.Addr, key ssh.PublicKey) error {
-	log.Debug("Checking new host signature host: %s", remote.String())
+	log.Debug("Checking new host signature host", "remote", remote)
 
 	err := client.knownHostsFileHandler(hostname, remote, key)
 	if err != nil {

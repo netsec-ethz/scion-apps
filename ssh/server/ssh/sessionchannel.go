@@ -16,6 +16,8 @@ package ssh
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -25,17 +27,15 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/creack/pty"
 	log "github.com/inconshreveable/log15"
-	"github.com/kr/pty"
-
 	"golang.org/x/crypto/ssh"
 )
 
-func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
+func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 	connection, requests, err := newChannel.Accept()
 	if err != nil {
-		log.Error("Could not accept channel", "error", err)
-		return
+		return fmt.Errorf("could not accept channel: %w", err)
 	}
 
 	closeConn := func() {
@@ -56,33 +56,30 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 	execCmd := func(name string, arg ...string) error {
 		cmd := exec.Command(name, arg...)
 		username, ok := perms.CriticalOptions["user"]
-		var usr *user.User
-		if ok {
-			var err error
-			usr, err = user.Lookup(username)
+		if !ok {
+			return errors.New("missing criticla option user")
+		}
+		currentuser, err := user.Current()
+		if err != nil || username != currentuser.Username {
+			usr, err := user.Lookup(username)
 			if err != nil {
 				return err
 			}
-		} else {
-			usr, err = user.Current()
+			uid, err := strconv.ParseUint(usr.Uid, 10, 32)
 			if err != nil {
 				return err
 			}
-		}
-		uid, err := strconv.ParseUint(usr.Uid, 10, 32)
-		if err != nil {
-			return err
-		}
-		gid, err := strconv.ParseUint(usr.Gid, 10, 32)
-		if err != nil {
-			return err
-		}
-		if cmd.SysProcAttr == nil {
-			cmd.SysProcAttr = &syscall.SysProcAttr{}
-		}
-		cmd.SysProcAttr.Credential = &syscall.Credential{
-			Uid: uint32(uid),
-			Gid: uint32(gid),
+			gid, err := strconv.ParseUint(usr.Gid, 10, 32)
+			if err != nil {
+				return err
+			}
+			if cmd.SysProcAttr == nil {
+				cmd.SysProcAttr = &syscall.SysProcAttr{}
+			}
+			cmd.SysProcAttr.Credential = &syscall.Credential{
+				Uid: uint32(uid),
+				Gid: uint32(gid),
+			}
 		}
 		close := func() {
 			cmd.Process.Kill()
@@ -219,6 +216,7 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) {
 			}
 		}
 	}()
+	return nil
 }
 
 // parseDims extracts terminal dimensions (width x height) from the provided buffer.
