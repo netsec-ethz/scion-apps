@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build integration
 // +build integration
 
 package main
@@ -35,7 +36,7 @@ func TestMain(m *testing.M) {
 // TestIntegrationScionNetcatCmd runs the netcat listeners in -c mode, returning a
 // fixed string for each newly connected client.
 // This mode is easiest to test here as it does not require any stdin/out redirections
-// and the clients can terminate succesfully without interrupting them.
+// and the clients can terminate successfully without interrupting them.
 // XXX: This is testing the "happy" path only, meaning pretty much anything
 // else does not currently work.
 func TestIntegrationScionNetcatCmd(t *testing.T) {

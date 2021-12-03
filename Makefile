@@ -12,6 +12,11 @@ DESTDIR = $(shell set -a; eval $$( go env ); gopath=$${GOPATH%:*}; echo $${GOBIN
 # HINT: build with TAGS=norains to build without rains support
 TAGS =
 
+# EXAMPLES lists each ./_examples/ subdirectory containing .go files. This is
+# used to invoke various go commands, as the _examples directory is otherwise
+# ignored (due to the underscore prefix).
+EXAMPLES = $(shell find ./_examples/ -name *.go -printf '%h\n' | sort -u)
+
 all: build lint
 
 build: scion-bat \
@@ -28,19 +33,19 @@ build: scion-bat \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
 
 clean:
-	go clean ./...
+	go clean ./... ${EXAMPLES}
 	rm -f bin/*
 
 test:
-	go test -tags=$(TAGS) ./...
+	go test -tags=$(TAGS) ./... ${EXAMPLES}
 
 setup_lint:
 	@# Install golangci-lint (as dumb as this looks, this is the recommended way to install)
-	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ${DESTDIR} v1.37.1
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ${DESTDIR} v1.43.0
 
 lint:
 	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
-	golangci-lint run --build-tags=$(TAGS) --timeout=2m0s
+	golangci-lint run --timeout=2m0s ./... ${EXAMPLES}
 
 install: all
   # Note: install everything but the examples
@@ -48,7 +53,7 @@ install: all
 	cp -t $(DESTDIR) $(BIN)/scion-*
 
 integration: build
-	go test -tags=integration,$(TAGS) --count=1 ./... ./_examples/helloworld/
+	go test -tags=integration,$(TAGS) --count=1 ./... ${EXAMPLES}
 
 .PHONY: scion-bat
 scion-bat:

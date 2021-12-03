@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// bwtestserver application
-// For more documentation on the application see:
-// https://github.com/netsec-ethz/scion-apps/blob/master/README.md
-// https://github.com/netsec-ethz/scion-apps/blob/master/bwtester/README.md
 package main
 
 import (
@@ -29,7 +25,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	"inet.af/netaddr"
 
-	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
+	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
@@ -43,7 +39,7 @@ func main() {
 	kingpin.Parse()
 
 	err := runServer(listen.Get())
-	Check(err)
+	bwtest.Check(err)
 }
 
 func runServer(listen netaddr.IPPort) error {
@@ -51,7 +47,7 @@ func runServer(listen netaddr.IPPort) error {
 
 	var currentBwtest string
 	var currentBwtestFinish time.Time
-	currentResult := make(chan BwtestResult)
+	currentResult := make(chan bwtest.Result)
 
 	results := make(resultsMap)
 
@@ -130,7 +126,7 @@ func runServer(listen netaddr.IPPort) error {
 				writeResponseR(ccConn, clientCCAddr, 127, nil)
 				continue
 			}
-			writeResponseR(ccConn, clientCCAddr, 0, &v.BwtestResult)
+			writeResponseR(ccConn, clientCCAddr, 0, &v.Result)
 		}
 	}
 }
@@ -138,7 +134,7 @@ func runServer(listen netaddr.IPPort) error {
 // startBwtestBackground starts a bandwidth test, in the background.
 // Returns the expected finish time of the test, or any error during the setup.
 func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
-	path *pan.Path, clientBwp, serverBwp BwtestParameters, res chan<- BwtestResult) (time.Time, error) {
+	path *pan.Path, clientBwp, serverBwp bwtest.Parameters, res chan<- bwtest.Result) (time.Time, error) {
 
 	// Data Connection addresses:
 	clientDCAddr := clientCCAddr
@@ -153,8 +149,8 @@ func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 	}
 
 	now := time.Now()
-	finishTimeSend := now.Add(serverBwp.BwtestDuration + GracePeriodSend)
-	finishTimeReceive := now.Add(clientBwp.BwtestDuration + StragglerWaitPeriod)
+	finishTimeSend := now.Add(serverBwp.BwtestDuration + bwtest.GracePeriodSend)
+	finishTimeReceive := now.Add(clientBwp.BwtestDuration + bwtest.StragglerWaitPeriod)
 	finishTime := finishTimeReceive
 	if finishTime.Before(finishTimeSend) {
 		finishTime = finishTimeSend
@@ -170,11 +166,11 @@ func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 
 	sendDone := make(chan struct{})
 	go func() {
-		_ = HandleDCConnSend(serverBwp, dcConn)
+		_ = bwtest.HandleDCConnSend(serverBwp, dcConn)
 		close(sendDone)
 	}()
 	go func() {
-		r := HandleDCConnReceive(clientBwp, dcConn)
+		r := bwtest.HandleDCConnReceive(clientBwp, dcConn)
 		<-sendDone
 		dcConn.Close()
 		res <- r
@@ -198,13 +194,13 @@ func writeResponseN(ccConn net.PacketConn, addr net.Addr, waitTime byte) {
 //  - 0:   Ok, the rest of the response is the encoded result
 //  - N>0: please try again in N seconds
 //  - 127: error, go away (why 127? I guess we have 7-bit bytes or something...)
-func writeResponseR(ccConn net.PacketConn, addr net.Addr, code byte, res *BwtestResult) {
+func writeResponseR(ccConn net.PacketConn, addr net.Addr, code byte, res *bwtest.Result) {
 	response := make([]byte, 2000)
 	response[0] = 'R'
 	response[1] = code
 	n := 0
 	if res != nil {
-		n, _ = EncodeBwtestResult(*res, response[2:])
+		n, _ = bwtest.EncodeResult(*res, response[2:])
 	}
 	_, _ = ccConn.WriteTo(response[:2+n], addr)
 }
@@ -222,8 +218,8 @@ func retryWaitTime(t time.Time) byte {
 
 // decodeRequestN decodes and checks the bandwidth test parameters contained in
 // an 'N' (new bandwidth test) request.
-func decodeRequestN(request []byte) (clientBwp, serverBwp BwtestParameters, err error) {
-	clientBwp, n1, err := DecodeBwtestParameters(request[1:])
+func decodeRequestN(request []byte) (clientBwp, serverBwp bwtest.Parameters, err error) {
+	clientBwp, n1, err := bwtest.DecodeParameters(request[1:])
 	if err != nil {
 		err = fmt.Errorf("decoding client->server parameters: %w", err)
 		return
@@ -232,7 +228,7 @@ func decodeRequestN(request []byte) (clientBwp, serverBwp BwtestParameters, err 
 		err = fmt.Errorf("invalid client->server parameters: %w", err)
 		return
 	}
-	serverBwp, n2, err := DecodeBwtestParameters(request[n1+1:])
+	serverBwp, n2, err := bwtest.DecodeParameters(request[n1+1:])
 	if err != nil {
 		err = fmt.Errorf("decoding server->client parameters: %w", err)
 		return
@@ -247,17 +243,17 @@ func decodeRequestN(request []byte) (clientBwp, serverBwp BwtestParameters, err 
 	return
 }
 
-func validateBwtestParameters(bwp BwtestParameters) error {
-	if bwp.BwtestDuration > MaxDuration {
-		return fmt.Errorf("duration exceeds max: %s > %s", bwp.BwtestDuration, MaxDuration)
+func validateBwtestParameters(bwp bwtest.Parameters) error {
+	if bwp.BwtestDuration > bwtest.MaxDuration {
+		return fmt.Errorf("duration exceeds max: %s > %s", bwp.BwtestDuration, bwtest.MaxDuration)
 	}
-	if bwp.PacketSize < MinPacketSize {
-		return fmt.Errorf("packet size too small: %d < %d", bwp.PacketSize, MinPacketSize)
+	if bwp.PacketSize < bwtest.MinPacketSize {
+		return fmt.Errorf("packet size too small: %d < %d", bwp.PacketSize, bwtest.MinPacketSize)
 	}
-	if bwp.PacketSize > MaxPacketSize {
-		return fmt.Errorf("packet size exceeds max: %d > %d", bwp.PacketSize, MaxPacketSize)
+	if bwp.PacketSize > bwtest.MaxPacketSize {
+		return fmt.Errorf("packet size exceeds max: %d > %d", bwp.PacketSize, bwtest.MaxPacketSize)
 	}
-	if bwp.Port < MinPort {
+	if bwp.Port < bwtest.MinPort {
 		return fmt.Errorf("invalid port: %d", bwp.Port)
 	}
 	if len(bwp.PrgKey) != 16 {
@@ -267,17 +263,17 @@ func validateBwtestParameters(bwp BwtestParameters) error {
 }
 
 type bwtestResultWithExpiry struct {
-	BwtestResult
+	bwtest.Result
 	Expiry time.Time
 }
 
 type resultsMap map[string]bwtestResultWithExpiry
 
-func (r resultsMap) insert(client string, res BwtestResult) {
+func (r resultsMap) insert(client string, res bwtest.Result) {
 	r.purgeExpired()
 	r[client] = bwtestResultWithExpiry{
-		BwtestResult: res,
-		Expiry:       time.Now().Add(resultExpiry),
+		Result: res,
+		Expiry: time.Now().Add(resultExpiry),
 	}
 }
 

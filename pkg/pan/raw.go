@@ -188,7 +188,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		}
 		pf, err := reversePathFingerprint(pkt.Path)
 		if err != nil { // bad packet, drop silently
-			return nil
+			return nil // nolint:nilerr
 		}
 		// FIXME: can block _all_ connections, call async (or internally async)
 		stats.NotifyPathDown(pf, pi)
@@ -201,7 +201,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		}
 		pf, err := reversePathFingerprint(pkt.Path)
 		if err != nil {
-			return nil
+			return nil // nolint:nilerr
 		}
 		stats.NotifyPathDown(pf, pi)
 		return nil
@@ -231,12 +231,16 @@ func (e SCMPError) Error() string {
 func (e SCMPError) Temporary() bool {
 	switch e.typeCode.Type() {
 	case slayers.SCMPTypeDestinationUnreachable:
+		return false
 	case slayers.SCMPTypePacketTooBig:
+		return false
 	case slayers.SCMPTypeParameterProblem:
 		return false
 	case slayers.SCMPTypeExternalInterfaceDown:
+		return true
 	case slayers.SCMPTypeInternalConnectivityDown:
 		return true
+	default:
+		panic("invalid error code")
 	}
-	panic("invalid error code")
 }

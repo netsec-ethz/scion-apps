@@ -34,9 +34,9 @@ func (s *Server) PasswordAuth(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions
 	if err != nil {
 		return nil, err
 	}
-	err = t.Authenticate(0)
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: %s", err.Error())
+
+	if err := t.Authenticate(0); err != nil {
+		return nil, fmt.Errorf("authenticate: %w", err)
 	}
 
 	return &ssh.Permissions{
@@ -71,7 +71,7 @@ func loadAuthorizedKeys(file string) (map[string]bool, error) {
 func (s *Server) PublicKeyAuth(c ssh.ConnMetadata, pubKey ssh.PublicKey) (*ssh.Permissions, error) {
 	authKeys, err := loadAuthorizedKeys(s.authorizedKeysFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed loading authorized files: %v", err)
+		return nil, fmt.Errorf("failed loading authorized files: %w", err)
 	}
 
 	if authKeys[string(pubKey.Marshal())] {

@@ -14,31 +14,47 @@ linters:
     #- typecheck
     #- unused
     #- varcheck
-    - gofmt
-    - stylecheck # replacement for golint
+    - asciicheck
+    - bidichk
+    - contextcheck
     - dupl
+    - durationcheck
+    - errname
+    - errorlint
+    - exportloopref
+    - gci
+    - gofmt
+    - ifshort
+    - importas
+    - makezero
     - misspell
-
+    - nilerr
+    - nilnil
+    - nolintlint
+    - prealloc
+    - stylecheck
+    - thelper
+    - wastedassign
+    - tenv
 
 issues:
   # XXX exclude some linters where there are too many issues to fix now
   exclude-rules:
-    - path: bwtester/
-      linters:
-        - stylecheck
     - path: webapp/
       linters:
         - stylecheck
         - staticcheck
         - errcheck
-    - path: ssh/
-      linters:
-        - errcheck
-        
-
   max-same-issues: 0
 
+linters-settings:
+  gci:
+    local-prefixes: github.com/netsec-ethz/scion-apps
+  exhaustive:
+    default-signifies-exhaustive: true
+
 run:
+  build-tags: integration
   # Bat is mostly copied third-party code that we don't care to fix
   # Modifications are only (?) in bat/bat.go
   skip-dirs:

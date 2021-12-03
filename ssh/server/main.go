@@ -106,6 +106,6 @@ func main() {
 		if err != nil {
 			golog.Fatalf("Failed to accept session: %v", err)
 		}
-		go sshServer.HandleConnection(conn)
+		sshServer.HandleConnection(conn)
 	}
 }

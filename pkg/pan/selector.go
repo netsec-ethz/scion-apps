@@ -270,7 +270,7 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		if err != nil {
 			return
 		}
-		switch e := reply.Error.(type) {
+		switch e := reply.Error.(type) { // nolint:errorlint
 		case ping.InternalConnectivityDownError:
 			pi := PathInterface{
 				IA:   IA(e.IA),
