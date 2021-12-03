@@ -20,83 +20,24 @@ import (
 	"io"
 
 	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
 
 var (
-	nextProtos = []string{
-		// generic "proto" that we use e.g. for HTTP-over-QUIC
-		"raw",
-		// we accept anything -- use full list of protocol IDs from
-		// https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
-		"http/0.9",
-		"http/1.0",
-		"http/1.1",
-		"spdy/1",
-		"spdy/2",
-		"spdy/3",
-		"stun.turn",
-		"stun.nat-discovery",
-		"h2",
-		"h2c",
-		"webrtc",
-		"c-webrtc",
-		"ftp",
-		"imap",
-		"pop3",
-		"managesieve",
-		"coap",
-		"xmpp-client",
-		"xmpp-server",
-		"acme-tls/1",
-		"mqtt",
-		"dot",
-		"ntske/1",
-		"sunrpc",
-		"h3",
-		"smb",
-		"irc",
-		"nntp",
-		"nnsp",
-	}
+	nextProtos = []string{quicutil.SingleStreamProto}
 )
-
-type sessConn struct {
-	sess   quic.Session
-	stream quic.Stream
-}
-
-func (conn *sessConn) Read(b []byte) (n int, err error) {
-	return conn.stream.Read(b)
-}
-
-func (conn *sessConn) Write(b []byte) (n int, err error) {
-	return conn.stream.Write(b)
-}
-
-func (conn *sessConn) CloseWrite() error {
-	return conn.stream.Close()
-}
-
-func (conn *sessConn) Close() error {
-	err := conn.stream.Close()
-	if err != nil {
-		return err
-	}
-
-	err = conn.sess.CloseWithError(quic.ApplicationErrorCode(0), "")
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 // DoListenQUIC listens on a QUIC socket
 func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
-	listener, err := appquic.ListenPort(
-		port,
+	quicListener, err := pan.ListenQUIC(
+		context.Background(),
+		netaddr.IPPortFrom(netaddr.IP{}, port),
+		nil,
 		&tls.Config{
-			Certificates: appquic.GetDummyTLSCerts(),
+			Certificates: quicutil.MustGenerateSelfSignedCert(),
 			NextProtos:   nextProtos,
 		},
 		&quic.Config{KeepAlive: true},
@@ -104,26 +45,18 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	listener := quicutil.SingleStreamListener{Listener: quicListener}
 
 	conns := make(chan io.ReadWriteCloser)
 	go func() {
+
 		for {
-			sess, err := listener.Accept(context.Background())
+			conn, err := listener.Accept()
 			if err != nil {
-				logError("Can't accept listener", "err", err)
+				logError("Can't accept", "err", err)
 				continue
 			}
-
-			stream, err := sess.AcceptStream(context.Background())
-			if err != nil {
-				logError("Can't accept stream", "err", err)
-				continue
-			}
-
-			conns <- &sessConn{
-				sess:   sess,
-				stream: stream,
-			}
+			conns <- conn
 		}
 	}()
 
@@ -131,9 +64,18 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 }
 
 // DoDialQUIC dials with a QUIC socket
-func DoDialQUIC(remoteAddr string) (io.ReadWriteCloser, error) {
-	sess, err := appquic.Dial(
+func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
+	remoteAddr, err := pan.ResolveUDPAddr(remote)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := pan.DialQUIC(
+		context.Background(),
+		netaddr.IPPort{},
 		remoteAddr,
+		policy,
+		nil,
+		pan.MangleSCIONAddr(remote),
 		&tls.Config{
 			InsecureSkipVerify: true,
 			NextProtos:         nextProtos,
@@ -144,13 +86,5 @@ func DoDialQUIC(remoteAddr string) (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 
-	stream, err := sess.OpenStreamSync(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	return &sessConn{
-		sess:   sess,
-		stream: stream,
-	}, nil
+	return quicutil.NewSingleStream(sess)
 }

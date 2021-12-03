@@ -54,7 +54,8 @@ func TestIntegrationScionNetcatCmd(t *testing.T) {
 		{
 			name:    "UDP",
 			message: "Hello UDP World!",
-			flags:   []string{"-u"},
+			flags:   []string{"-b", "-u", "-q", "50ms"},
+			// NOTE: we need -b as the client does not otherwise send any data to make the "query"
 		},
 	}
 	for _, tc := range cases {
@@ -62,14 +63,13 @@ func TestIntegrationScionNetcatCmd(t *testing.T) {
 			serverPort := "1234"
 			serverArgs := concat(
 				tc.flags,
-				[]string{"-b", "-K", "-c", "echo " + tc.message, "-l", serverPort},
+				[]string{"-N", "-K", "-c", "echo " + tc.message, "-l", serverPort},
 			)
-			// NOTE: we need -b as the client does not otherwise send any data to make the "query"
 			// BUG: should also work with -k, but doesn't (!?)
 
 			clientScriptArgs := concat(
 				tc.flags,
-				[]string{"-b", "-q", "10ms", integration.DstAddrPattern + ":" + serverPort},
+				[]string{integration.DstAddrPattern + ":" + serverPort},
 			)
 			in := integration.NewAppsIntegration(netcatCmd, netcatCmd, clientScriptArgs, serverArgs)
 			in.ClientDelay = 250 * time.Millisecond
