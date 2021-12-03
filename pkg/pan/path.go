@@ -109,7 +109,7 @@ func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 // The created Path includes fingerprint and expiry information.
 func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, error) {
 	if fwPath.IsEmpty() {
-		return nil, nil
+		return (*Path)(nil), nil
 	}
 	// FIXME: inefficient, decoding twice! Change this to decode and then both
 	// reverse and extract fw info

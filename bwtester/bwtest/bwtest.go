@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bwtestlib
+// package bwtest contains the definitions shared between bwtestserver and
+// bwtestclient.
+package bwtest
 
 import (
 	"bytes"
@@ -41,13 +43,9 @@ const (
 	MaxPacketSize int64 = 66000
 	// Make sure the port number is a port the server application can connect to
 	MinPort uint16 = 1024
-
-	MaxTries               = 5 // Number of times to try to reach server
-	Timeout  time.Duration = time.Millisecond * 500
-	MaxRTT   time.Duration = time.Millisecond * 1000
 )
 
-type BwtestParameters struct {
+type Parameters struct {
 	BwtestDuration time.Duration
 	PacketSize     int64
 	NumPackets     int64
@@ -55,7 +53,7 @@ type BwtestParameters struct {
 	Port           uint16
 }
 
-type BwtestResult struct {
+type Result struct {
 	NumPacketsReceived int64
 	CorrectlyReceived  int64
 	IPAvar             int64
@@ -107,8 +105,8 @@ func (f *prgFiller) Fill(iv int, data []byte) {
 	}
 }
 
-// Encode BwtestResult into a sufficiently large byte buffer that is passed in, return the number of bytes written
-func EncodeBwtestResult(res BwtestResult, buf []byte) (int, error) {
+// Encode Result into a sufficiently large byte buffer that is passed in, return the number of bytes written
+func EncodeResult(res Result, buf []byte) (int, error) {
 	var bb bytes.Buffer
 	enc := gob.NewEncoder(&bb)
 	err := enc.Encode(res)
@@ -116,18 +114,18 @@ func EncodeBwtestResult(res BwtestResult, buf []byte) (int, error) {
 	return bb.Len(), err
 }
 
-// Decode BwtestResult from byte buffer that is passed in, returns BwtestResult structure and number of bytes consumed
-func DecodeBwtestResult(buf []byte) (BwtestResult, int, error) {
+// Decode Result from byte buffer that is passed in, returns Result structure and number of bytes consumed
+func DecodeResult(buf []byte) (Result, int, error) {
 	bb := bytes.NewBuffer(buf)
 	is := bb.Len()
 	dec := gob.NewDecoder(bb)
-	var v BwtestResult
+	var v Result
 	err := dec.Decode(&v)
 	return v, is - bb.Len(), err
 }
 
-// Encode BwtestParameters into a sufficiently large byte buffer that is passed in, return the number of bytes written
-func EncodeBwtestParameters(bwtp BwtestParameters, buf []byte) (int, error) {
+// Encode Parameters into a sufficiently large byte buffer that is passed in, return the number of bytes written
+func EncodeParameters(bwtp Parameters, buf []byte) (int, error) {
 	var bb bytes.Buffer
 	enc := gob.NewEncoder(&bb)
 	err := enc.Encode(bwtp)
@@ -135,17 +133,17 @@ func EncodeBwtestParameters(bwtp BwtestParameters, buf []byte) (int, error) {
 	return bb.Len(), err
 }
 
-// Decode BwtestParameters from byte buffer that is passed in, returns BwtestParameters structure and number of bytes consumed
-func DecodeBwtestParameters(buf []byte) (BwtestParameters, int, error) {
+// Decode Parameters from byte buffer that is passed in, returns BwtestParameters structure and number of bytes consumed
+func DecodeParameters(buf []byte) (Parameters, int, error) {
 	bb := bytes.NewBuffer(buf)
 	is := bb.Len()
 	dec := gob.NewDecoder(bb)
-	var v BwtestParameters
+	var v Parameters
 	err := dec.Decode(&v)
 	return v, is - bb.Len(), err
 }
 
-func HandleDCConnSend(bwp BwtestParameters, udpConnection io.Writer) error {
+func HandleDCConnSend(bwp Parameters, udpConnection io.Writer) error {
 	sb := make([]byte, bwp.PacketSize)
 	t0 := time.Now()
 	interPktInterval := bwp.BwtestDuration
@@ -167,7 +165,7 @@ func HandleDCConnSend(bwp BwtestParameters, udpConnection io.Writer) error {
 	return nil
 }
 
-func HandleDCConnReceive(bwp BwtestParameters, udpConnection io.Reader) BwtestResult {
+func HandleDCConnReceive(bwp Parameters, udpConnection io.Reader) Result {
 	var numPacketsReceived int64
 	var correctlyReceived int64
 	interPacketArrivalTime := make(map[int]int64, bwp.NumPackets)
@@ -203,7 +201,7 @@ func HandleDCConnReceive(bwp BwtestParameters, udpConnection io.Reader) BwtestRe
 		}
 	}
 
-	res := BwtestResult{
+	res := Result{
 		NumPacketsReceived: numPacketsReceived,
 		CorrectlyReceived:  correctlyReceived,
 		PrgKey:             bwp.PrgKey,
@@ -214,8 +212,8 @@ func HandleDCConnReceive(bwp BwtestParameters, udpConnection io.Reader) BwtestRe
 
 func aggrInterArrivalTime(bwr map[int]int64) (IPAvar, IPAmin, IPAavg, IPAmax int64) {
 	// reverse map, mapping timestamps to sequence numbers
-	revMap := make(map[int64]int)
-	var keys []int64 // keys are the timestamps of the received packets
+	revMap := make(map[int64]int, len(bwr))
+	keys := make([]int64, 0, len(bwr)) // keys are the timestamps of the received packets
 	// fill the reverse map and the keep track of the timestamps
 	for k, v := range bwr {
 		revMap[v] = k

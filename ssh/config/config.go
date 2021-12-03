@@ -120,9 +120,8 @@ func UpdateFromReader(conf Config, reader io.Reader) error {
 		}
 	}
 
-	err := scanner.Err()
-	if err != nil {
-		return err
+	if scanner.Err() != nil {
+		return scanner.Err()
 	}
 
 	return nil

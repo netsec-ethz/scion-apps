@@ -254,7 +254,7 @@ func (db *hostKeyDB) parseLine(line []byte, filename string, linenum int) error 
 }
 
 func newHostnameMatcher(pattern string) (matcher, error) {
-	var hps hostPatterns
+	var hps hostPatterns                            // nolint:prealloc
 	for _, p := range strings.Split(pattern, "#") { //Fixme(milan): using random character
 		if len(p) == 0 {
 			continue
@@ -333,7 +333,7 @@ func (db *hostKeyDB) check(address string, remote net.Addr, remoteKey ssh.Public
 
 	host, port, err := pan.SplitHostPort(remote.String())
 	if err != nil {
-		return fmt.Errorf("knownhosts: SplitHostPort(%s): %v", remote, err)
+		return fmt.Errorf("knownhosts: SplitHostPort(%s): %w", remote, err)
 	}
 
 	addrs := []addr{
@@ -343,7 +343,7 @@ func (db *hostKeyDB) check(address string, remote net.Addr, remoteKey ssh.Public
 	if address != "" {
 		host, port, err := pan.SplitHostPort(address)
 		if err != nil {
-			return fmt.Errorf("knownhosts: SplitHostPort(%s): %v", address, err)
+			return fmt.Errorf("knownhosts: SplitHostPort(%s): %w", address, err)
 		}
 
 		addrs = append(addrs, addr{host, port})
@@ -403,7 +403,7 @@ func (db *hostKeyDB) Read(r io.Reader, filename string) error {
 		}
 
 		if err := db.parseLine(line, filename, lineNum); err != nil {
-			return fmt.Errorf("knownhosts: %s:%d: %v", filename, lineNum, err)
+			return fmt.Errorf("knownhosts: %s:%d: %w", filename, lineNum, err)
 		}
 	}
 	return scanner.Err()
@@ -446,13 +446,8 @@ func Normalize(address string) string {
 }
 
 // Line returns a line to add append to the known_hosts files.
-func Line(addresses []string, key ssh.PublicKey) string {
-	var trimmed []string
-	for _, a := range addresses {
-		trimmed = append(trimmed, Normalize(a))
-	}
-
-	return strings.Join(trimmed, ",") + " " + serialize(key)
+func Line(address string, key ssh.PublicKey) string {
+	return Normalize(address) + " " + serialize(key)
 }
 
 // HashHostname hashes the given hostname. The hostname is not
@@ -461,8 +456,7 @@ func HashHostname(hostname string) string {
 	// TODO(hanwen): check if we can safely normalize this always.
 	salt := make([]byte, sha1.Size)
 
-	_, err := rand.Read(salt)
-	if err != nil {
+	if _, err := rand.Read(salt); err != nil {
 		panic(fmt.Sprintf("crypto/rand failure %v", err))
 	}
 

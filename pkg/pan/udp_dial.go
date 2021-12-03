@@ -174,7 +174,7 @@ func openPathRefreshSubscriber(ctx context.Context, local, remote UDPAddr, polic
 	}
 	paths, err := pool.subscribe(ctx, remote.IA, s)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	s.target.Initialize(local, remote, filtered(s.policy, paths))
 	return s, nil

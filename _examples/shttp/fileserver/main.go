@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/gorilla/handlers"
+
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 

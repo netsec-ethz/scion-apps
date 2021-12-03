@@ -133,7 +133,7 @@ func TestRoundTripper(t *testing.T) {
 			expected = tc.Expected
 
 			url := fmt.Sprintf(urlPattern, tc.HostPort)
-			_, err := c.Get(MangleSCIONAddrURL(url))
+			_, err := c.Get(MangleSCIONAddrURL(url)) // nolint:bodyclose
 			assert.ErrorIs(t, err, errJustATest)
 		}
 	}

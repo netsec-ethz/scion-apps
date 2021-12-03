@@ -16,6 +16,7 @@ package quicutil
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"sync"
@@ -127,7 +128,7 @@ func (s *SingleStream) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	n, err := s.receiveStream.Read(p)
-	if err == io.EOF || (n == 0 && err != nil) {
+	if errors.Is(err, io.EOF) || (n == 0 && err != nil) {
 		s.sendOKSignal()
 	}
 	return n, err
@@ -218,8 +219,7 @@ func (s *SingleStream) CloseSync(ctx context.Context) error {
 	// also shutdown properly.
 	_ = s.CloseRead()
 	// Await the OK-signal
-	err := s.awaitOKSignal(ctx)
-	if err != nil {
+	if err := s.awaitOKSignal(ctx); err != nil {
 		return s.Session.CloseWithError(0x101, "shutdown error")
 	}
 	return s.Session.CloseWithError(0x0, "ok")

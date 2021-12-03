@@ -28,6 +28,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
@@ -82,13 +83,14 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	}
 
 	// generate local memory struct to export results
-	var results []ResHealthCheck
+	results := make([]ResHealthCheck, 0, len(tests.Tests))
 	for _, test := range tests.Tests {
 		res := ResHealthCheck{Label: test.Label, Title: test.Desc}
 		results = append(results, res)
 	}
 	// export empty result set first
 	jsonRes, err := json.Marshal(results)
+	CheckError(err)
 	err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
 	CheckError(err)
 
@@ -109,6 +111,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		// export results when test starts, timestamp
 		results[i].Start = start
 		jsonRes, err = json.Marshal(results)
+		CheckError(err)
 		err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
 		CheckError(err)
 

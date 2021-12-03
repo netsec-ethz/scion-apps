@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build !norains
 // +build !norains
 
 package pan
@@ -51,11 +52,11 @@ func readRainsConfig() (UDPAddr, error) {
 	if os.IsNotExist(err) {
 		return UDPAddr{}, nil
 	} else if err != nil {
-		return UDPAddr{}, fmt.Errorf("error loading %s: %s", rainsConfigPath, err)
+		return UDPAddr{}, fmt.Errorf("error loading %s: %w", rainsConfigPath, err)
 	}
 	address, err := ParseUDPAddr(strings.TrimSpace(string(bs)))
 	if err != nil {
-		return UDPAddr{}, fmt.Errorf("error parsing %s, expected SCION UDP address: %s", rainsConfigPath, err)
+		return UDPAddr{}, fmt.Errorf("error parsing %s, expected SCION UDP address: %w", rainsConfigPath, err)
 	}
 	return address, nil
 }
@@ -77,7 +78,7 @@ func rainsQuery(server UDPAddr, hostname string) (scionAddr, error) {
 	srv := server.snetUDPAddr()
 	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, srv)
 	if err != nil {
-		return scionAddr{}, fmt.Errorf("address for host %q not found: %v", hostname, err)
+		return scionAddr{}, fmt.Errorf("address for host %q not found: %w", hostname, err)
 	}
 	addrStr, ok := reply[qType]
 	if !ok {
@@ -85,7 +86,7 @@ func rainsQuery(server UDPAddr, hostname string) (scionAddr, error) {
 	}
 	addr, err := parseSCIONAddr(addrStr)
 	if err != nil {
-		return scionAddr{}, fmt.Errorf("address for host %q invalid: %v", hostname, err)
+		return scionAddr{}, fmt.Errorf("address for host %q invalid: %w", hostname, err)
 	}
 	return addr, nil
 }

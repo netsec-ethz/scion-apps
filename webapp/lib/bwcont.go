@@ -27,6 +27,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+
 	model "github.com/netsec-ethz/scion-apps/webapp/models"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )

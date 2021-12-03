@@ -114,8 +114,8 @@ func findDispatcherSocket() (string, error) {
 	if !ok {
 		path = reliable.DefaultDispPath
 	}
-	err := statSocket(path)
-	if err != nil {
+
+	if err := statSocket(path); err != nil {
 		return "", fmt.Errorf("error looking for SCION dispatcher socket at %s (override with SCION_DISPATCHER_SOCKET): %w", path, err)
 	}
 	return path, nil

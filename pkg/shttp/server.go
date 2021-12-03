@@ -68,7 +68,7 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 func (srv *Server) ListenAndServe() error {
 	listener, err := listen(srv.Addr)
 	if err != nil {
-		return nil
+		return err
 	}
 	defer listener.Close()
 	return srv.Server.Serve(listener)
@@ -77,7 +77,7 @@ func (srv *Server) ListenAndServe() error {
 func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	listener, err := listen(srv.Addr)
 	if err != nil {
-		return nil
+		return err
 	}
 	defer listener.Close()
 	return srv.Server.ServeTLS(listener, certFile, keyFile)

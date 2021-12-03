@@ -21,6 +21,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 

@@ -67,9 +67,7 @@ func PolicyFromCommandline(sequence string, preference string, interactive bool)
 			Prompter: CommandlinePrompter{},
 		})
 	}
-	if len(chain) == 0 {
-		return nil, nil
-	} else if len(chain) == 1 {
+	if len(chain) == 1 {
 		return chain[0], nil
 	} else {
 		return chain, nil

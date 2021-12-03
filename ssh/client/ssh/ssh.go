@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -158,10 +159,10 @@ func (client *Client) ConnectPipes(reader io.Reader, writer io.Writer) error {
 	}
 
 	go func() {
-		io.Copy(writer, stdout)
+		_, _ = io.Copy(writer, stdout)
 	}()
 	go func() {
-		io.Copy(stdin, reader)
+		_, _ = io.Copy(stdin, reader)
 	}()
 
 	return nil
@@ -181,11 +182,11 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 
 	var once sync.Once
 	go func() {
-		io.Copy(localConn, remoteConn)
+		_, _ = io.Copy(localConn, remoteConn)
 		once.Do(close)
 	}()
 	go func() {
-		io.Copy(remoteConn, localConn)
+		_, _ = io.Copy(remoteConn, localConn)
 		once.Do(close)
 	}()
 
@@ -273,33 +274,26 @@ func (client *Client) verifyHostKey(hostname string, remote net.Addr, key ssh.Pu
 	log.Debug("Checking new host signature host", "remote", remote)
 
 	err := client.knownHostsFileHandler(hostname, remote, key)
-	if err != nil {
-		switch e := err.(type) {
-		case *knownhosts.KeyError:
-			if len(e.Want) == 0 {
-				// It's an unknown key, prompt user!
-				hash := sha256.New()
-				hash.Write(key.Marshal())
-				if client.promptForForeignKeyConfirmation(hostname, remote, fmt.Sprintf("%x", hash.Sum(nil))) {
-					newLine := knownhosts.Line([]string{remote.String()}, key)
-					err = appendFile(client.knownHostsFilePath, newLine)
-					if err != nil {
-						fmt.Printf("Error appending line to known_hosts file %s", err)
-					}
-					return nil
+	var keyErr *knownhosts.KeyError
+	if errors.As(err, &keyErr) {
+		if len(keyErr.Want) == 0 {
+			// It's an unknown key, prompt user!
+			hash := sha256.New()
+			hash.Write(key.Marshal())
+			if client.promptForForeignKeyConfirmation(hostname, remote, fmt.Sprintf("%x", hash.Sum(nil))) {
+				newLine := knownhosts.Line(remote.String(), key)
+				err := appendFile(client.knownHostsFilePath, newLine+"\n")
+				if err != nil {
+					fmt.Printf("Error appending line to known_hosts file %s", err)
 				}
-				return fmt.Errorf("unknown remote host's public key")
+				return nil
 			}
-			// Host's signature has changed, error!
-			return err
-		default:
-			// Unknown error
-			return err
+			return fmt.Errorf("unknown remote host's public key")
 		}
-
-	} else {
-		return nil
+		// Host's signature has changed, error!
+		return err
 	}
+	return err
 }
 
 func appendFile(fileName, text string) error {
@@ -309,10 +303,6 @@ func appendFile(fileName, text string) error {
 	}
 	defer f.Close()
 
-	if _, err = f.WriteString(text); err != nil {
-		return err
-	}
-	f.WriteString("\n")
-
-	return nil
+	_, err = f.WriteString(text)
+	return err
 }

@@ -41,7 +41,7 @@ func main() {
 	flag.Parse()
 
 	if (listen.Get().Port() > 0) == (len(*remoteAddr) > 0) {
-		check(fmt.Errorf("Either specify -port for server or -remote for client"))
+		check(fmt.Errorf("either specify -port for server or -remote for client"))
 	}
 
 	if listen.Get().Port() > 0 {
@@ -93,6 +93,9 @@ func workSession(session quic.Session) error {
 		}
 		fmt.Printf("%s\n", data)
 		_, err = stream.Write([]byte("gotcha: "))
+		if err != nil {
+			return err
+		}
 		_, err = stream.Write(data)
 		if err != nil {
 			return err
@@ -131,10 +134,12 @@ func runClient(address string, count int) error {
 		}
 		stream.Close()
 		reply, err := ioutil.ReadAll(stream)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("%s\n", reply)
 	}
-	session.CloseWithError(quic.ApplicationErrorCode(0), "")
-	return nil
+	return session.CloseWithError(quic.ApplicationErrorCode(0), "")
 }
 
 // Check just ensures the error is nil, or complains and quits

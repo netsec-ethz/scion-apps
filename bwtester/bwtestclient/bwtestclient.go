@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// bwtestserver application
-// For more documentation on the application see:
-// https://github.com/netsec-ethz/scion-apps/blob/master/README.md
-// https://github.com/netsec-ethz/scion-apps/blob/master/bwtester/README.md
 package main
 
 import (
@@ -35,7 +31,7 @@ import (
 
 	"inet.af/netaddr"
 
-	. "github.com/netsec-ethz/scion-apps/bwtester/bwtestlib"
+	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
@@ -46,15 +42,16 @@ const (
 	DefaultPktCount         = 30
 	DefaultBW               = 3000
 	WildcardChar            = "?"
+
+	MaxTries               = 5 // Number of times to try to reach server
+	Timeout  time.Duration = time.Millisecond * 500
+	MaxRTT   time.Duration = time.Millisecond * 1000
 )
 
 func prepareAESKey() []byte {
 	key := make([]byte, 16)
-	n, err := rand.Read(key)
-	Check(err)
-	if n != 16 {
-		Check(fmt.Errorf("Did not obtain 16 bytes of random information, only received %d", n))
-	}
+	_, err := rand.Read(key) // guaranteed full read iff err != nil
+	bwtest.Check(err)
 	return key
 }
 
@@ -78,15 +75,15 @@ func printUsage() {
 // Input format (time duration,packet size,number of packets,target bandwidth), no spaces, question mark ? is wildcard
 // The value of the wildcard is computed from the other values, if more than one wildcard is used,
 // all but the last one are set to the defaults values
-func parseBwtestParameters(s string, defaultPktSize int64) (BwtestParameters, error) {
+func parseBwtestParameters(s string, defaultPktSize int64) (bwtest.Parameters, error) {
 	if !strings.Contains(s, ",") {
 		// Using simple bandwidth setting with all defaults except bandwidth
 		s = "?,?,?," + s
 	}
 	a := strings.Split(s, ",")
 	if len(a) != 4 {
-		Check(fmt.Errorf("Incorrect number of arguments, need 4 values for bwtestparameters. "+
-			"You can use ? as wildcard, e.g. %s", DefaultBwtestParameters))
+		usageErr("incorrect number of arguments, need 4 values for bwtestparameters. " +
+			"You can use ? as wildcard, e.g. " + DefaultBwtestParameters)
 	}
 	wildcards := 0
 	for _, v := range a {
@@ -103,9 +100,9 @@ func parseBwtestParameters(s string, defaultPktSize int64) (BwtestParameters, er
 			a3 = getPacketCount(a[2])
 			a4 = parseBandwidth(a[3])
 			a1 = (a2 * 8 * a3) / a4
-			if time.Second*time.Duration(a1) > MaxDuration {
+			if time.Second*time.Duration(a1) > bwtest.MaxDuration {
 				fmt.Printf("Duration exceeds max: %v > %v, using default value %d\n",
-					a1, MaxDuration/time.Second, DefaultDuration)
+					a1, bwtest.MaxDuration/time.Second, DefaultDuration)
 				fmt.Println("Target bandwidth might no be reachable with that parameter.")
 				a1 = DefaultDuration
 			}
@@ -157,14 +154,14 @@ func parseBwtestParameters(s string, defaultPktSize int64) (BwtestParameters, er
 		lo := expected - leeway
 		hi := expected + leeway
 		if a4 < lo || a4 > hi {
-			return BwtestParameters{},
-				fmt.Errorf("Computed target bandwidth does not match parameters, "+
+			return bwtest.Parameters{},
+				fmt.Errorf("computed target bandwidth does not match parameters, "+
 					"use wildcard or specify correct bandwidth, expected %d-%d, provided %d",
 					lo, hi, a4)
 		}
 	}
 	key := prepareAESKey()
-	return BwtestParameters{
+	return bwtest.Parameters{
 		BwtestDuration: time.Second * time.Duration(a1),
 		PacketSize:     a2,
 		NumPackets:     a3,
@@ -217,8 +214,8 @@ func getDuration(duration string) int64 {
 		fmt.Printf("Invalid duration %v provided, using default value %d\n", a1, DefaultDuration)
 		a1 = DefaultDuration
 	}
-	if time.Second*time.Duration(a1) > MaxDuration {
-		Check(fmt.Errorf("Duration exceeds max: %d > %d", a1, MaxDuration/time.Second))
+	if time.Second*time.Duration(a1) > bwtest.MaxDuration {
+		usageErr(fmt.Sprintf("duration exceeds max: %d > %d", a1, bwtest.MaxDuration/time.Second))
 	}
 	return a1
 }
@@ -230,11 +227,11 @@ func getPacketSize(size string, defaultPktSize int64) int64 {
 		a2 = defaultPktSize
 	}
 
-	if a2 < MinPacketSize {
-		a2 = MinPacketSize
+	if a2 < bwtest.MinPacketSize {
+		a2 = bwtest.MinPacketSize
 	}
-	if a2 > MaxPacketSize {
-		a2 = MaxPacketSize
+	if a2 > bwtest.MaxPacketSize {
+		a2 = bwtest.MaxPacketSize
 	}
 	return a2
 }
@@ -325,7 +322,7 @@ func main() {
 		int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
 
 	clientRes, serverRes, err := runBwtest(local.Get(), serverCCAddr, policy, clientBwp, serverBwp)
-	Check(err)
+	bwtest.Check(err)
 
 	fmt.Println("\nS->C results")
 	printBwtestResult(serverBwp, clientRes)
@@ -335,7 +332,7 @@ func main() {
 
 // runBwtest runs the bandwidth test with the given parameters against the server at serverCCAddr.
 func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
-	clientBwp, serverBwp BwtestParameters) (clientRes, serverRes BwtestResult, err error) {
+	clientBwp, serverBwp bwtest.Parameters) (clientRes, serverRes bwtest.Result, err error) {
 
 	// Control channel connection
 	ccSelector := pan.NewDefaultSelector()
@@ -359,9 +356,9 @@ func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 	serverBwp.Port = serverDCAddr.Port
 
 	// Start receiver before even sending the request so it will be ready.
-	receiveRes := make(chan BwtestResult, 1)
+	receiveRes := make(chan bwtest.Result, 1)
 	go func() {
-		receiveRes <- HandleDCConnReceive(serverBwp, dcConn)
+		receiveRes <- bwtest.HandleDCConnReceive(serverBwp, dcConn)
 	}()
 
 	// Send the request; when this finishes, the server may have already started blasting.
@@ -370,8 +367,8 @@ func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 		return
 	}
 	startTime := time.Now()
-	finishTimeReceive := startTime.Add(serverBwp.BwtestDuration + StragglerWaitPeriod)
-	finishTimeSend := startTime.Add(clientBwp.BwtestDuration + GracePeriodSend)
+	finishTimeReceive := startTime.Add(serverBwp.BwtestDuration + bwtest.StragglerWaitPeriod)
+	finishTimeSend := startTime.Add(clientBwp.BwtestDuration + bwtest.GracePeriodSend)
 	if err = dcConn.SetReadDeadline(finishTimeReceive); err != nil {
 		dcConn.Close()
 		return
@@ -387,7 +384,7 @@ func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 	}
 
 	// Start blasting client->server
-	err = HandleDCConnSend(clientBwp, dcConn)
+	err = bwtest.HandleDCConnSend(clientBwp, dcConn)
 	if err != nil && !errors.Is(err, os.ErrDeadlineExceeded) {
 		dcConn.Close()
 		return
@@ -403,14 +400,14 @@ func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 
 // requestNewBwtest makes a new bandwidth test request at the server.
 // Returns nil once the server has accepted the request and an error otherwise.
-func requestNewBwtest(ccConn net.Conn, clientBwp, serverBwp BwtestParameters) error {
+func requestNewBwtest(ccConn net.Conn, clientBwp, serverBwp bwtest.Parameters) error {
 	request := make([]byte, 2000)
 	request[0] = 'N' // Request for new bwtest
-	nc, err := EncodeBwtestParameters(clientBwp, request[1:])
+	nc, err := bwtest.EncodeParameters(clientBwp, request[1:])
 	if err != nil {
 		return fmt.Errorf("encoding client->server parameters: %w", err)
 	}
-	ns, err := EncodeBwtestParameters(serverBwp, request[1+nc:])
+	ns, err := bwtest.EncodeParameters(serverBwp, request[1+nc:])
 	if err != nil {
 		return fmt.Errorf("encoding server->client parameters: %w", err)
 	}
@@ -452,10 +449,10 @@ func requestNewBwtest(ccConn net.Conn, clientBwp, serverBwp BwtestParameters) er
 		return nil
 	}
 
-	return fmt.Errorf("could not receive a server response, MaxTries attempted without success.")
+	return fmt.Errorf("could not receive a server response, MaxTries attempted without success")
 }
 
-func requestResults(ccConn net.Conn, prgKey []byte) (BwtestResult, error) {
+func requestResults(ccConn net.Conn, prgKey []byte) (bwtest.Result, error) {
 	// Fetch results from server
 	req := make([]byte, 1+len(prgKey))
 	req[0] = 'R'
@@ -466,19 +463,19 @@ func requestResults(ccConn net.Conn, prgKey []byte) (BwtestResult, error) {
 	for numtries := 0; numtries < MaxTries; {
 		_, err := ccConn.Write(req)
 		if err != nil {
-			return BwtestResult{}, err
+			return bwtest.Result{}, err
 		}
 
 		err = ccConn.SetReadDeadline(time.Now().Add(MaxRTT))
 		if err != nil {
-			return BwtestResult{}, err
+			return bwtest.Result{}, err
 		}
 		n, err := ccConn.Read(response)
 		if errors.Is(err, os.ErrDeadlineExceeded) {
 			numtries++
 			continue
 		} else if err != nil {
-			return BwtestResult{}, err
+			return bwtest.Result{}, err
 		}
 
 		if n < 2 {
@@ -490,7 +487,7 @@ func requestResults(ccConn net.Conn, prgKey []byte) (BwtestResult, error) {
 			continue
 		}
 		if response[1] == byte(127) {
-			return BwtestResult{}, fmt.Errorf("Results could not be found or PRG key was incorrect")
+			return bwtest.Result{}, fmt.Errorf("results could not be found or PRG key was incorrect")
 		} else if response[1] != byte(0) {
 			// pktbuf[1] contains number of seconds to wait for results
 			fmt.Println("We need to sleep for", response[1], "seconds before we can get the results")
@@ -499,7 +496,7 @@ func requestResults(ccConn net.Conn, prgKey []byte) (BwtestResult, error) {
 			continue
 		}
 
-		res, n1, err := DecodeBwtestResult(response[2:])
+		res, n1, err := bwtest.DecodeResult(response[2:])
 		if err != nil {
 			fmt.Println("Decoding error, try again")
 			numtries++
@@ -518,10 +515,10 @@ func requestResults(ccConn net.Conn, prgKey []byte) (BwtestResult, error) {
 		}
 		return res, nil
 	}
-	return BwtestResult{}, fmt.Errorf("could not fetch server results, MaxTries attempted without success")
+	return bwtest.Result{}, fmt.Errorf("could not fetch server results, MaxTries attempted without success")
 }
 
-func printBwtestResult(bwp BwtestParameters, res BwtestResult) {
+func printBwtestResult(bwp bwtest.Parameters, res bwtest.Result) {
 	att := 8 * bwp.PacketSize * bwp.NumPackets / int64(bwp.BwtestDuration/time.Second)
 	ach := 8 * bwp.PacketSize * res.CorrectlyReceived / int64(bwp.BwtestDuration/time.Second)
 	fmt.Printf("Attempted bandwidth: %d bps / %.2f Mbps\n", att, float64(att)/1000000)

@@ -82,14 +82,15 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 			}
 		}
 		close := func() {
-			cmd.Process.Kill()
-			err := cmd.Wait()
-			if err != nil {
+			if err := cmd.Process.Kill(); err != nil {
+				log.Error("Error killing bash", "error", err)
+			}
+			if err := cmd.Wait(); err != nil {
 				log.Error("Error waiting for bash to end", "error", err)
 			}
 
 			tb := []byte{0, 0, 0, 0}
-			_, err = connection.SendRequest("exit-status", false, tb)
+			_, err := connection.SendRequest("exit-status", false, tb)
 			if err != nil {
 				log.Error("Error sending exit status", "error", err)
 			}
@@ -120,7 +121,9 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 
 			termLen := ptyPayload[3]
 			w, h := parseDims(ptyPayload[termLen+4:])
-			SetWinsize(cmdf.Fd(), w, h)
+			if err := setWinsize(cmdf.Fd(), w, h); err != nil {
+				log.Debug("Error trying to change window size", "error", err, "w", w, "h", h)
+			}
 		} else {
 			stdin, err := cmd.StdinPipe()
 			if err != nil {
@@ -173,6 +176,7 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 	go func() {
 		defer once.Do(closeConn)
 		for req := range requests {
+			var replyErr error
 			switch req.Type {
 			case "shell":
 				// TODO determine and use default shell, don't force bash
@@ -180,24 +184,26 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 				if err != nil {
 					log.Error("Can't create shell!", "error", err)
 				}
-
 				if req.WantReply {
-					req.Reply(true, nil)
+					replyErr = req.Reply(err != nil, nil)
 				}
 			case "pty-req":
 				hasRequestedPty = true
 				ptyPayload = req.Payload
 				if req.WantReply {
-					req.Reply(true, nil)
+					replyErr = req.Reply(true, nil)
 				}
 			case "window-change":
 				if cmdf == nil {
 					log.Debug("Tried to change window size but no pty requested!")
 				} else {
 					w, h := parseDims(req.Payload)
-					SetWinsize(cmdf.Fd(), w, h)
+					err := setWinsize(cmdf.Fd(), w, h)
+					if err != nil {
+						log.Debug("Error trying to change window size", "error", err, "w", w, "h", h)
+					}
 					if req.WantReply {
-						req.Reply(true, nil)
+						replyErr = req.Reply(err != nil, nil)
 					}
 				}
 			case "exec":
@@ -207,12 +213,14 @@ func handleSession(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 				if err != nil {
 					log.Error("Can't create shell!", "error", err)
 				}
-
 				if req.WantReply {
-					req.Reply(true, nil)
+					replyErr = req.Reply(err != nil, nil)
 				}
 			default:
 				log.Debug("Unknown session request type %s", req.Type)
+			}
+			if replyErr != nil {
+				log.Debug("Error replying to request", "error", replyErr, "request", req)
 			}
 		}
 	}()
@@ -228,14 +236,15 @@ func parseDims(b []byte) (uint32, uint32) {
 
 // ======================
 
-// Winsize stores the Height and Width of a terminal.
-type Winsize struct {
+// winsize stores the Height and Width of a terminal.
+type winsize struct {
 	Height uint16
 	Width  uint16
 }
 
-// SetWinsize sets the size of the given pty.
-func SetWinsize(fd uintptr, w, h uint32) {
-	ws := &Winsize{Width: uint16(w), Height: uint16(h)}
-	syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(ws)))
+// setWinsize sets the size of the given pty.
+func setWinsize(fd uintptr, w, h uint32) error {
+	ws := &winsize{Width: uint16(w), Height: uint16(h)}
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(ws)))
+	return err
 }
