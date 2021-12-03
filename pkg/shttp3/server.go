@@ -15,12 +15,14 @@
 package shttp3
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"net/http"
 
 	"github.com/lucas-clemente/quic-go/http3"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 // Server wraps a http3.Server making it work with SCION
@@ -55,11 +57,11 @@ func ListenAndServe(addr string, certFile, keyFile string, handler http.Handler)
 // ListenAndServe listens on the UDP address s.Addr and calls s.Handler to
 // handle HTTP/3 requests on incoming connections.
 func (s *Server) ListenAndServe() error {
-	laddr, err := net.ResolveUDPAddr("udp", s.Addr)
+	laddr, err := pan.ParseOptionalIPPort(s.Addr)
 	if err != nil {
 		return err
 	}
-	sconn, err := appnet.Listen(laddr)
+	sconn, err := pan.ListenUDP(context.Background(), laddr, nil)
 	if err != nil {
 		return err
 	}

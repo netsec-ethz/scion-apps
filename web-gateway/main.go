@@ -30,9 +30,12 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
-	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
 func main() {
@@ -72,7 +75,7 @@ func main() {
 // forwardTLS listens on 443 and forwards each sessions to the corresponding
 // TCP/IP host identified by SNI
 func forwardTLS(hosts map[string]struct{}) error {
-	listener, err := listen(":443")
+	listener, err := listen(netaddr.IPPort{}.WithPort(443))
 	if err != nil {
 		return err
 	}
@@ -88,7 +91,7 @@ func forwardTLS(hosts map[string]struct{}) error {
 // forwardTLS forwards traffic for sess to the corresponding TCP/IP host
 // identified by SNI.
 func forwardTLSSession(hosts map[string]struct{}, sess quic.Session) {
-	clientConn, err := sess.AcceptStream(context.Background())
+	clientConn, err := quicutil.NewSingleStream(sess)
 	if err != nil {
 		return
 	}
@@ -146,14 +149,10 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 	}
 }
 
-func listen(addr string) (quic.Listener, error) {
-	laddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return nil, err
-	}
+func listen(laddr netaddr.IPPort) (quic.Listener, error) {
 	tlsCfg := &tls.Config{
-		NextProtos:   []string{"raw"},
-		Certificates: appquic.GetDummyTLSCerts(),
+		NextProtos:   []string{quicutil.SingleStreamProto},
+		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
-	return appquic.Listen(laddr, tlsCfg, nil)
+	return pan.ListenQUIC(context.Background(), laddr, nil, tlsCfg, nil)
 }

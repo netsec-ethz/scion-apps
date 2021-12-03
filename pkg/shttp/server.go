@@ -20,11 +20,9 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/appnet/appquic"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
-
-const nextProtoRaw = "raw" // Used for pretend-its-TCP QUIC
 
 // Server wraps a http.Server making it work with SCION
 type Server struct {
@@ -87,40 +85,16 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 func listen(addr string) (net.Listener, error) {
 	tlsCfg := &tls.Config{
-		NextProtos:   []string{nextProtoRaw},
-		Certificates: appquic.GetDummyTLSCerts(),
+		NextProtos:   []string{quicutil.SingleStreamProto},
+		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
-	laddr, err := net.ResolveUDPAddr("udp", addr)
+	laddr, err := pan.ParseOptionalIPPort(addr)
 	if err != nil {
 		return nil, err
 	}
-	quicListener, err := appquic.Listen(laddr, tlsCfg, nil)
+	quicListener, err := pan.ListenQUIC(context.Background(), laddr, nil, tlsCfg, nil)
 	if err != nil {
 		return nil, err
 	}
-	return singleStreamListener{quicListener}, nil
-}
-
-type singleStreamListener struct {
-	quic.Listener
-}
-
-func (l singleStreamListener) Accept() (net.Conn, error) {
-	ctx := context.Background()
-	sess, err := l.Listener.Accept(ctx)
-	if err != nil {
-		return nil, err
-	}
-	str, err := sess.AcceptStream(ctx)
-	return singleStreamSession{sess, str}, err
-}
-
-type singleStreamSession struct {
-	quic.Session
-	quic.Stream
-}
-
-func (s singleStreamSession) Close() error {
-	s.Stream.Close()
-	return s.Session.CloseWithError(0, "")
+	return quicutil.SingleStreamListener{Listener: quicListener}, nil
 }
