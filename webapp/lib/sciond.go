@@ -41,7 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-// Configuations to save. Zeroing out any of these placeholders will cause the
+// Configurations to save. Zeroing out any of these placeholders will cause the
 // webserver to request a fresh external copy to keep locally.
 var cConfig string
 var cLabels string
