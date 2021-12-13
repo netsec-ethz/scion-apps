@@ -15,13 +15,13 @@
 package pan
 
 import (
+	"fmt"
 	"net"
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -132,13 +132,13 @@ func NewACL(list []string) (ACL, error) {
 	for i, entry := range list {
 		aclEntry := &pathpol.ACLEntry{}
 		if err := aclEntry.LoadFromString(entry); err != nil {
-			return ACL{}, serrors.WrapStr("parsing ACL entries", err)
+			return ACL{}, fmt.Errorf("parsing ACL entries: %w", err)
 		}
 		aclEntries[i] = aclEntry
 	}
 	acl, err := pathpol.NewACL(aclEntries...)
 	if err != nil {
-		return ACL{}, serrors.WrapStr("creating ACL", err)
+		return ACL{}, fmt.Errorf("creating ACL: %w", err)
 	}
 	return ACL{entries: acl}, nil
 }
