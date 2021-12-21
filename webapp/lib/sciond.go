@@ -33,12 +33,13 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
-	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/snet"
+
+	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
+	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 // Configuations to save. Zeroing out any of these placeholders will cause the
@@ -243,7 +244,7 @@ func getPathsJSON(sciondConn daemon.Connector, dstIA addr.IA) ([]byte, error) {
 		return nil, err
 	}
 
-	var rPaths []Path
+	rPaths := make([]Path, 0, len(paths))
 	for _, path := range paths {
 		rpath := Path{
 			Fingerprint: snet.Fingerprint(path).String()[:16],

@@ -85,7 +85,7 @@ func (p CommandlinePrompter) Prompt(paths []*Path, remote IA) []*Path {
 		fmt.Fprintf(os.Stderr, "ERROR: Invalid path selection. %v\n", err)
 	}
 
-	var selectedPaths []*Path
+	selectedPaths := make([]*Path, 0, len(pathIndices))
 	for _, i := range pathIndices {
 		selectedPaths = append(selectedPaths, paths[i])
 	}
@@ -137,7 +137,7 @@ func parsePathChoice(selection string, max int) (pathIndices []int, err error) {
 func parsePathIndex(index string, max int) (int, error) {
 	pathIndex, err := strconv.ParseUint(index, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("invalid choice: '%v', %v", index, err)
+		return 0, fmt.Errorf("invalid choice: '%v', %w", index, err)
 	}
 	if pathIndex > uint64(max) {
 		return 0, fmt.Errorf("invalid choice: '%v', valid indices range: [0, %v]", index, max)

@@ -39,11 +39,11 @@ func handleTunnelForRemoteConnection(connection ssh.Channel, remoteConnection ne
 
 	var once sync.Once
 	go func() {
-		io.Copy(connection, remoteConnection)
+		_, _ = io.Copy(connection, remoteConnection)
 		once.Do(close)
 	}()
 	go func() {
-		io.Copy(remoteConnection, connection)
+		_, _ = io.Copy(remoteConnection, connection)
 		once.Do(close)
 	}()
 }

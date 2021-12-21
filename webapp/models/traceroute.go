@@ -347,7 +347,7 @@ func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 	var graphEntries []TracerouteGraph
 
 	// Store the infos of the last hop
-	var trhops []ReducedTrHopItem
+	trhops := make([]ReducedTrHopItem, 0, len(result))
 
 	for i, hop := range result {
 		rth := ReducedTrHopItem{HopIa: hop.HopIa,

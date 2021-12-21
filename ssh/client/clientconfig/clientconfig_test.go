@@ -69,7 +69,8 @@ func TestDefaultConfig(t *testing.T) {
 
 		Convey("The new values are read correctly", func() {
 			conf := &ClientConfig{}
-			config.UpdateFromReader(conf, strings.NewReader(configString))
+			err := config.UpdateFromReader(conf, strings.NewReader(configString))
+			So(err, ShouldBeNil)
 			So(conf.HostAddress, ShouldEqual, "")
 			So(conf.PasswordAuthentication, ShouldEqual, "no")
 			So(conf.StrictHostKeyChecking, ShouldEqual, "no")

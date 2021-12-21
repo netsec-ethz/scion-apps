@@ -56,11 +56,11 @@ func Create(config *serverconfig.ServerConfig, version string) (*Server, error) 
 
 	privateBytes, err := ioutil.ReadFile(utils.ParsePath(config.HostKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed loading private key: %v", err)
+		return nil, fmt.Errorf("failed loading private key: %w", err)
 	}
 	private, err := ssh.ParsePrivateKey(privateBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed parsing private key: %v", err)
+		return nil, fmt.Errorf("failed parsing private key: %w", err)
 	}
 	server.configuration.AddHostKey(private)
 
@@ -85,19 +85,18 @@ func (s *Server) handleChannel(perms *ssh.Permissions, newChannel ssh.NewChannel
 			log.Error("error handling channel", "type", newChannel.ChannelType(), "err", err)
 		}
 	} else {
-		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", newChannel.ChannelType()))
+		_ = newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", newChannel.ChannelType()))
 		return
 	}
 }
 
 // HandleConnection handles a client connection.
-func (s *Server) HandleConnection(conn net.Conn) error {
+func (s *Server) HandleConnection(conn net.Conn) {
 	log.Debug("Handling new connection")
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, s.configuration)
 	if err != nil {
 		log.Error("Failed to create new connection", "error", err)
 		conn.Close()
-		return err
 	}
 
 	log.Debug("New SSH connection", "remoteAddress", sshConn.RemoteAddr(), "clientVersion", sshConn.ClientVersion())
@@ -105,6 +104,4 @@ func (s *Server) HandleConnection(conn net.Conn) error {
 	go ssh.DiscardRequests(reqs)
 	// Accept all channels
 	s.handleChannels(sshConn.Permissions, chans)
-
-	return nil
 }

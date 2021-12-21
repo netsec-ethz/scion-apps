@@ -195,7 +195,7 @@ func (sai *ScionAppsIntegration) Run(t *testing.T, pairs []sintegration.IAPair) 
 
 	// First run all servers
 	dsts := sintegration.ExtractUniqueDsts(pairs)
-	var serverClosers []io.Closer
+	serverClosers := make([]io.Closer, 0, len(dsts))
 	for _, dst := range dsts {
 		c, err := sintegration.StartServer(sai, dst)
 		if err != nil {

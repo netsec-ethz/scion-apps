@@ -36,7 +36,7 @@ func (r *hostsfileResolver) Resolve(name string) (scionAddr, error) {
 	// for now that would be overkill.
 	table, err := loadHostsFile(r.path)
 	if err != nil {
-		return scionAddr{}, fmt.Errorf("error loading %s: %s", r.path, err)
+		return scionAddr{}, fmt.Errorf("error loading %s: %w", r.path, err)
 	}
 	addr, ok := table[name]
 	if !ok {
@@ -50,7 +50,7 @@ func loadHostsFile(path string) (hostsTable, error) {
 	if os.IsNotExist(err) {
 		// not existing file treated like an empty file,
 		// just return an empty table
-		return nil, nil
+		return hostsTable(nil), nil
 	} else if err != nil {
 		return nil, err
 	}

@@ -18,12 +18,13 @@ import (
 	"database/sql"
 	"time"
 
-	. "github.com/netsec-ethz/scion-apps/webapp/util"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/proto"
+
+	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
 type asIface struct {

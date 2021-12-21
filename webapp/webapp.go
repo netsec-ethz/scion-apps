@@ -36,6 +36,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/kormat/fmt15"
 	_ "github.com/mattn/go-sqlite3"
+
 	lib "github.com/netsec-ethz/scion-apps/webapp/lib"
 	model "github.com/netsec-ethz/scion-apps/webapp/models"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"

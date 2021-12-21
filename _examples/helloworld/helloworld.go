@@ -37,7 +37,7 @@ func main() {
 	flag.Parse()
 
 	if (listen.Get().Port() > 0) == (len(*remoteAddr) > 0) {
-		check(fmt.Errorf("Either specify -listen for server or -remote for client"))
+		check(fmt.Errorf("either specify -listen for server or -remote for client"))
 	}
 
 	if listen.Get().Port() > 0 {
@@ -67,6 +67,9 @@ func runServer(listen netaddr.IPPort) error {
 		fmt.Printf("Received %s: %s\n", from, data)
 		msg := fmt.Sprintf("take it back! %s", time.Now().Format("15:04:05.0"))
 		n, err = conn.WriteTo([]byte(msg), from)
+		if err != nil {
+			return err
+		}
 		fmt.Printf("Wrote %d bytes.\n", n)
 	}
 }
@@ -90,7 +93,9 @@ func runClient(address string, count int) error {
 		fmt.Printf("Wrote %d bytes.\n", nBytes)
 
 		buffer := make([]byte, 16*1024)
-		conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+		if err = conn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
+			return err
+		}
 		n, err := conn.Read(buffer)
 		if errors.Is(err, os.ErrDeadlineExceeded) {
 			continue

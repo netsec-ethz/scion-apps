@@ -38,15 +38,15 @@ func (client *Client) Shell() error {
 		ssh.ECHO: 1,
 	}
 
-	fd := int(os.Stdin.Fd())
-
-	if term.IsTerminal(fd) {
+	if fd := int(os.Stdin.Fd()); term.IsTerminal(fd) {
 		oldState, err := term.MakeRaw(fd)
 		if err != nil {
 			return err
 		}
 
-		defer term.Restore(fd, oldState)
+		defer func() {
+			_ = term.Restore(fd, oldState)
+		}()
 
 		w, h, err := term.GetSize(fd)
 		if err == nil {
@@ -66,8 +66,7 @@ func (client *Client) Shell() error {
 	// monitor for sigwinch
 	go monWinCh(client.session, os.Stdout.Fd())
 
-	err := client.WaitSession()
-	if err != nil {
+	if err := client.WaitSession(); err != nil {
 		return err
 	}
 
@@ -82,7 +81,7 @@ func monWinCh(session *ssh.Session, fd uintptr) {
 
 	// resize the tty if any signals received
 	for range sigs {
-		session.SendRequest("window-change", false, termSize(fd))
+		_, _ = session.SendRequest("window-change", false, termSize(fd))
 	}
 }
 
