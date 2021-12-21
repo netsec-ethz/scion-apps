@@ -17,6 +17,7 @@ package pan
 import (
 	"context"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -25,9 +26,10 @@ type refreshee interface {
 }
 
 type refresher struct {
-	subscribers     map[IA][]refreshee
-	pool            *pathPool
-	newSubscription chan bool
+	subscribersMutex sync.Mutex
+	subscribers      map[IA][]refreshee
+	newSubscription  chan bool
+	pool             *pathPool
 }
 
 func makeRefresher(pool *pathPool) refresher {
@@ -48,6 +50,8 @@ func (r *refresher) subscribe(ctx context.Context, dst IA, s refreshee) ([]*Path
 	if len(paths) == 0 {
 		return nil, errNoPathTo(dst)
 	}
+	r.subscribersMutex.Lock()
+	defer r.subscribersMutex.Unlock()
 	subs, ok := r.subscribers[dst]
 	r.subscribers[dst] = append(subs, s)
 	if !ok {
@@ -57,6 +61,9 @@ func (r *refresher) subscribe(ctx context.Context, dst IA, s refreshee) ([]*Path
 }
 
 func (r *refresher) unsubscribe(ia IA, s refreshee) {
+	r.subscribersMutex.Lock()
+	defer r.subscribersMutex.Unlock()
+
 	idx := -1
 	subs := r.subscribers[ia]
 	for i, v := range subs {
@@ -100,7 +107,14 @@ func (r *refresher) run() {
 func (r *refresher) refresh() {
 	now := time.Now()
 	// when a refresh is triggered, we batch all
-	for dstIA, subscribers := range r.subscribers {
+	r.subscribersMutex.Lock()
+	refreshIAs := make([]IA, 0, len(r.subscribers))
+	for dstIA := range r.subscribers {
+		refreshIAs = append(refreshIAs, dstIA)
+	}
+	r.subscribersMutex.Unlock()
+
+	for _, dstIA := range refreshIAs {
 		poolEntry, _ := r.pool.entry(dstIA)
 		if r.shouldRefresh(now, poolEntry.earliestExpiry, poolEntry.lastQuery) {
 			paths, err := r.pool.queryPaths(context.Background(), dstIA)
@@ -112,9 +126,11 @@ func (r *refresher) refresh() {
 				// to sciond or something like that.
 				continue
 			}
-			for _, subscriber := range subscribers {
+			r.subscribersMutex.Lock()
+			for _, subscriber := range r.subscribers[dstIA] {
 				subscriber.refresh(dstIA, paths)
 			}
+			r.subscribersMutex.Unlock()
 		}
 	}
 }
