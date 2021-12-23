@@ -15,6 +15,7 @@
 package pan
 
 import (
+	"fmt"
 	"net"
 	"sort"
 
@@ -111,6 +112,45 @@ func (s Sequence) Filter(paths []*Path) []*Path {
 		wps[i] = snetPathWrapper{wrapped: paths[i]}
 	}
 	wps = s.sequence.Eval(wps)
+	ps := make([]*Path, len(wps))
+	for i := range wps {
+		ps[i] = wps[i].(snetPathWrapper).wrapped
+	}
+	return ps
+}
+
+// ACL is a policy filtering paths matching an ACL pattern. The ACL pattern is
+// an ordered list of allow/deny actions over hop predicates.
+// See https://scion.docs.anapaya.net/en/latest/PathPolicy.html#acl.
+type ACL struct {
+	entries *pathpol.ACL
+}
+
+// NewACL creates a new ACL from a string list
+func NewACL(list []string) (ACL, error) {
+	aclEntries := make([]*pathpol.ACLEntry, len(list))
+	for i, entry := range list {
+		aclEntry := &pathpol.ACLEntry{}
+		if err := aclEntry.LoadFromString(entry); err != nil {
+			return ACL{}, fmt.Errorf("parsing ACL entries: %w", err)
+		}
+		aclEntries[i] = aclEntry
+	}
+	acl, err := pathpol.NewACL(aclEntries...)
+	if err != nil {
+		return ACL{}, fmt.Errorf("creating ACL: %w", err)
+	}
+	return ACL{entries: acl}, nil
+}
+
+// Filter evaluates the interface ACL and returns the set of paths
+// that match the list
+func (l ACL) Filter(paths []*Path) []*Path {
+	wps := make([]snet.Path, len(paths))
+	for i := range paths {
+		wps[i] = snetPathWrapper{wrapped: paths[i]}
+	}
+	wps = l.entries.Eval(wps)
 	ps := make([]*Path, len(wps))
 	for i := range wps {
 		ps[i] = wps[i].(snetPathWrapper).wrapped
