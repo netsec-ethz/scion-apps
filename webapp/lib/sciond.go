@@ -42,7 +42,7 @@ import (
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
 
-// Configuations to save. Zeroing out any of these placeholders will cause the
+// Configurations to save. Zeroing out any of these placeholders will cause the
 // webserver to request a fresh external copy to keep locally.
 var cConfig string
 var cLabels string
