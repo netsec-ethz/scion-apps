@@ -89,11 +89,12 @@ func newPrgFiller(key []byte) *prgFiller {
 // Fill the buffer with AES PRG in counter mode
 // The value of the ith 16-byte block is simply an encryption of i under the key
 func (f *prgFiller) Fill(iv int, data []byte) {
+	memzero(f.buf)
 	i := uint32(iv)
 	j := 0
 	for j <= len(data)-aes.BlockSize {
 		binary.LittleEndian.PutUint32(f.buf, i)
-		f.aes.Encrypt(data, f.buf)
+		f.aes.Encrypt(data, f.buf) // BUG(matzf): this should be data[j:]! data is mostly left zero.
 		j = j + aes.BlockSize
 		i = i + uint32(aes.BlockSize)
 	}
@@ -102,6 +103,12 @@ func (f *prgFiller) Fill(iv int, data []byte) {
 		binary.LittleEndian.PutUint32(f.buf, i)
 		f.aes.Encrypt(f.buf, f.buf)
 		copy(data[j:], f.buf[:len(data)-j])
+	}
+}
+
+func memzero(buf []byte) {
+	for i := range buf {
+		buf[i] = 0
 	}
 }
 
