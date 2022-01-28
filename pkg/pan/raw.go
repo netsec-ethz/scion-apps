@@ -39,7 +39,10 @@ func openBaseUDPConn(ctx context.Context, local netaddr.IPPort) (snet.PacketConn
 	if err != nil {
 		return nil, UDPAddr{}, err
 	}
-	conn := snet.NewSCIONPacketConn(rconn, scmpHandler{}, true)
+	conn := &snet.SCIONPacketConn{
+		Conn:        rconn,
+		SCMPHandler: scmpHandler{},
+	}
 	slocal := UDPAddr{
 		IA:   ia,
 		IP:   local.IP(),
