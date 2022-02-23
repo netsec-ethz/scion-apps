@@ -159,6 +159,7 @@ func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 
 	s.local = local.scionAddr()
 	s.remote = remote.scionAddr()
+	s.paths = paths
 	s.current = stats.LowestLatency(s.remote, s.paths)
 }
 
@@ -184,6 +185,10 @@ func (s *PingingSelector) reselectPath() {
 func (s *PingingSelector) ensureRunning() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	if s.local.IA == s.remote.IA {
+		return
+	}
 	if s.pinger != nil {
 		return
 	}
@@ -211,7 +216,7 @@ func (s *PingingSelector) run() {
 	for {
 		select {
 		case <-s.pingerCtx.Done():
-			break
+			return
 		case <-pingTicker.C:
 			numActive := int(atomic.LoadInt64(&s.numActive))
 			if numActive > len(s.paths) {
@@ -307,6 +312,11 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 }
 
 func (s *PingingSelector) Close() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.pinger == nil {
+		return nil
+	}
 	s.pingerCancel()
 	return s.pinger.Close()
 }
