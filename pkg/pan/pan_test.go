@@ -22,7 +22,9 @@ import (
 )
 
 func TestErrNoPathTo(t *testing.T) {
-	err := errNoPathTo(IA{I: 1, A: 0xff00_0000_0001})
+	ia, err := IAFrom(1, 0xff00_0000_0001)
+	assert.NoError(t, err)
+	err = errNoPathTo(ia)
 	assert.Equal(t, err.Error(), "no path to 1-ff00:0:1")
 	assert.True(t, errors.Is(err, ErrNoPath))
 }

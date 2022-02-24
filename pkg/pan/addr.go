@@ -109,14 +109,19 @@ func MustParseUDPAddr(s string) UDPAddr {
 // FIXME: leaking addr.I, addr.A
 type IA addr.IA
 
+func IAFrom(isd addr.ISD, as addr.AS) (IA, error) {
+	ia, err := addr.IAFrom(isd, as)
+	return IA(ia), err
+}
+
 // IsZero reports whether ia is the zero value of the IA type.
 func (ia IA) IsZero() bool {
-	return ia == IA{}
+	return ia == 0
 }
 
 // IsWildcard reports whether ia has a wildcard part (isd or as, or both).
 func (ia IA) IsWildcard() bool {
-	return ia.I == 0 || ia.A == 0
+	return addr.IA(ia).ISD() == 0 || addr.IA(ia).AS() == 0
 }
 
 func (ia IA) String() string {
@@ -125,7 +130,7 @@ func (ia IA) String() string {
 
 // ParseIA parses an IA from a string of the format 'ia-as'.
 func ParseIA(s string) (IA, error) {
-	ia, err := addr.IAFromString(s)
+	ia, err := addr.ParseIA(s)
 	return IA(ia), err
 }
 

@@ -21,7 +21,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"inet.af/netaddr"
 )
 
@@ -35,20 +36,6 @@ type Path struct {
 	Expiry         time.Time
 }
 
-func (p *Path) Copy() *Path {
-	if p == nil {
-		return nil
-	}
-	return &Path{
-		Source:         p.Source,
-		Destination:    p.Destination,
-		ForwardingPath: p.ForwardingPath.Copy(),
-		Metadata:       p.Metadata.Copy(),
-		Fingerprint:    p.Fingerprint,
-		Expiry:         p.Expiry,
-	}
-}
-
 func (p *Path) String() string {
 	if p.Metadata != nil {
 		return p.Metadata.fmtInterfaces()
@@ -59,49 +46,50 @@ func (p *Path) String() string {
 
 // ForwardingPath represents a data plane forwarding path.
 type ForwardingPath struct {
-	spath spath.Path
+	dataplanePath snet.DataplanePath
 	// NOTE: could have global lookup table with ifID->UDP instead of passing this around.
 	// Might also allow to "properly" bind to wildcard (cache correct source address per ifID).
 	underlay netaddr.IPPort
 }
 
 func (p ForwardingPath) IsEmpty() bool {
-	return p.spath.IsEmpty()
-}
-
-func (p ForwardingPath) Copy() ForwardingPath {
-	return ForwardingPath{
-		spath:    p.spath.Copy(),
-		underlay: p.underlay,
+	switch dpp := p.dataplanePath.(type) {
+	case nil, snetpath.Empty:
+		return true
+	case snet.RawPath:
+		return len(dpp.Raw) == 0
+	default:
+		return false
 	}
-}
-
-func (p ForwardingPath) Reversed() (ForwardingPath, error) {
-	rev := p.spath.Copy()
-	err := rev.Reverse()
-	return ForwardingPath{
-		spath: rev,
-	}, err
-}
-
-func (p ForwardingPath) String() string {
-	return p.spath.String()
 }
 
 func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
-	switch p.spath.Type {
-	case scion.PathType:
-		var sp scion.Decoded
-		if err := sp.DecodeFromBytes(p.spath.Raw); err != nil {
-			return forwardingPathInfo{}, err
+	var raw []byte
+	switch dataplanePath := p.dataplanePath.(type) {
+	case snet.RawReplyPath:
+		switch dataplanePath.Path.Type() {
+		case scion.PathType:
+			raw = make([]byte, dataplanePath.Path.Len())
+			if err := dataplanePath.Path.SerializeTo(raw); err != nil {
+				return forwardingPathInfo{}, err
+			}
 		}
-		return forwardingPathInfo{
-			expiry:       expiryFromDecoded(sp),
-			interfaceIDs: interfaceIDsFromDecoded(sp),
-		}, nil
+		if dataplanePath.Path.Type() != scion.PathType {
+			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawReplyPath", dataplanePath.Path.Type())
+		}
+	case snetpath.SCION:
+		raw = dataplanePath.Raw
 	default:
-		return forwardingPathInfo{}, fmt.Errorf("unsupported path type %s", p.spath.Type)
+		return forwardingPathInfo{}, fmt.Errorf("unsupported path type %T", p.dataplanePath)
 	}
+	var sp scion.Decoded
+	if err := sp.DecodeFromBytes(raw); err != nil {
+		return forwardingPathInfo{}, err
+	}
+	return forwardingPathInfo{
+		expiry:       expiryFromDecoded(sp),
+		interfaceIDs: interfaceIDsFromDecoded(sp),
+	}, nil
 }
 
 // reversePathFromForwardingPath creates a Path for the return direction from the information
@@ -113,9 +101,15 @@ func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, e
 	}
 	// FIXME: inefficient, decoding twice! Change this to decode and then both
 	// reverse and extract fw info
-	if err := fwPath.spath.Reverse(); err != nil {
+	rp, ok := fwPath.dataplanePath.(snet.RawPath)
+	if !ok {
+		return nil, fmt.Errorf("cannot reverse path type %T", fwPath.dataplanePath)
+	}
+	revPath, err := snet.DefaultReplyPather{}.ReplyPath(rp)
+	if err != nil {
 		return nil, err
 	}
+	fwPath.dataplanePath = revPath
 	fpi, err := fwPath.forwardingPathInfo()
 	if err != nil {
 		return nil, err
@@ -130,8 +124,8 @@ func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, e
 	}, nil
 }
 
-func reversePathFingerprint(spath spath.Path) (PathFingerprint, error) {
-	fpi, err := ForwardingPath{spath: spath}.forwardingPathInfo()
+func reversePathFingerprint(p snet.DataplanePath) (PathFingerprint, error) {
+	fpi, err := ForwardingPath{dataplanePath: p}.forwardingPathInfo()
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +151,7 @@ func expiryFromDecoded(sp scion.Decoded) time.Time {
 	for i, info := range sp.InfoFields {
 		seglen := int(sp.Base.PathMeta.SegLen[i])
 		for h := 0; h < seglen; h++ {
-			exp := hopExpiry(info, sp.HopFields[hop])
+			exp := hopExpiry(&info, &sp.HopFields[hop])
 			if exp.Before(ret) {
 				ret = exp
 			}
@@ -192,10 +186,10 @@ func interfaceIDsFromDecoded(sp scion.Decoded) []IfID {
 		seglen := int(sp.Base.PathMeta.SegLen[i])
 		for h := 0; h < seglen; h++ {
 			if h > 0 || (info.Peer && i == 1) {
-				ifIDs = append(ifIDs, first(sp.HopFields[hop], info.ConsDir))
+				ifIDs = append(ifIDs, first(&sp.HopFields[hop], info.ConsDir))
 			}
 			if h < seglen-1 || (info.Peer && i == 0) {
-				ifIDs = append(ifIDs, second(sp.HopFields[hop], info.ConsDir))
+				ifIDs = append(ifIDs, second(&sp.HopFields[hop], info.ConsDir))
 			}
 			hop++
 		}

@@ -173,7 +173,7 @@ func defaultLocalAddr(local netaddr.IPPort) (netaddr.IPPort, error) {
 
 func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 	flags := daemon.PathReqFlags{Refresh: false, Hidden: false}
-	snetPaths, err := h.sciond.Paths(ctx, addr.IA(dst), addr.IA{}, flags)
+	snetPaths, err := h.sciond.Paths(ctx, addr.IA(dst), 0, flags)
 	if err != nil {
 		return nil, err
 	}
@@ -202,8 +202,8 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			Fingerprint: pathSequenceFromInterfaces(metadata.Interfaces).Fingerprint(),
 			Expiry:      snetMetadata.Expiry,
 			ForwardingPath: ForwardingPath{
-				spath:    p.Path(),
-				underlay: underlay,
+				dataplanePath: p.Dataplane(),
+				underlay:      underlay,
 			},
 		}
 	}

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/stretchr/testify/assert"
 	"inet.af/netaddr"
 )
@@ -132,22 +133,22 @@ func TestParseSCIONAddr(t *testing.T) {
 		{
 			input:     "1-ff00:0:0,[1.1.1.1]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("1.1.1.1")},
+			expected:  scionAddr{IA: MustIAFrom(t, 1, 0xff00_0000_0000), IP: netaddr.MustParseIP("1.1.1.1")},
 		},
 		{
 			input:     "1-ff00:0:0,1.1.1.1",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("1.1.1.1")},
+			expected:  scionAddr{IA: MustIAFrom(t, 1, 0xff00_0000_0000), IP: netaddr.MustParseIP("1.1.1.1")},
 		},
 		{
 			input:     "1-ff00:0:0,[::]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("::")},
+			expected:  scionAddr{IA: MustIAFrom(t, 1, 0xff00_0000_0000), IP: netaddr.MustParseIP("::")},
 		},
 		{
 			input:     "1-ff00:0:0,::",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: IA{I: 1, A: 0xff00_0000_0000}, IP: netaddr.MustParseIP("::")},
+			expected:  scionAddr{IA: MustIAFrom(t, 1, 0xff00_0000_0000), IP: netaddr.MustParseIP("::")},
 		},
 		{input: "1-ff00:0:0,[[::]]", assertErr: assert.Error},
 		{input: "1-ff00:0:0,::]", assertErr: assert.Error},
@@ -191,4 +192,11 @@ func TestSplitHostPort(t *testing.T) {
 		assert.Equal(t, c.host, host, "bad host for input '%s'", c.input)
 		assert.Equal(t, c.port, port, "bad port for input '%s'", c.input)
 	}
+}
+
+func MustIAFrom(t *testing.T, isd addr.ISD, as addr.AS) IA {
+	t.Helper()
+	ia, err := IAFrom(isd, as)
+	assert.NoError(t, err)
+	return ia
 }
