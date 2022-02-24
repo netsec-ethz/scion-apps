@@ -23,9 +23,9 @@ import (
 )
 
 func TestPathString(t *testing.T) {
-	asA := IA{I: 1, A: 0xff00_0000_000a}
-	asB := IA{I: 1, A: 0xff00_0000_000b}
-	asC := IA{I: 1, A: 0xff00_0000_000c}
+	asA := MustIAFrom(t, 1, 0xff00_0000_000a)
+	asB := MustIAFrom(t, 1, 0xff00_0000_000b)
+	asC := MustIAFrom(t, 1, 0xff00_0000_000c)
 
 	ifA1 := PathInterface{IA: asA, IfID: 1}
 	ifB1 := PathInterface{IA: asB, IfID: 11}
@@ -95,9 +95,9 @@ func TestInterfacesFromDecoded(t *testing.T) {
 func TestLowerLatency(t *testing.T) {
 	unknown := time.Duration(0)
 
-	asA := IA{I: 1, A: 1}
-	asB := IA{I: 1, A: 2}
-	asC := IA{I: 1, A: 3}
+	asA := MustIAFrom(t, 1, 1)
+	asB := MustIAFrom(t, 1, 2)
+	asC := MustIAFrom(t, 1, 3)
 
 	ifA1 := PathInterface{IA: asA, IfID: 1}
 	ifB1 := PathInterface{IA: asB, IfID: 1}

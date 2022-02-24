@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
 	"inet.af/netaddr"
 )
@@ -87,13 +87,13 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		panic("writeMsg: dst.IA != path.Destination")
 	}
 
-	var spath spath.Path
+	var dataplanePath snet.DataplanePath = snetpath.Empty{}
 	var nextHop netaddr.IPPort
 	if src.IA == dst.IA {
 		nextHop = netaddr.IPPortFrom(dst.IP, underlay.EndhostPort)
 	} else {
 		nextHop = path.ForwardingPath.underlay
-		spath = path.ForwardingPath.spath
+		dataplanePath = path.ForwardingPath.dataplanePath
 	}
 
 	c.writeMutex.Lock()
@@ -113,7 +113,7 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 				IA:   addr.IA(dst.IA),
 				Host: addr.HostFromIP(dst.IP.IPAddr().IP),
 			},
-			Path: spath,
+			Path: dataplanePath,
 			Payload: snet.UDPPayload{
 				SrcPort: src.Port,
 				DstPort: dst.Port,
@@ -166,8 +166,8 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 			continue // ignore bad Underlay
 		}
 		fw := ForwardingPath{
-			spath:    pkt.Path.Copy(),
-			underlay: underlay,
+			dataplanePath: pkt.Path,
+			underlay:      underlay,
 		}
 		n := copy(b, udp.Payload)
 		return n, remote, fw, nil

@@ -33,8 +33,8 @@ const (
 
 // These next variables are also used as constants in the code
 var timestamp = time.Now().UTC()
-var srcIA, _ = addr.IAFromString("1-ff00:0:111")
-var dstIA, _ = addr.IAFromString("1-ff00:0:112")
+var srcIA, _ = addr.ParseIA("1-ff00:0:111")
+var dstIA, _ = addr.ParseIA("1-ff00:0:112")
 var srcHost = addr.HostFromIPStr("127.0.0.1")
 var dstHost = addr.HostFromIPStr("fd00:f00d:cafe::7f00:a")
 

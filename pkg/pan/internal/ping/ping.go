@@ -32,8 +32,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
 
@@ -144,7 +144,7 @@ func (p *Pinger) Close() error {
 type Reply struct {
 	Received time.Time
 	Source   snet.SCIONAddress
-	Path     spath.Path
+	Path     snet.DataplanePath
 	Size     int
 	Reply    snet.SCMPEchoReply
 	Error    error
@@ -157,7 +157,7 @@ func (r *Reply) RTT() time.Duration {
 
 type ExternalInterfaceDownError struct {
 	snet.SCMPExternalInterfaceDown
-	Path spath.Path
+	Path snet.DataplanePath
 }
 
 func (e ExternalInterfaceDownError) Error() string {
@@ -166,7 +166,7 @@ func (e ExternalInterfaceDownError) Error() string {
 
 type InternalConnectivityDownError struct {
 	snet.SCMPInternalConnectivityDown
-	Path spath.Path
+	Path snet.DataplanePath
 }
 
 func (e InternalConnectivityDownError) Error() string {
@@ -215,7 +215,7 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
 }
 
 func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, error) {
-	if remote.Path.IsEmpty() && !local.IA.Equal(remote.IA) {
+	if _, ok := remote.Path.(path.Empty); (remote.Path == nil || ok) && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
 	pkt := &snet.Packet{

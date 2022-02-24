@@ -32,8 +32,11 @@ type asIface struct {
 	IfNum common.IFIDType
 }
 
+// newASIface returns a new asIFace from the isd, as and ifNum parameters.
+// The arguments are not checked to be valid and within the appropriate range.
 func newASIface(isd addr.ISD, as addr.AS, ifNum common.IFIDType) asIface {
-	return asIface{IA: addr.IA{I: isd, A: as}, IfNum: ifNum}
+	ia, _ := addr.IAFrom(isd, as) // ignore error
+	return asIface{IA: ia, IfNum: ifNum}
 }
 
 type segment struct {
@@ -59,13 +62,15 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 	for _, ase := range theseg.ASEntries {
 		hof := ase.HopEntry.HopField
 		if hof.ConsIngress > 0 {
-			interfaces = append(interfaces, newASIface(ase.Local.I, ase.Local.A, common.IFIDType(hof.ConsIngress)))
+			interfaces = append(interfaces, newASIface(ase.Local.ISD(), ase.Local.AS(), common.IFIDType(hof.ConsIngress)))
 		}
 		if hof.ConsEgress > 0 {
-			interfaces = append(interfaces, newASIface(ase.Local.I, ase.Local.A, common.IFIDType(hof.ConsEgress)))
+			interfaces = append(interfaces, newASIface(ase.Local.ISD(), ase.Local.AS(), common.IFIDType(hof.ConsEgress)))
 		}
 	}
-	return segment{SegType: segType.String(), Src: addr.IA{I: srcI, A: srcA}, Dst: addr.IA{I: dstI, A: dstA},
+	srcIa, _ := addr.IAFrom(srcI, srcA) // ignore invalid range of AS error
+	dstIa, _ := addr.IAFrom(dstI, dstA) // ignore invalid range of AS error
+	return segment{SegType: segType.String(), Src: srcIa, Dst: dstIa,
 		Interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(expiryTime, 0)}
 }
 
