@@ -109,12 +109,12 @@ func PathTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 		returnError(w, errors.New("Source IA and destination IA are the same."))
 		return
 	}
-	localIA, err := addr.IAFromString(CIa)
+	localIA, err := addr.ParseIA(CIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
 	}
-	remoteIA, err := addr.IAFromString(SIa)
+	remoteIA, err := addr.ParseIA(SIa)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -193,7 +193,7 @@ func findDBFilename(ia addr.IA, options *CmdOptions) string {
 	if len(filenames) == 1 {
 		return filenames[0]
 	}
-	pathDBFileName := fmt.Sprintf("sd%s.path.db", ia.FileFmt(false))
+	pathDBFileName := fmt.Sprintf("sd%s.path.db", addr.FormatIA(ia, addr.WithFileSeparator()))
 	return filepath.Join(options.ScionGenCache, pathDBFileName)
 }
 
@@ -239,7 +239,7 @@ func removeAllDir(dirName string) {
 
 func getPathsJSON(sciondConn daemon.Connector, dstIA addr.IA) ([]byte, error) {
 	ctx := context.Background()
-	paths, err := sciondConn.Paths(ctx, dstIA, addr.IA{}, daemon.PathReqFlags{})
+	paths, err := sciondConn.Paths(ctx, dstIA, 0, daemon.PathReqFlags{})
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, 
 		return
 	}
 
-	asir, err := c.ASInfo(context.Background(), addr.IA{})
+	asir, err := c.ASInfo(context.Background(), 0)
 	if CheckError(err) {
 		returnError(w, err)
 		return
@@ -318,11 +318,12 @@ func TrcHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions) {
 }
 
 func loadJSONCerts(src, pattern string, options *CmdOptions) ([]byte, error) {
-	ia, err := addr.IAFromString(src)
+	ia, err := addr.ParseIA(src)
 	if err != nil {
 		return nil, err
 	}
-	certDir := path.Join(options.ScionGen, fmt.Sprintf("ISD%d/AS%s/endhost/certs", ia.I, ia.A.FileFmt()))
+	certDir := path.Join(options.ScionGen, fmt.Sprintf("ISD%d/AS%s/endhost/certs",
+		ia.ISD(), addr.FormatAS(ia.AS(), addr.WithFileSeparator())))
 	cacheDir := options.ScionGenCache
 	files, err := filepath.Glob(fmt.Sprintf("%s/%s", certDir, pattern))
 	if err != nil {

@@ -32,10 +32,6 @@ type asIface struct {
 	IfNum common.IFIDType
 }
 
-func newASIface(isd addr.ISD, as addr.AS, ifNum common.IFIDType) asIface {
-	return asIface{IA: addr.IA{I: isd, A: as}, IfNum: ifNum}
-}
-
 type segment struct {
 	SegType    string
 	Src        addr.IA
@@ -45,7 +41,7 @@ type segment struct {
 	Expiry     time.Time
 }
 
-func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI addr.ISD, dstA addr.AS,
+func newSegment(segType proto.PathSegType, srcIa addr.IA, dstIa addr.IA,
 	packedSeg []byte, updateTime, expiryTime int64) segment {
 
 	// traverse the segments to ensure even number of inferfaces in hops
@@ -59,13 +55,13 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 	for _, ase := range theseg.ASEntries {
 		hof := ase.HopEntry.HopField
 		if hof.ConsIngress > 0 {
-			interfaces = append(interfaces, newASIface(ase.Local.I, ase.Local.A, common.IFIDType(hof.ConsIngress)))
+			interfaces = append(interfaces, asIface{ase.Local, common.IFIDType(hof.ConsIngress)})
 		}
 		if hof.ConsEgress > 0 {
-			interfaces = append(interfaces, newASIface(ase.Local.I, ase.Local.A, common.IFIDType(hof.ConsEgress)))
+			interfaces = append(interfaces, asIface{ase.Local, common.IFIDType(hof.ConsEgress)})
 		}
 	}
-	return segment{SegType: segType.String(), Src: addr.IA{I: srcI, A: srcA}, Dst: addr.IA{I: dstI, A: dstA},
+	return segment{SegType: segType.String(), Src: srcIa, Dst: dstIa,
 		Interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(expiryTime, 0)}
 }
 
@@ -128,7 +124,11 @@ func ReadIntfToSegAll(db *sql.DB) (map[int64][]asIface, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[segRowID] = append(result[segRowID], newASIface(isd, as, ifaceID))
+		ia, err := addr.IAFrom(isd, as)
+		if err != nil {
+			return nil, err
+		}
+		result[segRowID] = append(result[segRowID], asIface{ia, ifaceID})
 	}
 	return result, nil
 }
@@ -172,7 +172,15 @@ func ReadSegmentsAll(db *sql.DB, segTypes map[int64]proto.PathSegType) ([]segmen
 		if err != nil {
 			return nil, err
 		}
-		segmt := newSegment(segTypes[segRowID], startISD, startAS, endISD, endAS, packedSeg, lastUpdated, maxExpiry)
+		srcIa, err := addr.IAFrom(startISD, startAS)
+		if err != nil {
+			return nil, err
+		}
+		dstIa, err := addr.IAFrom(endISD, endAS)
+		if err != nil {
+			return nil, err
+		}
+		segmt := newSegment(segTypes[segRowID], srcIa, dstIa, packedSeg, lastUpdated, maxExpiry)
 		result = append(result, segmt)
 	}
 	return result, nil

@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -88,7 +89,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciondAddr))
 
-	id := fmt.Sprintf("server_%s", dst.IA.FileFmt(false))
+	id := fmt.Sprintf("server_%s", addr.FormatIA(dst.IA, addr.WithFileSeparator()))
 	stdoutLog := sai.openLogFile(id, ".log")
 	stderrLog := sai.openLogFile(id, ".err")
 	stdoutBuf := &bytes.Buffer{}
@@ -219,7 +220,8 @@ func (sai *ScionAppsIntegration) Run(t *testing.T, pairs []sintegration.IAPair) 
 }
 
 func clientID(src, dst *snet.UDPAddr) string {
-	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
+	return fmt.Sprintf("%s_%s", addr.FormatIA(src.IA, addr.WithFileSeparator()),
+		addr.FormatIA(dst.IA, addr.WithFileSeparator()))
 }
 
 type appsWaiter struct {

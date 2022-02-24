@@ -10,15 +10,15 @@ require (
 	github.com/lucas-clemente/quic-go v0.23.0
 	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
-	github.com/netsec-ethz/rains v0.4.0
+	github.com/netsec-ethz/rains v0.5.0
 	github.com/pelletier/go-toml v1.9.4
-	github.com/scionproto/scion v0.6.1-0.20211215144424-7d06a3efe494
+	github.com/scionproto/scion v0.6.1-0.20220202161514-5883c725f748
 	github.com/smartystreets/goconvey v1.6.7
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	inet.af/netaddr v0.0.0-20210903134321-85fa6c94624e
 )
 
-replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20220121170219-2c83acfc8924
+replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20220310075459-9aaced056448
