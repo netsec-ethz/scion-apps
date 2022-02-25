@@ -2,9 +2,12 @@ version: 2
 jobs:
   build:
     docker:
-      - image: cimg/go:1.16.5
-
+      - image: cimg/go:1.17
     steps:
+      - run:
+          name: Go version
+          command: |
+            go version
       - run:
           name: Install libpam0g-dev
           command:
@@ -12,8 +15,8 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v2-pkg-cache-{{ checksum "go.sum" }}
-            - v2-pkg-cache
+            - v3-pkg-cache-{{ checksum "go.sum" }}
+            - v3-pkg-cache
       - run:
           name: Build
           command: make build
@@ -26,14 +29,14 @@ jobs:
           name: Run unit tests
           command: make test
       - save_cache:
-          key: v2-pkg-cache-{{ checksum "go.sum" }}
+          key: v3-pkg-cache-{{ checksum "go.sum" }}
           paths:
-            - "/go/pkg"
+            - "~/go/pkg"
+            - "~/.cache/go-build"
 
   integration:
     machine:
-      image: ubuntu-2004:202107-02
-
+      image: ubuntu-2004:202111-02 # using go1.17.3
     steps:
       - checkout
       # The following step are shared with netsec-ethz/rains

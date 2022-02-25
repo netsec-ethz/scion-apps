@@ -12,7 +12,7 @@ require (
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.4.0
 	github.com/pelletier/go-toml v1.9.4
-	github.com/scionproto/scion v0.6.1-0.20211215144424-7d06a3efe494
+	github.com/scionproto/scion v0.6.1-0.20220202161514-5883c725f748
 	github.com/smartystreets/goconvey v1.6.7
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
@@ -21,7 +21,6 @@ require (
 	inet.af/netaddr v0.0.0-20210903134321-85fa6c94624e
 )
 
-// replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20220121170219-2c83acfc8924
-replace github.com/scionproto/scion => /home/juagargi/devel/ETH/scion.scionlab
+replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20220221132135-793651297859
 
-replace github.com/netsec-ethz/rains => /home/juagargi/devel/ETH/rains
+replace github.com/netsec-ethz/rains => github.com/netsec-ethz/rains v0.4.1-0.20220225143534-6c1858bbf7d6

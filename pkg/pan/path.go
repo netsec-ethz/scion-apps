@@ -52,17 +52,6 @@ type ForwardingPath struct {
 	underlay netaddr.IPPort
 }
 
-func (p ForwardingPath) IsEmpty() bool {
-	switch dpp := p.dataplanePath.(type) {
-	case nil, snetpath.Empty:
-		return true
-	case snet.RawPath:
-		return len(dpp.Raw) == 0
-	default:
-		return false
-	}
-}
-
 func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 	var raw []byte
 	switch dataplanePath := p.dataplanePath.(type) {
@@ -73,9 +62,15 @@ func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 			if err := dataplanePath.Path.SerializeTo(raw); err != nil {
 				return forwardingPathInfo{}, err
 			}
-		}
-		if dataplanePath.Path.Type() != scion.PathType {
+		default:
 			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawReplyPath", dataplanePath.Path.Type())
+		}
+	case snet.RawPath:
+		switch dataplanePath.PathType {
+		case scion.PathType:
+			raw = dataplanePath.Raw
+		default:
+			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawPath", dataplanePath.PathType)
 		}
 	case snetpath.SCION:
 		raw = dataplanePath.Raw
@@ -96,14 +91,14 @@ func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 // on a received packet.
 // The created Path includes fingerprint and expiry information.
 func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, error) {
-	if fwPath.IsEmpty() {
-		return (*Path)(nil), nil
-	}
 	// FIXME: inefficient, decoding twice! Change this to decode and then both
 	// reverse and extract fw info
 	rp, ok := fwPath.dataplanePath.(snet.RawPath)
 	if !ok {
-		return nil, fmt.Errorf("cannot reverse path type %T", fwPath.dataplanePath)
+		panic(fmt.Sprintf("cannot reverse path type %T", fwPath.dataplanePath))
+	}
+	if len(rp.Raw) == 0 {
+		return (*Path)(nil), nil
 	}
 	revPath, err := snet.DefaultReplyPather{}.ReplyPath(rp)
 	if err != nil {
@@ -124,7 +119,7 @@ func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, e
 	}, nil
 }
 
-func reversePathFingerprint(p snet.DataplanePath) (PathFingerprint, error) {
+func reversePathFingerprint(p snet.RawPath) (PathFingerprint, error) {
 	fpi, err := ForwardingPath{dataplanePath: p}.forwardingPathInfo()
 	if err != nil {
 		return "", err
@@ -140,7 +135,7 @@ type forwardingPathInfo struct {
 }
 
 func expiryFromDecoded(sp scion.Decoded) time.Time {
-	hopExpiry := func(info *path.InfoField, hf *path.HopField) time.Time {
+	hopExpiry := func(info path.InfoField, hf path.HopField) time.Time {
 		ts := time.Unix(int64(info.Timestamp), 0)
 		exp := path.ExpTimeToDuration(hf.ExpTime)
 		return ts.Add(exp)
@@ -151,7 +146,7 @@ func expiryFromDecoded(sp scion.Decoded) time.Time {
 	for i, info := range sp.InfoFields {
 		seglen := int(sp.Base.PathMeta.SegLen[i])
 		for h := 0; h < seglen; h++ {
-			exp := hopExpiry(&info, &sp.HopFields[hop])
+			exp := hopExpiry(info, sp.HopFields[hop])
 			if exp.Before(ret) {
 				ret = exp
 			}
@@ -165,7 +160,7 @@ func interfaceIDsFromDecoded(sp scion.Decoded) []IfID {
 	ifIDs := make([]IfID, 0, 2*len(sp.HopFields)-2*len(sp.InfoFields))
 
 	// return first interface in order of traversal
-	first := func(hf *path.HopField, consDir bool) IfID {
+	first := func(hf path.HopField, consDir bool) IfID {
 		if consDir {
 			return IfID(hf.ConsIngress)
 		} else {
@@ -173,7 +168,7 @@ func interfaceIDsFromDecoded(sp scion.Decoded) []IfID {
 		}
 	}
 	// return second interface in order of traversal
-	second := func(hf *path.HopField, consDir bool) IfID {
+	second := func(hf path.HopField, consDir bool) IfID {
 		if consDir {
 			return IfID(hf.ConsEgress)
 		} else {
@@ -186,10 +181,10 @@ func interfaceIDsFromDecoded(sp scion.Decoded) []IfID {
 		seglen := int(sp.Base.PathMeta.SegLen[i])
 		for h := 0; h < seglen; h++ {
 			if h > 0 || (info.Peer && i == 1) {
-				ifIDs = append(ifIDs, first(&sp.HopFields[hop], info.ConsDir))
+				ifIDs = append(ifIDs, first(sp.HopFields[hop], info.ConsDir))
 			}
 			if h < seglen-1 || (info.Peer && i == 0) {
-				ifIDs = append(ifIDs, second(&sp.HopFields[hop], info.ConsDir))
+				ifIDs = append(ifIDs, second(sp.HopFields[hop], info.ConsDir))
 			}
 			hop++
 		}

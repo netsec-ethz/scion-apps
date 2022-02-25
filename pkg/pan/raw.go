@@ -189,7 +189,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 			IA:   IA(msg.IA),
 			IfID: IfID(msg.Interface),
 		}
-		pf, err := reversePathFingerprint(pkt.Path)
+		pf, err := reversePathFingerprint(pkt.Path.(snet.RawPath))
 		if err != nil { // bad packet, drop silently
 			return nil // nolint:nilerr
 		}
@@ -202,7 +202,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 			IA:   IA(msg.IA),
 			IfID: IfID(msg.Egress),
 		}
-		pf, err := reversePathFingerprint(pkt.Path)
+		pf, err := reversePathFingerprint(pkt.Path.(snet.RawPath))
 		if err != nil {
 			return nil // nolint:nilerr
 		}

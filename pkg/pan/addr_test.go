@@ -25,10 +25,8 @@ import (
 )
 
 func TestUDPAddrIsValid(t *testing.T) {
-	ia, err := pan.IAFrom(1, 0xff)
-	assert.NoError(t, err)
-	iaWildcard, err := pan.IAFrom(1, 0)
-	assert.NoError(t, err)
+	ia := pan.MustParseIA("1-ff00:0:0")
+	iaWildcard := pan.MustParseIA("1-0")
 	ip := netaddr.MustParseIP("127.0.0.1")
 	cases := []struct {
 		addr    pan.UDPAddr
