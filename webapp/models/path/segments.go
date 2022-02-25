@@ -32,13 +32,6 @@ type asIface struct {
 	IfNum common.IFIDType
 }
 
-// newASIface returns a new asIFace from the isd, as and ifNum parameters.
-// The arguments are not checked to be valid and within the appropriate range.
-func newASIface(isd addr.ISD, as addr.AS, ifNum common.IFIDType) asIface {
-	ia, _ := addr.IAFrom(isd, as) // ignore error
-	return asIface{IA: ia, IfNum: ifNum}
-}
-
 type segment struct {
 	SegType    string
 	Src        addr.IA
@@ -48,7 +41,7 @@ type segment struct {
 	Expiry     time.Time
 }
 
-func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI addr.ISD, dstA addr.AS,
+func newSegment(segType proto.PathSegType, srcIa addr.IA, dstIa addr.IA,
 	packedSeg []byte, updateTime, expiryTime int64) segment {
 
 	// traverse the segments to ensure even number of inferfaces in hops
@@ -61,15 +54,14 @@ func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI add
 	var interfaces []asIface
 	for _, ase := range theseg.ASEntries {
 		hof := ase.HopEntry.HopField
+		ia, _ := addr.IAFrom(ase.Local.ISD(), ase.Local.AS()) // ignore error
 		if hof.ConsIngress > 0 {
-			interfaces = append(interfaces, newASIface(ase.Local.ISD(), ase.Local.AS(), common.IFIDType(hof.ConsIngress)))
+			interfaces = append(interfaces, asIface{ia, common.IFIDType(hof.ConsIngress)})
 		}
 		if hof.ConsEgress > 0 {
-			interfaces = append(interfaces, newASIface(ase.Local.ISD(), ase.Local.AS(), common.IFIDType(hof.ConsEgress)))
+			interfaces = append(interfaces, asIface{ia, common.IFIDType(hof.ConsEgress)})
 		}
 	}
-	srcIa, _ := addr.IAFrom(srcI, srcA) // ignore invalid range of AS error
-	dstIa, _ := addr.IAFrom(dstI, dstA) // ignore invalid range of AS error
 	return segment{SegType: segType.String(), Src: srcIa, Dst: dstIa,
 		Interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(expiryTime, 0)}
 }
@@ -133,7 +125,11 @@ func ReadIntfToSegAll(db *sql.DB) (map[int64][]asIface, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[segRowID] = append(result[segRowID], newASIface(isd, as, ifaceID))
+		ia, err := addr.IAFrom(isd, as)
+		if err != nil {
+			return nil, err
+		}
+		result[segRowID] = append(result[segRowID], asIface{ia, ifaceID})
 	}
 	return result, nil
 }
@@ -177,7 +173,15 @@ func ReadSegmentsAll(db *sql.DB, segTypes map[int64]proto.PathSegType) ([]segmen
 		if err != nil {
 			return nil, err
 		}
-		segmt := newSegment(segTypes[segRowID], startISD, startAS, endISD, endAS, packedSeg, lastUpdated, maxExpiry)
+		srcIa, err := addr.IAFrom(startISD, startAS)
+		if err != nil {
+			return nil, err
+		}
+		dstIa, err := addr.IAFrom(endISD, endAS)
+		if err != nil {
+			return nil, err
+		}
+		segmt := newSegment(segTypes[segRowID], srcIa, dstIa, packedSeg, lastUpdated, maxExpiry)
 		result = append(result, segmt)
 	}
 	return result, nil

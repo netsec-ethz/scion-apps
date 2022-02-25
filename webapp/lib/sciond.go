@@ -193,7 +193,6 @@ func findDBFilename(ia addr.IA, options *CmdOptions) string {
 	if len(filenames) == 1 {
 		return filenames[0]
 	}
-	ia.AS()
 	pathDBFileName := fmt.Sprintf("sd%s.path.db", addr.FormatIA(ia, addr.WithFileSeparator()))
 	return filepath.Join(options.ScionGenCache, pathDBFileName)
 }
