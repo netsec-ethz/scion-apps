@@ -21,12 +21,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/tls"
 	_ "embed"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -37,10 +35,8 @@ import (
 
 	"github.com/gorilla/handlers"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
-	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -68,19 +64,32 @@ func main() {
 	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
 
+	transport, dialer := shttp.NewTransport(nil, nil)
+
 	proxy := &proxyHandler{
-		transport: shttp.DefaultTransport,
+		transport: transport,
 	}
+	tunnelHandler := &tunnelHandler{
+		dialer: dialer,
+	}
+	isdPolicyHandler := &isdPolicyHandler{
+		output: dialer,
+	}
+
 	mux := http.NewServeMux()
-	mux.Handle("localhost/skip.pac", http.HandlerFunc(handleWPAD))
+	apiMux := http.NewServeMux()
+	apiMux.HandleFunc("/skip.pac", handleWPAD)
+	apiMux.HandleFunc("/scion-host", handleHostListRequest)
+	//apiMux.Handle("/setISDPolicy", setISDPolicyHandler)
+	apiMux.Handle("/setISDPolicy", http.HandlerFunc(isdPolicyHandler.setISDPolicy))
+
+	mux.Handle("localhost/", apiMux)
 	if bindAddress.IP != nil {
-		mux.Handle(bindAddress.IP.String()+"/skip.pac", http.HandlerFunc(handleWPAD))
+		mux.Handle(bindAddress.IP.String(), apiMux)
 	}
-	mux.Handle("/scion-host", http.HandlerFunc(handleHostListRequest))
-	mux.Handle("/setISDPolicy", http.HandlerFunc(proxy.setISDPolicy))
 	mux.Handle("/", proxy) // everything else
 
-	handler := interceptConnect(http.HandlerFunc(proxy.handleTunneling), mux)
+	handler := interceptConnect(tunnelHandler, mux)
 
 	server := &http.Server{
 		Addr:    bindAddress.String(),
@@ -98,7 +107,7 @@ func handleWPAD(w http.ResponseWriter, req *http.Request) {
 		},
 	)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("verbose: ", "error executing template")
 		http.Error(w, "error executing template", 500)
 		return
 	}
@@ -112,15 +121,50 @@ func handleHostListRequest(w http.ResponseWriter, req *http.Request) {
 	if len(scionHost) > 0 {
 		buf.WriteString(scionHost[0])
 	}
-	for _, s := range scionHost[1:] {
-		buf.WriteString("\n" + s)
+	for i := 1; i < len(scionHost); i++ {
+		buf.WriteString("\n" + scionHost[i])
 	}
 	w.Write(buf.Bytes())
 }
 
+type isdPolicyHandler struct {
+	output interface{ SetPolicy(pan.Policy) }
+}
+
+func (h *isdPolicyHandler) setISDPolicy(w http.ResponseWriter, req *http.Request) {
+	var aclInput []string
+
+	if req.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	aclStringList := strings.Split(string(body), ",")
+	aclStringList = aclStringList[:len(aclStringList)-1]
+	// Whitelist ases
+	for _, entry := range aclStringList {
+		aclInput = append(aclInput, "+ "+entry)
+	}
+	aclInput = append(aclInput, "-")
+
+	acl, err := pan.NewACL(aclInput)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	h.output.SetPolicy(acl)
+	fmt.Println("verbose: ", "ISD policy = ", aclInput)
+	w.WriteHeader(http.StatusOK)
+}
+
 type proxyHandler struct {
 	transport http.RoundTripper
-	policy    pan.Policy
 }
 
 func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -130,7 +174,7 @@ func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	resp, err := h.transport.RoundTrip(req)
 	if err != nil {
-		log.Default().Println("error round trip", err.Error())
+		fmt.Println("verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -148,40 +192,6 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func (h *proxyHandler) setISDPolicy(w http.ResponseWriter, req *http.Request) {
-	var aclInput []string
-	if req.Method == http.MethodPut {
-		body, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			fmt.Println(err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		aclStringList := strings.Split(string(body), ",")
-		aclStringList = aclStringList[:len(aclStringList)-1]
-		// Whitelist ases
-		for _, entry := range aclStringList {
-			aclInput = append(aclInput, "+ "+entry)
-		}
-		aclInput = append(aclInput, "-")
-
-		acl, err := pan.NewACL(aclInput)
-		log.Default().Println("set local ISD policy to", aclInput)
-
-		if err != nil {
-			fmt.Println(err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		h.policy = acl
-		shttp.DefaultTransport.DialContext = (&shttp.Dialer{
-			QuicConfig: nil,
-			Policy:     h.policy,
-		}).DialContext
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
 // interceptConnect creates a handler that calls the handler connect for the
 // CONNECT method and otherwise the next handler.
 func interceptConnect(connect, next http.Handler) http.HandlerFunc {
@@ -194,38 +204,20 @@ func interceptConnect(connect, next http.Handler) http.HandlerFunc {
 	}
 }
 
-func (h *proxyHandler) handleTunneling(w http.ResponseWriter, req *http.Request) {
-	hostAddr, err := pan.ResolveUDPAddr(req.Host)
+type tunnelHandler struct {
+	dialer *shttp.Dialer
+}
+
+func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	destConn, err := h.dialer.DialContext(context.Background(), "", req.Host)
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-	session, err := pan.DialQUIC(
-		context.Background(),
-		netaddr.IPPort{},
-		hostAddr,
-		h.policy,
-		nil,
-		req.Host,
-		&tls.Config{
-			InsecureSkipVerify: true,
-			NextProtos:         []string{quicutil.SingleStreamProto},
-		},
-		nil)
-	if err != nil {
-		log.Default().Println("error dialing", err.Error())
-		fmt.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-	log.Default().Println(session.Conn.RemoteAddr())
-	destConn, err := quicutil.NewSingleStream(session)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	fmt.Println("verbose: ", "Remote addr = ", destConn.RemoteAddr())
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
 		// Not expected to happen; the normal ResponseWriter for HTTP/1.x supports
@@ -235,7 +227,9 @@ func (h *proxyHandler) handleTunneling(w http.ResponseWriter, req *http.Request)
 	}
 	clientConn, _, err := hijacker.Hijack()
 	if err != nil {
+		fmt.Println("verbose: ", "verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
 	}
 	go transfer(destConn, clientConn)
 	go transfer(clientConn, destConn)
