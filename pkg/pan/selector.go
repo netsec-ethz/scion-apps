@@ -255,7 +255,7 @@ func (s *PingingSelector) run() {
 func (s *PingingSelector) sendPings(paths []*Path, sequenceNo uint16) {
 	for _, p := range paths {
 		remote := s.remote.snetUDPAddr()
-		remote.Path = p.ForwardingPath.spath
+		remote.Path = p.ForwardingPath.dataplanePath
 		remote.NextHop = p.ForwardingPath.underlay.UDPAddr()
 		err := s.pinger.Send(s.pingerCtx, remote, sequenceNo, 16)
 		if err != nil {

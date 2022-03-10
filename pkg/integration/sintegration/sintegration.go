@@ -63,7 +63,7 @@ func (a iaArgs) String() string {
 func (a *iaArgs) Set(value string) error {
 	rawIAs := strings.Split(value, ",")
 	for _, rawIA := range rawIAs {
-		ia, err := addr.IAFromString(rawIA)
+		ia, err := addr.ParseIA(rawIA)
 		if err != nil {
 			return err
 		}
