@@ -142,14 +142,27 @@ func NewACL(list []string) (ACL, error) {
 	return ACL{entries: acl}, nil
 }
 
+func (acl *ACL) UnmarshalJSON(input []byte) error {
+	acl.entries = &pathpol.ACL{}
+	return acl.entries.UnmarshalJSON(input)
+}
+
+func (acl *ACL) String() string {
+	output := ""
+	for _, entry := range acl.entries.Entries {
+		output += entry.String() + ", "
+	}
+	return output
+}
+
 // Filter evaluates the interface ACL and returns the set of paths
 // that match the list
-func (l ACL) Filter(paths []*Path) []*Path {
+func (acl *ACL) Filter(paths []*Path) []*Path {
 	wps := make([]snet.Path, len(paths))
 	for i := range paths {
 		wps[i] = snetPathWrapper{wrapped: paths[i]}
 	}
-	wps = l.entries.Eval(wps)
+	wps = acl.entries.Eval(wps)
 	ps := make([]*Path, len(wps))
 	for i := range wps {
 		ps[i] = wps[i].(snetPathWrapper).wrapped
