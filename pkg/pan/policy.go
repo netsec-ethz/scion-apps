@@ -157,12 +157,12 @@ func (acl *ACL) String() string {
 
 // Filter evaluates the interface ACL and returns the set of paths
 // that match the list
-func (l ACL) Filter(paths []*Path) []*Path {
+func (acl *ACL) Filter(paths []*Path) []*Path {
 	wps := make([]snet.Path, len(paths))
 	for i := range paths {
 		wps[i] = snetPathWrapper{wrapped: paths[i]}
 	}
-	wps = l.entries.Eval(wps)
+	wps = acl.entries.Eval(wps)
 	ps := make([]*Path, len(wps))
 	for i := range wps {
 		ps[i] = wps[i].(snetPathWrapper).wrapped
