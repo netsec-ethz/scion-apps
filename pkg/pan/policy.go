@@ -142,6 +142,19 @@ func NewACL(list []string) (ACL, error) {
 	return ACL{entries: acl}, nil
 }
 
+func (acl *ACL) UnmarshalJSON(input []byte) error {
+	acl.entries = &pathpol.ACL{}
+	return acl.entries.UnmarshalJSON(input)
+}
+
+func (acl *ACL) String() string {
+	output := ""
+	for _, entry := range acl.entries.Entries {
+		output += entry.String() + ", "
+	}
+	return output
+}
+
 // Filter evaluates the interface ACL and returns the set of paths
 // that match the list
 func (l ACL) Filter(paths []*Path) []*Path {

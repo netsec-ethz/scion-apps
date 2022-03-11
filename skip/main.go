@@ -80,8 +80,7 @@ func main() {
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/skip.pac", handleWPAD)
 	apiMux.HandleFunc("/scion-host", handleHostListRequest)
-	//apiMux.Handle("/setISDPolicy", setISDPolicyHandler)
-	apiMux.Handle("/setISDPolicy", http.HandlerFunc(isdPolicyHandler.setISDPolicy))
+	apiMux.Handle("/setISDPolicy", isdPolicyHandler)
 
 	mux.Handle("localhost/", apiMux)
 	if bindAddress.IP != nil {
@@ -131,8 +130,7 @@ type isdPolicyHandler struct {
 	output interface{ SetPolicy(pan.Policy) }
 }
 
-func (h *isdPolicyHandler) setISDPolicy(w http.ResponseWriter, req *http.Request) {
-	var aclInput []string
+func (h *isdPolicyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -144,22 +142,16 @@ func (h *isdPolicyHandler) setISDPolicy(w http.ResponseWriter, req *http.Request
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	aclStringList := strings.Split(string(body), ",")
-	aclStringList = aclStringList[:len(aclStringList)-1]
-	// Whitelist ases
-	for _, entry := range aclStringList {
-		aclInput = append(aclInput, "+ "+entry)
-	}
-	aclInput = append(aclInput, "-")
 
-	acl, err := pan.NewACL(aclInput)
+	var acl pan.ACL
+	acl.UnmarshalJSON(body)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	h.output.SetPolicy(acl)
-	fmt.Println("verbose: ", "ISD policy = ", aclInput)
+	fmt.Println("verbose: ", "ACL policy = ", acl.String())
 	w.WriteHeader(http.StatusOK)
 }
 
