@@ -72,15 +72,15 @@ func main() {
 	tunnelHandler := &tunnelHandler{
 		dialer: dialer,
 	}
-	isdPolicyHandler := &isdPolicyHandler{
+	policyHandler := &policyHandler{
 		output: dialer,
 	}
 
 	mux := http.NewServeMux()
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/skip.pac", handleWPAD)
-	apiMux.HandleFunc("/scion-host", handleHostListRequest)
-	apiMux.Handle("/setISDPolicy", isdPolicyHandler)
+	apiMux.HandleFunc("/scionHosts", handleHostListRequest)
+	apiMux.Handle("/setPolicy", policyHandler)
 
 	mux.Handle("localhost/", apiMux)
 	if bindAddress.IP != nil {
@@ -126,11 +126,11 @@ func handleHostListRequest(w http.ResponseWriter, req *http.Request) {
 	_, _ = w.Write(buf.Bytes())
 }
 
-type isdPolicyHandler struct {
+type policyHandler struct {
 	output interface{ SetPolicy(pan.Policy) }
 }
 
-func (h *isdPolicyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *policyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
