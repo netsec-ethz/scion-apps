@@ -123,7 +123,7 @@ func handleHostListRequest(w http.ResponseWriter, req *http.Request) {
 	for i := 1; i < len(scionHost); i++ {
 		buf.WriteString("\n" + scionHost[i])
 	}
-	w.Write(buf.Bytes())
+	_, _ = w.Write(buf.Bytes())
 }
 
 type isdPolicyHandler struct {
@@ -144,13 +144,13 @@ func (h *isdPolicyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var acl pan.ACL
-	acl.UnmarshalJSON(body)
+	err = acl.UnmarshalJSON(body)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.output.SetPolicy(acl)
+	h.output.SetPolicy(&acl)
 	fmt.Println("verbose: ", "ACL policy = ", acl.String())
 	w.WriteHeader(http.StatusOK)
 }
