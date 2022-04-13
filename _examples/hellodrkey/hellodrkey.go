@@ -27,14 +27,14 @@ import (
 )
 
 const (
-	sciondForClient = "[fd00:f00d:cafe::7f00:b]:30255"
-	sciondForServer = "127.0.0.19:30255"
+	sciondForClient = "[fd00:f00d:cafe::7f00:c]:30255"
+	sciondForServer = "127.0.0.20:30255"
 )
 
 // These next variables are also used as constants in the code
 var timestamp = time.Now().UTC()
-var srcIA, _ = addr.ParseIA("1-ff00:0:111")
-var dstIA, _ = addr.ParseIA("1-ff00:0:112")
+var srcIA, _ = addr.ParseIA("1-ff00:0:111") // fast path: server side in this example
+var dstIA, _ = addr.ParseIA("1-ff00:0:112") // slow path: client side in this example
 var srcHost = addr.HostFromIPStr("127.0.0.1")
 var dstHost = addr.HostFromIPStr("fd00:f00d:cafe::7f00:a")
 
