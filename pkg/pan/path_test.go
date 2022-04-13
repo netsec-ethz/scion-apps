@@ -97,21 +97,21 @@ func TestInterfacesFromDecodedColibri(t *testing.T) {
 	cp := colibri.ColibriPath{
 		InfoField: &colibri.InfoField{},
 		HopFields: []*colibri.HopField{
-			&colibri.HopField{
+			{
 				IngressId: 0,
-				EgressId: 1,
+				EgressId:  1,
 			},
-			&colibri.HopField{
+			{
 				IngressId: 2,
-				EgressId: 3,
+				EgressId:  3,
 			},
-			&colibri.HopField{
+			{
 				IngressId: 4,
-				EgressId: 5,
+				EgressId:  5,
 			},
-			&colibri.HopField{
+			{
 				IngressId: 6,
-				EgressId: 0,
+				EgressId:  0,
 			},
 		},
 	}

@@ -188,7 +188,7 @@ func expiryFromDecodedSCION(sp scion.Decoded) time.Time {
 }
 
 func expiryFromDecodedColibri(cp colibri.ColibriPath) time.Time {
-	return time.Unix(libcolibri.TickDuration * int64(cp.InfoField.ExpTick), 0)
+	return time.Unix(libcolibri.TickDuration*int64(cp.InfoField.ExpTick), 0)
 }
 
 func interfaceIDsFromDecodedSCION(sp scion.Decoded) []IfID {
@@ -229,14 +229,14 @@ func interfaceIDsFromDecodedSCION(sp scion.Decoded) []IfID {
 }
 
 func interfaceIDsFromDecodedColibri(cp colibri.ColibriPath) []IfID {
-	ifIDs := make([]IfID, 0, 2*len(cp.HopFields) - 2)
+	ifIDs := make([]IfID, 0, 2*len(cp.HopFields)-2)
 
 	nrHops := len(cp.HopFields)
 	for h, hop := range cp.HopFields {
 		if h > 0 {
 			ifIDs = append(ifIDs, IfID(hop.IngressId))
 		}
-		if h < nrHops - 1 {
+		if h < nrHops-1 {
 			ifIDs = append(ifIDs, IfID(hop.EgressId))
 		}
 	}
