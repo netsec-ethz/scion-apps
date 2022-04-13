@@ -21,4 +21,4 @@ require (
 	inet.af/netaddr v0.0.0-20210903134321-85fa6c94624e
 )
 
-replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20220310075459-9aaced056448
+replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20220407132138-98d64387e90d

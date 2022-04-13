@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/stretchr/testify/assert"
 )
@@ -75,7 +76,7 @@ func TestPathString(t *testing.T) {
 	}
 }
 
-func TestInterfacesFromDecoded(t *testing.T) {
+func TestInterfacesFromDecodedSCION(t *testing.T) {
 	// Not a great test case...
 	rawPath := []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00\x00" +
 		"\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00\x02\x01\x02\x03" +
@@ -87,8 +88,43 @@ func TestInterfacesFromDecoded(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	ifaces := interfaceIDsFromDecoded(sp)
+	ifaces := interfaceIDsFromDecodedSCION(sp)
 	expected := []IfID{1, 2, 2, 1}
+	assert.Equal(t, ifaces, expected)
+}
+
+func TestInterfacesFromDecodedColibri(t *testing.T) {
+	cp := colibri.ColibriPath{
+		InfoField: &colibri.InfoField{},
+		HopFields: []*colibri.HopField{
+			&colibri.HopField{
+				IngressId: 0,
+				EgressId: 1,
+			},
+			&colibri.HopField{
+				IngressId: 2,
+				EgressId: 3,
+			},
+			&colibri.HopField{
+				IngressId: 4,
+				EgressId: 5,
+			},
+			&colibri.HopField{
+				IngressId: 6,
+				EgressId: 0,
+			},
+		},
+	}
+
+	// Forward direction
+	ifaces := interfaceIDsFromDecodedColibri(cp)
+	expected := []IfID{1, 2, 3, 4, 5, 6}
+	assert.Equal(t, ifaces, expected)
+
+	// Backward direction (R=1)
+	cp.InfoField.R = true
+	ifaces = interfaceIDsFromDecodedColibri(cp)
+	expected = []IfID{6, 5, 4, 3, 2, 1}
 	assert.Equal(t, ifaces, expected)
 }
 
