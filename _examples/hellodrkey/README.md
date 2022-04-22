@@ -14,9 +14,8 @@ Slow path (client):
 
 Fast path (server):
 1. Obtain a connection to the designated `sciondForServer` and encapsulate it in the `Server` class.
-1. Obtain the delegation secret for that metadata. The delegation secret does not change with the destination host.
-   You can check that in `dsForServer`. The delegation secret is stored.
-1. Derive the DRKey with the delegation secret and the metadata.
+1. Obtain the Secret Value (SV) for the designated protocol.
+1. Derive the DRKey with the SV and the metadata.
 
 Both slow and fast paths should obtain the same key.
 And both slow and fast path are measured for performance and their times displayed at the end.
@@ -27,4 +26,11 @@ For this example to work, you must configure your devel SCION with an appropriat
 Follow these steps:
 
 1. Create a local topology with the `tiny.topo` description: `./scion.sh topology -c ./topology/tiny.topo`.
-1. Restart scion with `./scion.sh stop; ./scion.sh start nobuild` and run hellodrkey.
+1. Allow the server of the example setup to obtain the Secret Value (SV) for the DNS protocol:
+
+   ```toml
+   [drkey.delegation]
+   dns = [ "127.0.0.1",]
+   ```
+
+1. Start scion with `./scion.sh start` and run hellodrkey.
