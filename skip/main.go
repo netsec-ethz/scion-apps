@@ -79,7 +79,9 @@ func main() {
 	mux := http.NewServeMux()
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/skip.pac", handleWPAD)
+	// TODO: Remove the scionHosts endpoint
 	apiMux.HandleFunc("/scionHosts", handleHostListRequest)
+	apiMux.HandleFunc("/resolve", handleHostResolutionRequest)
 	apiMux.Handle("/setPolicy", policyHandler)
 
 	mux.Handle("localhost/", apiMux)
@@ -123,6 +125,36 @@ func handleHostListRequest(w http.ResponseWriter, req *http.Request) {
 	for i := 1; i < len(scionHost); i++ {
 		buf.WriteString("\n" + scionHost[i])
 	}
+	_, _ = w.Write(buf.Bytes())
+}
+
+// handleHostResolutionRequest parses requests in the form: /resolve?host=XXX
+// If the PAN lib cannot resolve the host, it sends back an empty response.
+func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	buf := &bytes.Buffer{}
+	q := req.URL.Query()
+	hosts, ok := q["host"]
+	if !ok || len(hosts) > 1 {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	hostPort := hosts[0] + ":0"
+
+	res, err := pan.ResolveUDPAddr(hostPort)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		_, ok := err.(pan.HostNotFoundError)
+		if !ok {
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+		}
+		return
+	}
+	buf.WriteString(strings.TrimRight(res.String(), ":0"))
+	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(buf.Bytes())
 }
 
