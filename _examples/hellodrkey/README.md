@@ -26,7 +26,8 @@ For this example to work, you must configure your devel SCION with an appropriat
 Follow these steps:
 
 1. Create a local topology with the `tiny.topo` description: `./scion.sh topology -c ./topology/tiny.topo`.
-1. Allow the server of the example setup to obtain the Secret Value (SV) for the DNS protocol:
+1. Allow the server of the example setup to obtain the Secret Value (SV) for the DNS protocol.
+   Edit `gen/ASff00_0_111/cs1-ff00_0_111-1.toml` and include an entry for `dns` under `drkey.delegation`:
 
    ```toml
    [drkey.delegation]
