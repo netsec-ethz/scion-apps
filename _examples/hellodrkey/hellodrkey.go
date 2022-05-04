@@ -39,9 +39,7 @@ type Client struct {
 	daemon daemon.Connector
 }
 
-func NewClient(sciondPath string) Client {
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
+func NewClient(ctx context.Context, sciondPath string) Client {
 	daemon, err := daemon.NewService(sciondPath).Connect(ctx)
 	check(err)
 	return Client{
@@ -49,10 +47,7 @@ func NewClient(sciondPath string) Client {
 	}
 }
 
-func (c Client) HostHostKey(meta drkey.HostHostMeta) drkey.HostHostKey {
-	ctx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancelF()
-
+func (c Client) HostHostKey(ctx context.Context, meta drkey.HostHostMeta) drkey.HostHostKey {
 	// get L2 key: (slow path)
 	key, err := c.daemon.DRKeyGetHostHostKey(ctx, meta)
 	check(err)
@@ -63,9 +58,7 @@ type Server struct {
 	daemon daemon.Connector
 }
 
-func NewServer(sciondPath string) Server {
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
+func NewServer(ctx context.Context, sciondPath string) Server {
 	daemon, err := daemon.NewService(sciondPath).Connect(ctx)
 	check(err)
 	return Server{
@@ -76,17 +69,8 @@ func NewServer(sciondPath string) Server {
 // fetchSV obtains the Secret Value (SV) for the selected protocol/epoch.
 // From this SV, all keys for this protocol/epoch can be derived locally.
 // The IP address of the server must be explicitly allowed to abtain this SV
-// from in the control server's configuration:
-//
-// Example gen/ASff00_0_111/cs1-ff00_0_111-1.toml:
-//
-//   [drkey.delegation]
-//   dns = ["127.0.0.1",]
-//
-func (s Server) fetchSV(meta drkey.SVMeta) drkey.SV {
-	ctx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancelF()
-
+// from the the control server.
+func (s Server) fetchSV(ctx context.Context, meta drkey.SVMeta) drkey.SV {
 	// Obtain CS address from scion daemon
 	svcs, err := s.daemon.SVCInfo(ctx, nil)
 	check(err)
@@ -140,6 +124,9 @@ func main() {
 	check(err)
 	const clientIP = "fd00:f00d:cafe::7f00:c"
 
+	ctx, cancelF := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancelF()
+
 	// meta describes the key that both client and server derive
 	meta := drkey.HostHostMeta{
 		Lvl2Meta: drkey.Lvl2Meta{
@@ -163,15 +150,15 @@ func main() {
 	// The daemon will in turn obtain the key from the local CS
 	// The CS will fetch the Lvl1 key from the CS in the SrcIA (the server's AS)
 	// and derive the Host key based on this.
-	client := NewClient(sciondForClient)
+	client := NewClient(ctx, sciondForClient)
 	t0 := time.Now()
-	clientKey := client.HostHostKey(meta)
+	clientKey := client.HostHostKey(ctx, meta)
 	durationClient := time.Since(t0)
 	fmt.Printf("Client,\thost key = %s\tduration = %s\n", hex.EncodeToString(clientKey.Key[:]), durationClient)
 
 	// Server: get the Secret Value (SV) for the protocol and derive all subsequent keys in-process
-	server := NewServer(sciondForServer)
-	sv := server.fetchSV(drkey.SVMeta{
+	server := NewServer(ctx, sciondForServer)
+	sv := server.fetchSV(ctx, drkey.SVMeta{
 		Validity: meta.Validity,
 		ProtoId:  meta.ProtoId,
 	})
