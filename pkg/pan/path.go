@@ -55,18 +55,17 @@ type ForwardingPath struct {
 }
 
 func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
-	var raw []byte
 	switch dataplanePath := p.dataplanePath.(type) {
 	case snet.RawReplyPath:
 		switch dataplanePath.Path.Type() {
 		case scion.PathType:
-			raw = make([]byte, dataplanePath.Path.Len())
+			raw := make([]byte, dataplanePath.Path.Len())
 			if err := dataplanePath.Path.SerializeTo(raw); err != nil {
 				return forwardingPathInfo{}, err
 			}
 			return fwPathInfoSCION(raw)
 		case colibri.PathType:
-			raw = make([]byte, dataplanePath.Path.Len())
+			raw := make([]byte, dataplanePath.Path.Len())
 			if err := dataplanePath.Path.SerializeTo(raw); err != nil {
 				return forwardingPathInfo{}, err
 			}
@@ -77,20 +76,16 @@ func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 	case snet.RawPath:
 		switch dataplanePath.PathType {
 		case scion.PathType:
-			raw = dataplanePath.Raw
-			return fwPathInfoSCION(raw)
+			return fwPathInfoSCION(dataplanePath.Raw)
 		case colibri.PathType:
-			raw = dataplanePath.Raw
-			return fwPathInfoColibri(raw)
+			return fwPathInfoColibri(dataplanePath.Raw)
 		default:
 			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawPath", dataplanePath.PathType)
 		}
 	case snetpath.SCION:
-		raw = dataplanePath.Raw
-		return fwPathInfoSCION(raw)
+		return fwPathInfoSCION(dataplanePath.Raw)
 	case snetpath.Colibri:
-		raw = dataplanePath.Raw
-		return fwPathInfoColibri(raw)
+		return fwPathInfoColibri(dataplanePath.Raw)
 	default:
 		return forwardingPathInfo{}, fmt.Errorf("unsupported path type %T", p.dataplanePath)
 	}
