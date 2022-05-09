@@ -19,9 +19,7 @@ import (
 	"strings"
 	"time"
 
-	libcolibri "github.com/scionproto/scion/go/lib/colibri/dataplane"
 	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/colibri"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	snetpath "github.com/scionproto/scion/go/lib/snet/path"
@@ -55,61 +53,37 @@ type ForwardingPath struct {
 }
 
 func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
+	var raw []byte
 	switch dataplanePath := p.dataplanePath.(type) {
 	case snet.RawReplyPath:
 		switch dataplanePath.Path.Type() {
 		case scion.PathType:
-			raw := make([]byte, dataplanePath.Path.Len())
+			raw = make([]byte, dataplanePath.Path.Len())
 			if err := dataplanePath.Path.SerializeTo(raw); err != nil {
 				return forwardingPathInfo{}, err
 			}
-			return fwPathInfoSCION(raw)
-		case colibri.PathType:
-			raw := make([]byte, dataplanePath.Path.Len())
-			if err := dataplanePath.Path.SerializeTo(raw); err != nil {
-				return forwardingPathInfo{}, err
-			}
-			return fwPathInfoColibri(raw)
 		default:
 			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawReplyPath", dataplanePath.Path.Type())
 		}
 	case snet.RawPath:
 		switch dataplanePath.PathType {
 		case scion.PathType:
-			return fwPathInfoSCION(dataplanePath.Raw)
-		case colibri.PathType:
-			return fwPathInfoColibri(dataplanePath.Raw)
+			raw = dataplanePath.Raw
 		default:
 			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawPath", dataplanePath.PathType)
 		}
 	case snetpath.SCION:
-		return fwPathInfoSCION(dataplanePath.Raw)
-	case snetpath.Colibri:
-		return fwPathInfoColibri(dataplanePath.Raw)
+		raw = dataplanePath.Raw
 	default:
 		return forwardingPathInfo{}, fmt.Errorf("unsupported path type %T", p.dataplanePath)
 	}
-}
-
-func fwPathInfoSCION(raw []byte) (forwardingPathInfo, error) {
 	var sp scion.Decoded
 	if err := sp.DecodeFromBytes(raw); err != nil {
 		return forwardingPathInfo{}, err
 	}
 	return forwardingPathInfo{
-		expiry:       expiryFromDecodedSCION(sp),
-		interfaceIDs: interfaceIDsFromDecodedSCION(sp),
-	}, nil
-}
-
-func fwPathInfoColibri(raw []byte) (forwardingPathInfo, error) {
-	var cp colibri.ColibriPath
-	if err := cp.DecodeFromBytes(raw); err != nil {
-		return forwardingPathInfo{}, err
-	}
-	return forwardingPathInfo{
-		expiry:       expiryFromDecodedColibri(cp),
-		interfaceIDs: interfaceIDsFromDecodedColibri(cp),
+		expiry:       expiryFromDecoded(sp),
+		interfaceIDs: interfaceIDsFromDecoded(sp),
 	}, nil
 }
 
@@ -160,7 +134,7 @@ type forwardingPathInfo struct {
 	interfaceIDs []IfID
 }
 
-func expiryFromDecodedSCION(sp scion.Decoded) time.Time {
+func expiryFromDecoded(sp scion.Decoded) time.Time {
 	hopExpiry := func(info path.InfoField, hf path.HopField) time.Time {
 		ts := time.Unix(int64(info.Timestamp), 0)
 		exp := path.ExpTimeToDuration(hf.ExpTime)
@@ -182,11 +156,7 @@ func expiryFromDecodedSCION(sp scion.Decoded) time.Time {
 	return ret
 }
 
-func expiryFromDecodedColibri(cp colibri.ColibriPath) time.Time {
-	return time.Unix(libcolibri.TickDuration*int64(cp.InfoField.ExpTick), 0)
-}
-
-func interfaceIDsFromDecodedSCION(sp scion.Decoded) []IfID {
+func interfaceIDsFromDecoded(sp scion.Decoded) []IfID {
 	ifIDs := make([]IfID, 0, 2*len(sp.HopFields)-2*len(sp.InfoFields))
 
 	// return first interface in order of traversal
@@ -220,28 +190,6 @@ func interfaceIDsFromDecodedSCION(sp scion.Decoded) []IfID {
 		}
 	}
 
-	return ifIDs
-}
-
-func interfaceIDsFromDecodedColibri(cp colibri.ColibriPath) []IfID {
-	ifIDs := make([]IfID, 0, 2*len(cp.HopFields)-2)
-
-	nrHops := len(cp.HopFields)
-	for h, hop := range cp.HopFields {
-		if h > 0 {
-			ifIDs = append(ifIDs, IfID(hop.IngressId))
-		}
-		if h < nrHops-1 {
-			ifIDs = append(ifIDs, IfID(hop.EgressId))
-		}
-	}
-
-	// If the R flag is set, reverse the order of the interfaces
-	if cp.InfoField.R {
-		for i, j := 0, len(ifIDs)-1; i < j; i, j = i+1, j-1 {
-			ifIDs[i], ifIDs[j] = ifIDs[j], ifIDs[i]
-		}
-	}
 	return ifIDs
 }
 
