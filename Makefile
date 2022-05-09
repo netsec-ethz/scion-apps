@@ -101,28 +101,28 @@ scion-web-gateway:
 
 .PHONY: example-helloworld
 example-helloworld:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/helloworld/
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./helloworld/
 
 .PHONY: example-helloquic
 example-helloquic:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/helloquic/
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./helloquic/
 
 .PHONY: example-shttp-client
 example-shttp-client:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/client
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/client
 
 .PHONY: example-shttp-server
 example-shttp-server:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/server
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/server
 
 .PHONY: example-shttp-fileserver
 example-shttp-fileserver:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/fileserver
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/fileserver
 
 .PHONY: example-shttp-proxy
 example-shttp-proxy:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/proxy
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/proxy
 
 .PHONY: example-hellodrkey
 example-hellodrkey:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/hellodrkey/
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./hellodrkey/
