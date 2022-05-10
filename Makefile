@@ -12,11 +12,6 @@ DESTDIR = $(shell set -a; eval $$( go env ); gopath=$${GOPATH%:*}; echo $${GOBIN
 # HINT: build with TAGS=norains to build without rains support
 TAGS =
 
-# EXAMPLES lists each ./_examples/ subdirectory containing .go files. This is
-# used to invoke various go commands, as the _examples directory is otherwise
-# ignored (due to the underscore prefix).
-EXAMPLES = $(shell find ./_examples/ -name *.go -printf '%h\n' | sort -u)
-
 all: build lint
 
 build: scion-bat \
@@ -33,11 +28,13 @@ build: scion-bat \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
 
 clean:
-	go clean ./... ${EXAMPLES}
+	go clean ./...
+	cd _examples && go clean ./...
 	rm -f bin/*
 
 test:
-	go test -tags=$(TAGS) ./... ${EXAMPLES}
+	go test -tags=$(TAGS) ./...
+	cd _examples && go test -tags=$(TAGS) ./...
 
 setup_lint:
 	@# Install golangci-lint (as dumb as this looks, this is the recommended way to install)
@@ -45,7 +42,8 @@ setup_lint:
 
 lint:
 	@type golangci-lint > /dev/null || ( echo "golangci-lint not found. Install it manually or by running 'make setup_lint'."; exit 1 )
-	golangci-lint run --timeout=2m0s ./... ${EXAMPLES}
+	golangci-lint run --timeout=2m0s
+	cd _examples && golangci-lint run --timeout=2m0s
 
 install: all
   # Note: install everything but the examples
@@ -53,7 +51,8 @@ install: all
 	cp -t $(DESTDIR) $(BIN)/scion-*
 
 integration: build
-	go test -tags=integration,$(TAGS) --count=1 ./... ${EXAMPLES}
+	go test -tags=integration,$(TAGS) --count=1 ./...
+	cd _examples && go test -tags=integration,$(TAGS) --count=1 ./...
 
 .PHONY: scion-bat
 scion-bat:
@@ -101,28 +100,28 @@ scion-web-gateway:
 
 .PHONY: example-helloworld
 example-helloworld:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/helloworld/
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./helloworld/
 
 .PHONY: example-helloquic
 example-helloquic:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/helloquic/
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./helloquic/
 
 .PHONY: example-shttp-client
 example-shttp-client:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/client
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/client
 
 .PHONY: example-shttp-server
 example-shttp-server:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/server
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/server
 
 .PHONY: example-shttp-fileserver
 example-shttp-fileserver:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/fileserver
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/fileserver
 
 .PHONY: example-shttp-proxy
 example-shttp-proxy:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/shttp/proxy
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/proxy
 
 .PHONY: example-hellodrkey
 example-hellodrkey:
-	go build -tags=$(TAGS) -o $(BIN)/$@ ./_examples/hellodrkey/
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./hellodrkey/
