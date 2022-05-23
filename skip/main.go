@@ -32,6 +32,7 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -158,6 +159,19 @@ func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
 	_, _ = w.Write(buf.Bytes())
 }
 
+func isSCIONEnabled(host string) (bool, error) {
+	_, err := pan.ResolveUDPAddr(host)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		_, ok := err.(pan.HostNotFoundError)
+		if !ok {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
 type policyHandler struct {
 	output interface{ SetPolicy(pan.Policy) }
 }
@@ -233,11 +247,21 @@ type tunnelHandler struct {
 }
 
 func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	destConn, err := h.dialer.DialContext(context.Background(), "", req.Host)
+	hostPort := req.Host
+
+	var destConn net.Conn
+	var err error
+	enabled, _ := isSCIONEnabled(hostPort)
+	if !enabled {
+		// CONNECT via TCP/IP
+		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
+	} else {
+		// CONNECT via SCION
+		destConn, err = h.dialer.DialContext(context.Background(), "", req.Host)
+	}
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -257,6 +281,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	go transfer(destConn, clientConn)
 	go transfer(clientConn, destConn)
+
 }
 
 func transfer(dst io.WriteCloser, src io.ReadCloser) {
