@@ -38,6 +38,9 @@ func (s *Server) PasswordAuth(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions
 	if err := t.Authenticate(0); err != nil {
 		return nil, fmt.Errorf("authenticate: %w", err)
 	}
+	if err := t.AcctMgmt(0); err != nil {
+		return nil, fmt.Errorf("authenticate: %w", err)
+	}
 
 	return &ssh.Permissions{
 		CriticalOptions: map[string]string{
