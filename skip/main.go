@@ -139,43 +139,33 @@ func handleRedirectBackOrError(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO: Ensure we need this here...
+	// TODO: Ensure we need this here, it's probably required for redirecting
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	q := req.URL.Query()
-	fmt.Println(q)
 
 	urls, ok := q["url"]
 	if !ok || len(urls) != 1 {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-
-	// TODO: Find out why this localhost part is also part of the query param url
-	url, err := url.Parse(strings.Replace(urls[0], "http://localhost:8888/r?url=", "", 1))
+	url, err := url.Parse(urls[0])
 	if err != nil {
 		fmt.Println(err)
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	fmt.Println("Got url")
-	fmt.Println(url.String())
 
 	hostPort := url.Host + ":0"
-	fmt.Println(hostPort)
 
 	w.Header().Set("Location", url.String())
 	_, err = pan.ResolveUDPAddr(hostPort)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
-		_, ok := err.(pan.HostNotFoundError)
-		if !ok {
-			http.Error(w, "Internal error", http.StatusInternalServerError)
-		}
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
-	fmt.Printf("REDIRECTING to %s\n\n", url.String())
+
 	http.Redirect(w, req, url.String(), 301)
 	return
 }
