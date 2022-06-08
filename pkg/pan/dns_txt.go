@@ -18,13 +18,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
-
-	"github.com/miekg/dns"
 )
-
-// Open DNS resolver by SWITCH
-const switchResolver1 string = "130.59.31.248"
-const switchResolver2 string = "130.59.31.251"
 
 func init() {
 	resolveDnsTxt = &dnsResolver{}
@@ -47,25 +41,16 @@ func (d *dnsResolver) Resolve(name string) (scionAddr, error) {
 }
 
 func queryTXTRecord(query string) (address []string, err error) {
-	msg := new(dns.Msg)
 	if !strings.HasSuffix(query,".") {
 		query += "."
 	}
-	msg.SetQuestion(query, dns.TypeTXT)
-	msg.RecursionDesired = true
-	// TODO : add / import logic to use configured local resolver preference
-	resolver := net.UDPAddr{IP: net.ParseIP(switchResolver1), Port: 53}
-	res, err := dns.Exchange(msg, resolver.String())
+	txtRecords, err := net.LookupTXT(query)
 	if err != nil {
 		return address, err
 	}
-	for _, ans := range res.Answer {
-		if txtRecords, ok := ans.(*dns.TXT); ok {
-			for _, txt := range txtRecords.Txt {
-				if strings.HasPrefix(txt, "scion=") {
-					address = append(address, strings.TrimPrefix(txt, "scion="))
-				}
-			}
+	for _, txt := range txtRecords {
+		if strings.HasPrefix(txt, "scion=") {
+			address = append(address, strings.TrimPrefix(txt, "scion="))
 		}
 	}
 	if len(address) == 0 {
