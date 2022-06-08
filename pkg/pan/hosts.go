@@ -22,6 +22,7 @@ import (
 
 var (
 	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
+	resolveDnsTxt        resolver = nil
 	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
 	resolveRains         resolver = nil
 )
@@ -61,6 +62,7 @@ func resolveUDPAddrAt(address string, resolver resolver) (UDPAddr, error) {
 func defaultResolver() resolver {
 	return resolverList{
 		resolveEtcHosts,
+		resolveDnsTxt,
 		resolveEtcScionHosts,
 		resolveRains,
 	}
