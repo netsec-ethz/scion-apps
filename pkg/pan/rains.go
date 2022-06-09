@@ -18,6 +18,7 @@
 package pan
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -34,8 +35,9 @@ func init() {
 }
 
 type rainsResolver struct{}
+var _ resolver = &rainsResolver{}
 
-func (r *rainsResolver) Resolve(name string) (scionAddr, error) {
+func (r *rainsResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
 	server, err := readRainsConfig()
 	if err != nil {
 		return scionAddr{}, err

@@ -16,6 +16,7 @@ package pan
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -28,8 +29,9 @@ type hostsTable map[string]scionAddr
 type hostsfileResolver struct {
 	path string
 }
+var _ resolver = &hostsfileResolver{}
 
-func (r *hostsfileResolver) Resolve(name string) (scionAddr, error) {
+func (r *hostsfileResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
 	// Note: obviously not perfectly elegant to parse the entire file for
 	// every query. However, properly caching this and still always provide
 	// fresh results after changes to the hosts file seems like a bigger task and

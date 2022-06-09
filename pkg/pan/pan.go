@@ -103,24 +103,45 @@ Notes
 package pan
 
 import (
+	"context"
 	"fmt"
+	"time"
 )
 
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
+// Default timeout is 1 second, use ResolveUDPAddrContext to provide an explicit context.
 // If the address is in the form of a hostname, the the following sources will
 // be used to resolve a name, in the given order of precedence.
 //
 //  - /etc/hosts
 //  - /etc/scion/hosts
-//  - RAINS, if a server is configured in /etc/scion/rains.cfg.
-//    Disabled if built with !norains.
+//  - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
+//  - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 //
 // Returns HostNotFoundError if none of the sources did resolve the hostname.
-func ResolveUDPAddr(address string) (UDPAddr, error) {
-	return resolveUDPAddrAt(address, defaultResolver())
+func ResolveUDPAddr(address string) (addr UDPAddr, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	return ResolveUDPAddrContext(ctx, cancel, address)
 }
+
+// ResolveUDPAddrContext resolves address, taking a context and a cancel function, see ResolveUDPAddr.
+func ResolveUDPAddrContext(ctx context.Context, cancel context.CancelFunc, address string) (addr UDPAddr, err error) {
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		addr, err = resolveUDPAddrAt(ctx, address, defaultResolver())
+	}()
+	select {
+	case <-ctx.Done():
+		return UDPAddr{}, context.DeadlineExceeded
+	case <-done:
+	}
+	return
+}
+
 
 // HostNotFoundError is returned by ResolveUDPAddr when the name was not found, but
 // otherwise no error occurred.
