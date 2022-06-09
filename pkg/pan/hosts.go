@@ -15,23 +15,25 @@
 package pan
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 )
 
 var (
 	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
-	resolveDnsTxt        resolver = nil
 	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
 	resolveRains         resolver = nil
+	resolveDnsTxt        resolver = &dnsResolver{}
 )
 
 // resolveUDPAddrAt parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
 // If the address is in the form of a hostname, resolver is used to resolve the name.
-func resolveUDPAddrAt(address string, resolver resolver) (UDPAddr, error) {
+func resolveUDPAddrAt(ctx context.Context, address string, resolver resolver) (UDPAddr, error) {
 	raddr, err := ParseUDPAddr(address)
 	if err == nil {
 		return raddr, nil
@@ -44,7 +46,7 @@ func resolveUDPAddrAt(address string, resolver resolver) (UDPAddr, error) {
 	if err != nil {
 		return UDPAddr{}, err
 	}
-	host, err := resolver.Resolve(hostStr)
+	host, err := resolver.Resolve(ctx, hostStr)
 	if err != nil {
 		return UDPAddr{}, err
 	}
@@ -57,41 +59,48 @@ func resolveUDPAddrAt(address string, resolver resolver) (UDPAddr, error) {
 //
 //  - /etc/hosts
 //  - /etc/scion/hosts
-//  - RAINS, if a server is configured in /etc/scion/rains.cfg.
-//    Disabled if built with !norains.
+//  - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
+//  - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 func defaultResolver() resolver {
 	return resolverList{
 		resolveEtcHosts,
-		resolveDnsTxt,
 		resolveEtcScionHosts,
 		resolveRains,
+		resolveDnsTxt,
 	}
 }
 
 // resolver is the interface to resolve a host name to a SCION host address.
-// Currently, this is implemented for reading a hosts file and RAINS
+// Currently, this is implemented for reading the system hosts file, a SCION specific hosts file,
+// RAINS, and DNS TXT records for SCION of the format "scion=ia,ip"
 type resolver interface {
 	// Resolve finds an address for the name.
 	// Returns a HostNotFoundError if the name was not found, but otherwise no
 	// error occurred.
-	Resolve(name string) (scionAddr, error)
+	Resolve(ctx context.Context, name string) (scionAddr, error)
 }
 
 // resolverList represents a list of Resolvers that are processed in sequence
 // to return the first match.
 type resolverList []resolver
 
-func (resolvers resolverList) Resolve(name string) (scionAddr, error) {
+func (resolvers resolverList) Resolve(ctx context.Context, name string) (scionAddr, error) {
 	var errHostNotFound HostNotFoundError
+	var rerr error
 	for _, resolver := range resolvers {
 		if resolver != nil {
-			addr, err := resolver.Resolve(name)
+			addr, err := resolver.Resolve(ctx, name)
 			if err == nil {
 				return addr, nil
 			} else if !errors.As(err, &errHostNotFound) {
-				return addr, err
+				// do not directly fail on first resolver error
+				rerr = err
 			}
 		}
+	}
+	if rerr != nil {
+		// fmt.Fprintf(os.Stderr, "pan library: resolver error: %w", rerr)
+		return scionAddr{}, fmt.Errorf("pan library: resolver error: %w", rerr)
 	}
 	return scionAddr{}, HostNotFoundError{name}
 }

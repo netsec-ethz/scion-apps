@@ -15,36 +15,44 @@
 package pan
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
 )
 
-func init() {
-	resolveDnsTxt = &dnsResolver{}
-}
-
 type dnsResolver struct{}
+var _ resolver = &dnsResolver{}
 
-func (d *dnsResolver) Resolve(name string) (scionAddr, error) {
-	addresses, err := queryTXTRecord(name)
+func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr scionAddr, err error) {
+	addresses, err := queryTXTRecord(ctx, name)
 	if err != nil {
 		return scionAddr{}, err
 	}
+	if len(addresses) == 0 {
+		return scionAddr{}, HostNotFoundError{Host: name}
+	}
+	var perr error
 	for _, addr := range addresses {
-		scionAddr, err := parseSCIONAddr(addr)
-		if err == nil {
-			return scionAddr, nil
+		saddr, perr = parseSCIONAddr(addr)
+		if perr == nil {
+			return saddr, nil
 		}
 	}
-	return scionAddr{}, fmt.Errorf("error parsing TXT SCION address records")
+	return scionAddr{}, fmt.Errorf("error parsing TXT SCION address records: %w", perr)
 }
 
-func queryTXTRecord(query string) (address []string, err error) {
+func queryTXTRecord(ctx context.Context, query string) (address []string, err error) {
 	if !strings.HasSuffix(query,".") {
 		query += "."
 	}
-	txtRecords, err := net.LookupTXT(query)
+	resolver := net.Resolver{}
+	txtRecords, err := resolver.LookupHost(ctx, query)
+	if dnsError, ok := err.(*net.DNSError); ok {
+		if dnsError.IsNotFound {
+			return address, HostNotFoundError{query}
+		}
+	}
 	if err != nil {
 		return address, err
 	}
@@ -54,7 +62,7 @@ func queryTXTRecord(query string) (address []string, err error) {
 		}
 	}
 	if len(address) == 0 {
-		return address, fmt.Errorf("no TXT record with SCION address found")
+		return address, HostNotFoundError{query}
 	}
 	return address, nil
 }
