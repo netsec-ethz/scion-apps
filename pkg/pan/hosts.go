@@ -26,7 +26,7 @@ var (
 	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
 	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
 	resolveRains         resolver = nil
-	resolveDnsTxt        resolver = &dnsResolver{}
+	resolveDNSTxt        resolver = &dnsResolver{}
 )
 
 // resolveUDPAddrAt parses the address and resolves the hostname.
@@ -66,7 +66,7 @@ func defaultResolver() resolver {
 		resolveEtcHosts,
 		resolveEtcScionHosts,
 		resolveRains,
-		resolveDnsTxt,
+		resolveDNSTxt,
 	}
 }
 

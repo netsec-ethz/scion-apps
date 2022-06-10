@@ -105,10 +105,7 @@ package pan
 import (
 	"context"
 	"fmt"
-	"time"
 )
-
-var defaultResolveTimeout = time.Second
 
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")

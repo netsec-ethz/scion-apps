@@ -16,6 +16,7 @@ package pan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -49,8 +50,9 @@ func queryTXTRecord(ctx context.Context, host string) (addresses []string, err e
 	}
 	resolver := net.Resolver{}
 	txtRecords, err := resolver.LookupHost(ctx, host)
-	if dnsError, ok := err.(*net.DNSError); ok {
-		if dnsError.IsNotFound {
+	var errDNSError *net.DNSError
+	if errors.As(err, &errDNSError) {
+		if errDNSError.IsNotFound {
 			return addresses, HostNotFoundError{host}
 		}
 	}
