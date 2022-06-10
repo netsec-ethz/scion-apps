@@ -22,15 +22,14 @@ import (
 )
 
 type dnsResolver struct{}
+
 var _ resolver = &dnsResolver{}
 
+// Resolve the name via DNS to return one scionAddr or an error.
 func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr scionAddr, err error) {
 	addresses, err := queryTXTRecord(ctx, name)
 	if err != nil {
 		return scionAddr{}, err
-	}
-	if len(addresses) == 0 {
-		return scionAddr{}, HostNotFoundError{Host: name}
 	}
 	var perr error
 	for _, addr := range addresses {
@@ -42,27 +41,29 @@ func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr scionAddr
 	return scionAddr{}, fmt.Errorf("error parsing TXT SCION address records: %w", perr)
 }
 
-func queryTXTRecord(ctx context.Context, query string) (address []string, err error) {
-	if !strings.HasSuffix(query,".") {
-		query += "."
+// queryTXTRecord queries the DNS for DNS TXT record(s) specifying the SCION address(es) for host.
+// Returns either at least one address, or else an error, of type HostNotFoundError if no matching record was found.
+func queryTXTRecord(ctx context.Context, host string) (addresses []string, err error) {
+	if !strings.HasSuffix(host, ".") {
+		host += "."
 	}
 	resolver := net.Resolver{}
-	txtRecords, err := resolver.LookupHost(ctx, query)
+	txtRecords, err := resolver.LookupHost(ctx, host)
 	if dnsError, ok := err.(*net.DNSError); ok {
 		if dnsError.IsNotFound {
-			return address, HostNotFoundError{query}
+			return addresses, HostNotFoundError{host}
 		}
 	}
 	if err != nil {
-		return address, err
+		return addresses, err
 	}
 	for _, txt := range txtRecords {
 		if strings.HasPrefix(txt, "scion=") {
-			address = append(address, strings.TrimPrefix(txt, "scion="))
+			addresses = append(addresses, strings.TrimPrefix(txt, "scion="))
 		}
 	}
-	if len(address) == 0 {
-		return address, HostNotFoundError{query}
+	if len(addresses) == 0 {
+		return addresses, HostNotFoundError{host}
 	}
-	return address, nil
+	return addresses, nil
 }

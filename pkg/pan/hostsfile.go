@@ -20,22 +20,29 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 type hostsTable map[string]scionAddr
+
+var cachedHostsTable struct {
+	mapping hostsTable
+	updated time.Time
+	sync.Mutex
+}
 
 // hostsfileResolver is an implementation of the resolver interface, backed
 // by an /etc/hosts-like file.
 type hostsfileResolver struct {
 	path string
 }
+
 var _ resolver = &hostsfileResolver{}
 
 func (r *hostsfileResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
-	// Note: obviously not perfectly elegant to parse the entire file for
-	// every query. However, properly caching this and still always provide
-	// fresh results after changes to the hosts file seems like a bigger task and
-	// for now that would be overkill.
+	cachedHostsTable.Lock()
+	defer cachedHostsTable.Unlock()
 	table, err := loadHostsFile(r.path)
 	if err != nil {
 		return scionAddr{}, fmt.Errorf("error loading %s: %w", r.path, err)
@@ -47,17 +54,34 @@ func (r *hostsfileResolver) Resolve(ctx context.Context, name string) (scionAddr
 	return addr, nil
 }
 
+// loadHostsFile provides a cached copy of the hostsTable or loads and parses the host file at path if it was modified
+// since the last update.
 func loadHostsFile(path string) (hostsTable, error) {
-	file, err := os.Open(path)
+	stat, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		// not existing file treated like an empty file,
 		// just return an empty table
 		return hostsTable(nil), nil
-	} else if err != nil {
-		return nil, err
+	}
+	if err != nil {
+		return hostsTable(nil), err
+	}
+	if stat.ModTime().Before(cachedHostsTable.updated) {
+		return cachedHostsTable.mapping, nil
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return hostsTable(nil), err
 	}
 	defer file.Close()
-	return parseHostsFile(file)
+	mapping, err := parseHostsFile(file)
+	if err != nil {
+		return hostsTable(nil), err
+	}
+	cachedHostsTable.mapping = mapping
+	cachedHostsTable.updated = time.Now()
+	return cachedHostsTable.mapping, nil
 }
 
 func parseHostsFile(file *os.File) (hostsTable, error) {
