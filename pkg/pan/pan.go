@@ -105,10 +105,7 @@ package pan
 import (
 	"context"
 	"fmt"
-	"time"
 )
-
-var defaultResolveTimeout = time.Second
 
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
@@ -123,25 +120,8 @@ var defaultResolveTimeout = time.Second
 //  - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 //
 // Returns HostNotFoundError if none of the sources did resolve the hostname.
-func ResolveUDPAddr(address string) (addr UDPAddr, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultResolveTimeout)
-	defer cancel()
-	return ResolveUDPAddrContext(ctx, address)
-}
-
-// ResolveUDPAddrContext resolves address, taking a context and a cancel function, see ResolveUDPAddr.
-func ResolveUDPAddrContext(ctx context.Context, address string) (addr UDPAddr, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		addr, err = resolveUDPAddrAt(ctx, address, defaultResolver())
-	}()
-	select {
-	case <-ctx.Done():
-		return UDPAddr{}, context.DeadlineExceeded
-	case <-done:
-	}
-	return
+func ResolveUDPAddr(ctx context.Context, address string) (UDPAddr, error) {
+	return resolveUDPAddrAt(ctx, address, defaultResolver())
 }
 
 // HostNotFoundError is returned by ResolveUDPAddr when the name was not found, but

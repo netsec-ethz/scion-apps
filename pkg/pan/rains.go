@@ -64,7 +64,7 @@ func readRainsConfig() (UDPAddr, error) {
 	return address, nil
 }
 
-func rainsQuery(ctx context.Context, server UDPAddr, hostname string) (scionAddr, error) {
+func rainsQuery(ctx context.Context, server UDPAddr, hostname string) (addr scionAddr, err error) {
 	const (
 		rainsCtx = "."                    // use global context
 		qType    = rains.OTScionAddr      // request SCION addresses
@@ -79,17 +79,34 @@ func rainsQuery(ctx context.Context, server UDPAddr, hostname string) (scionAddr
 	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
 	// The timeout value has been decreased to counter this behavior until the problem is resolved.
 	srv := server.snetUDPAddr()
-	reply, err := rains.Query(hostname, rainsCtx, []rains.Type{qType}, qOpts, expire, timeout, srv)
-	if err != nil {
-		return scionAddr{}, fmt.Errorf("address for host %q not found: %w", hostname, err)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		var reply map[rains.Type]string
+		reply, err = rains.Query(hostname, rainsCtx, []rains.Type{qType}, qOpts, expire, timeout, srv)
+		if err != nil {
+			err = fmt.Errorf("address for host %q not found: %w", hostname, err)
+			return
+		}
+		addrStr, ok := reply[qType]
+		if !ok {
+			err = &HostNotFoundError{hostname}
+			return
+		}
+		addr, err = parseSCIONAddr(addrStr)
+		if err != nil {
+			err = fmt.Errorf("address for host %q invalid: %w", hostname, err)
+			addr = scionAddr{}
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		return scionAddr{}, context.DeadlineExceeded
+	case <-done:
 	}
-	addrStr, ok := reply[qType]
-	if !ok {
-		return scionAddr{}, &HostNotFoundError{hostname}
-	}
-	addr, err := parseSCIONAddr(addrStr)
 	if err != nil {
-		return scionAddr{}, fmt.Errorf("address for host %q invalid: %w", hostname, err)
+		return scionAddr{}, err
 	}
 	return addr, nil
 }
