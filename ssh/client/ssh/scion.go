@@ -33,7 +33,7 @@ func dialSCION(ctx context.Context,
 	selector string,
 	config *ssh.ClientConfig) (*ssh.Client, error) {
 
-	remote, err := pan.ResolveUDPAddr(addr)
+	remote, err := pan.ResolveUDPAddr(ctx, addr)
 	if err != nil {
 		return nil, err
 	}

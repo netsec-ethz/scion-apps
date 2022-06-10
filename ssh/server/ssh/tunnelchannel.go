@@ -83,7 +83,7 @@ func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) er
 	go ssh.DiscardRequests(requests)
 
 	ctx := context.Background()
-	remote, err := pan.ResolveUDPAddr(address)
+	remote, err := pan.ResolveUDPAddr(context.TODO(), address)
 	if err != nil {
 		return fmt.Errorf("could not resolve remote address: %w", err)
 	}
