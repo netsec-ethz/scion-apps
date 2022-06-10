@@ -15,6 +15,7 @@
 package pan
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -53,7 +54,7 @@ func TestHostsfileResolver(t *testing.T) {
 		{"foobar", assertErrHostNotFound, scionAddr{}},
 	}
 	for _, c := range cases {
-		actual, err := resolver.Resolve(c.name)
+		actual, err := resolver.Resolve(context.TODO(), c.name)
 		if !c.assertErr(t, err) {
 			continue
 		}
@@ -63,7 +64,7 @@ func TestHostsfileResolver(t *testing.T) {
 
 func TestHostsfileResolverNonexisting(t *testing.T) {
 	resolver := &hostsfileResolver{"non_existing_hosts_file"}
-	_, err := resolver.Resolve("something")
+	_, err := resolver.Resolve(context.TODO(), "something")
 	assert.Error(t, err)
 }
 
@@ -92,7 +93,7 @@ func TestResolverList(t *testing.T) {
 		{"boo", assertErrHostNotFound, scionAddr{}},
 	}
 	for _, c := range cases {
-		actual, err := resolver.Resolve(c.name)
+		actual, err := resolver.Resolve(context.TODO(), c.name)
 		c.assertErr(t, err)
 		assert.Equal(t, c.expected, actual)
 	}
@@ -107,7 +108,9 @@ type dummyResolver struct {
 	hosts map[string]scionAddr
 }
 
-func (r dummyResolver) Resolve(name string) (scionAddr, error) {
+var _ resolver = &dummyResolver{}
+
+func (r dummyResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
 	if h, ok := r.hosts[name]; ok {
 		return h, nil
 	} else {

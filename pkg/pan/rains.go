@@ -35,6 +35,7 @@ func init() {
 }
 
 type rainsResolver struct{}
+
 var _ resolver = &rainsResolver{}
 
 func (r *rainsResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
@@ -46,7 +47,7 @@ func (r *rainsResolver) Resolve(ctx context.Context, name string) (scionAddr, er
 		// nobody to ask, so we won't get a reply
 		return scionAddr{}, HostNotFoundError{name}
 	}
-	return rainsQuery(server, name)
+	return rainsQuery(ctx, server, name)
 }
 
 func readRainsConfig() (UDPAddr, error) {
@@ -63,12 +64,12 @@ func readRainsConfig() (UDPAddr, error) {
 	return address, nil
 }
 
-func rainsQuery(server UDPAddr, hostname string) (scionAddr, error) {
+func rainsQuery(ctx context.Context, server UDPAddr, hostname string) (scionAddr, error) {
 	const (
-		ctx     = "."                    // use global context
-		qType   = rains.OTScionAddr      // request SCION addresses
-		expire  = 5 * time.Minute        // sensible expiry date?
-		timeout = 500 * time.Millisecond // timeout for query
+		rainsCtx = "."                    // use global context
+		qType    = rains.OTScionAddr      // request SCION addresses
+		expire   = 5 * time.Minute        // sensible expiry date?
+		timeout  = 500 * time.Millisecond // timeout for query
 	)
 	qOpts := []rains.Option{} // no options
 
@@ -78,7 +79,7 @@ func rainsQuery(server UDPAddr, hostname string) (scionAddr, error) {
 	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
 	// The timeout value has been decreased to counter this behavior until the problem is resolved.
 	srv := server.snetUDPAddr()
-	reply, err := rains.Query(hostname, ctx, []rains.Type{qType}, qOpts, expire, timeout, srv)
+	reply, err := rains.Query(hostname, rainsCtx, []rains.Type{qType}, qOpts, expire, timeout, srv)
 	if err != nil {
 		return scionAddr{}, fmt.Errorf("address for host %q not found: %w", hostname, err)
 	}
