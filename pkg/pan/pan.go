@@ -108,6 +108,8 @@ import (
 	"time"
 )
 
+var defaultResolveTimeout = time.Second
+
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
@@ -122,13 +124,13 @@ import (
 //
 // Returns HostNotFoundError if none of the sources did resolve the hostname.
 func ResolveUDPAddr(address string) (addr UDPAddr, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	return ResolveUDPAddrContext(ctx, cancel, address)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultResolveTimeout)
+	defer cancel()
+	return ResolveUDPAddrContext(ctx, address)
 }
 
 // ResolveUDPAddrContext resolves address, taking a context and a cancel function, see ResolveUDPAddr.
-func ResolveUDPAddrContext(ctx context.Context, cancel context.CancelFunc, address string) (addr UDPAddr, err error) {
-	defer cancel()
+func ResolveUDPAddrContext(ctx context.Context, address string) (addr UDPAddr, err error) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -141,7 +143,6 @@ func ResolveUDPAddrContext(ctx context.Context, cancel context.CancelFunc, addre
 	}
 	return
 }
-
 
 // HostNotFoundError is returned by ResolveUDPAddr when the name was not found, but
 // otherwise no error occurred.
