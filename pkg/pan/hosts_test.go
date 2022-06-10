@@ -17,7 +17,6 @@ package pan
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,21 +26,16 @@ import (
 const hostsTestFile = "hosts_test_file"
 
 func TestCount(t *testing.T) {
-	file, err := os.Open(hostsTestFile)
+	hosts, err := loadHostsFile(hostsTestFile)
 	if err != nil {
-		t.Fatal("error opening test file", err)
-	}
-	defer file.Close()
-	hosts, err := parseHostsFile(file)
-	if err != nil {
-		t.Fatal("error parsing test file", err)
+		t.Fatal("error loading test file", err)
 	}
 
 	assert.Equal(t, 5, len(hosts), "wrong number of hosts read from hosts_test_file")
 }
 
 func TestHostsfileResolver(t *testing.T) {
-	resolver := &hostsfileResolver{hostsTestFile, cachedHostsTable{}}
+	resolver := &hostsfileResolver{hostsTestFile}
 
 	cases := []struct {
 		name      string

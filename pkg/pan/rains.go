@@ -108,6 +108,5 @@ func rainsQuery(ctx context.Context, server UDPAddr, hostname string) (addr scio
 	if err != nil {
 		return scionAddr{}, err
 	}
-
 	return addr, nil
 }
