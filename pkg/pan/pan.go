@@ -117,31 +117,15 @@ var defaultResolveTimeout = time.Second
 // If the address is in the form of a hostname, the the following sources will
 // be used to resolve a name, in the given order of precedence.
 //
-//  - /etc/hosts
 //  - /etc/scion/hosts
 //  - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
 //  - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 //
 // Returns HostNotFoundError if none of the sources did resolve the hostname.
-func ResolveUDPAddr(address string) (addr UDPAddr, err error) {
+func ResolveUDPAddr(ctx context.Context, address string) (UDPAddr, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultResolveTimeout)
 	defer cancel()
-	return ResolveUDPAddrContext(ctx, address)
-}
-
-// ResolveUDPAddrContext resolves address, taking a context and a cancel function, see ResolveUDPAddr.
-func ResolveUDPAddrContext(ctx context.Context, address string) (addr UDPAddr, err error) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		addr, err = resolveUDPAddrAt(ctx, address, defaultResolver())
-	}()
-	select {
-	case <-ctx.Done():
-		return UDPAddr{}, context.DeadlineExceeded
-	case <-done:
-	}
-	return
+	return resolveUDPAddrAt(ctx, address, defaultResolver())
 }
 
 // HostNotFoundError is returned by ResolveUDPAddr when the name was not found, but

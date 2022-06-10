@@ -53,7 +53,7 @@ func main() {
 
 	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive)
 	check(err)
-	serverAddr, err := pan.ResolveUDPAddr(*serverAddrStr)
+	serverAddr, err := pan.ResolveUDPAddr(context.TODO(), *serverAddrStr)
 	check(err)
 	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, serverAddr, policy, nil)
 	check(err)

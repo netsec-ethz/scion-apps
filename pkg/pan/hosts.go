@@ -23,8 +23,7 @@ import (
 )
 
 var (
-	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
-	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
+	resolveEtcScionHosts resolver = &hostsfileResolver{path: "/etc/scion/hosts", cachedHostsTable: cachedHostsTable{}}
 	resolveRains         resolver = nil
 	resolveDnsTxt        resolver = &dnsResolver{}
 )
@@ -57,13 +56,11 @@ func resolveUDPAddrAt(ctx context.Context, address string, resolver resolver) (U
 // It will use the following sources, in the given order of precedence, to
 // resolve a name:
 //
-//  - /etc/hosts
 //  - /etc/scion/hosts
 //  - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
 //  - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 func defaultResolver() resolver {
 	return resolverList{
-		resolveEtcHosts,
 		resolveEtcScionHosts,
 		resolveRains,
 		resolveDnsTxt,

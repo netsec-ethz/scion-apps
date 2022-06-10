@@ -75,7 +75,7 @@ func runServer(listen netaddr.IPPort) error {
 }
 
 func runClient(address string, count int) error {
-	addr, err := pan.ResolveUDPAddr(address)
+	addr, err := pan.ResolveUDPAddr(context.TODO(), address)
 	if err != nil {
 		return err
 	}

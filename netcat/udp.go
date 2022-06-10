@@ -55,7 +55,7 @@ func (conn *udpListenConn) Close() error {
 
 // DoDialUDP dials with a UDP socket
 func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
-	remoteAddr, err := pan.ResolveUDPAddr(remote)
+	remoteAddr, err := pan.ResolveUDPAddr(context.TODO(), remote)
 	if err != nil {
 		return nil, err
 	}

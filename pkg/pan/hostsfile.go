@@ -26,7 +26,7 @@ import (
 
 type hostsTable map[string]scionAddr
 
-var cachedHostsTable struct {
+type cachedHostsTable struct {
 	mapping hostsTable
 	updated time.Time
 	sync.Mutex
@@ -36,14 +36,15 @@ var cachedHostsTable struct {
 // by an /etc/hosts-like file.
 type hostsfileResolver struct {
 	path string
+	cachedHostsTable cachedHostsTable
 }
 
 var _ resolver = &hostsfileResolver{}
 
 func (r *hostsfileResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
-	cachedHostsTable.Lock()
-	defer cachedHostsTable.Unlock()
-	table, err := loadHostsFile(r.path)
+	r.cachedHostsTable.Lock()
+	defer r.cachedHostsTable.Unlock()
+	table, err := r.loadHostsFile()
 	if err != nil {
 		return scionAddr{}, fmt.Errorf("error loading %s: %w", r.path, err)
 	}
@@ -56,8 +57,8 @@ func (r *hostsfileResolver) Resolve(ctx context.Context, name string) (scionAddr
 
 // loadHostsFile provides a cached copy of the hostsTable or loads and parses the host file at path if it was modified
 // since the last update.
-func loadHostsFile(path string) (hostsTable, error) {
-	stat, err := os.Stat(path)
+func (r *hostsfileResolver) loadHostsFile() (hostsTable, error) {
+	stat, err := os.Stat(r.path)
 	if os.IsNotExist(err) {
 		// not existing file treated like an empty file,
 		// just return an empty table
@@ -66,11 +67,11 @@ func loadHostsFile(path string) (hostsTable, error) {
 	if err != nil {
 		return hostsTable(nil), err
 	}
-	if stat.ModTime().Before(cachedHostsTable.updated) {
-		return cachedHostsTable.mapping, nil
+	if stat.ModTime().Before(r.cachedHostsTable.updated) {
+		return r.cachedHostsTable.mapping, nil
 	}
 
-	file, err := os.Open(path)
+	file, err := os.Open(r.path)
 	if err != nil {
 		return hostsTable(nil), err
 	}
@@ -79,9 +80,9 @@ func loadHostsFile(path string) (hostsTable, error) {
 	if err != nil {
 		return hostsTable(nil), err
 	}
-	cachedHostsTable.mapping = mapping
-	cachedHostsTable.updated = time.Now()
-	return cachedHostsTable.mapping, nil
+	r.cachedHostsTable.mapping = mapping
+	r.cachedHostsTable.updated = time.Now()
+	return r.cachedHostsTable.mapping, nil
 }
 
 func parseHostsFile(file *os.File) (hostsTable, error) {

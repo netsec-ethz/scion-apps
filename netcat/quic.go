@@ -65,7 +65,7 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 
 // DoDialQUIC dials with a QUIC socket
 func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
-	remoteAddr, err := pan.ResolveUDPAddr(remote)
+	remoteAddr, err := pan.ResolveUDPAddr(context.TODO(), remote)
 	if err != nil {
 		return nil, err
 	}
