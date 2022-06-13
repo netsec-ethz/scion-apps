@@ -93,10 +93,9 @@ func (resolvers resolverList) Resolve(ctx context.Context, name string) (scionAd
 			continue
 		}
 		// check ctx to avoid unnecessary calls with already expired context
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
+			rerr = err
 			break
-		default:
 		}
 		addr, err := resolver.Resolve(ctx, name)
 		if err == nil {
