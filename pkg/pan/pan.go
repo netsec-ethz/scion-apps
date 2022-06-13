@@ -110,7 +110,6 @@ import (
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
-// Default timeout is 1 second, use ResolveUDPAddrContext to provide an explicit context.
 // If the address is in the form of a hostname, the the following sources will
 // be used to resolve a name, in the given order of precedence.
 //
