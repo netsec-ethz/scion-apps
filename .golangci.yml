@@ -45,6 +45,9 @@ issues:
         - stylecheck
         - staticcheck
         - errcheck
+    - path: pkg/pan/selector.go
+      linters:
+        - ifshort
   max-same-issues: 0
 
 linters-settings:

@@ -99,7 +99,7 @@ func rainsQueryChecked(ctx context.Context, name, rainsCtx string, types []rains
 	var contextTimeout time.Duration
 	deadline, finite := ctx.Deadline()
 	if finite {
-		contextTimeout = deadline.Sub(time.Now())
+		contextTimeout = time.Until(deadline)
 		if contextTimeout < 0 {
 			return res, context.DeadlineExceeded
 		}
