@@ -39,6 +39,8 @@ import (
 )
 
 func main() {
+	strictSCION := kingpin.Flag("strict", "Add `Strict-SCION` header "+
+		"with provided property value if not present").String()
 	hosts := kingpin.Arg("hosts", "Hostnames for hosts to proxy").Required().Strings()
 	kingpin.Parse()
 
@@ -49,7 +51,16 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		mux.Handle(host+"/", httputil.NewSingleHostReverseProxy(u))
+		rp := httputil.NewSingleHostReverseProxy(u)
+		if *strictSCION != "" {
+			rp.ModifyResponse = func(resp *http.Response) error {
+				if resp.Header.Get("Strict-SCION") == "" {
+					resp.Header.Set("Strict-SCION", *strictSCION)
+				}
+				return nil
+			}
+		}
+		mux.Handle(host+"/", rp)
 	}
 	// Fallback: return 502
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
