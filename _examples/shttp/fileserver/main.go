@@ -30,11 +30,22 @@ import (
 func main() {
 	certFile := flag.String("cert", "", "Path to TLS server certificate for optional https")
 	keyFile := flag.String("key", "", "Path to TLS server key for optional https")
+	strictSCION := *flag.String("strict", "", "Add `Strict-SCION` header "+
+		"with provided property if not present")
 	flag.Parse()
 
 	handler := handlers.LoggingHandler(
 		os.Stdout,
-		http.FileServer(http.Dir("")),
+		func(h http.Handler) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				if strictSCION != "" {
+					// Set Strict-SCION response header
+					w.Header().Add("Strict-SCION", strictSCION)
+				}
+				// Serve
+				h.ServeHTTP(w, r)
+			}
+		}(http.FileServer(http.Dir(""))),
 	)
 	if *certFile != "" && *keyFile != "" {
 		go func() { log.Fatal(shttp.ListenAndServeTLS(":443", *certFile, *keyFile, handler)) }()
