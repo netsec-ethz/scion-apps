@@ -30,17 +30,17 @@ import (
 func main() {
 	certFile := flag.String("cert", "", "Path to TLS server certificate for optional https")
 	keyFile := flag.String("key", "", "Path to TLS server key for optional https")
-	strictSCION := *flag.String("strict", "", "Add `Strict-SCION` header "+
-		"with provided property, replaces any existing value for that header")
+	strictSCION := flag.String("strict", "", "Add the provided `Strict-SCION` header property,"+
+		" replaces any existing value for that header")
 	flag.Parse()
 
 	handler := handlers.LoggingHandler(
 		os.Stdout,
 		func(h http.Handler) http.HandlerFunc {
 			return func(w http.ResponseWriter, r *http.Request) {
-				if strictSCION != "" {
+				if *strictSCION != "" {
 					// Set Strict-SCION response header, overwrites any existing header for that key
-					w.Header().Set("Strict-SCION", strictSCION)
+					w.Header().Set("Strict-SCION", *strictSCION)
 				}
 				// Serve
 				h.ServeHTTP(w, r)
