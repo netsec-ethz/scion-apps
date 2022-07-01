@@ -39,8 +39,8 @@ import (
 )
 
 func main() {
-	strictSCION := kingpin.Flag("strict", "Add `Strict-SCION` header "+
-		"with provided property value if not present").String()
+	strictSCION := kingpin.Flag("strict", "Add `Strict-SCION` header with provided value"+
+		" (similar to HSTS directives) if not already present").String()
 	hosts := kingpin.Arg("hosts", "Hostnames for hosts to proxy").Required().Strings()
 	kingpin.Parse()
 
