@@ -30,8 +30,8 @@ import (
 func main() {
 	certFile := flag.String("cert", "", "Path to TLS server certificate for optional https")
 	keyFile := flag.String("key", "", "Path to TLS server key for optional https")
-	strictSCION := flag.String("strict", "", "Add the provided `Strict-SCION` header property,"+
-		" replaces any existing value for that header")
+	strictSCION := flag.String("strict", "", "Sets the `Strict-SCION` header value; " +
+		"directives similar as in the HSTS header are to be defined by this flag")
 	flag.Parse()
 
 	handler := handlers.LoggingHandler(
