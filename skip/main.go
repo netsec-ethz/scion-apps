@@ -167,8 +167,7 @@ func handleRedirectBackOrError(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	http.Redirect(w, req, url.String(), 301)
-	return
+	http.Redirect(w, req, url.String(), http.StatusMovedPermanently)
 }
 
 // handleHostResolutionRequest parses requests in the form: /resolve?host=XXX
@@ -190,7 +189,7 @@ func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
 	res, err := pan.ResolveUDPAddr(hostPort)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
-		_, ok := err.(pan.HostNotFoundError)
+		ok := errors.As(err, &pan.HostNotFoundError{})
 		if !ok {
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 		}
