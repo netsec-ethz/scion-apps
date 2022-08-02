@@ -81,7 +81,6 @@ func main() {
 	mux := http.NewServeMux()
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/skip.pac", handleWPAD)
-	// TODO: Remove the scionHosts endpoint
 	apiMux.HandleFunc("/scionHosts", handleHostListRequest)
 	apiMux.HandleFunc("/r", handleRedirectBackOrError)
 
@@ -139,7 +138,9 @@ func handleRedirectBackOrError(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO: Ensure we need this here, it's probably required for redirecting
+	// We need this here, it's required for redirecting properly
+	// We may set localhost here but this would stop us from
+	// running one skip for multiple clients later...
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	q := req.URL.Query()
@@ -289,9 +290,6 @@ type tunnelHandler struct {
 
 func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	hostPort := req.Host
-	fmt.Println(req)
-	fmt.Println(req.Header)
-	fmt.Println(req.URL)
 	var destConn net.Conn
 	var err error
 	enabled, _ := isSCIONEnabled(hostPort)
