@@ -204,7 +204,7 @@ func isSCIONEnabled(host string) (bool, error) {
 	_, err := pan.ResolveUDPAddr(host)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
-		_, ok := err.(pan.HostNotFoundError)
+		ok := errors.As(err, &pan.HostNotFoundError{})
 		if !ok {
 			return false, err
 		}
