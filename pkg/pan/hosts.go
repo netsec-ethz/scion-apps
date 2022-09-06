@@ -23,7 +23,7 @@ import (
 var (
 	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
 	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
-	resolveRains         resolver = nil
+	resolveDNS           resolver = &dnsResolver{"127.0.0.1:53"}
 )
 
 // resolveUDPAddrAt parses the address and resolves the hostname.
@@ -54,15 +54,15 @@ func resolveUDPAddrAt(address string, resolver resolver) (UDPAddr, error) {
 // It will use the following sources, in the given order of precedence, to
 // resolve a name:
 //
-//  - /etc/hosts
-//  - /etc/scion/hosts
-//  - RAINS, if a server is configured in /etc/scion/rains.cfg.
-//    Disabled if built with !norains.
+//   - /etc/hosts
+//   - /etc/scion/hosts
+//   - RAINS, if a server is configured in /etc/scion/rains.cfg.
+//     Disabled if built with !norains.
 func defaultResolver() resolver {
 	return resolverList{
 		resolveEtcHosts,
 		resolveEtcScionHosts,
-		resolveRains,
+		resolveDNS,
 	}
 }
 
