@@ -49,11 +49,11 @@ func queryTXTRecord(ctx context.Context, host string) (addresses []string, err e
 		host += "."
 	}
 	resolver := net.Resolver{}
-	txtRecords, err := resolver.LookupHost(ctx, host)
+	txtRecords, err := resolver.LookupTXT(ctx, host)
 	var errDNSError *net.DNSError
 	if errors.As(err, &errDNSError) {
 		if errDNSError.IsNotFound {
-			return addresses, HostNotFoundError{host}
+			return addresses, err
 		}
 	}
 	if err != nil {
@@ -65,7 +65,7 @@ func queryTXTRecord(ctx context.Context, host string) (addresses []string, err e
 		}
 	}
 	if len(addresses) == 0 {
-		return addresses, HostNotFoundError{host}
+		return addresses, err
 	}
 	return addresses, nil
 }
