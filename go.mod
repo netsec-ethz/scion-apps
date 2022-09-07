@@ -9,6 +9,7 @@ require (
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/lucas-clemente/quic-go v0.23.0
 	github.com/mattn/go-sqlite3 v1.14.4
+	github.com/miekg/dns v1.1.26
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.5.0
 	github.com/pelletier/go-toml v1.9.4
