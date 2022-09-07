@@ -57,7 +57,10 @@ func resolveUDPAddrAt(address string, resolver resolver) (UDPAddr, error) {
 //
 //   - /etc/hosts
 //   - /etc/scion/hosts
+//   - RAINS, if a server is configured in /etc/scion/rains.cfg.
+//     Disabled if built with tag norains.
 //   - DNS via /etc/scion/resolv.conf
+//     Disabled if built with tag nodns
 func defaultResolver() resolver {
 	return resolverList{
 		resolveEtcHosts,
