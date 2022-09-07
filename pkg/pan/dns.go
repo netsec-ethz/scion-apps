@@ -29,6 +29,10 @@ import (
 
 const resolvConfPath = "/etc/scion/resolv.conf"
 
+func init() {
+	resolveDNS = &dnsResolver{resolvConfPath}
+}
+
 type dnsResolver struct {
 	filename string
 }

@@ -9,8 +9,8 @@ BIN = bin
 #   If there are multiple entries in GOPATH, take the first.
 DESTDIR = $(shell set -a; eval $$( go env ); gopath=$${GOPATH%:*}; echo $${GOBIN:-$${gopath:-$${HOME}/go}/bin})
 
-# HINT: build with TAGS=norains to build without rains support
-TAGS =
+# HINT: build with TAGS=nodns to build without dns support
+TAGS = norains
 
 all: build lint
 
