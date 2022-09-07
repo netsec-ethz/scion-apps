@@ -53,7 +53,7 @@ func queryTXTRecord(ctx context.Context, host string) (addresses []string, err e
 	var errDNSError *net.DNSError
 	if errors.As(err, &errDNSError) {
 		if errDNSError.IsNotFound {
-			return addresses, err
+			return addresses, HostNotFoundError{Host: host}
 		}
 	}
 	if err != nil {
@@ -65,7 +65,7 @@ func queryTXTRecord(ctx context.Context, host string) (addresses []string, err e
 		}
 	}
 	if len(addresses) == 0 {
-		return addresses, err
+		return addresses, HostNotFoundError{Host: host}
 	}
 	return addresses, nil
 }
