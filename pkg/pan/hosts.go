@@ -26,7 +26,7 @@ var (
 	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
 	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
 	resolveRains         resolver = nil
-	resolveDNSTxt        resolver = &dnsResolver{}
+	resolveDNSTxt        resolver = &dnsResolver{net.DefaultResolver}
 )
 
 // resolveUDPAddrAt parses the address and resolves the hostname.
