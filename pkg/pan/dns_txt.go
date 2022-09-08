@@ -22,13 +22,21 @@ import (
 	"strings"
 )
 
-type dnsResolver struct{}
+type dnsResolver struct {
+	res dnsTXTResolver
+}
+
+type dnsTXTResolver interface {
+	LookupTXT(context.Context, string) ([]string, error)
+}
 
 var _ resolver = &dnsResolver{}
 
+const scionAddrTXTTag = "scion="
+
 // Resolve the name via DNS to return one scionAddr or an error.
 func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr scionAddr, err error) {
-	addresses, err := queryTXTRecord(ctx, name)
+	addresses, err := d.queryTXTRecord(ctx, name)
 	if err != nil {
 		return scionAddr{}, err
 	}
@@ -44,12 +52,14 @@ func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr scionAddr
 
 // queryTXTRecord queries the DNS for DNS TXT record(s) specifying the SCION address(es) for host.
 // Returns either at least one address, or else an error, of type HostNotFoundError if no matching record was found.
-func queryTXTRecord(ctx context.Context, host string) (addresses []string, err error) {
+func (d *dnsResolver) queryTXTRecord(ctx context.Context, host string) (addresses []string, err error) {
+	if d.res == nil {
+		return addresses, fmt.Errorf("invalid DNS resolver: %v", d.res)
+	}
 	if !strings.HasSuffix(host, ".") {
 		host += "."
 	}
-	resolver := net.Resolver{}
-	txtRecords, err := resolver.LookupTXT(ctx, host)
+	txtRecords, err := d.res.LookupTXT(ctx, host)
 	var errDNSError *net.DNSError
 	if errors.As(err, &errDNSError) {
 		if errDNSError.IsNotFound {
@@ -60,8 +70,8 @@ func queryTXTRecord(ctx context.Context, host string) (addresses []string, err e
 		return addresses, err
 	}
 	for _, txt := range txtRecords {
-		if strings.HasPrefix(txt, "scion=") {
-			addresses = append(addresses, strings.TrimPrefix(txt, "scion="))
+		if strings.HasPrefix(txt, scionAddrTXTTag) {
+			addresses = append(addresses, strings.TrimPrefix(txt, scionAddrTXTTag))
 		}
 	}
 	if len(addresses) == 0 {
