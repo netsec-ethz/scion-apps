@@ -29,12 +29,18 @@ func TestDNSResolver(t *testing.T) {
 		expected  scionAddr
 	}{
 		{"example.com", assert.NoError, mustParse("1-ff00:0:f00,[192.0.2.1]")},
-		{"example.net", assert.NoError, mustParse("1-ff00:0:ba5,[192.0.2.1]")},
+		{"example.net", assert.NoError, mustParse("1-ff00:0:ba5,[192.0.2.38]")},
+		{"example.org", assert.Error, scionAddr{}},
+		{"noia.example.org", assert.Error, scionAddr{}},
+		{"noip.example.org", assert.Error, scionAddr{}},
+		{"trailing.example.org", assert.Error, scionAddr{}},
+		{"example.edu", assertErrHostNotFound, scionAddr{}},
+		{"empty.example.edu", assertErrHostNotFound, scionAddr{}},
 		{"dummy4", assertErrHostNotFound, scionAddr{}},
 		{"barbaz", assertErrHostNotFound, scionAddr{}},
 	}
-	var m *mockResolver
-	resolver := &dnsResolver{res: m}
+	var m mockResolver
+	resolver := &dnsResolver{res: &m}
 	for _, c := range cases {
 		actual, err := resolver.Resolve(context.TODO(), c.name)
 		if !c.assertErr(t, err) {
@@ -63,9 +69,27 @@ func (r *mockResolver) LookupTXT(ctx context.Context, name string) ([]string, er
 			"scion=1-ff00:0:f00,[192.0.2.1]",
 		},
 		"example.net.": {
-			"scion=1-ff00:0:ba5,[192.0.2.1]",
+			"scion=1-ff00:0:ba5,[192.0.2.38]",
 			"BOOM_verify_3ovqPKkST76TzF2c7b13YA",
 			"v=spf1 include:_id.example.net ip4:192.0.2.38 ip4:192.0.2.197 ~all",
+		},
+		"example.org.": {
+			"scion=1-ff00:0:invalid,[192.0.2.1]",
+		},
+		"noip.example.org.": {
+			"scion=1-ff00:0:f01",
+		},
+		"noia.example.org.": {
+			"scion=192.0.2.100",
+		},
+		"trailing.example.org.": {
+			"scion=1-ff00:0:f01,[192.0.2.100] something more",
+		},
+		"example.edu.": {
+			"v=spf1 include:_id.example.org ip4:192.0.2.203 ip4:192.0.2.213 ~all",
+		},
+		"empty.example.edu.": {
+			"",
 		},
 	}[name]
 	if !ok {
