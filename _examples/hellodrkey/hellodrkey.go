@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
-	"github.com/scionproto/scion/pkg/daemon"
 )
 
 // check just ensures the error is nil, or complains and quits
