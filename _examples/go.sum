@@ -462,8 +462,8 @@ github.com/neelance/astrewrite v0.0.0-20160511093645-99348263ae86/go.mod h1:kHJE
 github.com/neelance/sourcemap v0.0.0-20151028013722-8c68805598ab/go.mod h1:Qr6/a/Q4r9LP1IltGz7tA7iOK1WonHEYhu1HRBA7ZiM=
 github.com/netsec-ethz/rains v0.5.0 h1:5x+C7aIVZNLtlonyA5JWUXR+MQXMuJzxK8PwnLWQV1E=
 github.com/netsec-ethz/rains v0.5.0/go.mod h1:+H9/DeJoYmFtcpLqFUJFQgALVWO675XdBZJdALL5ltU=
-github.com/netsec-ethz/scion v0.6.1-0.20220908152129-737e910b8d60 h1:KZZCIj8IqbnvMqHPeL+NhoMWWlACBf7BIZ3enozqldk=
-github.com/netsec-ethz/scion v0.6.1-0.20220908152129-737e910b8d60/go.mod h1:9EyDb3Bfn7kDmy6v+gHKwl2eIxFo3Reod4TwDaKY5zo=
+github.com/netsec-ethz/scion v0.6.1-0.20220929101513-2408583f35d1 h1:6u2UB/od3ZQFQpHYsf/ZsJssrGlXMCmlwqbT0sIXLLw=
+github.com/netsec-ethz/scion v0.6.1-0.20220929101513-2408583f35d1/go.mod h1:9EyDb3Bfn7kDmy6v+gHKwl2eIxFo3Reod4TwDaKY5zo=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
