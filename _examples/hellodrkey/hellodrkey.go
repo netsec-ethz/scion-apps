@@ -21,6 +21,9 @@ import (
 	"net"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -28,8 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // check just ensures the error is nil, or complains and quits
@@ -57,14 +58,14 @@ func (d *dialer) Dial(ctx context.Context, _ net.Addr) (*grpc.ClientConn, error)
 }
 
 type Client struct {
-	fetcher *fetcher.Fetcher
+	fetcher *fetcher.FromCS
 }
 
 func NewClient(ctx context.Context, sciondPath string) Client {
 	daemon, err := daemon.NewService(sciondPath).Connect(ctx)
 	check(err)
 	return Client{
-		fetcher: &fetcher.Fetcher{
+		fetcher: &fetcher.FromCS{
 			Dialer: &dialer{
 				daemon: daemon,
 			},
@@ -74,7 +75,7 @@ func NewClient(ctx context.Context, sciondPath string) Client {
 
 func (c Client) HostHostKey(ctx context.Context, meta drkey.HostHostMeta) drkey.HostHostKey {
 	// get L2 key: (slow path)
-	key, err := c.fetcher.HostHost(ctx, meta)
+	key, err := c.fetcher.DRKeyGetHostHostKey(ctx, meta)
 	check(err)
 	return key
 }
