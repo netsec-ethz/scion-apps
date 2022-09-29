@@ -21,9 +21,6 @@ import (
 	"net"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
@@ -31,6 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // check just ensures the error is nil, or complains and quits
