@@ -97,7 +97,9 @@ func NewServer(ctx context.Context, sciondPath string) Server {
 // The IP address of the server must be explicitly allowed to abtain this SV
 // from the the control server.
 func (s Server) fetchSV(ctx context.Context, meta drkey.SVMeta) drkey.SV {
-	// Obtain CS address from scion daemon
+	// Obtain CS address from scion daemon. Note there's no need to use
+	// the daemon as long as a valid address could be passed to the dialing
+	// function.
 	svcs, err := s.daemon.SVCInfo(ctx, nil)
 	check(err)
 	cs := svcs[addr.SvcCS]
