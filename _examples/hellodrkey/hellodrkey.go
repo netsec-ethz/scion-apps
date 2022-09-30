@@ -91,9 +91,9 @@ func NewServer(ctx context.Context, sciondPath string) Server {
 	}
 }
 
-// fetchSV obtain the Secret Value (SV) for the selected protocol/epoch.
+// fetchSV obtains the Secret Value (SV) for the selected protocol/epoch.
 // From this SV, all keys for this protocol/epoch can be derived locally.
-// The IP address of the server must be explicitly allowed to abtain this SV
+// The IP address of the server must be explicitly allowed to obtain this SV
 // from the the control server.
 func (s Server) fetchSV(ctx context.Context, meta drkey.SVMeta) drkey.SV {
 	// Obtain CS address from scion daemon. Note there's no need to use
