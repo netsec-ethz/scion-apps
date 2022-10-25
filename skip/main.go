@@ -160,7 +160,7 @@ func handleRedirectBackOrError(w http.ResponseWriter, req *http.Request) {
 	hostPort := url.Host + ":0"
 
 	w.Header().Set("Location", url.String())
-	_, err = pan.ResolveUDPAddr(hostPort)
+	_, err = pan.ResolveUDPAddr(req.Context(), hostPort)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		http.Error(w, "Internal error", http.StatusInternalServerError)
@@ -186,7 +186,7 @@ func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
 	}
 	hostPort := hosts[0] + ":0"
 
-	res, err := pan.ResolveUDPAddr(hostPort)
+	res, err := pan.ResolveUDPAddr(req.Context(), hostPort)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		ok := errors.As(err, &pan.HostNotFoundError{})
@@ -200,8 +200,8 @@ func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
 	_, _ = w.Write(buf.Bytes())
 }
 
-func isSCIONEnabled(host string) (bool, error) {
-	_, err := pan.ResolveUDPAddr(host)
+func isSCIONEnabled(ctx context.Context, host string) (bool, error) {
+	_, err := pan.ResolveUDPAddr(ctx, host)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		ok := errors.As(err, &pan.HostNotFoundError{})
@@ -291,7 +291,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	hostPort := req.Host
 	var destConn net.Conn
 	var err error
-	enabled, _ := isSCIONEnabled(hostPort)
+	enabled, _ := isSCIONEnabled(req.Context(), hostPort)
 	if !enabled {
 		// CONNECT via TCP/IP
 		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
