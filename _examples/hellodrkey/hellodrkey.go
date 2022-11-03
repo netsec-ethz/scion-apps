@@ -18,14 +18,18 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	drkeyctrl "github.com/scionproto/scion/go/lib/ctrl/drkey"
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/drkey"
+	"github.com/scionproto/scion/go/lib/drkey/fetcher"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	dkpb "github.com/scionproto/scion/go/pkg/proto/drkey"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // check just ensures the error is nil, or complains and quits
@@ -35,21 +39,42 @@ func check(e error) {
 	}
 }
 
-type Client struct {
+type dialer struct {
 	daemon daemon.Connector
+}
+
+func (d *dialer) Dial(ctx context.Context, _ net.Addr) (*grpc.ClientConn, error) {
+	// Obtain CS address from scion daemon
+	svcs, err := d.daemon.SVCInfo(ctx, nil)
+	check(err)
+	cs := svcs[addr.SvcCS]
+	if len(cs) == 0 {
+		panic("no CS svc address")
+	}
+
+	// Contact CS directly for SV
+	return grpc.DialContext(ctx, cs, grpc.WithInsecure())
+}
+
+type Client struct {
+	fetcher *fetcher.FromCS
 }
 
 func NewClient(ctx context.Context, sciondPath string) Client {
 	daemon, err := daemon.NewService(sciondPath).Connect(ctx)
 	check(err)
 	return Client{
-		daemon: daemon,
+		fetcher: &fetcher.FromCS{
+			Dialer: &dialer{
+				daemon: daemon,
+			},
+		},
 	}
 }
 
 func (c Client) HostHostKey(ctx context.Context, meta drkey.HostHostMeta) drkey.HostHostKey {
 	// get L2 key: (slow path)
-	key, err := c.daemon.DRKeyGetHostHostKey(ctx, meta)
+	key, err := c.fetcher.DRKeyGetHostHostKey(ctx, meta)
 	check(err)
 	return key
 }
@@ -68,36 +93,47 @@ func NewServer(ctx context.Context, sciondPath string) Server {
 
 // fetchSV obtains the Secret Value (SV) for the selected protocol/epoch.
 // From this SV, all keys for this protocol/epoch can be derived locally.
-// The IP address of the server must be explicitly allowed to abtain this SV
+// The IP address of the server must be explicitly allowed to obtain this SV
 // from the the control server.
 func (s Server) fetchSV(ctx context.Context, meta drkey.SVMeta) drkey.SV {
-	// Obtain CS address from scion daemon
+	// Obtain CS address from scion daemon. Note there's no need to use
+	// the daemon as long as a valid address could be passed to the dialing
+	// function.
 	svcs, err := s.daemon.SVCInfo(ctx, nil)
 	check(err)
 	cs := svcs[addr.SvcCS]
+	if len(cs) == 0 {
+		panic("no CS svc address")
+	}
 
 	// Contact CS directly for SV
 	conn, err := grpc.DialContext(ctx, cs, grpc.WithInsecure())
 	check(err)
 	defer conn.Close()
 	client := cppb.NewDRKeyIntraServiceClient(conn)
-	protoReq, err := drkeyctrl.SVMetaToProtoRequest(meta)
+
+	rep, err := client.SV(ctx, &dkpb.SVRequest{
+		ValTime:    timestamppb.New(meta.Validity),
+		ProtocolId: dkpb.Protocol(meta.ProtoId),
+	})
 	check(err)
-	rep, err := client.SV(ctx, protoReq)
-	check(err)
-	key, err := drkeyctrl.GetSVFromReply(meta.ProtoId, rep)
+	key, err := getSecretFromReply(meta.ProtoId, rep)
 	check(err)
 	return key
 }
 
 func (s Server) HostHostKey(sv drkey.SV, meta drkey.HostHostMeta) drkey.HostHostKey {
-	var deriver drkey.SpecificDeriver
+	deriver := (&drkey.SpecificDeriver{})
 	lvl1, err := deriver.DeriveLvl1(drkey.Lvl1Meta{
-		DstIA: meta.DstIA,
+		Validity: meta.Validity,
+		ProtoId:  meta.ProtoId,
+		SrcIA:    meta.SrcIA,
+		DstIA:    meta.DstIA,
 	}, sv.Key)
 	check(err)
 	asHost, err := deriver.DeriveHostAS(drkey.HostASMeta{
-		SrcHost: meta.SrcHost,
+		Lvl2Meta: meta.Lvl2Meta,
+		SrcHost:  meta.SrcHost,
 	}, lvl1)
 	check(err)
 	hosthost, err := deriver.DeriveHostToHost(meta.DstHost, asHost)
@@ -122,7 +158,7 @@ func main() {
 	const sciondForClient = "[fd00:f00d:cafe::7f00:c]:30255"
 	clientIA, err := addr.ParseIA("1-ff00:0:112")
 	check(err)
-	const clientIP = "fd00:f00d:cafe::7f00:c"
+	const clientIP = "fd00:f00d:cafe::7f00:b"
 
 	ctx, cancelF := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancelF()
@@ -130,7 +166,7 @@ func main() {
 	// meta describes the key that both client and server derive
 	meta := drkey.HostHostMeta{
 		Lvl2Meta: drkey.Lvl2Meta{
-			ProtoId: drkey.DNS,
+			ProtoId: drkey.SCMP,
 			// Validity timestamp; both sides need to use the same time stamp when deriving the key
 			// to ensure they derive keys for the same epoch.
 			// Usually this is coordinated by means of a timestamp in the message.
@@ -167,4 +203,31 @@ func main() {
 	durationServer := time.Since(t0)
 
 	fmt.Printf("Server,\thost key = %s\tduration = %s\n", hex.EncodeToString(serverKey.Key[:]), durationServer)
+}
+
+func getSecretFromReply(
+	proto drkey.Protocol,
+	rep *dkpb.SVResponse,
+) (drkey.SV, error) {
+
+	err := rep.EpochBegin.CheckValid()
+	if err != nil {
+		return drkey.SV{}, err
+	}
+	err = rep.EpochEnd.CheckValid()
+	if err != nil {
+		return drkey.SV{}, err
+	}
+	epoch := drkey.Epoch{
+		Validity: cppki.Validity{
+			NotBefore: rep.EpochBegin.AsTime(),
+			NotAfter:  rep.EpochEnd.AsTime(),
+		},
+	}
+	returningKey := drkey.SV{
+		ProtoId: proto,
+		Epoch:   epoch,
+	}
+	copy(returningKey.Key[:], rep.Key)
+	return returningKey, nil
 }
