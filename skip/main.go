@@ -28,10 +28,12 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -80,6 +82,9 @@ func main() {
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/skip.pac", handleWPAD)
 	apiMux.HandleFunc("/scionHosts", handleHostListRequest)
+	apiMux.HandleFunc("/r", handleRedirectBackOrError)
+
+	apiMux.HandleFunc("/resolve", handleHostResolutionRequest)
 	apiMux.Handle("/setPolicy", policyHandler)
 
 	mux.Handle("localhost/", apiMux)
@@ -124,6 +129,88 @@ func handleHostListRequest(w http.ResponseWriter, req *http.Request) {
 		buf.WriteString("\n" + scionHost[i])
 	}
 	_, _ = w.Write(buf.Bytes())
+}
+
+func handleRedirectBackOrError(w http.ResponseWriter, req *http.Request) {
+
+	if req.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// We need this here, it's required for redirecting properly
+	// We may set localhost here but this would stop us from
+	// running one skip for multiple clients later...
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	q := req.URL.Query()
+
+	urls, ok := q["url"]
+	if !ok || len(urls) != 1 {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	url, err := url.Parse(urls[0])
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	hostPort := url.Host + ":0"
+
+	w.Header().Set("Location", url.String())
+	_, err = pan.ResolveUDPAddr(req.Context(), hostPort)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, req, url.String(), http.StatusMovedPermanently)
+}
+
+// handleHostResolutionRequest parses requests in the form: /resolve?host=XXX
+// If the PAN lib cannot resolve the host, it sends back an empty response.
+func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	buf := &bytes.Buffer{}
+	q := req.URL.Query()
+	hosts, ok := q["host"]
+	if !ok || len(hosts) > 1 {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	hostPort := hosts[0] + ":0"
+
+	res, err := pan.ResolveUDPAddr(req.Context(), hostPort)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		ok := errors.As(err, &pan.HostNotFoundError{})
+		if !ok {
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+		}
+		return
+	}
+	buf.WriteString(strings.TrimRight(res.String(), ":0"))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(buf.Bytes())
+}
+
+func isSCIONEnabled(ctx context.Context, host string) (bool, error) {
+	_, err := pan.ResolveUDPAddr(ctx, host)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		ok := errors.As(err, &pan.HostNotFoundError{})
+		if !ok {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
 }
 
 type policyHandler struct {
@@ -201,11 +288,20 @@ type tunnelHandler struct {
 }
 
 func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	destConn, err := h.dialer.DialContext(context.Background(), "", req.Host)
+	hostPort := req.Host
+	var destConn net.Conn
+	var err error
+	enabled, _ := isSCIONEnabled(req.Context(), hostPort)
+	if !enabled {
+		// CONNECT via TCP/IP
+		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
+	} else {
+		// CONNECT via SCION
+		destConn, err = h.dialer.DialContext(context.Background(), "", req.Host)
+	}
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -225,6 +321,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	go transfer(destConn, clientConn)
 	go transfer(clientConn, destConn)
+
 }
 
 func transfer(dst io.WriteCloser, src io.ReadCloser) {
