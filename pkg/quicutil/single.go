@@ -17,12 +17,15 @@ package quicutil
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/quic-go/quic-go"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 var (
@@ -58,7 +61,13 @@ func (l SingleStreamListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewSingleStream(session)
+	// This is at the moment just for presentation purposes and needs to be
+	// rewritten in the end...
+	s, ok := session.(*pan.QUICSession)
+	if !ok {
+		return nil, fmt.Errorf("No Valid pan quic Session")
+	}
+	return NewSingleStream(s)
 }
 
 // SingleStream implements an opaque, bi-directional data stream using QUIC,
@@ -92,6 +101,21 @@ func NewSingleStream(session quic.Connection) (*SingleStream, error) {
 
 func (s *SingleStream) LocalAddr() net.Addr {
 	return s.Session.LocalAddr()
+}
+
+func (s *SingleStream) GetPath() *pan.Path {
+	if s.Session == nil {
+		// XXX(JordiSubira): To be refactored when proper support
+		// for retrieving path information.
+		return nil
+	}
+	quicSession, ok := s.Session.(*pan.QUICSession)
+	if !ok {
+		// XXX(JordiSubira): To be refactored when proper support
+		// for retrieving path information.
+		return nil
+	}
+	return quicSession.Conn.GetPath()
 }
 
 func (s *SingleStream) RemoteAddr() net.Addr {

@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -39,6 +41,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -51,6 +54,26 @@ const (
 	mungedScionAddrASIndex   = 2
 	mungedScionAddrHostIndex = 3
 )
+
+// This is at the moment just for presentation purposes and needs to be
+// rewritten in the end...
+var pathStats = PathUsageStats{
+	data: make(map[string]*PathUsage),
+}
+
+type PathUsage struct {
+	path     pan.Path
+	Received int64
+	Path     string
+	Strategy string
+	Domain   string
+}
+
+type PathUsageStats struct {
+	sync.Mutex
+	// For simplicity before the Hotnets Demo: We assume that here is one path used per domain
+	data map[string]*PathUsage
+}
 
 //go:embed skip.pac
 var skipPAC string
@@ -82,6 +105,7 @@ func main() {
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/skip.pac", handleWPAD)
 	apiMux.HandleFunc("/scionHosts", handleHostListRequest)
+	apiMux.HandleFunc("/pathUsage", handlePathUsageRequest)
 	apiMux.HandleFunc("/r", handleRedirectBackOrError)
 
 	apiMux.HandleFunc("/resolve", handleHostResolutionRequest)
@@ -100,6 +124,20 @@ func main() {
 		Handler: handlers.LoggingHandler(os.Stdout, handler),
 	}
 	log.Fatal(server.ListenAndServe())
+}
+
+func handlePathUsageRequest(w http.ResponseWriter, req *http.Request) {
+	data := make([]*PathUsage, 0)
+	for _, v := range pathStats.data {
+		data = append(data, v)
+	}
+	j, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("verbose: ", "error serializing path statistics")
+		http.Error(w, "error serializing path statistics", 500)
+		return
+	}
+	_, _ = w.Write(j)
 }
 
 func handleWPAD(w http.ResponseWriter, req *http.Request) {
@@ -292,12 +330,16 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var destConn net.Conn
 	var err error
 	enabled, _ := isSCIONEnabled(req.Context(), hostPort)
+	var path *pan.Path
 	if !enabled {
 		// CONNECT via TCP/IP
 		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
 	} else {
 		// CONNECT via SCION
-		destConn, err = h.dialer.DialContext(context.Background(), "", req.Host) //nolint:contextcheck
+		destConn, err = h.dialer.DialContext(context.Background(), "", req.Host)
+		if panConn, ok := destConn.(*quicutil.SingleStream); ok {
+			path = panConn.GetPath()
+		}
 	}
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
@@ -319,18 +361,62 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	go transfer(destConn, clientConn)
-	go transfer(clientConn, destConn)
+	// This is at the moment just for presentation purposes and needs to be
+	// rewritten in the end...
+	go transfer(destConn, clientConn, nil, req.URL.Hostname()) // We just count the received bytes for now
+	go transfer(clientConn, destConn, path, req.URL.Hostname())
 
 }
 
-func transfer(dst io.WriteCloser, src io.ReadCloser) {
+func pathToShortPath(path *pan.Path) string {
+	if len(path.Metadata.Interfaces) == 0 {
+		return ""
+	}
+	b := &strings.Builder{}
+	intf := path.Metadata.Interfaces[0]
+	fmt.Fprintf(b, "%s", intf.IA)
+	for i := 1; i < len(path.Metadata.Interfaces)-1; i += 2 {
+		inIntf := path.Metadata.Interfaces[i]
+		fmt.Fprintf(b, " -> %s ", inIntf.IA)
+	}
+	intf = path.Metadata.Interfaces[len(path.Metadata.Interfaces)-1]
+	fmt.Fprintf(b, " -> %s", intf.IA)
+	return b.String()
+}
+
+func transfer(dst io.WriteCloser, src io.ReadCloser, path *pan.Path, domain string) {
 	defer dst.Close()
 	defer src.Close()
 	buf := make([]byte, 1024)
 	var written int64
+
+	var pathUsage *PathUsage
+	if path != nil {
+		pu, ok := pathStats.data[domain]
+		if !ok {
+			pathUsage = &PathUsage{
+				path:     *path,
+				Received: 0,
+				Strategy: "Shortest Path", // TODO: This may be configured by the user
+				Path:     pathToShortPath(path),
+				Domain:   domain,
+			}
+
+			pathStats.Lock()
+			pathStats.data[domain] = pathUsage
+			pathStats.Unlock()
+		} else {
+			pathUsage = pu
+		}
+
+	}
+
 	for {
 		nr, er := src.Read(buf)
+		if pathUsage != nil {
+			pathUsage.Received += int64(nr)
+		}
+
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
 			if nw < 0 || nr < nw {
