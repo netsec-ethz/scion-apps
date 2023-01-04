@@ -3,6 +3,7 @@ module examples
 go 1.16
 
 require (
+	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/lucas-clemente/quic-go v0.23.0
 	github.com/netsec-ethz/scion-apps v0.5.1-0.20220504120040-79211109ed3f
