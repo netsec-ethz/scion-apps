@@ -101,6 +101,8 @@ The directory _examples contains examples for the usage of the SCION libraries.
   Example for the use of QUIC over SCION.
 * [_examples/hellodrkey](_examples/hellodrkey/README.md):
   Example for the the use of DRKey.
+* [_examples/sgrpc](_examples/sgrpc/README.md):
+  Example for using gRPC over SCION/QUIC with the PAN library.
 * [_examples/shttp](_examples/shttp/README.md):
   Examples for using HTTP over SCION/QUIC, examples for servers, proxies, and clients.
 
