@@ -9,22 +9,21 @@ import (
 	"net"
 	"time"
 
-	pb "examples/sgrpc/proto"
-
 	"github.com/lucas-clemente/quic-go"
-	"github.com/netsec-ethz/scion-apps/pkg/pan"
-	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"inet.af/netaddr"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+
+	pb "examples/sgrpc/proto"
 )
 
 var (
 	Message    = flag.String("message", "", "Message to send to the gRPC echo server")
 	ServerAddr = flag.String("server-addr", "1-ff00:0:111,127.0.0.1:5000", "Address of the echo server")
 )
-
-type DialContext = func(context.Context, string, ...grpc.DialOption) (*grpc.ClientConn, error)
 
 func NewPanQuicDialer(tlsCfg *tls.Config) func(context.Context, string) (net.Conn, error) {
 	dialer := func(ctx context.Context, addr string) (net.Conn, error) {
