@@ -25,10 +25,9 @@ import (
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
-	"inet.af/netaddr"
-
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"inet.af/netaddr"
 )
 
 func main() {

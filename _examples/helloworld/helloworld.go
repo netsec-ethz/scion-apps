@@ -22,9 +22,8 @@ import (
 	"os"
 	"time"
 
-	"inet.af/netaddr"
-
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"inet.af/netaddr"
 )
 
 func main() {
