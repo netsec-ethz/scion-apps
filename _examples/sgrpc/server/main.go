@@ -6,11 +6,10 @@ import (
 	"flag"
 	"log"
 
-	"google.golang.org/grpc"
-	"inet.af/netaddr"
-
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"google.golang.org/grpc"
+	"inet.af/netaddr"
 
 	pb "examples/sgrpc/proto"
 )
