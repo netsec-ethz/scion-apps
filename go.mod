@@ -15,8 +15,8 @@ require (
 	github.com/scionproto/scion v0.6.1-0.20220202161514-5883c725f748
 	github.com/smartystreets/goconvey v1.6.7
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+	golang.org/x/crypto v0.1.0
+	golang.org/x/term v0.1.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	inet.af/netaddr v0.0.0-20210903134321-85fa6c94624e
 )
