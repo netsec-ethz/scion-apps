@@ -18,12 +18,13 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"math"
 
-	"github.com/lucas-clemente/quic-go"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"github.com/quic-go/quic-go"
 )
 
 var (
@@ -40,7 +41,7 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 			Certificates: quicutil.MustGenerateSelfSignedCert(),
 			NextProtos:   nextProtos,
 		},
-		&quic.Config{KeepAlive: true},
+		&quic.Config{KeepAlivePeriod: math.MaxInt64},
 	)
 	if err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 			InsecureSkipVerify: true,
 			NextProtos:         nextProtos,
 		},
-		&quic.Config{KeepAlive: true},
+		&quic.Config{KeepAlivePeriod: math.MaxInt64},
 	)
 	if err != nil {
 		return nil, err

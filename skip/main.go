@@ -35,8 +35,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/gorilla/handlers"
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"

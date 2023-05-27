@@ -176,6 +176,10 @@ type snetPathWrapper struct {
 	wrapped *Path
 }
 
+func (p snetPathWrapper) Source() addr.IA {
+	return addr.IA(p.wrapped.Source)
+}
+
 func (p snetPathWrapper) UnderlayNextHop() *net.UDPAddr { panic("not implemented") }
 
 func (p snetPathWrapper) Dataplane() snet.DataplanePath { panic("not implemented") }
@@ -238,9 +242,10 @@ func (p HighestMTU) Filter(paths []*Path) []*Path {
 // sortStablePartialOrder sorts the path slice according to the given function
 // defining a partial order.
 // The less function is expected to return:
-//   true,  true if s[i] < s[j]
-//   false, true if s[i] >= s[j]
-//   _    , false otherwise, i.e. if s[i] and s[j] are not comparable
+//
+//	true,  true if s[i] < s[j]
+//	false, true if s[i] >= s[j]
+//	_    , false otherwise, i.e. if s[i] and s[j] are not comparable
 //
 // NOTE: this is implemented as an insertion sort, so has quadratic complexity.
 // Should not be called with more than very few hundred paths. Be careful!

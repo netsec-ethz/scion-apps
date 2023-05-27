@@ -22,7 +22,7 @@ import (
 	"net"
 	"time"
 
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kingpin/v2"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"

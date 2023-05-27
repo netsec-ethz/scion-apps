@@ -21,8 +21,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/alecthomas/kingpin/v2"
 	log "github.com/inconshreveable/log15"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"

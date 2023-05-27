@@ -24,9 +24,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alecthomas/kingpin/v2"
 	log "github.com/inconshreveable/log15"
 	"golang.org/x/term"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"

@@ -28,9 +28,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/gorilla/handlers"
-	"github.com/lucas-clemente/quic-go"
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/quic-go/quic-go"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -101,7 +101,7 @@ func forwardTLS(hosts map[string]struct{}) error {
 
 // forwardTLS forwards traffic for sess to the corresponding TCP/IP host
 // identified by SNI.
-func forwardTLSSession(hosts map[string]struct{}, sess quic.Session) {
+func forwardTLSSession(hosts map[string]struct{}, sess quic.Connection) {
 	clientConn, err := quicutil.NewSingleStream(sess)
 	if err != nil {
 		return
