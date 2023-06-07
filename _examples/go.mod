@@ -10,7 +10,7 @@ require (
 	github.com/scionproto/scion v0.6.1-0.20220202161514-5883c725f748
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
-	inet.af/netaddr v0.0.0-20210903134321-85fa6c94624e
+	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a
 )
 
 replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20220929101513-2408583f35d1
