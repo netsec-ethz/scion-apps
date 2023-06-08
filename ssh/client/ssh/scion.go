@@ -17,8 +17,9 @@ package ssh
 import (
 	"context"
 	"crypto/tls"
+	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 	"golang.org/x/crypto/ssh"
 	"inet.af/netaddr"
 
@@ -46,7 +47,7 @@ func dialSCION(ctx context.Context,
 		InsecureSkipVerify: true,
 	}
 	quicConf := &quic.Config{
-		KeepAlive: true,
+		KeepAlivePeriod: time.Duration(15) * time.Second,
 	}
 	sess, err := pan.DialQUIC(ctx, netaddr.IPPort{}, remote, policy, sel, "", tlsConf, quicConf)
 	if err != nil {

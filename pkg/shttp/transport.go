@@ -23,7 +23,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"

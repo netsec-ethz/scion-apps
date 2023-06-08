@@ -20,8 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"

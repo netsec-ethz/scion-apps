@@ -20,7 +20,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/quic-go/quic-go/http3"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )

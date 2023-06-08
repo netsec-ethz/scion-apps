@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 )
 
 var (
@@ -70,7 +70,7 @@ func (l SingleStreamListener) Accept() (net.Conn, error) {
 //  - on the listener side: quic.Listener wrapped in SingleStreamListener, which
 //    returns SingleStream from Accept.
 type SingleStream struct {
-	Session       quic.Session
+	Session       quic.Connection
 	sendStream    quic.SendStream
 	receiveStream quic.ReceiveStream
 	readDeadline  time.Time
@@ -78,7 +78,7 @@ type SingleStream struct {
 	onceOK        sync.Once
 }
 
-func NewSingleStream(session quic.Session) (*SingleStream, error) {
+func NewSingleStream(session quic.Connection) (*SingleStream, error) {
 	sendStream, err := session.OpenUniStream()
 	if err != nil {
 		return nil, err
