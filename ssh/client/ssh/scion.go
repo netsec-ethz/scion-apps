@@ -47,7 +47,7 @@ func dialSCION(ctx context.Context,
 		InsecureSkipVerify: true,
 	}
 	quicConf := &quic.Config{
-		KeepAlivePeriod: time.Duration(15) * time.Second,
+		KeepAlivePeriod: 15 * time.Second,
 	}
 	sess, err := pan.DialQUIC(ctx, netaddr.IPPort{}, remote, policy, sel, "", tlsConf, quicConf)
 	if err != nil {

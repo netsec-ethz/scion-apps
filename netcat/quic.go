@@ -41,7 +41,7 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 			Certificates: quicutil.MustGenerateSelfSignedCert(),
 			NextProtos:   nextProtos,
 		},
-		&quic.Config{KeepAlivePeriod: time.Duration(15) * time.Second},
+		&quic.Config{KeepAlivePeriod: 15 * time.Second},
 	)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 			InsecureSkipVerify: true,
 			NextProtos:         nextProtos,
 		},
-		&quic.Config{KeepAlivePeriod: time.Duration(15) * time.Second},
+		&quic.Config{KeepAlivePeriod: 15 * time.Second},
 	)
 	if err != nil {
 		return nil, err
