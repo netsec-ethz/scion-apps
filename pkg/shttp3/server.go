@@ -42,12 +42,10 @@ func ListenAndServe(addr string, certFile, keyFile string, handler http.Handler)
 	}
 	s := &Server{
 		Server: &http3.Server{
-			Server: &http.Server{
-				Addr:    addr,
-				Handler: handler,
-				TLSConfig: &tls.Config{
-					Certificates: certs,
-				},
+			Addr:    addr,
+			Handler: handler,
+			TLSConfig: &tls.Config{
+				Certificates: certs,
 			},
 		},
 	}
