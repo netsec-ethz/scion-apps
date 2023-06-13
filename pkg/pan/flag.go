@@ -45,9 +45,9 @@ func (v *IPPortValue) String() string {
 // ParseOptionalIPPort parses a string to netaddr.IPPort
 // This accepts either of the following formats
 //
-//  - <ip>:<port>
-//  - :<port>
-//  - (empty)
+//   - <ip>:<port>
+//   - :<port>
+//   - (empty)
 //
 // in contrast to netaddr.ParseOptionalIPPort which disallows omitting the IP.
 //

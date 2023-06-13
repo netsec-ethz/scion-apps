@@ -27,8 +27,8 @@ import (
 //
 // The script is roughly similar to:
 //
-//  #!/bin/sh
-//  inputCommand | command "$@"
+//	#!/bin/sh
+//	inputCommand | command "$@"
 //
 // The two commands are inserted verbatim (no escaping performed). Be careful
 // to wrap longer shell commands into subshells where appropriate.
@@ -49,14 +49,14 @@ import (
 // `inputCommand` simply by closing the pipe.
 //
 // NOTE: if this stops working, some alternatives are:
-//  - avoid to shell out for the input in the first place and directly write to
-//    stdin of the process with a goroutine.
-//  - circumvent the stdout/err processing goroutine by using a os.Pipe which
-//    can be explicitly closed (as suggested in https://github.com/golang/go/issues/23019)
-//  - avoid the CommandContext, which uses Kill, and "cancel" the whole process
-//    group explicitly by SIGTERM.
-//  - this will NOT work: trap to clean up subprocesses in the shell script,
-//    because CommandContext sends SIGKILL. This was a "fun" exercise.
+//   - avoid to shell out for the input in the first place and directly write to
+//     stdin of the process with a goroutine.
+//   - circumvent the stdout/err processing goroutine by using a os.Pipe which
+//     can be explicitly closed (as suggested in https://github.com/golang/go/issues/23019)
+//   - avoid the CommandContext, which uses Kill, and "cancel" the whole process
+//     group explicitly by SIGTERM.
+//   - this will NOT work: trap to clean up subprocesses in the shell script,
+//     because CommandContext sends SIGKILL. This was a "fun" exercise.
 func InputPipeScript(tmpDir, name, inputCommand, command string) string {
 	scriptPath := path.Join(tmpDir, fmt.Sprintf("%s_wrapper.sh", name))
 	f, err := os.OpenFile(scriptPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0744)

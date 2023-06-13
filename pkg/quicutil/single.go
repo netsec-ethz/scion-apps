@@ -65,10 +65,10 @@ func (l SingleStreamListener) Accept() (net.Conn, error) {
 // intending to be a drop-in replacement for TCP.
 // A SingleStream is either created by
 //
-//  - on the client side: quic.Dial and then immediately NewSingleStream(sess)
-//    with the obtained session
-//  - on the listener side: quic.Listener wrapped in SingleStreamListener, which
-//    returns SingleStream from Accept.
+//   - on the client side: quic.Dial and then immediately NewSingleStream(sess)
+//     with the obtained session
+//   - on the listener side: quic.Listener wrapped in SingleStreamListener, which
+//     returns SingleStream from Accept.
 type SingleStream struct {
 	Session       quic.Connection
 	sendStream    quic.SendStream

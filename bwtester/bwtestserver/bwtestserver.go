@@ -180,8 +180,8 @@ func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 
 // writeResponseN writes the response to an 'N' (new bandwidth test) request.
 // The waitTime field is
-//  - 0:   Ok, the test starts immediately
-//  - N>0: please try again in N seconds
+//   - 0:   Ok, the test starts immediately
+//   - N>0: please try again in N seconds
 func writeResponseN(ccConn net.PacketConn, addr net.Addr, waitTime byte) {
 	var response [2]byte
 	response[0] = 'N'
@@ -191,9 +191,9 @@ func writeResponseN(ccConn net.PacketConn, addr net.Addr, waitTime byte) {
 
 // writeResponseN writes the response to an 'R' (fetch results) request.
 // The code field is
-//  - 0:   Ok, the rest of the response is the encoded result
-//  - N>0: please try again in N seconds
-//  - 127: error, go away (why 127? I guess we have 7-bit bytes or something...)
+//   - 0:   Ok, the rest of the response is the encoded result
+//   - N>0: please try again in N seconds
+//   - 127: error, go away (why 127? I guess we have 7-bit bytes or something...)
 func writeResponseR(ccConn net.PacketConn, addr net.Addr, code byte, res *bwtest.Result) {
 	response := make([]byte, 2000)
 	response[0] = 'R'

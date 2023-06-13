@@ -98,9 +98,9 @@ func (pm *PathMetadata) Copy() *PathMetadata {
 
 // LowerLatency compares the latency of two paths.
 // Returns
-//  - true, true if a has strictly lower latency than b
-//  - false, true if a has equal or higher latency than b
-//  - _, false if not enough information is available to compare a and b
+//   - true, true if a has strictly lower latency than b
+//   - false, true if a has equal or higher latency than b
+//   - _, false if not enough information is available to compare a and b
 func (pm *PathMetadata) LowerLatency(b *PathMetadata) (bool, bool) {
 	totA, unknownA := pm.latencySum()
 	totB, unknownB := b.latencySum()
@@ -135,9 +135,9 @@ func (pm *PathMetadata) latencySum() (time.Duration, pathHopSet) {
 
 // HigherBandwidth compares the bandwidth of two paths.
 // Returns
-//  - true, true if a has strictly higher bandwidth than b
-//  - false, true if a has equal or lower bandwidth than b
-//  - _, false if not enough information is available to compare a and b
+//   - true, true if a has strictly higher bandwidth than b
+//   - false, true if a has equal or lower bandwidth than b
+//   - _, false if not enough information is available to compare a and b
 func (pm *PathMetadata) HigherBandwidth(b *PathMetadata) (bool, bool) {
 	minA, unknownA := pm.bandwidthMin()
 	minB, unknownB := b.bandwidthMin()

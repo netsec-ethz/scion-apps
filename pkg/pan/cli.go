@@ -38,10 +38,10 @@ var (
 // library.
 //
 // The options should be presented to the user as:
-//  - a flag --interactive
-//  - an option --preference <preference>, sorting order for paths.
-//    Comma-separated list of available sorting options.
-//  - an option --sequence <sequence>, describing a hop-predicate sequence filter
+//   - a flag --interactive
+//   - an option --preference <preference>, sorting order for paths.
+//     Comma-separated list of available sorting options.
+//   - an option --sequence <sequence>, describing a hop-predicate sequence filter
 func PolicyFromCommandline(sequence string, preference string, interactive bool) (Policy, error) {
 	chain := PolicyChain{}
 	if sequence != "" {
