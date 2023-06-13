@@ -691,11 +691,11 @@ func getTrcInfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPathInfoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.PathTopoHandler(w, r, &options, asCfg)
+	lib.PathTopoHandler(w, r, &options, asCfg) //nolint:contextcheck
 }
 
 func getAsTopoHandler(w http.ResponseWriter, r *http.Request) {
-	lib.AsTopoHandler(w, r, &options, asCfg)
+	lib.AsTopoHandler(w, r, &options, asCfg) //nolint:contextcheck
 }
 
 func getNodesHandler(w http.ResponseWriter, r *http.Request) {

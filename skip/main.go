@@ -297,7 +297,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
 	} else {
 		// CONNECT via SCION
-		destConn, err = h.dialer.DialContext(context.Background(), "", req.Host)
+		destConn, err = h.dialer.DialContext(context.Background(), "", req.Host) //nolint:contextcheck
 	}
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
