@@ -329,12 +329,8 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	hostPort := req.Host
 	var destConn net.Conn
 	var err error
-<<<<<<< HEAD
 	enabled, _ := isSCIONEnabled(req.Context(), hostPort)
-=======
-	enabled, _ := isSCIONEnabled(hostPort)
 	var path *pan.Path
->>>>>>> 57aa45d... Add first tries to collect path statistics in skip
 	if !enabled {
 		// CONNECT via TCP/IP
 		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
