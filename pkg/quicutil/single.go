@@ -17,7 +17,6 @@ package quicutil
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -61,13 +60,7 @@ func (l SingleStreamListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	// This is at the moment just for presentation purposes and needs to be
-	// rewritten in the end...
-	s, ok := session.(*pan.QUICSession)
-	if !ok {
-		return nil, fmt.Errorf("No Valid pan quic Session")
-	}
-	return NewSingleStream(s)
+	return NewSingleStream(session)
 }
 
 // SingleStream implements an opaque, bi-directional data stream using QUIC,
@@ -92,11 +85,12 @@ func NewSingleStream(session quic.Connection) (*SingleStream, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SingleStream{
+	ss := &SingleStream{
 		Session:       session,
 		sendStream:    sendStream,
 		receiveStream: nil,
-	}, nil
+	}
+	return ss, nil
 }
 
 func (s *SingleStream) LocalAddr() net.Addr {
