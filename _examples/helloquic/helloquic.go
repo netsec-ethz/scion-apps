@@ -24,9 +24,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/quic-go/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"github.com/quic-go/quic-go"
 	"inet.af/netaddr"
 )
 
