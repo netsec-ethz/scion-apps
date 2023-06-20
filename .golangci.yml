@@ -24,7 +24,7 @@ linters:
     - exportloopref
     - gci
     - gofmt
-    - ifshort
+    #- ifshort
     - importas
     - makezero
     - misspell
