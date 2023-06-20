@@ -24,14 +24,12 @@ The main entry points for applications are:
 Both forms of the Dial call allow to specify a Policy and a Selector.
 
 # Policy
-# Policy
 
 A path policy defines the allowed paths and/or a preference order of the paths.
 Policies are generally stateless and, in particular, they don't look for any
 short term information like measured latency or path "liveness".
 Connections allow to change the path policy at any time.
 
-# Selector
 # Selector
 
 A path selector is a stateful controller associated with a connection/socket.
@@ -45,7 +43,6 @@ connections to either use the same path or to use maximally disjoint paths,
 direct performance feedback from the application, etc.
 
 # Dialed vs Listening
-# Dialed vs Listening
 
 pan differentiates between dialed and listening sockets. Dialed sockets (for
 "clients") define the path policy and a selector. The client side of a connection
@@ -57,7 +54,6 @@ The default reply path selector records a fixed number of paths used by a client
 It normally uses the path last used by the client for replies, but does use other
 recorded paths to try routing around temporarily broken paths.
 
-# Dispatcher and SCION daemon connections
 # Dispatcher and SCION daemon connections
 
 During the hidden initialisation of this package, the dispatcher and sciond
@@ -73,7 +69,6 @@ single SCION AS. When running multiple local ASes, e.g. during development, the
 address of the sciond corresponding to the desired AS needs to be specified in
 the SCION_DAEMON_ADDRESS environment variable.
 
-# Wildcard IP Addresses
 # Wildcard IP Addresses
 
 The SCION end host stack does not currently support binding to wildcard addresses.
