@@ -32,12 +32,14 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
 	"time"
 
 	"github.com/gorilla/handlers"
+	"github.com/scionproto/scion/go/lib/addr"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -93,6 +95,7 @@ func main() {
 
 	proxy := &proxyHandler{
 		transport: transport,
+		dialer:    dialer,
 	}
 	tunnelHandler := &tunnelHandler{
 		dialer: dialer,
@@ -268,26 +271,71 @@ func (h *policyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Check if acl
+	var policy pan.Policy
 	var acl pan.ACL
 	err = acl.UnmarshalJSON(body)
+	policy = &acl
 	if err != nil {
-		fmt.Println("verbose: ", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		fmt.Println("verbose: not ACL format, trying Sequence format out")
+		var str string
+		err2 := json.Unmarshal(body, &str)
+		if err2 != nil {
+			fmt.Println("verbose: ", err.Error(), err2.Error())
+			http.Error(w, err.Error()+" "+err2.Error(), http.StatusBadRequest)
+			return
+		}
+		seqStr, err2 := parseShowPathToSeq(str)
+		if err2 != nil {
+			fmt.Println("verbose: ", err.Error(), err2.Error())
+			http.Error(w, err.Error()+" "+err2.Error(), http.StatusBadRequest)
+			return
+		}
+		sequence, err2 := pan.NewSequence(seqStr)
+		if err2 != nil {
+			fmt.Println("verbose: ", err.Error(), err2.Error())
+			http.Error(w, err.Error()+" "+err2.Error(), http.StatusBadRequest)
+			return
+		}
+		policy = sequence
 	}
-	h.output.SetPolicy(&acl)
-	fmt.Println("verbose: ", "ACL policy = ", acl.String())
+	h.output.SetPolicy(policy)
+	fmt.Println("verbose: ", "Policy = ", string(body))
 	w.WriteHeader(http.StatusOK)
 }
 
 type proxyHandler struct {
 	transport http.RoundTripper
+	dialer    *shttp.Dialer
 }
 
 func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	host := demunge(req.Host)
 	req.Host = host
 	req.URL.Host = host
+
+	// domain := req.URL.Hostname()
+	// policy := h.dialer.Policy
+	// sequence, ok := policy.(pan.Sequence)
+	// var pathUsage *PathUsage
+	// if ok {
+	// 	pu, ok := pathStats.data[domain]
+	// 	if !ok {
+	// 		pathUsage = &PathUsage{
+	// 			Received: 0,
+	// 			Strategy: "Geofenced", // TODO: This may be configured by the user
+	// 			Path:     sequenceToPath(sequence),
+	// 			Domain:   domain,
+	// 		}
+
+	// 		pathStats.Lock()
+	// 		pathStats.data[domain] = pathUsage
+	// 		pathStats.Unlock()
+	// 	} else {
+	// 		pathUsage = pu
+	// 		pathUsage.Path = sequenceToPath(sequence)
+	// 	}
+	// }
 
 	resp, err := h.transport.RoundTrip(req)
 	if err != nil {
@@ -330,7 +378,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var destConn net.Conn
 	var err error
 	enabled, _ := isSCIONEnabled(req.Context(), hostPort)
-	var path *pan.Path
+	var pathF func() *pan.Path
 	if !enabled {
 		// CONNECT via TCP/IP
 		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
@@ -338,7 +386,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		// CONNECT via SCION
 		destConn, err = h.dialer.DialContext(context.Background(), "", req.Host)
 		if panConn, ok := destConn.(*quicutil.SingleStream); ok {
-			path = panConn.GetPath()
+			pathF = panConn.GetPath
 		}
 	}
 	if err != nil {
@@ -364,8 +412,13 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// This is at the moment just for presentation purposes and needs to be
 	// rewritten in the end...
 	go transfer(destConn, clientConn, nil, req.URL.Hostname()) // We just count the received bytes for now
-	go transfer(clientConn, destConn, path, req.URL.Hostname())
+	go transfer(clientConn, destConn, pathF, req.URL.Hostname())
 
+}
+
+func sequenceToPath(sequence pan.Sequence) string {
+	s, _ := parseSequence(sequence)
+	return s
 }
 
 func pathToShortPath(path *pan.Path) string {
@@ -384,14 +437,17 @@ func pathToShortPath(path *pan.Path) string {
 	return b.String()
 }
 
-func transfer(dst io.WriteCloser, src io.ReadCloser, path *pan.Path, domain string) {
+func transfer(dst io.WriteCloser, src io.ReadCloser, pathF func() *pan.Path, domain string) {
 	defer dst.Close()
 	defer src.Close()
 	buf := make([]byte, 1024)
 	var written int64
 
+	// policy := h.dialer.Policy
+	// sequence, ok := policy.(pan.Sequence)
 	var pathUsage *PathUsage
-	if path != nil {
+	if pathF != nil {
+		path := pathF()
 		pu, ok := pathStats.data[domain]
 		if !ok {
 			pathUsage = &PathUsage{
@@ -407,14 +463,17 @@ func transfer(dst io.WriteCloser, src io.ReadCloser, path *pan.Path, domain stri
 			pathStats.Unlock()
 		} else {
 			pathUsage = pu
+			pathUsage.Path = pathToShortPath(path)
 		}
-
 	}
 
 	for {
 		nr, er := src.Read(buf)
 		if pathUsage != nil {
 			pathUsage.Received += int64(nr)
+		}
+		if pathF != nil && pathUsage != nil {
+			pathUsage.Path = pathToShortPath(pathF())
 		}
 
 		if nr > 0 {
@@ -491,4 +550,147 @@ func parseHostsFile(file *os.File) []string {
 		}
 	}
 	return hosts
+}
+
+type step struct {
+	IA      addr.IA
+	Ingress int
+	Egress  int
+}
+
+func stringToStep(s []string) (step, error) {
+	var step step
+	var err error
+	if len(s) != 3 {
+		return step, fmt.Errorf("wrong size %d != 3", len(s))
+	}
+	step.IA, err = addr.ParseIA(s[1])
+	if err != nil {
+		return step, err
+	}
+	step.Ingress, err = strconv.Atoi(s[0])
+	if err != nil {
+		return step, err
+	}
+	step.Egress, err = strconv.Atoi(s[2])
+	if err != nil {
+		return step, err
+	}
+	return step, nil
+}
+
+func stringToFirstStep(s []string) (step, error) {
+	var step step
+	var err error
+	if len(s) != 2 {
+		return step, fmt.Errorf("wrong size %d != 3", len(s))
+	}
+	step.IA, err = addr.ParseIA(s[0])
+	if err != nil {
+		return step, err
+	}
+	step.Egress, err = strconv.Atoi(s[1])
+	if err != nil {
+		return step, err
+	}
+	return step, nil
+}
+
+func stringToLastStep(s []string) (step, error) {
+	var step step
+	var err error
+	if len(s) != 2 {
+		return step, fmt.Errorf("wrong size %d != 2", len(s))
+	}
+	step.IA, err = addr.ParseIA(s[1])
+	if err != nil {
+		return step, err
+	}
+	step.Ingress, err = strconv.Atoi(s[0])
+	if err != nil {
+		return step, err
+	}
+	return step, nil
+}
+
+type steps []step
+
+func (s steps) ToSequenceStr() string {
+	// 19-ffaa:1:f5c 1>370 19-ffaa:0:1303 1>5 19-ffaa:0:1301 3>5 18-ffaa:0:1201 8>1 18-ffaa:0:1206 128>1 18-ffaa:1:feb
+	// 19-ffaa:1:f5c#1 19-ffaa:0:1303#370,1 19-ffaa:0:1301#5,3 18-ffaa:0:1201#5,8 18-ffaa:0:1206#1,128 18-ffaa:1:feb#1
+	b := &strings.Builder{}
+	for i, step := range s {
+		if i == 0 {
+			fmt.Fprintf(b, "%s #%d", step.IA.String(), step.Egress)
+			continue
+		}
+		if i == len(s)-1 {
+			fmt.Fprintf(b, " %s #%d", step.IA.String(), step.Ingress)
+			continue
+		}
+		fmt.Fprintf(b, " %s #%d,%d", step.IA.String(), step.Ingress, step.Egress)
+	}
+	return b.String()
+}
+
+func parseShowPaths(s string) (steps, error) {
+	iaInterfaces := strings.Split(s, ">")
+
+	if len(iaInterfaces) < 2 {
+		return nil, fmt.Errorf("iaInterfaces length %d < 2", len(iaInterfaces))
+	}
+
+	steps := make([]step, len(iaInterfaces))
+	var err error
+	// first IA + egress
+	steps[0], err = stringToFirstStep(strings.Split(iaInterfaces[0], " "))
+	if err != nil {
+		return nil, err
+	}
+	steps[len(steps)-1], err = stringToLastStep(strings.Split(iaInterfaces[len(steps)-1], " "))
+	if err != nil {
+		return nil, err
+	}
+	for i := 1; i < len(steps)-1; i++ {
+		steps[i], err = stringToStep(strings.Split(iaInterfaces[i], " "))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, step := range steps {
+		fmt.Printf("%s %d %d, ", step.IA.String(), step.Ingress, step.Egress)
+	}
+	return steps, nil
+}
+
+func parseShowPathToSeq(s string) (string, error) {
+	steps, err := parseShowPaths(s)
+	if err != nil {
+		return "", err
+	}
+	return steps.ToSequenceStr(), nil
+}
+
+func parseSequence(sequence pan.Sequence) (string, error) {
+	seqStr := sequence.String()
+	fmt.Println(seqStr)
+	seqStr = strings.Replace(seqStr, " #", "#", -1)
+	iaInterfaces := strings.Split(seqStr, " ")
+
+	if len(iaInterfaces) < 2 {
+		return "", fmt.Errorf("iaInterfaces length %d < 2", len(iaInterfaces))
+	}
+
+	b := &strings.Builder{}
+
+	for i, iaIfStr := range iaInterfaces {
+		iaIfs := strings.Split(iaIfStr, "#")
+		if i == 0 {
+			fmt.Fprintf(b, "%s", iaIfs[0])
+			continue
+		}
+		fmt.Fprintf(b, " -> %s", iaIfs[0])
+	}
+	return b.String(), nil
 }
