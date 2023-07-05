@@ -405,7 +405,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	clientConn, _, err := hijacker.Hijack()
 	if err != nil {
-		fmt.Println("verbose: ", "verbose: ", err.Error())
+		fmt.Println("verbose: ", err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -422,6 +422,9 @@ func sequenceToPath(sequence pan.Sequence) string {
 }
 
 func pathToShortPath(path *pan.Path) string {
+	if path == nil {
+		return ""
+	}
 	if len(path.Metadata.Interfaces) == 0 {
 		return ""
 	}
