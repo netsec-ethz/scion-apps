@@ -36,7 +36,7 @@ jobs:
 
   integration:
     machine:
-      image: ubuntu-2004:202111-02 # using go1.17.3
+      image: ubuntu-2004:2023.04.2 # using go1.20.2
     steps:
       - checkout
       # The following step are shared with netsec-ethz/rains
