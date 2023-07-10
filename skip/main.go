@@ -416,11 +416,6 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 }
 
-func sequenceToPath(sequence pan.Sequence) string {
-	s, _ := parseSequence(sequence)
-	return s
-}
-
 func pathToShortPath(path *pan.Path) string {
 	if path == nil {
 		return ""
@@ -673,27 +668,4 @@ func parseShowPathToSeq(s string) (string, error) {
 		return "", err
 	}
 	return steps.ToSequenceStr(), nil
-}
-
-func parseSequence(sequence pan.Sequence) (string, error) {
-	seqStr := sequence.String()
-	fmt.Println(seqStr)
-	seqStr = strings.Replace(seqStr, " #", "#", -1)
-	iaInterfaces := strings.Split(seqStr, " ")
-
-	if len(iaInterfaces) < 2 {
-		return "", fmt.Errorf("iaInterfaces length %d < 2", len(iaInterfaces))
-	}
-
-	b := &strings.Builder{}
-
-	for i, iaIfStr := range iaInterfaces {
-		iaIfs := strings.Split(iaIfStr, "#")
-		if i == 0 {
-			fmt.Fprintf(b, "%s", iaIfs[0])
-			continue
-		}
-		fmt.Fprintf(b, " -> %s", iaIfs[0])
-	}
-	return b.String(), nil
 }
