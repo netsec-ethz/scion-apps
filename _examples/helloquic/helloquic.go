@@ -30,10 +30,13 @@ import (
 	"inet.af/netaddr"
 )
 
+var raceConn *bool
+
 func main() {
 	var err error
 	// get local and remote addresses from program arguments:
 	var listen pan.IPPortValue
+	raceConn = flag.Bool("race", true, "[Client] shall connection be raced on all available paths ?")
 	flag.Var(&listen, "listen", "[Server] local IP:port to listen on")
 	remoteAddr := flag.String("remote", "", "[Client] Remote (i.e. the server's) SCION Address (e.g. 17-ffaa:1:1,[127.0.0.1]:12345)")
 	count := flag.Uint("count", 1, "[Client] Number of messages to send")
@@ -119,7 +122,14 @@ func runClient(address string, count int) error {
 		Timeout:  time.Second,
 	}
 	selector.SetActive(2)
-	session, err := pan.DialQUIC(context.Background(), netaddr.IPPort{}, addr, nil, selector, "", tlsCfg, nil)
+	var session *pan.QUICEarlySession
+
+	if raceConn != nil && *raceConn {
+		session, err = pan.RaceDialQUICEarly(context.Background(), netaddr.IPPort{}, addr, nil, selector, "", tlsCfg, nil)
+	} else {
+		session, err = pan.DialQUICEarly(context.Background(), netaddr.IPPort{}, addr, nil, selector, "", tlsCfg, nil)
+	}
+
 	if err != nil {
 		return err
 	}
