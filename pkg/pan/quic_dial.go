@@ -17,7 +17,9 @@ package pan
 import (
 	"context"
 	"crypto/tls"
+	"log"
 	"net"
+	"time"
 
 	"github.com/quic-go/quic-go"
 	"inet.af/netaddr"
@@ -90,6 +92,52 @@ func DialQUICEarly(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	return &QUICEarlySession{session, conn}, nil
+}
+
+/*
+RaceDialQUICEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialQUIC.
+
+	In addition all available paths to the destination are raced
+*/
+func RaceDialQUICEarly(ctx context.Context,
+	local netaddr.IPPort, remote UDPAddr, policy Policy, selector Selector,
+	host string, tlsConf *tls.Config, quicConf *quic.Config) (*QUICEarlySession, error) {
+
+	conn, err := DialUDP(ctx, local, remote, policy, selector)
+	if err != nil {
+		return nil, err
+	}
+	pconn := connectedPacketConn{conn}
+
+	// determine all competing-paths for the race to the destination
+	paths, err := pool.queryPaths(ctx, remote.IA)
+	if err != nil {
+		return nil, err
+	}
+
+	ts := time.Now()
+	session, active, _, err := raceDialEarly(ctx, pconn, &remote, host, paths, tlsConf, quicConf)
+	// returned flexConn(that contains the 'winner' path) is discarded,
+	// as pan.Conn (pan.dialedConn) has no notion of paths (except through the Selector)
+
+	// know make the connection remember our finding
+	if dc, ok := conn.(*dialedConn); ok {
+		if ds, o := dc.selector.(*DefaultSelector); o {
+			ds.current = active
+		}
+		if ps, oo := dc.selector.(*PingingSelector); oo {
+			ps.current = active
+		}
+
+		// better add a method to Selector interface "dc.selector.SetCurrentPathIndex( active )"
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	log.Default().Printf("Dialed active: %v dt: %v", active, time.Since(ts))
+
 	return &QUICEarlySession{session, conn}, nil
 }
 

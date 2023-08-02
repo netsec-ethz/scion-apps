@@ -33,6 +33,10 @@ type UDPAddr struct {
 	Port uint16
 }
 
+func (a *UDPAddr) Copy() *UDPAddr {
+	return &UDPAddr{IA: a.IA, IP: a.IP, Port: a.Port}
+}
+
 func (a UDPAddr) Network() string {
 	return "scion+udp"
 }
