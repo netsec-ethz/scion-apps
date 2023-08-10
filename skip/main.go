@@ -314,6 +314,9 @@ func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	req.Host = host
 	req.URL.Host = host
 
+	// TODO(JordiSubira): This code snippet needs to be adapted and polished
+	// to add path usage information for HTTP(no S) connections.
+	//
 	// domain := req.URL.Hostname()
 	// policy := h.dialer.Policy
 	// sequence, ok := policy.(pan.Sequence)
@@ -441,8 +444,6 @@ func transfer(dst io.WriteCloser, src io.ReadCloser, pathF func() *pan.Path, dom
 	buf := make([]byte, 1024)
 	var written int64
 
-	// policy := h.dialer.Policy
-	// sequence, ok := policy.(pan.Sequence)
 	var pathUsage *PathUsage
 	if pathF != nil {
 		path := pathF()
@@ -577,40 +578,6 @@ func stringToStep(s []string) (step, error) {
 	return step, nil
 }
 
-func stringToFirstStep(s []string) (step, error) {
-	var step step
-	var err error
-	if len(s) != 2 {
-		return step, fmt.Errorf("wrong size %d != 3", len(s))
-	}
-	step.IA, err = addr.ParseIA(s[0])
-	if err != nil {
-		return step, err
-	}
-	step.Egress, err = strconv.Atoi(s[1])
-	if err != nil {
-		return step, err
-	}
-	return step, nil
-}
-
-func stringToLastStep(s []string) (step, error) {
-	var step step
-	var err error
-	if len(s) != 2 {
-		return step, fmt.Errorf("wrong size %d != 2", len(s))
-	}
-	step.IA, err = addr.ParseIA(s[1])
-	if err != nil {
-		return step, err
-	}
-	step.Ingress, err = strconv.Atoi(s[0])
-	if err != nil {
-		return step, err
-	}
-	return step, nil
-}
-
 type steps []step
 
 func (s steps) ToSequenceStr() string {
@@ -640,16 +607,12 @@ func parseShowPaths(s string) (steps, error) {
 
 	steps := make([]step, len(iaInterfaces))
 	var err error
-	// first IA + egress
-	steps[0], err = stringToFirstStep(strings.Split(iaInterfaces[0], " "))
-	if err != nil {
-		return nil, err
-	}
-	steps[len(steps)-1], err = stringToLastStep(strings.Split(iaInterfaces[len(steps)-1], " "))
-	if err != nil {
-		return nil, err
-	}
-	for i := 1; i < len(steps)-1; i++ {
+
+	// Add special value to the beginning and end of the path
+	iaInterfaces[0] = "0 " + iaInterfaces[0]
+	iaInterfaces[len(steps)-1] = iaInterfaces[len(steps)-1] + " 0"
+
+	for i := 0; i < len(steps); i++ {
 		steps[i], err = stringToStep(strings.Split(iaInterfaces[i], " "))
 		if err != nil {
 			return nil, err

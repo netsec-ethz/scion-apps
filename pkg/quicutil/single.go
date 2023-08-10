@@ -85,12 +85,11 @@ func NewSingleStream(session quic.Connection) (*SingleStream, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss := &SingleStream{
+	return &SingleStream{
 		Session:       session,
 		sendStream:    sendStream,
 		receiveStream: nil,
-	}
-	return ss, nil
+	}, nil
 }
 
 func (s *SingleStream) LocalAddr() net.Addr {
