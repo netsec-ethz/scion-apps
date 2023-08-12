@@ -36,16 +36,9 @@ jobs:
 
   integration:
     machine:
-      image: ubuntu-2004:2023.04.2 # using go1.20.2
+      image: ubuntu-2004:202111-02 # using go1.17.3
     steps:
       - checkout
-      # Use different versions of Go to build SCION and scion-apps
-      - run:
-          name: Get Go 1.17.3 to build SCION
-          command: |
-            wget https://go.dev/dl/go1.17.3.linux-amd64.tar.gz
-            mkdir ~/go1.17.3
-            tar -C ~/go1.17.3 --strip-components 1 -xzf go1.17.3.linux-amd64.tar.gz
       # The following step are shared with netsec-ethz/rains
       - run:
           name: Checkout SCION
@@ -73,7 +66,7 @@ jobs:
 
             cd ~/scion
             for service in "posix-router" "cs" "dispatcher" "scion-pki" "daemon" "co"; do
-              ~/go1.17.3/bin/go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
+              go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
             done
 
             pip3 install -U wheel setuptools
@@ -99,6 +92,13 @@ jobs:
           name: Install libpam0g-dev
           command:
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
+      # Use different Go version to build scion-apps
+      - run:
+          name: Install Go 1.20.7 to build scion-apps
+          command: |
+            wget https://go.dev/dl/go1.20.7.linux-amd64.tar.gz
+            sudo rm -rf /usr/local/go
+            sudo tar -C /usr/local -xzf go1.20.7.linux-amd64.tar.gz
       - run:
           name: Integration tests
           command: |
