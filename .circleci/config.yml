@@ -44,8 +44,8 @@ jobs:
           name: Get Go 1.17.3 to build SCION
           command: |
             wget https://go.dev/dl/go1.17.3.linux-amd64.tar.gz
-            mkdir go1.17.3
-            tar -C go1.17.3 --strip-components 1 -xzf go1.17.3.linux-amd64.tar.gz
+            mkdir ~/go1.17.3
+            tar -C ~/go1.17.3 --strip-components 1 -xzf go1.17.3.linux-amd64.tar.gz
       # The following step are shared with netsec-ethz/rains
       - run:
           name: Checkout SCION
@@ -73,7 +73,7 @@ jobs:
 
             cd ~/scion
             for service in "posix-router" "cs" "dispatcher" "scion-pki" "daemon" "co"; do
-              go1.17.3/bin/go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
+              ~/go1.17.3/bin/go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
             done
 
             pip3 install -U wheel setuptools
