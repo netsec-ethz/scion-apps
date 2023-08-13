@@ -16,24 +16,21 @@
 Package pan provides a policy-based, path aware network library for building
 applications supporting SCION natively.
 
-
 The main entry points for applications are:
 
- - DialUDP / ListenUDP
- - DialQUIC / ListenQUIC
+  - DialUDP / ListenUDP
+  - DialQUIC / ListenQUIC
 
 Both forms of the Dial call allow to specify a Policy and a Selector.
 
-
-Policy
+# Policy
 
 A path policy defines the allowed paths and/or a preference order of the paths.
 Policies are generally stateless and, in particular, they don't look for any
 short term information like measured latency or path "liveness".
 Connections allow to change the path policy at any time.
 
-
-Selector
+# Selector
 
 A path selector is a stateful controller associated with a connection/socket.
 It receives the paths filtered by the Policy as an input. For each packet
@@ -45,8 +42,7 @@ Custom selectors implement e.g. active path probing, coupling of multiple
 connections to either use the same path or to use maximally disjoint paths,
 direct performance feedback from the application, etc.
 
-
-Dialed vs Listening
+# Dialed vs Listening
 
 pan differentiates between dialed and listening sockets. Dialed sockets (for
 "clients") define the path policy and a selector. The client side of a connection
@@ -58,24 +54,22 @@ The default reply path selector records a fixed number of paths used by a client
 It normally uses the path last used by the client for replies, but does use other
 recorded paths to try routing around temporarily broken paths.
 
-
-Dispatcher and SCION daemon connections
+# Dispatcher and SCION daemon connections
 
 During the hidden initialisation of this package, the dispatcher and sciond
 connections are opened. The sciond connection determines the local IA.
 The dispatcher and sciond sockets are assumed to be at default locations, but this can
 be overridden using environment variables:
 
-		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
-		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
+	SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
+	SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
 This is convenient for the normal use case of running the endhost stack for a
 single SCION AS. When running multiple local ASes, e.g. during development, the
 address of the sciond corresponding to the desired AS needs to be specified in
 the SCION_DAEMON_ADDRESS environment variable.
 
-
-Wildcard IP Addresses
+# Wildcard IP Addresses
 
 The SCION end host stack does not currently support binding to wildcard addresses.
 This will hopefully be added eventually, but in the meantime this package resolves
@@ -84,21 +78,20 @@ Binding to one specific local IP address, means that the application will not be
 the other IP addresses of the host. Traffic sent will always appear to originate from this specific
 IP address, even if that's not the correct route to a destination in the local AS.
 
-
 Notes
 
- - pan only performs path lookups for destinations requested by the application.
-   Path lookup for an unverified peer could easily be abused for various attacks.
- - Recording the reply path for each peer can be vulnerable to source address spoofing. This
-   can potentially be abused to hijack connections.
-	 The plan is to require source authentication.
- - In order to allow more explicit control over paths for the listening side,
-   plan is to add an explicit "Dial" function to the ListenerConn. There are a
-   few different options for this, and none is particularly great (either
-   awkward API or performance overhead), so deferred until requirements become clearer.
- - To allow isolation of different application "contexts" that need to avoid leaking path usage
-	 information, the plan is to encapsulating the global state of this package in a single object
-	 that can be overridden in the context.Context passed to Dial/Listen.
+  - pan only performs path lookups for destinations requested by the application.
+    Path lookup for an unverified peer could easily be abused for various attacks.
+  - Recording the reply path for each peer can be vulnerable to source address spoofing. This
+    can potentially be abused to hijack connections.
+    The plan is to require source authentication.
+  - In order to allow more explicit control over paths for the listening side,
+    plan is to add an explicit "Dial" function to the ListenerConn. There are a
+    few different options for this, and none is particularly great (either
+    awkward API or performance overhead), so deferred until requirements become clearer.
+  - To allow isolation of different application "contexts" that need to avoid leaking path usage
+    information, the plan is to encapsulating the global state of this package in a single object
+    that can be overridden in the context.Context passed to Dial/Listen.
 */
 package pan
 
@@ -113,10 +106,10 @@ import (
 // If the address is in the form of a hostname, the the following sources will
 // be used to resolve a name, in the given order of precedence.
 //
-//  - /etc/hosts
-//  - /etc/scion/hosts
-//  - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
-//  - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
+//   - /etc/hosts
+//   - /etc/scion/hosts
+//   - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
+//   - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 //
 // Returns HostNotFoundError if none of the sources did resolve the hostname.
 func ResolveUDPAddr(ctx context.Context, address string) (UDPAddr, error) {

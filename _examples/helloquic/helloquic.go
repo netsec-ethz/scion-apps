@@ -24,9 +24,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"github.com/quic-go/quic-go"
 	"inet.af/netaddr"
 )
 
@@ -80,7 +80,7 @@ func runServer(listen netaddr.IPPort) error {
 	}
 }
 
-func workSession(session quic.Session) error {
+func workSession(session quic.Connection) error {
 	for {
 		stream, err := session.AcceptStream(context.Background())
 		if err != nil {

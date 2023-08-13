@@ -17,7 +17,7 @@ sudo apt install scion-apps-*
 
 ### Build:
 
-1. Install go 1.16
+1. Install Go. We currently support Go versions 1.19 and 1.20.
 
     See e.g. https://github.com/golang/go/wiki/Ubuntu
 

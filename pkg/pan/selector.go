@@ -103,8 +103,7 @@ func (s *DefaultSelector) PathDown(pf PathFingerprint, pi PathInterface) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	current := s.paths[s.current]
-	if isInterfaceOnPath(current, pi) || pf == current.Fingerprint {
+	if current := s.paths[s.current]; isInterfaceOnPath(current, pi) || pf == current.Fingerprint {
 		fmt.Println("down:", s.current, len(s.paths))
 		better := stats.FirstMoreAlive(current, s.paths)
 		if better >= 0 {
@@ -275,7 +274,7 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		if err != nil {
 			return
 		}
-		switch e := reply.Error.(type) { // nolint:errorlint
+		switch e := reply.Error.(type) { //nolint:errorlint
 		case ping.InternalConnectivityDownError:
 			pi := PathInterface{
 				IA:   IA(e.IA),

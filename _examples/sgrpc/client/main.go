@@ -9,9 +9,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"github.com/quic-go/quic-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"inet.af/netaddr"
@@ -31,7 +31,7 @@ func NewPanQuicDialer(tlsCfg *tls.Config) func(context.Context, string) (net.Con
 			return nil, err
 		}
 
-		clientQuicConfig := &quic.Config{KeepAlive: true}
+		clientQuicConfig := &quic.Config{KeepAlivePeriod: 15 * time.Second}
 		session, err := pan.DialQUIC(ctx, netaddr.IPPort{}, panAddr, nil, nil, "", tlsCfg, clientQuicConfig)
 		if err != nil {
 			return nil, fmt.Errorf("did not dial: %w", err)

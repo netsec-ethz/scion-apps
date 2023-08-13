@@ -20,8 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -44,14 +44,14 @@ type Dialer struct {
 }
 
 // Dial dials a QUIC connection over SCION.
-func (d *Dialer) Dial(network, addr string, tlsCfg *tls.Config,
-	cfg *quic.Config) (quic.EarlySession, error) {
+func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
+	cfg *quic.Config) (quic.EarlyConnection, error) {
 
-	remote, err := pan.ResolveUDPAddr(context.TODO(), pan.UnmangleSCIONAddr(addr))
+	remote, err := pan.ResolveUDPAddr(ctx, pan.UnmangleSCIONAddr(addr))
 	if err != nil {
 		return nil, err
 	}
-	session, err := pan.DialQUICEarly(context.TODO(), d.Local, remote, d.Policy, nil, addr, tlsCfg, cfg)
+	session, err := pan.DialQUICEarly(ctx, d.Local, remote, d.Policy, nil, addr, tlsCfg, cfg)
 	if err != nil {
 		return nil, err
 	}

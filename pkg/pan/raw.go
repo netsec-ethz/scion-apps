@@ -191,7 +191,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		}
 		pf, err := reversePathFingerprint(pkt.Path.(snet.RawPath))
 		if err != nil { // bad packet, drop silently
-			return nil // nolint:nilerr
+			return nil //nolint:nilerr
 		}
 		// FIXME: can block _all_ connections, call async (or internally async)
 		stats.NotifyPathDown(pf, pi)
@@ -204,7 +204,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		}
 		pf, err := reversePathFingerprint(pkt.Path.(snet.RawPath))
 		if err != nil {
-			return nil // nolint:nilerr
+			return nil //nolint:nilerr
 		}
 		stats.NotifyPathDown(pf, pi)
 		return nil
