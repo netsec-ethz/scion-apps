@@ -387,7 +387,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		destConn, err = net.DialTimeout("tcp", req.Host, 10*time.Second)
 	} else {
 		// CONNECT via SCION
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
 		defer cancel()
 		destConn, err = h.dialer.DialContext(ctx, "", req.Host)
 		if panConn, ok := destConn.(*quicutil.SingleStream); ok {
