@@ -33,6 +33,8 @@ type Conn interface {
 	// ReadVia reads a message and returns the (return-)path via which the
 	// message was received.
 	ReadVia(b []byte) (int, *Path, error)
+
+	GetPath() *Path
 }
 
 // DialUDP opens a SCION/UDP socket, connected to the remote address.
@@ -94,6 +96,10 @@ func (c *dialedConn) SetPolicy(policy Policy) {
 
 func (c *dialedConn) LocalAddr() net.Addr {
 	return c.local
+}
+
+func (c *dialedConn) GetPath() *Path {
+	return c.selector.Path()
 }
 
 func (c *dialedConn) RemoteAddr() net.Addr {

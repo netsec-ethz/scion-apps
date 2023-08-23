@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go"
+
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 var (
@@ -54,11 +56,11 @@ type SingleStreamListener struct {
 
 func (l SingleStreamListener) Accept() (net.Conn, error) {
 	ctx := context.Background()
-	session, err := l.Listener.Accept(ctx)
+	connection, err := l.Listener.Accept(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return NewSingleStream(session)
+	return NewSingleStream(connection)
 }
 
 // SingleStream implements an opaque, bi-directional data stream using QUIC,
@@ -66,11 +68,11 @@ func (l SingleStreamListener) Accept() (net.Conn, error) {
 // A SingleStream is either created by
 //
 //   - on the client side: quic.Dial and then immediately NewSingleStream(sess)
-//     with the obtained session
+//     with the obtained connection
 //   - on the listener side: quic.Listener wrapped in SingleStreamListener, which
 //     returns SingleStream from Accept.
 type SingleStream struct {
-	Session       quic.Connection
+	Connection    quic.Connection
 	sendStream    quic.SendStream
 	receiveStream quic.ReceiveStream
 	readDeadline  time.Time
@@ -78,24 +80,39 @@ type SingleStream struct {
 	onceOK        sync.Once
 }
 
-func NewSingleStream(session quic.Connection) (*SingleStream, error) {
-	sendStream, err := session.OpenUniStream()
+func NewSingleStream(connection quic.Connection) (*SingleStream, error) {
+	sendStream, err := connection.OpenUniStream()
 	if err != nil {
 		return nil, err
 	}
 	return &SingleStream{
-		Session:       session,
+		Connection:    connection,
 		sendStream:    sendStream,
 		receiveStream: nil,
 	}, nil
 }
 
 func (s *SingleStream) LocalAddr() net.Addr {
-	return s.Session.LocalAddr()
+	return s.Connection.LocalAddr()
+}
+
+func (s *SingleStream) GetPath() *pan.Path {
+	if s.Connection == nil {
+		// XXX(JordiSubira): To be refactored when proper support
+		// for retrieving path information.
+		return nil
+	}
+	quicSession, ok := s.Connection.(*pan.QUICSession)
+	if !ok {
+		// XXX(JordiSubira): To be refactored when proper support
+		// for retrieving path information.
+		return nil
+	}
+	return quicSession.Conn.GetPath()
 }
 
 func (s *SingleStream) RemoteAddr() net.Addr {
-	return s.Session.RemoteAddr()
+	return s.Connection.RemoteAddr()
 }
 
 func (s *SingleStream) SetDeadline(t time.Time) error {
@@ -148,7 +165,7 @@ func (s *SingleStream) awaitReceiveStream() error {
 			ctx, cancel = context.WithDeadline(ctx, s.readDeadline)
 			defer cancel()
 		}
-		stream, err := s.Session.AcceptUniStream(ctx)
+		stream, err := s.Connection.AcceptUniStream(ctx)
 		if err != nil {
 			return err
 		}
@@ -162,7 +179,7 @@ func (s *SingleStream) awaitReceiveStream() error {
 
 func (s *SingleStream) sendOKSignal() {
 	s.onceOK.Do(func() {
-		okSignal, err := s.Session.OpenUniStream()
+		okSignal, err := s.Connection.OpenUniStream()
 		if err != nil {
 			return // otherwise ignore error here, what could we do?
 		}
@@ -175,14 +192,14 @@ func (s *SingleStream) awaitOKSignal(ctx context.Context) error {
 	defer s.mutex.Unlock()
 	// ensure we've accepted the actual receive stream first.
 	if s.receiveStream == nil {
-		stream, err := s.Session.AcceptUniStream(ctx)
+		stream, err := s.Connection.AcceptUniStream(ctx)
 		if err != nil {
 			return err
 		}
 		s.receiveStream = stream
 	}
 
-	_, err := s.Session.AcceptUniStream(ctx)
+	_, err := s.Connection.AcceptUniStream(ctx)
 	// We can ignore data arriving in on this stream -- we expect
 	// a single FIN, so a readeading will immediately give EOF.
 	// If that's not what we get, guess we can ignore it.
@@ -220,9 +237,9 @@ func (s *SingleStream) CloseSync(ctx context.Context) error {
 	_ = s.CloseRead()
 	// Await the OK-signal
 	if err := s.awaitOKSignal(ctx); err != nil {
-		return s.Session.CloseWithError(0x101, "shutdown error")
+		return s.Connection.CloseWithError(0x101, "shutdown error")
 	}
-	return s.Session.CloseWithError(0x0, "ok")
+	return s.Connection.CloseWithError(0x0, "ok")
 }
 
 func (s *SingleStream) Close() error {
