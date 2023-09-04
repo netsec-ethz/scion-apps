@@ -15,7 +15,7 @@
 /*
 Package sintegration simplifies the creation of integration tests.
 
-NOTE: this is a copy of github.com/scionproto/scion/go/lib/integration, with some omissions and modifications
+NOTE: this is a copy of github.com/scionproto/scion/tools/integration, with some omissions and modifications
 */
 package sintegration
 
@@ -32,11 +32,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/tools/integration"
 )
 
 const (
@@ -133,7 +133,7 @@ func validateFlags() error {
 		os.Exit(2)
 	}
 	var err error
-	asList, err := util.LoadASList(GenFile("as_list.yml"))
+	asList, err := integration.LoadASList(GenFile("as_list.yml"))
 	if err != nil {
 		return err
 	}

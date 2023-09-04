@@ -33,10 +33,10 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/daemon"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/snet"
 
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
@@ -291,7 +291,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, 
 	ijsonInfo, _ := json.Marshal(ifirs)
 	log.Debug("AsTopoHandler:", "ijsonInfo", string(ijsonInfo))
 
-	svcirs, err := c.SVCInfo(context.Background(), []addr.HostSVC{
+	svcirs, err := c.SVCInfo(context.Background(), []addr.SVC{
 		addr.SvcDS, addr.SvcCS})
 	if CheckError(err) {
 		returnError(w, err)

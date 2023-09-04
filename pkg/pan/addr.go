@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/snet"
 	"inet.af/netaddr"
 )
 
@@ -143,6 +143,8 @@ func MustParseIA(s string) IA {
 // useful for applicications later.
 type scionAddr struct {
 	IA IA
+	// TODO(JordiSubira): decide where and how to convert to netip from
+	// inet.af...
 	IP netaddr.IP
 }
 

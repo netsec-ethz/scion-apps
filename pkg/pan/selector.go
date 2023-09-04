@@ -21,9 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"inet.af/netaddr"
-
 	"github.com/netsec-ethz/scion-apps/pkg/pan/internal/ping"
+	"inet.af/netaddr"
 )
 
 // Selector controls the path used by a single **dialed** socket. Stateful.
@@ -193,7 +192,7 @@ func (s *PingingSelector) ensureRunning() {
 	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
 	local := s.local.snetUDPAddr()
-	pinger, err := ping.NewPinger(s.pingerCtx, host().dispatcher, local)
+	pinger, err := ping.NewPinger(s.pingerCtx, local)
 	if err != nil {
 		return
 	}
@@ -291,10 +290,16 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		return
 	}
 
-	srcIP, _ := netaddr.FromStdIP(reply.Source.Host.IP())
+	var ipAddr netaddr.IP
+	if reply.Source.Host.IP().Is4() {
+		ipAddr = netaddr.IPFrom4(reply.Source.Host.IP().As4())
+	} else {
+		ipAddr = netaddr.IPFrom16(reply.Source.Host.IP().As16())
+	}
+
 	src := scionAddr{
 		IA: IA(reply.Source.IA),
-		IP: srcIP,
+		IP: ipAddr,
 	}
 	if src != s.remote || reply.Reply.SeqNumber != expectedSequenceNo {
 		return

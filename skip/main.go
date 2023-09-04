@@ -39,8 +39,8 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/daemon"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/daemon"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -267,7 +267,7 @@ func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
 }
 
 func isSCIONEnabled(ctx context.Context, host string) (bool, error) {
-	_, err := pan.ResolveUDPAddr(ctx, host)
+	addr, err := pan.ResolveUDPAddr(ctx, host)
 	if err != nil {
 		fmt.Println("verbose: ", err.Error())
 		ok := errors.As(err, &pan.HostNotFoundError{})
@@ -276,6 +276,7 @@ func isSCIONEnabled(ctx context.Context, host string) (bool, error) {
 		}
 		return false, nil
 	}
+	fmt.Printf("%x\n", addr)
 	return true, nil
 }
 
@@ -417,6 +418,7 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		destConn, err = h.dialer.DialContext(ctx, "", req.Host)
 		if panConn, ok := destConn.(*quicutil.SingleStream); ok {
 			pathF = panConn.GetPath
+			fmt.Printf("%s\n", pathF().String())
 		}
 	}
 	if err != nil {

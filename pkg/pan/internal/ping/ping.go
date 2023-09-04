@@ -14,7 +14,7 @@
 
 package ping
 
-// XXX this is copy-pasted & adapted from github.com/scionproto/scion/go/pkg/ping
+// XXX this is copy-pasted & adapted from github.com/scionproto/scion/scion/ping
 // Adapted to allow pinging multiple, changing destination (or one destination over multiple paths)
 // from the same socket.
 // Getting any changes upstreamed is unlikely at the moment as there are no
@@ -26,15 +26,15 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/netip"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/topology/underlay"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 type Pinger struct {
@@ -51,32 +51,30 @@ type Pinger struct {
 }
 
 func NewPinger(ctx context.Context,
-	dispatcher reliable.Dispatcher,
 	local *snet.UDPAddr,
 ) (*Pinger, error) {
 
 	id := rand.Uint64()
 	replies := make(chan Reply, 10)
 
-	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher: dispatcher,
+	connector := snet.DefaultConnector{
 		SCMPHandler: scmpHandler{
 			id:      uint16(id),
 			replies: replies,
 		},
 	}
-	conn, port, err := svc.Register(ctx, local.IA, local.Host, addr.SvcNone)
+	conn, err := connector.OpenUDP(local.Host)
 	if err != nil {
 		return nil, err
 	}
 
 	local = local.Copy()
-	local.Host.Port = int(port)
+	local.Host.Port = conn.LocalAddr().(*net.UDPAddr).Port
 
 	return &Pinger{
 		Replies:    replies,
 		errHandler: nil,
-		id:         id,
+		id:         uint64(local.Host.Port),
 		conn:       conn,
 		local:      local,
 		pld:        make([]byte, 8), // min payload size
@@ -216,15 +214,19 @@ func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, 
 	if _, ok := remote.Path.(path.Empty); (remote.Path == nil || ok) && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
+	a, ok := netip.AddrFromSlice(remote.Host.IP)
+	if !ok {
+		return nil, serrors.New("casting addr IP", "ip", remote.Host.IP)
+	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   remote.IA,
-				Host: addr.HostFromIP(remote.Host.IP),
+				Host: addr.HostIP(a),
 			},
 			Source: snet.SCIONAddress{
 				IA:   local.IA,
-				Host: addr.HostFromIP(local.Host.IP),
+				Host: addr.HostIP(a),
 			},
 			Path:    remote.Path,
 			Payload: req,

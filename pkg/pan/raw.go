@@ -18,35 +18,33 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/snet"
-	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/topology/underlay"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/topology/underlay"
 	"inet.af/netaddr"
 )
 
 // openBaseUDPConn opens new raw SCION UDP conn.
 func openBaseUDPConn(ctx context.Context, local netaddr.IPPort) (snet.PacketConn, UDPAddr, error) {
-	dispatcher := host().dispatcher
-	ia := host().ia
 
-	rconn, port, err := dispatcher.Register(ctx, addr.IA(ia), local.UDPAddr(), addr.SvcNone)
+	conn, err := (&snet.DefaultConnector{
+		SCMPHandler: scmpHandler{},
+	}).OpenUDP(local.UDPAddr())
 	if err != nil {
 		return nil, UDPAddr{}, err
 	}
-	conn := &snet.SCIONPacketConn{
-		Conn:        rconn,
-		SCMPHandler: scmpHandler{},
-	}
 	slocal := UDPAddr{
-		IA:   ia,
+		IA:   host().ia,
 		IP:   local.IP(),
-		Port: port,
+		Port: uint16(conn.LocalAddr().(*net.UDPAddr).Port),
 	}
 	return conn, slocal, nil
 }
@@ -102,16 +100,25 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		c.writeBuffer = make([]byte, common.SupportedMTU)
 	}
 
+	srcIP, ok := netip.AddrFromSlice(src.IP.IPAddr().IP)
+	if !ok {
+		return 0, serrors.New("casting addr IP", "ip", src.IP.IPAddr().IP)
+	}
+	dstIP, ok := netip.AddrFromSlice(dst.IP.IPAddr().IP)
+	if !ok {
+		return 0, serrors.New("casting addr IP", "ip", dst.IP.IPAddr().IP)
+	}
+
 	pkt := &snet.Packet{
 		Bytes: c.writeBuffer,
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   addr.IA(src.IA),
-				Host: addr.HostFromIP(src.IP.IPAddr().IP),
+				Host: addr.HostIP(srcIP),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   addr.IA(dst.IA),
-				Host: addr.HostFromIP(dst.IP.IPAddr().IP),
+				Host: addr.HostIP(dstIP),
 			},
 			Path: dataplanePath,
 			Payload: snet.UDPPayload{
@@ -152,7 +159,7 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 		if !ok {
 			continue // ignore non-UDP packet
 		}
-		srcIP, ok := netaddr.FromStdIP(pkt.Source.Host.IP())
+		srcIP, ok := netaddr.FromStdIP(pkt.Source.Host.IP().AsSlice())
 		if !ok {
 			continue // ignore non-IP destination
 		}
@@ -209,7 +216,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		stats.NotifyPathDown(pf, pi)
 		return nil
 	default:
-		ip, _ := netaddr.FromStdIP(pkt.Source.Host.IP())
+		ip, _ := netaddr.FromStdIP(pkt.Source.Host.IP().AsSlice())
 		return SCMPError{
 			typeCode: slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
 			ErrorIA:  IA(pkt.Source.IA),

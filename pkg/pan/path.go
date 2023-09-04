@@ -19,10 +19,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/snet"
-	snetpath "github.com/scionproto/scion/go/lib/snet/path"
+	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"inet.af/netaddr"
 )
 
