@@ -40,6 +40,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -49,6 +50,7 @@ import (
 
 var (
 	mungedScionAddr = regexp.MustCompile(`^(\d+)-([_\dA-Fa-f]+)-(.*)$`)
+	localIA         addr.IA
 )
 
 const (
@@ -64,7 +66,6 @@ var pathStats = PathUsageStats{
 }
 
 type PathUsage struct {
-	path     pan.Path
 	Received int64
 	Path     string
 	Strategy string
@@ -88,8 +89,20 @@ type skipPACTemplateParams struct {
 
 func main() {
 	var bindAddress *net.TCPAddr
+	var err error
 	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	daemon, err := findSciond(ctx)
+	if err != nil {
+		fmt.Printf("Cannot connect to SCION Daemon: %s\n", err)
+	}
+	localIA, err = daemon.LocalIA(ctx)
+	if err != nil {
+		fmt.Printf("Parsing local IA: %s\n", err)
+	}
 
 	transport, dialer := shttp.NewTransport(nil, nil)
 
@@ -127,6 +140,18 @@ func main() {
 		Handler: handlers.LoggingHandler(os.Stdout, handler),
 	}
 	log.Fatal(server.ListenAndServe())
+}
+
+func findSciond(ctx context.Context) (daemon.Connector, error) {
+	address, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
+	if !ok {
+		address = daemon.DefaultAPIAddress
+	}
+	sciondConn, err := daemon.NewService(address).Connect(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", address, err)
+	}
+	return sciondConn, nil
 }
 
 func handlePathUsageRequest(w http.ResponseWriter, req *http.Request) {
@@ -422,11 +447,10 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func pathToShortPath(path *pan.Path) string {
-	if path == nil {
-		return ""
-	}
-	if len(path.Metadata.Interfaces) == 0 {
-		return ""
+	if path == nil || path.Metadata == nil || len(path.Metadata.Interfaces) == 0 {
+		// TODO(JordiSubira): At the moment, treat all these cases as empty path.
+		// For visualization purposes we show the local IA.
+		return localIA.String()
 	}
 	b := &strings.Builder{}
 	intf := path.Metadata.Interfaces[0]
@@ -452,7 +476,6 @@ func transfer(dst io.WriteCloser, src io.ReadCloser, pathF func() *pan.Path, dom
 		pu, ok := pathStats.data[domain]
 		if !ok {
 			pathUsage = &PathUsage{
-				path:     *path,
 				Received: 0,
 				Strategy: "Shortest Path", // TODO: This may be configured by the user
 				Path:     pathToShortPath(path),

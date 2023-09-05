@@ -59,10 +59,10 @@ func DialUDP(ctx context.Context, local netaddr.IPPort, remote UDPAddr,
 		return nil, err
 	}
 	var subscriber *pathRefreshSubscriber
+	if selector == nil {
+		selector = NewDefaultSelector()
+	}
 	if remote.IA != slocal.IA {
-		if selector == nil {
-			selector = NewDefaultSelector()
-		}
 		subscriber, err = openPathRefreshSubscriber(ctx, slocal, remote, policy, selector)
 		if err != nil {
 			return nil, err

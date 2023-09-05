@@ -68,7 +68,7 @@ func (s *DefaultSelector) Path() *Path {
 	defer s.mutex.Unlock()
 
 	if len(s.paths) == 0 {
-		return nil
+		return &Path{}
 	}
 	return s.paths[s.current]
 }
