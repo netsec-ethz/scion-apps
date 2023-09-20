@@ -40,7 +40,7 @@ func main() {
 	flag.Parse()
 
 	if (listen.Get().Port() > 0) == (len(*remoteAddr) > 0) {
-		check(fmt.Errorf("either specify -port for server or -remote for client"))
+		check(fmt.Errorf("either specify -listen for server or -remote for client"))
 	}
 
 	if listen.Get().Port() > 0 {

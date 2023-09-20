@@ -6,7 +6,7 @@ entire stream content and echos it back to the client.
 
 Server:
 ```
-go run helloquic.go -port 1234
+go run helloquic.go -listen 127.0.0.1:1234
 ```
 
 Client:
