@@ -116,6 +116,9 @@ func main() {
 	policyHandler := &policyHandler{
 		output: dialer,
 	}
+	errorHandler := &errorHandler{
+		dialer: dialer,
+	}
 
 	mux := http.NewServeMux()
 	apiMux := http.NewServeMux()
@@ -126,6 +129,7 @@ func main() {
 
 	apiMux.HandleFunc("/resolve", handleHostResolutionRequest)
 	apiMux.Handle("/setPolicy", policyHandler)
+	apiMux.Handle("/error", errorHandler)
 
 	mux.Handle("localhost/", apiMux)
 	if bindAddress.IP != nil {
@@ -236,6 +240,45 @@ func handleRedirectBackOrError(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, url.String(), http.StatusMovedPermanently)
 }
 
+type errorHandler struct {
+	dialer *shttp.Dialer
+}
+
+func (h *errorHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	if req.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	q := req.URL.Query()
+
+	urls, ok := q["url"]
+	if !ok || len(urls) != 1 {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	url, err := url.Parse(urls[0])
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	hostPort := url.Host + ":0"
+
+	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
+	defer cancel()
+	_, err = h.dialer.DialContext(ctx, "", hostPort)
+
+	buf := &bytes.Buffer{}
+
+	w.WriteHeader(http.StatusOK)
+	buf.WriteString(err.Error())
+	_, _ = w.Write(buf.Bytes())
+
+}
+
 // handleHostResolutionRequest parses requests in the form: /resolve?host=XXX
 // If the PAN lib cannot resolve the host, it sends back an empty response.
 func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
@@ -264,20 +307,6 @@ func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
 	buf.WriteString(strings.TrimRight(res.String(), ":0"))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(buf.Bytes())
-}
-
-func isSCIONEnabled(ctx context.Context, host string) (bool, error) {
-	addr, err := pan.ResolveUDPAddr(ctx, host)
-	if err != nil {
-		fmt.Println("verbose: ", err.Error())
-		ok := errors.As(err, &pan.HostNotFoundError{})
-		if !ok {
-			return false, err
-		}
-		return false, nil
-	}
-	fmt.Printf("%x\n", addr)
-	return true, nil
 }
 
 type policyHandler struct {
@@ -386,6 +415,19 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
+func isSCIONEnabled(ctx context.Context, host string) (bool, error) {
+	_, err := pan.ResolveUDPAddr(ctx, host)
+	if err != nil {
+		fmt.Println("verbose: ", err.Error())
+		ok := errors.As(err, &pan.HostNotFoundError{})
+		if !ok {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
 // interceptConnect creates a handler that calls the handler connect for the
 // CONNECT method and otherwise the next handler.
 func interceptConnect(connect, next http.Handler) http.HandlerFunc {
@@ -416,9 +458,14 @@ func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
 		defer cancel()
 		destConn, err = h.dialer.DialContext(ctx, "", req.Host)
+		if err != nil {
+			fmt.Println("verbose: ", err.Error())
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
 		if panConn, ok := destConn.(*quicutil.SingleStream); ok {
 			pathF = panConn.GetPath
-			fmt.Printf("%s\n", pathF().String())
+			fmt.Printf("%s\n", pathToShortPath(pathF()))
 		}
 	}
 	if err != nil {
