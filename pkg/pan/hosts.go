@@ -19,14 +19,16 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime"
 	"strconv"
 )
 
 var (
-	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
-	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
-	resolveRains         resolver = nil
-	resolveDNSTxt        resolver = &dnsResolver{net.DefaultResolver}
+	resolveEtcHosts        resolver = &hostsfileResolver{"/etc/hosts"}
+	resolveEtcScionHosts   resolver = &hostsfileResolver{"/etc/scion/hosts"}
+	resolveWindowsEtcHosts resolver = &hostsfileResolver{"C:\\Windows\\System32\\drivers\\etc\\hosts"}
+	resolveRains           resolver = nil
+	resolveDNSTxt          resolver = &dnsResolver{net.DefaultResolver}
 )
 
 // resolveUDPAddrAt parses the address and resolves the hostname.
@@ -62,8 +64,12 @@ func resolveUDPAddrAt(ctx context.Context, address string, resolver resolver) (U
 //   - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
 //   - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 func defaultResolver() resolver {
+	etcResolver := resolveEtcHosts
+	if runtime.GOOS == "windows" {
+		etcResolver = resolveWindowsEtcHosts
+	}
 	return resolverList{
-		resolveEtcHosts,
+		etcResolver,
 		resolveEtcScionHosts,
 		resolveRains,
 		resolveDNSTxt,
