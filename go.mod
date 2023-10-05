@@ -21,3 +21,5 @@ require (
 )
 
 replace github.com/scionproto/scion => ../scion
+
+replace github.com/quic-go/quic-go => ../quic-go
