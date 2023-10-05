@@ -28,12 +28,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
-
 	"github.com/netsec-ethz/scion-apps/pkg/integration/sintegration"
+
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 var _ sintegration.Integration = (*ScionAppsIntegration)(nil)

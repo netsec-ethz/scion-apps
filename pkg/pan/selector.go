@@ -291,10 +291,16 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		return
 	}
 
-	srcIP, _ := netaddr.FromStdIP(reply.Source.Host.IP())
+	var ipAddr netaddr.IP
+	if reply.Source.Host.IP().Is4() {
+		ipAddr = netaddr.IPFrom4(reply.Source.Host.IP().As4())
+	} else {
+		ipAddr = netaddr.IPFrom16(reply.Source.Host.IP().As16())
+	}
+
 	src := scionAddr{
 		IA: IA(reply.Source.IA),
-		IP: srcIP,
+		IP: ipAddr,
 	}
 	if src != s.remote || reply.Reply.SeqNumber != expectedSequenceNo {
 		return

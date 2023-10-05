@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/snet"
 	"inet.af/netaddr"
 )
 

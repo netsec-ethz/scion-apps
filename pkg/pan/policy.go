@@ -19,10 +19,10 @@ import (
 	"net"
 	"sort"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/private/path/pathpol"
 )
 
 // Policy is a stateless filter / sorter for paths.
@@ -183,6 +183,7 @@ type snetPathWrapper struct {
 func (p snetPathWrapper) UnderlayNextHop() *net.UDPAddr { panic("not implemented") }
 
 func (p snetPathWrapper) Dataplane() snet.DataplanePath { panic("not implemented") }
+func (p snetPathWrapper) Source() addr.IA               { panic("not implemented") }
 func (p snetPathWrapper) Destination() addr.IA          { panic("not implemented") }
 func (p snetPathWrapper) Copy() snet.Path               { panic("not implemented") }
 

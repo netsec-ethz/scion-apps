@@ -18,11 +18,11 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
+	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/private/pathdb"
 
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
