@@ -20,6 +20,6 @@ require (
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a
 )
 
-replace github.com/scionproto/scion => ../scion
+replace github.com/scionproto/scion => github.com/JordiSubira/scion v0.0.0-20230929122504-d81d71f45ae7
 
-replace github.com/quic-go/quic-go => ../quic-go
+replace github.com/quic-go/quic-go => github.com/Anapaya/quic-go v0.0.0-20231005124504-64d65d12c148
