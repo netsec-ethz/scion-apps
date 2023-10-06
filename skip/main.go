@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
+	"github.com/quic-go/quic-go"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -104,7 +105,11 @@ func main() {
 		fmt.Printf("Parsing local IA: %s\n", err)
 	}
 
-	transport, dialer := shttp.NewTransport(nil, nil)
+	quicCfg := &quic.Config{
+		Versions: []quic.VersionNumber{quicutil.VersionSCIONExperimental},
+	}
+
+	transport, dialer := shttp.NewTransport(quicCfg, nil)
 
 	proxy := &proxyHandler{
 		transport: transport,
