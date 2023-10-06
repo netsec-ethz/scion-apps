@@ -20,4 +20,4 @@ require (
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a
 )
 
-replace github.com/scionproto/scion => ../scion
+replace github.com/scionproto/scion => github.com/JordiSubira/scion v0.0.0-20230929122504-d81d71f45ae7
