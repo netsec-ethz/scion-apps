@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
+	"github.com/quic-go/quic-go"
 	"github.com/scionproto/scion/pkg/addr"
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -91,7 +92,11 @@ func main() {
 	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
 
-	transport, dialer := shttp.NewTransport(nil, nil)
+	quicCfg := &quic.Config{
+		Versions: []quic.VersionNumber{quicutil.VersionSCIONExperimental},
+	}
+
+	transport, dialer := shttp.NewTransport(quicCfg, nil)
 
 	proxy := &proxyHandler{
 		transport: transport,
