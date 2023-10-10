@@ -92,6 +92,12 @@ func main() {
 	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
 
+	// XXX(JordiSubira): The SCIONExperimental version is intended to be used
+	// under any contricated network deployment. Keep in mind, that the remote
+	// server should also supported.
+	// If trying to contact a server without this version, the version on the
+	// client should be consistent with it.
+	// TODO(JordiSubira): Do this configurable.
 	quicCfg := &quic.Config{
 		Versions: []quic.VersionNumber{quicutil.VersionSCIONExperimental},
 	}

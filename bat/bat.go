@@ -37,7 +37,9 @@ import (
 	"strings"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
+	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	"github.com/quic-go/quic-go"
 )
 
 const (
@@ -108,7 +110,18 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defaultSetting.Transport, _ = shttp.NewTransport(nil, policy)
+
+	// XXX(JordiSubira): The SCIONExperimental version is intended to be used
+	// under any contricated network deployment. Keep in mind, that the remote
+	// server should also supported.
+	// If trying to contact a server without this version, the version on the
+	// client should be consistent with it.
+	// TODO(JordiSubira): Do this configurable.
+	quicCfg := &quic.Config{
+		Versions: []quic.VersionNumber{quicutil.VersionSCIONExperimental},
+	}
+
+	defaultSetting.Transport, _ = shttp.NewTransport(quicCfg, policy)
 }
 
 func parsePrintOption(s string) {
