@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
+	"github.com/quic-go/quic-go"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -102,6 +103,8 @@ func main() {
 	localIA, err = daemon.LocalIA(ctx)
 	if err != nil {
 		fmt.Printf("Parsing local IA: %s\n", err)
+		return
+	}
 	// XXX(JordiSubira): The SCIONExperimental version is intended to be used
 	// under any contricated network deployment. Keep in mind, that the remote
 	// server should also supported.
