@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/stretchr/testify/assert"
 )
 

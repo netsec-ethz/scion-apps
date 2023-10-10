@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/snet"
-	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/topology/underlay"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/topology/underlay"
 	"inet.af/netaddr"
 )
 

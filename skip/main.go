@@ -39,7 +39,7 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
-	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/pkg/addr"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"

@@ -28,13 +28,13 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/topology/underlay"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/pkg/sock/reliable"
+	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 type Pinger struct {

@@ -19,10 +19,10 @@ import (
 	"net"
 	"sort"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/private/path/pathpol"
 )
 
 // Policy is a stateless filter / sorter for paths.

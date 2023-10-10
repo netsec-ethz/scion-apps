@@ -30,7 +30,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 	"github.com/pelletier/go-toml"
-	"github.com/scionproto/scion/go/lib/daemon"
+	"github.com/scionproto/scion/pkg/daemon"
 
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
