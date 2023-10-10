@@ -102,17 +102,17 @@ func main() {
 	localIA, err = daemon.LocalIA(ctx)
 	if err != nil {
 		fmt.Printf("Parsing local IA: %s\n", err)
+	// XXX(JordiSubira): The SCIONExperimental version is intended to be used
+	// under any contricated network deployment. Keep in mind, that the remote
+	// server should also supported.
+	// If trying to contact a server without this version, the version on the
+	// client should be consistent with it.
+	// TODO(JordiSubira): Do this configurable.
+	quicCfg := &quic.Config{
+		Versions: []quic.VersionNumber{quicutil.VersionSCIONExperimental},
 	}
 
-	// XXX(JordiSubira): This configuration seems a bit problematic
-	// for compatibility with servers using quicutil.Version1, instead
-	// of VersionSCIONExperimental.
-	//
-	// quicCfg := &quic.Config{
-	// 	Versions: []quic.VersionNumber{quicutil.VersionSCIONExperimental},
-	// }
-
-	transport, dialer := shttp.NewTransport(nil, nil)
+	transport, dialer := shttp.NewTransport(quicCfg, nil)
 
 	proxy := &proxyHandler{
 		transport: transport,

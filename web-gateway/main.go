@@ -166,7 +166,10 @@ func listen(laddr netaddr.IPPort) (quic.Listener, error) {
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
 	quicCfg := &quic.Config{
-		Versions: []quic.VersionNumber{quicutil.VersionSCIONExperimental},
+		Versions: []quic.VersionNumber{
+			quic.Version1,
+			quicutil.VersionSCIONExperimental,
+		},
 	}
 	return pan.ListenQUIC(context.Background(), laddr, nil, tlsCfg, quicCfg)
 }
