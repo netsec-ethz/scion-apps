@@ -21,4 +21,4 @@ require (
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a
 )
 
-replace github.com/netsec-ethz/rains => ../rains/
+// replace github.com/netsec-ethz/rains => ../rains/
