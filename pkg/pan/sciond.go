@@ -196,8 +196,8 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			continue // ignore bad next hop
 		}
 		paths[i] = &Path{
-			Source:      h.ia,
-			Destination: dst,
+			source:      h.ia,
+			destination: dst,
 			Metadata:    metadata,
 			Fingerprint: pathSequenceFromInterfaces(metadata.Interfaces).Fingerprint(),
 			Expiry:      snetMetadata.Expiry,

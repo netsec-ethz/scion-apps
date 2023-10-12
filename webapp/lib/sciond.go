@@ -291,7 +291,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, 
 	ijsonInfo, _ := json.Marshal(ifirs)
 	log.Debug("AsTopoHandler:", "ijsonInfo", string(ijsonInfo))
 
-	svcirs, err := c.SVCInfo(context.Background(), []addr.HostSVC{
+	svcirs, err := c.SVCInfo(context.Background(), []addr.SVC{
 		addr.SvcDS, addr.SvcCS})
 	if CheckError(err) {
 		returnError(w, err)

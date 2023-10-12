@@ -35,8 +35,8 @@ import (
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/pkg/private/util"
 	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/tools/integration"
 )
 
 const (
@@ -133,7 +133,7 @@ func validateFlags() error {
 		os.Exit(2)
 	}
 	var err error
-	asList, err := util.LoadASList(GenFile("as_list.yml"))
+	asList, err := integration.LoadASList(GenFile("as_list.yml"))
 	if err != nil {
 		return err
 	}

@@ -80,10 +80,10 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 	if src.IA != dst.IA && path == nil {
 		panic("writeMsg: need path when src.IA != dst.IA")
 	}
-	if path != nil && src.IA != path.Source {
+	if path != nil && src.IA != path.Source() {
 		panic("writeMsg: src.IA != path.Source")
 	}
-	if path != nil && dst.IA != path.Destination {
+	if path != nil && dst.IA != path.Destination() {
 		panic("writeMsg: dst.IA != path.Destination")
 	}
 
@@ -107,11 +107,11 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   addr.IA(src.IA),
-				Host: addr.HostFromIP(src.IP.IPAddr().IP),
+				Host: addr.MustParseHost(src.IP.IPAddr().IP.String()),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   addr.IA(dst.IA),
-				Host: addr.HostFromIP(dst.IP.IPAddr().IP),
+				Host: addr.MustParseHost(dst.IP.IPAddr().IP.String()),
 			},
 			Path: dataplanePath,
 			Payload: snet.UDPPayload{
@@ -152,8 +152,8 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 		if !ok {
 			continue // ignore non-UDP packet
 		}
-		srcIP, ok := netaddr.FromStdIP(pkt.Source.Host.IP())
-		if !ok {
+		srcIP, err := netaddr.ParseIP(pkt.Source.Host.IP().String())
+		if err != nil {
 			continue // ignore non-IP destination
 		}
 		remote := UDPAddr{
@@ -209,7 +209,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		stats.NotifyPathDown(pf, pi)
 		return nil
 	default:
-		ip, _ := netaddr.FromStdIP(pkt.Source.Host.IP())
+		ip, _ := netaddr.ParseIP(pkt.Source.Host.IP().String())
 		return SCMPError{
 			typeCode: slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
 			ErrorIA:  IA(pkt.Source.IA),

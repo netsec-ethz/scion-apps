@@ -325,7 +325,7 @@ func (c connectedPacketConn) RemoteAddr() net.Addr {
 
 // initializedReplySelector creates a pan.DefaultReplySelector, initialized with path for dst.
 func initializedReplySelector(remote pan.UDPAddr, path *pan.Path) pan.ReplySelector {
-	if path != nil && path.Destination != remote.IA {
+	if path != nil && path.Destination() != remote.IA {
 		panic("path destination should match address")
 	}
 	selector := pan.NewDefaultReplySelector()

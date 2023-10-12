@@ -220,11 +220,11 @@ func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, 
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   remote.IA,
-				Host: addr.HostFromIP(remote.Host.IP),
+				Host: addr.MustParseHost(remote.Host.IP.String()),
 			},
 			Source: snet.SCIONAddress{
 				IA:   local.IA,
-				Host: addr.HostFromIP(local.Host.IP),
+				Host: addr.MustParseHost(local.Host.IP.String()),
 			},
 			Path:    remote.Path,
 			Payload: req,

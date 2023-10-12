@@ -160,7 +160,7 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 	}
 }
 
-func listen(laddr netaddr.IPPort) (quic.Listener, error) {
+func listen(laddr netaddr.IPPort) (*quic.Listener, error) {
 	tlsCfg := &tls.Config{
 		NextProtos:   []string{quicutil.SingleStreamProto},
 		Certificates: quicutil.MustGenerateSelfSignedCert(),

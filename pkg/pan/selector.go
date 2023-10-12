@@ -291,7 +291,8 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		return
 	}
 
-	srcIP, _ := netaddr.FromStdIP(reply.Source.Host.IP())
+	// TODO: Check if there is a better way to convert this
+	srcIP, _ := netaddr.ParseIP(reply.Source.Host.IP().String())
 	src := scionAddr{
 		IA: IA(reply.Source.IA),
 		IP: srcIP,

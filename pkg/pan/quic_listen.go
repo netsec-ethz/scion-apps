@@ -26,11 +26,11 @@ import (
 // closerListener is a wrapper around quic.Listener that always closes the
 // underlying conn when closing the session.
 type closerListener struct {
-	quic.Listener
+	*quic.Listener
 	conn net.PacketConn
 }
 
-func (l closerListener) Close() error {
+func (l *closerListener) Close() error {
 	err := l.Listener.Close()
 	l.conn.Close()
 	return err
@@ -40,7 +40,7 @@ func (l closerListener) Close() error {
 //
 // See note on wildcard addresses in the package documentation.
 func ListenQUIC(ctx context.Context, local netaddr.IPPort, selector ReplySelector,
-	tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
+	tlsConf *tls.Config, quicConfig *quic.Config) (*quic.Listener, error) {
 
 	conn, err := ListenUDP(ctx, local, selector)
 	if err != nil {
@@ -55,8 +55,9 @@ func ListenQUIC(ctx context.Context, local netaddr.IPPort, selector ReplySelecto
 		conn.Close()
 		return nil, err
 	}
-	return closerListener{
-		Listener: listener,
-		conn:     conn,
-	}, nil
+	//return closerListener{
+	//	Listener: listener,
+	//	conn:     conn,
+	//}, nil
+	return listener, nil
 }
