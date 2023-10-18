@@ -55,9 +55,5 @@ func ListenQUIC(ctx context.Context, local netaddr.IPPort, selector ReplySelecto
 		conn.Close()
 		return nil, err
 	}
-	//return closerListener{
-	//	Listener: listener,
-	//	conn:     conn,
-	//}, nil
 	return listener, nil
 }
