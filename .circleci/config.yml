@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: cimg/go:1.20
+      - image: cimg/go:1.21
     steps:
       - run:
           name: Go version
@@ -94,11 +94,11 @@ jobs:
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
       # Use different Go version to build scion-apps
       - run:
-          name: Install Go 1.20.7 to build scion-apps
+          name: Install Go 1.21.3 to build scion-apps
           command: |
-            wget https://go.dev/dl/go1.20.7.linux-amd64.tar.gz
+            wget https://go.dev/dl/go1.21.3.linux-amd64.tar.gz
             sudo rm -rf /usr/local/go
-            sudo tar -C /usr/local -xzf go1.20.7.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go1.21.3.linux-amd64.tar.gz
       - run:
           name: Integration tests
           command: |
