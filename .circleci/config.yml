@@ -65,7 +65,7 @@ jobs:
             - v2-integration-pkg-cache-
       - run:
           name: Build SCION services and install python3 dependencies
-          command:
+          command: |
             cd ~/scion
             for service in "router" "control" "dispatcher" "scion-pki" "daemon"; do
               go build -o ./bin/ ./${service}/cmd/${service} && echo "Built ${service}";
