@@ -16,7 +16,7 @@ package ssh
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/msteinert/pam"
 	"golang.org/x/crypto/ssh"
@@ -52,7 +52,7 @@ func (s *Server) PasswordAuth(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions
 func loadAuthorizedKeys(file string) (map[string]bool, error) {
 	authKeys := make(map[string]bool)
 
-	authorizedKeysBytes, err := ioutil.ReadFile(file)
+	authorizedKeysBytes, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}

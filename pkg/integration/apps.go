@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -168,7 +167,7 @@ func (sai *ScionAppsIntegration) initLogDir(name string) error {
 	if err != nil {
 		log.Error("Failed to create log folder for testrun", "dir", tmpDir, "err", err)
 	}
-	logDir, err := ioutil.TempDir(tmpDir, strings.ReplaceAll(name, "/", "_"))
+	logDir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(name, "/", "_"))
 	if err != nil {
 		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
 		return err

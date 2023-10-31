@@ -20,7 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"time"
 
@@ -87,7 +87,7 @@ func workSession(session quic.Connection) error {
 			return err
 		}
 		defer stream.Close()
-		data, err := ioutil.ReadAll(stream)
+		data, err := io.ReadAll(stream)
 		if err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func runClient(address string, count int) error {
 			return err
 		}
 		stream.Close()
-		reply, err := ioutil.ReadAll(stream)
+		reply, err := io.ReadAll(stream)
 		if err != nil {
 			return err
 		}

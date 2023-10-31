@@ -16,8 +16,8 @@ package ssh
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"strconv"
 
 	log "github.com/inconshreveable/log15"
@@ -54,7 +54,7 @@ func Create(config *serverconfig.ServerConfig, version string) (*Server, error) 
 		//ServerVersion: fmt.Sprintf("SCION-ssh-server-v%s", version),
 	}
 
-	privateBytes, err := ioutil.ReadFile(utils.ParsePath(config.HostKey))
+	privateBytes, err := os.ReadFile(utils.ParsePath(config.HostKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed loading private key: %w", err)
 	}

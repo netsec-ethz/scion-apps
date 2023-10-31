@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -217,7 +216,7 @@ func copyDBToTemp(filename string) (string, error) {
 		}
 		return nil
 	}
-	dirName, err := ioutil.TempDir("/tmp", "sciond_dump")
+	dirName, err := os.MkdirTemp("/tmp", "sciond_dump")
 	if err != nil {
 		return "", err
 	}
@@ -355,7 +354,7 @@ func loadJSONFiles(files []string) ([]byte, error) {
 	idx := 0
 	var jsonBuf []byte
 	for _, file := range files {
-		raw, err := ioutil.ReadFile(file)
+		raw, err := os.ReadFile(file)
 		if err != nil {
 			return nil, err
 		}
@@ -398,7 +397,7 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			defer resp.Body.Close()
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 			cConfig = string(body)
 		}
 		log.Debug("ConfigHandler:", "cached", cConfig)
@@ -422,7 +421,7 @@ func LabelsHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			defer resp.Body.Close()
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 			cLabels = string(body)
 		}
 		log.Debug("LabelsHandler:", "cached", cLabels)
@@ -446,7 +445,7 @@ func LocationsHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			defer resp.Body.Close()
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 			cNodes = string(body)
 		}
 		log.Debug("LocationsHandler:", "cached", cNodes)
@@ -473,7 +472,7 @@ func GeolocateHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			defer resp.Body.Close()
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 			cGeoLoc = string(body)
 		}
 		log.Debug("GeolocateHandler:", "cached", cGeoLoc)
@@ -486,7 +485,7 @@ func loadTestFile(testpath string) []byte {
 	srcpath := path.Dir(srcfile)
 
 	var fp = path.Join(srcpath, "..", testpath)
-	raw, err := ioutil.ReadFile(fp)
+	raw, err := os.ReadFile(fp)
 	CheckError(err)
 	return raw
 }

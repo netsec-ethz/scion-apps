@@ -25,7 +25,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -228,7 +227,7 @@ func ExtractUniqueDsts(pairs []IAPair) []*snet.UDPAddr {
 }
 
 func GetSCIONDAddresses(networksFile string) (map[string]string, error) {
-	b, err := ioutil.ReadFile(networksFile)
+	b, err := os.ReadFile(networksFile)
 	if err != nil {
 		return nil, err
 	}

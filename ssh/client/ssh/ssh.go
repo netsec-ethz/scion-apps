@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -257,7 +256,7 @@ func loadPrivateKey(filePath string) (ssh.AuthMethod, error) {
 		return nil, err
 	}
 
-	key, err := ioutil.ReadFile(absolutePath)
+	key, err := os.ReadFile(absolutePath)
 	if err != nil {
 		return nil, err
 	}

@@ -17,7 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -80,7 +80,7 @@ func printResponse(resp *http.Response) {
 	fmt.Println("Protocol:", resp.Proto)
 	fmt.Println("Content-Length: ", resp.ContentLength)
 	fmt.Println("Content-Type: ", resp.Header.Get("Content-Type"))
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Print(err)
 	}
