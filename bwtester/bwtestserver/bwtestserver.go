@@ -20,10 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -42,7 +42,7 @@ func main() {
 	bwtest.Check(err)
 }
 
-func runServer(listen netaddr.IPPort) error {
+func runServer(listen netip.AddrPort) error {
 	receivePacketBuffer := make([]byte, 2500)
 
 	var currentBwtest string
@@ -139,7 +139,7 @@ func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 	// Data Connection addresses:
 	clientDCAddr := clientCCAddr
 	clientDCAddr.Port = clientBwp.Port
-	serverDCAddr := netaddr.IPPortFrom(serverCCAddr.IP, serverBwp.Port)
+	serverDCAddr := netip.AddrPortFrom(serverCCAddr.IP, serverBwp.Port)
 
 	// Open Data Connection
 	dcSelector := initializedReplySelector(clientDCAddr, path)
@@ -286,7 +286,7 @@ func (r resultsMap) purgeExpired() {
 	}
 }
 
-func listenConnected(local netaddr.IPPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
+func listenConnected(local netip.AddrPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
 	conn, err := pan.ListenUDP(context.Background(), local, selector)
 	return connectedPacketConn{
 		ListenConn: conn,

@@ -8,7 +8,6 @@ require (
 	github.com/netsec-ethz/scion-apps v0.5.0
 	github.com/quic-go/quic-go v0.38.1
 	google.golang.org/grpc v1.57.2
-	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a
 )
 
 require (
@@ -50,8 +49,6 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
-	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/mod v0.10.0 // indirect

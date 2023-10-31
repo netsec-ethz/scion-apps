@@ -17,11 +17,11 @@ package ssh
 import (
 	"context"
 	"crypto/tls"
+	"net/netip"
 	"time"
 
 	"github.com/quic-go/quic-go"
 	"golang.org/x/crypto/ssh"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
@@ -49,7 +49,7 @@ func dialSCION(ctx context.Context,
 	quicConf := &quic.Config{
 		KeepAlivePeriod: 15 * time.Second,
 	}
-	sess, err := pan.DialQUIC(ctx, netaddr.IPPort{}, remote, policy, sel, "", tlsConf, quicConf)
+	sess, err := pan.DialQUIC(ctx, netip.AddrPort{}, remote, policy, sel, "", tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}

@@ -18,9 +18,9 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"net/netip"
 
 	"github.com/quic-go/quic-go"
-	"inet.af/netaddr"
 )
 
 // QUICSession is a wrapper around quic.Connection that always closes the
@@ -53,7 +53,7 @@ func (s *QUICEarlySession) CloseWithError(code quic.ApplicationErrorCode, desc s
 // The host parameter is used for SNI.
 // The tls.Config must define an application protocol (using NextProtos).
 func DialQUIC(ctx context.Context,
-	local netaddr.IPPort, remote UDPAddr, policy Policy, selector Selector,
+	local netip.AddrPort, remote UDPAddr, policy Policy, selector Selector,
 	host string, tlsConf *tls.Config, quicConf *quic.Config) (*QUICSession, error) {
 
 	conn, err := DialUDP(ctx, local, remote, policy, selector)
@@ -74,7 +74,7 @@ func DialQUIC(ctx context.Context,
 
 // DialQUICEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialQUIC.
 func DialQUICEarly(ctx context.Context,
-	local netaddr.IPPort, remote UDPAddr, policy Policy, selector Selector,
+	local netip.AddrPort, remote UDPAddr, policy Policy, selector Selector,
 	host string, tlsConf *tls.Config, quicConf *quic.Config) (*QUICEarlySession, error) {
 
 	conn, err := DialUDP(ctx, local, remote, policy, selector)

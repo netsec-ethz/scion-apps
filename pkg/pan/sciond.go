@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"sync"
 	"time"
@@ -27,7 +28,6 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 	"github.com/scionproto/scion/pkg/sock/reliable"
-	"inet.af/netaddr"
 )
 
 // hostContext contains the information needed to connect to the host's local SCION stack,
@@ -150,23 +150,23 @@ func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net
 // The purpose of this function is to workaround not being able to bind to
 // wildcard addresses in snet.
 // See note on wildcard addresses in the package documentation.
-func defaultLocalIP() (netaddr.IP, error) {
+func defaultLocalIP() (netip.Addr, error) {
 	stdIP, err := addrutil.ResolveLocal(host().hostInLocalAS)
-	ip, ok := netaddr.FromStdIP(stdIP)
+	ip, ok := netip.AddrFromSlice(stdIP)
 	if err != nil || !ok {
-		return netaddr.IP{}, fmt.Errorf("unable to resolve default local address %w", err)
+		return netip.Addr{}, fmt.Errorf("unable to resolve default local address %w", err)
 	}
-	return ip, nil
+	return ip.Unmap(), nil
 }
 
 // defaultLocalAddr fills in a missing or unspecified IP field with defaultLocalIP.
-func defaultLocalAddr(local netaddr.IPPort) (netaddr.IPPort, error) {
-	if local.IP().IsZero() || local.IP().IsUnspecified() {
+func defaultLocalAddr(local netip.AddrPort) (netip.AddrPort, error) {
+	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
 		localIP, err := defaultLocalIP()
 		if err != nil {
-			return netaddr.IPPort{}, err
+			return netip.AddrPort{}, err
 		}
-		local = local.WithIP(localIP)
+		local = netip.AddrPortFrom(localIP, local.Port())
 	}
 	return local, nil
 }
@@ -190,11 +190,7 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			InternalHops: snetMetadata.InternalHops,
 			Notes:        snetMetadata.Notes,
 		}
-		underlayStd := p.UnderlayNextHop()
-		underlay, ok := netaddr.FromStdAddr(underlayStd.IP, underlayStd.Port, underlayStd.Zone)
-		if !ok {
-			continue // ignore bad next hop
-		}
+		underlay := p.UnderlayNextHop().AddrPort()
 		paths[i] = &Path{
 			Source:      h.ia,
 			Destination: dst,

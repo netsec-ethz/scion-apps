@@ -17,9 +17,9 @@ package pan
 import (
 	"context"
 	"crypto/tls"
+	"net/netip"
 
 	"github.com/quic-go/quic-go"
-	"inet.af/netaddr"
 )
 
 // ListenQUIC listens for QUIC connections on a SCION/UDP port.
@@ -27,7 +27,7 @@ import (
 // See note on wildcard addresses in the package documentation.
 //
 // BUG This "leaks" the UDP connection, which is never closed.
-func ListenQUIC(ctx context.Context, local netaddr.IPPort, selector ReplySelector,
+func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelector,
 	tlsConf *tls.Config, quicConfig *quic.Config) (*quic.Listener, error) {
 
 	conn, err := ListenUDP(ctx, local, selector)

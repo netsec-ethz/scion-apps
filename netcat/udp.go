@@ -17,9 +17,8 @@ package main
 import (
 	"context"
 	"io"
+	"net/netip"
 	"sync"
-
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -59,7 +58,7 @@ func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, remoteAddr, policy, nil)
+	conn, err := pan.DialUDP(context.Background(), netip.AddrPort{}, remoteAddr, policy, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +70,7 @@ func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
 	conn, err := pan.ListenUDP(
 		context.Background(),
-		netaddr.IPPortFrom(netaddr.IP{}, port),
+		netip.AddrPortFrom(netip.Addr{}, port),
 		nil,
 	)
 	if err != nil {

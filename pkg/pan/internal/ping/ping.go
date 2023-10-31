@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -216,15 +217,24 @@ func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, 
 	if _, ok := remote.Path.(path.Empty); (remote.Path == nil || ok) && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
+	localIP, ok := netip.AddrFromSlice(local.Host.IP)
+	if !ok {
+		return nil, serrors.New("invalid local IP", "local", local.Host.IP)
+	}
+	remoteIP, ok := netip.AddrFromSlice(remote.Host.IP)
+	if !ok {
+		return nil, serrors.New("invalid remote IP", "remote", remote.Host.IP)
+	}
+
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   remote.IA,
-				Host: addr.MustParseHost(remote.Host.IP.String()),
+				Host: addr.HostIP(remoteIP),
 			},
 			Source: snet.SCIONAddress{
 				IA:   local.IA,
-				Host: addr.MustParseHost(local.Host.IP.String()),
+				Host: addr.HostIP(localIP),
 			},
 			Path:    remote.Path,
 			Payload: req,

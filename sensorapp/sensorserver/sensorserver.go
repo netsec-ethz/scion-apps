@@ -22,11 +22,10 @@ import (
 	"context"
 	"flag"
 	"log"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
-
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -81,7 +80,7 @@ func main() {
 	port := flag.Uint("p", 40002, "Server Port")
 	flag.Parse()
 
-	local := netaddr.IPPortFrom(netaddr.IP{}, uint16(*port))
+	local := netip.AddrPortFrom(netip.Addr{}, uint16(*port))
 	conn, err := pan.ListenUDP(context.Background(), local, nil)
 	check(err)
 

@@ -18,10 +18,10 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"net/netip"
 	"time"
 
 	"github.com/quic-go/quic-go"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
@@ -35,7 +35,7 @@ var (
 func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 	quicListener, err := pan.ListenQUIC(
 		context.Background(),
-		netaddr.IPPortFrom(netaddr.IP{}, port),
+		netip.AddrPortFrom(netip.Addr{}, port),
 		nil,
 		&tls.Config{
 			Certificates: quicutil.MustGenerateSelfSignedCert(),
@@ -72,7 +72,7 @@ func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 	}
 	sess, err := pan.DialQUIC(
 		context.Background(),
-		netaddr.IPPort{},
+		netip.AddrPort{},
 		remoteAddr,
 		policy,
 		nil,

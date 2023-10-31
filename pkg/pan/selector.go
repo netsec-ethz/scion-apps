@@ -17,11 +17,12 @@ package pan
 import (
 	"context"
 	"fmt"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"inet.af/netaddr"
+	"github.com/scionproto/scion/pkg/addr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan/internal/ping"
 )
@@ -255,7 +256,7 @@ func (s *PingingSelector) sendPings(paths []*Path, sequenceNo uint16) {
 	for _, p := range paths {
 		remote := s.remote.snetUDPAddr()
 		remote.Path = p.ForwardingPath.dataplanePath
-		remote.NextHop = p.ForwardingPath.underlay.UDPAddr()
+		remote.NextHop = net.UDPAddrFromAddrPort(p.ForwardingPath.underlay)
 		err := s.pinger.Send(s.pingerCtx, remote, sequenceNo, 16)
 		if err != nil {
 			panic(err)
@@ -291,11 +292,12 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		return
 	}
 
-	// TODO: Check if there is a better way to convert this
-	srcIP, _ := netaddr.ParseIP(reply.Source.Host.IP().String())
+	if reply.Source.Host.Type() != addr.HostTypeIP {
+		return // ignore replies from non-IP addresses
+	}
 	src := scionAddr{
 		IA: IA(reply.Source.IA),
-		IP: srcIP,
+		IP: reply.Source.Host.IP(),
 	}
 	if src != s.remote || reply.Reply.SeqNumber != expectedSequenceNo {
 		return

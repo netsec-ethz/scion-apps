@@ -19,11 +19,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/netip"
 	"os"
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
-	"inet.af/netaddr"
 )
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 	}
 }
 
-func runServer(listen netaddr.IPPort) error {
+func runServer(listen netip.AddrPort) error {
 	conn, err := pan.ListenUDP(context.Background(), listen, nil)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func runClient(address string, count int) error {
 	if err != nil {
 		return err
 	}
-	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, addr, nil, nil)
+	conn, err := pan.DialUDP(context.Background(), netip.AddrPort{}, addr, nil, nil)
 	if err != nil {
 		return err
 	}

@@ -15,10 +15,10 @@
 package pan_test
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -28,37 +28,37 @@ func TestParseOptionalIPPort(t *testing.T) {
 		name      string
 		input     string
 		assertErr assert.ErrorAssertionFunc
-		expected  netaddr.IPPort
+		expected  netip.AddrPort
 	}{
 		{
 			name:      "empty",
 			input:     "",
 			assertErr: assert.NoError,
-			expected:  netaddr.IPPort{},
+			expected:  netip.AddrPort{},
 		},
 		{
 			name:      "port 0",
 			input:     ":0",
 			assertErr: assert.NoError,
-			expected:  netaddr.IPPort{},
+			expected:  netip.AddrPort{},
 		},
 		{
 			name:      "port",
 			input:     ":8888",
 			assertErr: assert.NoError,
-			expected:  netaddr.IPPortFrom(netaddr.IP{}, 8888),
+			expected:  netip.AddrPortFrom(netip.Addr{}, 8888),
 		},
 		{
 			name:      "ipv4 and port",
 			input:     "127.0.0.1:8888",
 			assertErr: assert.NoError,
-			expected:  netaddr.IPPortFrom(netaddr.MustParseIP("127.0.0.1"), 8888),
+			expected:  netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 8888),
 		},
 		{
 			name:      "ipv6 and port",
 			input:     "[::1]:8888",
 			assertErr: assert.NoError,
-			expected:  netaddr.IPPortFrom(netaddr.MustParseIP("::1"), 8888),
+			expected:  netip.AddrPortFrom(netip.MustParseAddr("::1"), 8888),
 		},
 		{
 			name:      "ipv4 only",

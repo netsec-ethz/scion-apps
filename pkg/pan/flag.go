@@ -17,19 +17,16 @@ package pan
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
-
-	"inet.af/netaddr"
 )
 
-// IPPortValue implements the flag.Value for a inet.af/netaddr.IPPort,
-// using the ParseIPPort function.
-// NOTE: once go-1.18 becomes available, we'll switch this package over to
-// net/netip.
-type IPPortValue netaddr.IPPort
+// IPPortValue implements the flag.Value for a net/netip.AddrPort,
+// using the ParseAddrPort function.
+type IPPortValue netip.AddrPort
 
-func (v *IPPortValue) Get() netaddr.IPPort {
-	return netaddr.IPPort(*v)
+func (v *IPPortValue) Get() netip.AddrPort {
+	return netip.AddrPort(*v)
 }
 
 func (v *IPPortValue) Set(s string) error {
@@ -39,39 +36,37 @@ func (v *IPPortValue) Set(s string) error {
 }
 
 func (v *IPPortValue) String() string {
-	return netaddr.IPPort(*v).String()
+	return netip.AddrPort(*v).String()
 }
 
-// ParseOptionalIPPort parses a string to netaddr.IPPort
+// ParseOptionalIPPort parses a string to netip.AddrPort
 // This accepts either of the following formats
 //
 //   - <ip>:<port>
 //   - :<port>
 //   - (empty)
 //
-// in contrast to netaddr.ParseOptionalIPPort which disallows omitting the IP.
-//
 // This is provided by this package as typical usage of the Dial/Listen
 // will allow to provide the local address as a string, where the omitting
 // the IP is a convenient shortcut, valid for both IPv4 and IPv6.
-func ParseOptionalIPPort(s string) (netaddr.IPPort, error) {
+func ParseOptionalIPPort(s string) (netip.AddrPort, error) {
 	if s == "" {
-		return netaddr.IPPort{}, nil
+		return netip.AddrPort{}, nil
 	}
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
-		return netaddr.IPPort{}, fmt.Errorf("unable to parse IP:Port (%q): %w", s, err)
+		return netip.AddrPort{}, fmt.Errorf("unable to parse IP:Port (%q): %w", s, err)
 	}
 	port16, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
-		return netaddr.IPPort{}, fmt.Errorf("invalid port %q parsing %q", port, s)
+		return netip.AddrPort{}, fmt.Errorf("invalid port %q parsing %q", port, s)
 	}
-	var ip netaddr.IP
+	var ip netip.Addr
 	if host != "" {
-		ip, err = netaddr.ParseIP(host)
+		ip, err = netip.ParseAddr(host)
 		if err != nil {
-			return netaddr.IPPort{}, err
+			return netip.AddrPort{}, err
 		}
 	}
-	return netaddr.IPPortFrom(ip, uint16(port16)), nil
+	return netip.AddrPortFrom(ip, uint16(port16)), nil
 }

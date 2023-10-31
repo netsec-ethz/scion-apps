@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/netip"
 	"net/url"
 	"os"
 	"time"
@@ -31,7 +32,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/quic-go/quic-go"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
@@ -86,7 +86,7 @@ func main() {
 // forwardTLS listens on 443 and forwards each sessions to the corresponding
 // TCP/IP host identified by SNI
 func forwardTLS(hosts map[string]struct{}) error {
-	listener, err := listen(netaddr.IPPort{}.WithPort(443))
+	listener, err := listen(netip.AddrPortFrom(netip.Addr{}, 443))
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 	}
 }
 
-func listen(laddr netaddr.IPPort) (*quic.Listener, error) {
+func listen(laddr netip.AddrPort) (*quic.Listener, error) {
 	tlsCfg := &tls.Config{
 		NextProtos:   []string{quicutil.SingleStreamProto},
 		Certificates: quicutil.MustGenerateSelfSignedCert(),

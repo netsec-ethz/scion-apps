@@ -23,13 +23,12 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
-
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -331,7 +330,7 @@ func main() {
 }
 
 // runBwtest runs the bandwidth test with the given parameters against the server at serverCCAddr.
-func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
+func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
 	clientBwp, serverBwp bwtest.Parameters) (clientRes, serverRes bwtest.Result, err error) {
 
 	// Control channel connection
@@ -341,7 +340,7 @@ func runBwtest(local netaddr.IPPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 		return
 	}
 
-	dcLocal := local.WithPort(0)
+	dcLocal := netip.AddrPortFrom(local.Addr(), 0)
 	// Address of server data channel (DC)
 	serverDCAddr := serverCCAddr.WithPort(serverCCAddr.Port + 1)
 

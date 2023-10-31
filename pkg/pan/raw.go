@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -27,15 +28,14 @@ import (
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology/underlay"
-	"inet.af/netaddr"
 )
 
 // openBaseUDPConn opens new raw SCION UDP conn.
-func openBaseUDPConn(ctx context.Context, local netaddr.IPPort) (snet.PacketConn, UDPAddr, error) {
+func openBaseUDPConn(ctx context.Context, local netip.AddrPort) (snet.PacketConn, UDPAddr, error) {
 	dispatcher := host().dispatcher
 	ia := host().ia
 
-	rconn, port, err := dispatcher.Register(ctx, addr.IA(ia), local.UDPAddr(), addr.SvcNone)
+	rconn, port, err := dispatcher.Register(ctx, addr.IA(ia), net.UDPAddrFromAddrPort(local), addr.SvcNone)
 	if err != nil {
 		return nil, UDPAddr{}, err
 	}
@@ -45,7 +45,7 @@ func openBaseUDPConn(ctx context.Context, local netaddr.IPPort) (snet.PacketConn
 	}
 	slocal := UDPAddr{
 		IA:   ia,
-		IP:   local.IP(),
+		IP:   local.Addr(),
 		Port: port,
 	}
 	return conn, slocal, nil
@@ -88,9 +88,9 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 	}
 
 	var dataplanePath snet.DataplanePath = snetpath.Empty{}
-	var nextHop netaddr.IPPort
+	var nextHop netip.AddrPort
 	if src.IA == dst.IA {
-		nextHop = netaddr.IPPortFrom(dst.IP, underlay.EndhostPort)
+		nextHop = netip.AddrPortFrom(dst.IP, underlay.EndhostPort)
 	} else {
 		nextHop = path.ForwardingPath.underlay
 		dataplanePath = path.ForwardingPath.dataplanePath
@@ -107,11 +107,11 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   addr.IA(src.IA),
-				Host: addr.MustParseHost(src.IP.IPAddr().IP.String()),
+				Host: addr.HostIP(src.IP),
 			},
 			Destination: snet.SCIONAddress{
 				IA:   addr.IA(dst.IA),
-				Host: addr.MustParseHost(dst.IP.IPAddr().IP.String()),
+				Host: addr.HostIP(dst.IP),
 			},
 			Path: dataplanePath,
 			Payload: snet.UDPPayload{
@@ -122,7 +122,7 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		},
 	}
 
-	err := c.raw.WriteTo(pkt, nextHop.UDPAddr())
+	err := c.raw.WriteTo(pkt, net.UDPAddrFromAddrPort(nextHop))
 	if err != nil {
 		return 0, err
 	}
@@ -152,19 +152,15 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 		if !ok {
 			continue // ignore non-UDP packet
 		}
-		srcIP, err := netaddr.ParseIP(pkt.Source.Host.IP().String())
-		if err != nil {
+		if pkt.Source.Host.Type() != addr.HostTypeIP {
 			continue // ignore non-IP destination
 		}
 		remote := UDPAddr{
 			IA:   IA(pkt.Source.IA),
-			IP:   srcIP,
+			IP:   pkt.Source.Host.IP(),
 			Port: udp.SrcPort,
 		}
-		underlay, ok := netaddr.FromStdAddr(lastHop.IP, lastHop.Port, lastHop.Zone)
-		if !ok {
-			continue // ignore bad Underlay
-		}
+		underlay := lastHop.AddrPort()
 		fw := ForwardingPath{
 			dataplanePath: pkt.Path,
 			underlay:      underlay,
@@ -209,7 +205,10 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		stats.NotifyPathDown(pf, pi)
 		return nil
 	default:
-		ip, _ := netaddr.ParseIP(pkt.Source.Host.IP().String())
+		ip := netip.Addr{}
+		if pkt.Source.Host.Type() == addr.HostTypeIP {
+			ip = pkt.Source.Host.IP()
+		}
 		return SCMPError{
 			typeCode: slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
 			ErrorIA:  IA(pkt.Source.IA),
@@ -223,7 +222,7 @@ type SCMPError struct {
 	// ErrorIA is the source IA of the SCMP error message
 	ErrorIA IA
 	// ErrorIP is the source IP of the SCMP error message
-	ErrorIP netaddr.IP
+	ErrorIP netip.Addr
 	// TODO: include quote information (pkt destinition, path, ...)
 }
 
