@@ -80,10 +80,10 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 	if src.IA != dst.IA && path == nil {
 		panic("writeMsg: need path when src.IA != dst.IA")
 	}
-	if path != nil && src.IA != path.Source() {
+	if path != nil && src.IA != path.Source {
 		panic("writeMsg: src.IA != path.Source")
 	}
-	if path != nil && dst.IA != path.Destination() {
+	if path != nil && dst.IA != path.Destination {
 		panic("writeMsg: dst.IA != path.Destination")
 	}
 

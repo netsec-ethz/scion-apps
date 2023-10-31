@@ -183,8 +183,8 @@ type snetPathWrapper struct {
 func (p snetPathWrapper) UnderlayNextHop() *net.UDPAddr { panic("not implemented") }
 
 func (p snetPathWrapper) Dataplane() snet.DataplanePath { panic("not implemented") }
-func (p snetPathWrapper) Destination() addr.IA          { panic("not implemented") }
 func (p snetPathWrapper) Source() addr.IA               { panic("not implemented") }
+func (p snetPathWrapper) Destination() addr.IA          { panic("not implemented") }
 func (p snetPathWrapper) Copy() snet.Path               { panic("not implemented") }
 
 func (p snetPathWrapper) Metadata() *snet.PathMetadata {

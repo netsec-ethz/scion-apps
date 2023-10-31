@@ -33,7 +33,7 @@ type InteractiveSelection struct {
 }
 
 func (p *InteractiveSelection) Filter(paths []*Path) []*Path {
-	dstIA := paths[0].destination
+	dstIA := paths[0].Destination
 	choice, ok := p.choices[dstIA]
 	if !ok {
 		chosenPaths := p.Prompter.Prompt(paths, dstIA)

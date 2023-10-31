@@ -28,27 +28,19 @@ import (
 
 // TODO: revisit: pointer or value type? what goes where? should ForwardingPath be exported?
 type Path struct {
-	source         IA
-	destination    IA
+	Source         IA
+	Destination    IA
 	ForwardingPath ForwardingPath
 	Metadata       *PathMetadata // optional
 	Fingerprint    PathFingerprint
 	Expiry         time.Time
 }
 
-func (p *Path) Source() IA {
-	return p.source
-}
-
-func (p *Path) Destination() IA {
-	return p.destination
-}
-
 func (p *Path) String() string {
 	if p.Metadata != nil {
 		return p.Metadata.fmtInterfaces()
 	} else {
-		return fmt.Sprintf("%s %s %s", p.source, p.destination, p.Fingerprint)
+		return fmt.Sprintf("%s %s %s", p.Source, p.Destination, p.Fingerprint)
 	}
 }
 
@@ -119,8 +111,8 @@ func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, e
 	}
 	fingerprint := pathSequence{InterfaceIDs: fpi.interfaceIDs}.Fingerprint()
 	return &Path{
-		source:         dst,
-		destination:    src,
+		Source:         dst,
+		Destination:    src,
 		ForwardingPath: fwPath,
 		Expiry:         fpi.expiry,
 		Fingerprint:    fingerprint,
