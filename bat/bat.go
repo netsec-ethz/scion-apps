@@ -37,6 +37,8 @@ import (
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
+	"github.com/netsec-ethz/scion-apps/pkg/shttp3"
+	"github.com/quic-go/quic-go/http3"
 )
 
 const (
@@ -107,7 +109,16 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defaultSetting.Transport, _ = shttp.NewTransport(nil, policy)
+	tlsClientConfig := &tls.Config{}
+	if insecureSSL {
+		tlsClientConfig.InsecureSkipVerify = true
+	}
+	defaultSetting.Transport = &http3.RoundTripper{
+		Dial: (&shttp3.Dialer{
+			Policy: policy,
+		}).Dial,
+		TLSClientConfig: tlsClientConfig,
+	}
 }
 
 func parsePrintOption(s string) {
