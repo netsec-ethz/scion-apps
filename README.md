@@ -99,8 +99,6 @@ The directory _examples contains examples for the usage of the SCION libraries.
   A minimal "hello, world" application using UDP over SCION.
 * [_examples/helloquic](_examples/helloquic/README.md):
   Example for the use of QUIC over SCION.
-* [_examples/hellodrkey](_examples/hellodrkey/README.md):
-  Example for the the use of DRKey.
 * [_examples/sgrpc](_examples/sgrpc/README.md):
   Example for using gRPC over SCION/QUIC with the PAN library.
 * [_examples/shttp](_examples/shttp/README.md):
