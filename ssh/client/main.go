@@ -19,6 +19,7 @@ import (
 	"fmt"
 	golog "log"
 	"net"
+	"net/netip"
 	"os"
 	"os/user"
 	"strconv"
@@ -27,7 +28,6 @@ import (
 	log "github.com/inconshreveable/log15"
 	"golang.org/x/term"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/ssh/client/clientconfig"
@@ -173,7 +173,7 @@ func main() {
 			golog.Panicf("Error parsing forwarding port: %v", err)
 		}
 
-		local := netaddr.IPPortFrom(netaddr.IP{}, uint16(port))
+		local := netip.AddrPortFrom(netip.Addr{}, uint16(port))
 		err = sshClient.StartTunnel(local, localForward[1])
 		if err != nil {
 			golog.Panicf("Error starting tunnel: %v", err)

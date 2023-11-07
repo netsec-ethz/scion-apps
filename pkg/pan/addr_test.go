@@ -16,10 +16,10 @@ package pan_test
 
 import (
 	"fmt"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -27,7 +27,7 @@ import (
 func TestUDPAddrIsValid(t *testing.T) {
 	ia := pan.MustParseIA("1-ff00:0:0")
 	iaWildcard := pan.MustParseIA("1-0")
-	ip := netaddr.MustParseIP("127.0.0.1")
+	ip := netip.MustParseAddr("127.0.0.1")
 	cases := []struct {
 		addr    pan.UDPAddr
 		isValid bool

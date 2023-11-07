@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -30,7 +29,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 	"github.com/pelletier/go-toml"
-	"github.com/scionproto/scion/go/lib/daemon"
+	"github.com/scionproto/scion/pkg/daemon"
 
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
 )
@@ -205,7 +204,7 @@ func getSDFromSDTomlFile(path string) string {
 // getIAFromTopologyFile returns IA from topology.json on the given path
 func getIAFromTopologyFile(path string) string {
 	var t topology
-	raw, _ := ioutil.ReadFile(path)
+	raw, _ := os.ReadFile(path)
 	json.Unmarshal([]byte(raw), &t)
 	return t.IA
 }
@@ -265,7 +264,7 @@ func GenServerNodeDefaults(options *CmdOptions, localIAs []string) {
 		}
 	}
 	jsonBuf = append(jsonBuf, []byte(`] }`)...)
-	err := ioutil.WriteFile(serFp, jsonBuf, 0644)
+	err := os.WriteFile(serFp, jsonBuf, 0644)
 	CheckError(err)
 }
 
@@ -305,7 +304,7 @@ func GenClientNodeDefaults(options *CmdOptions, cisdas string) {
 		}
 	}
 	jsonBuf = append(jsonBuf, []byte(` ] }`)...)
-	err = ioutil.WriteFile(cliFp, jsonBuf, 0644)
+	err = os.WriteFile(cliFp, jsonBuf, 0644)
 	CheckError(err)
 }
 
@@ -324,7 +323,7 @@ func GetNodesHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions
 	default:
 		panic("Unhandled nodes type!")
 	}
-	raw, err := ioutil.ReadFile(fp)
+	raw, err := os.ReadFile(fp)
 	CheckError(err)
 	fmt.Fprint(w, string(raw))
 }

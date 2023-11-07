@@ -22,10 +22,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/netip"
 	"os"
 	"strings"
-
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -55,7 +54,7 @@ func main() {
 	check(err)
 	serverAddr, err := pan.ResolveUDPAddr(context.TODO(), *serverAddrStr)
 	check(err)
-	conn, err := pan.DialUDP(context.Background(), netaddr.IPPort{}, serverAddr, policy, nil)
+	conn, err := pan.DialUDP(context.Background(), netip.AddrPort{}, serverAddr, policy, nil)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

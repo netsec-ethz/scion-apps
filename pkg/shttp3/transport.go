@@ -19,10 +19,10 @@ package shttp3
 import (
 	"context"
 	"crypto/tls"
+	"net/netip"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -38,7 +38,7 @@ var DefaultTransport = &http3.RoundTripper{
 // Dialer dials a QUIC connection over SCION.
 // This is the Dialer used for shttp3.DefaultTransport.
 type Dialer struct {
-	Local    netaddr.IPPort
+	Local    netip.AddrPort
 	Policy   pan.Policy
 	sessions []*pan.QUICEarlySession
 }

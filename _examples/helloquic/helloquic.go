@@ -20,14 +20,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net/netip"
 	"os"
 	"time"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/quic-go/quic-go"
-	"inet.af/netaddr"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func main() {
 	}
 }
 
-func runServer(listen netaddr.IPPort) error {
+func runServer(listen netip.AddrPort) error {
 	tlsCfg := &tls.Config{
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{"hello-quic"},
@@ -87,7 +87,7 @@ func workSession(session quic.Connection) error {
 			return err
 		}
 		defer stream.Close()
-		data, err := ioutil.ReadAll(stream)
+		data, err := io.ReadAll(stream)
 		if err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func runClient(address string, count int) error {
 		Timeout:  time.Second,
 	}
 	selector.SetActive(2)
-	session, err := pan.DialQUIC(context.Background(), netaddr.IPPort{}, addr, nil, selector, "", tlsCfg, nil)
+	session, err := pan.DialQUIC(context.Background(), netip.AddrPort{}, addr, nil, selector, "", tlsCfg, nil)
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func runClient(address string, count int) error {
 			return err
 		}
 		stream.Close()
-		reply, err := ioutil.ReadAll(stream)
+		reply, err := io.ReadAll(stream)
 		if err != nil {
 			return err
 		}

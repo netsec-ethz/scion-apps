@@ -42,7 +42,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"io"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net"
@@ -253,9 +252,9 @@ func (b *BeegoHttpRequest) SetTransport(transport http.RoundTripper) *BeegoHttpR
 // example:
 //
 //	func(req *http.Request) (*url.URL, error) {
-// 		u, _ := url.ParseRequestURI("http://127.0.0.1:8118")
-// 		return u, nil
-// 	}
+//		u, _ := url.ParseRequestURI("http://127.0.0.1:8118")
+//		return u, nil
+//	}
 func (b *BeegoHttpRequest) SetProxy(proxy func(*http.Request) (*url.URL, error)) *BeegoHttpRequest {
 	b.setting.Proxy = proxy
 	return b
@@ -279,11 +278,11 @@ func (b *BeegoHttpRequest) Body(data interface{}) *BeegoHttpRequest {
 	switch t := data.(type) {
 	case string:
 		bf := bytes.NewBufferString(t)
-		b.req.Body = ioutil.NopCloser(bf)
+		b.req.Body = io.NopCloser(bf)
 		b.req.ContentLength = int64(len(t))
 	case []byte:
 		bf := bytes.NewBuffer(t)
-		b.req.Body = ioutil.NopCloser(bf)
+		b.req.Body = io.NopCloser(bf)
 		b.req.ContentLength = int64(len(t))
 	}
 	return b
@@ -297,7 +296,7 @@ func (b *BeegoHttpRequest) JsonBody(obj interface{}) (*BeegoHttpRequest, error) 
 		if err := enc.Encode(obj); err != nil {
 			return b, err
 		}
-		b.req.Body = ioutil.NopCloser(buf)
+		b.req.Body = io.NopCloser(buf)
 		b.req.ContentLength = int64(buf.Len())
 		b.req.Header.Set("Content-Type", "application/json")
 	}
@@ -345,7 +344,7 @@ func (b *BeegoHttpRequest) buildUrl(paramBody string) {
 				pw.Close()
 			}()
 			b.Header("Content-Type", bodyWriter.FormDataContentType())
-			b.req.Body = ioutil.NopCloser(pr)
+			b.req.Body = io.NopCloser(pr)
 			return
 		}
 
@@ -472,9 +471,9 @@ func (b *BeegoHttpRequest) Bytes() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		b.body, err = ioutil.ReadAll(reader)
+		b.body, err = io.ReadAll(reader)
 	} else {
-		b.body, err = ioutil.ReadAll(resp.Body)
+		b.body, err = io.ReadAll(resp.Body)
 	}
 	if err != nil {
 		return nil, err

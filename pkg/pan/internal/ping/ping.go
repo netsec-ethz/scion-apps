@@ -26,15 +26,16 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/netip"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/topology/underlay"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
+	"github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/pkg/sock/reliable"
+	"github.com/scionproto/scion/private/topology/underlay"
 )
 
 type Pinger struct {
@@ -216,15 +217,24 @@ func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, 
 	if _, ok := remote.Path.(path.Empty); (remote.Path == nil || ok) && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
+	localIP, ok := netip.AddrFromSlice(local.Host.IP)
+	if !ok {
+		return nil, serrors.New("invalid local IP", "local", local.Host.IP)
+	}
+	remoteIP, ok := netip.AddrFromSlice(remote.Host.IP)
+	if !ok {
+		return nil, serrors.New("invalid remote IP", "remote", remote.Host.IP)
+	}
+
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
 				IA:   remote.IA,
-				Host: addr.HostFromIP(remote.Host.IP),
+				Host: addr.HostIP(remoteIP),
 			},
 			Source: snet.SCIONAddress{
 				IA:   local.IA,
-				Host: addr.HostFromIP(local.Host.IP),
+				Host: addr.HostIP(localIP),
 			},
 			Path:    remote.Path,
 			Payload: req,

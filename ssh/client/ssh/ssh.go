@@ -21,8 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,7 +30,6 @@ import (
 
 	log "github.com/inconshreveable/log15"
 	"golang.org/x/crypto/ssh"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
@@ -196,7 +195,7 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 // StartTunnel creates a new tunnel to the given address, forwarding all
 // connections on the given port over the server to the given address. If the
 // given address is a SCION address, QUIC is used; else TCP.
-func (client *Client) StartTunnel(local netaddr.IPPort, addr string) error {
+func (client *Client) StartTunnel(local netip.AddrPort, addr string) error {
 	var localListener net.Listener
 	if strings.Contains(addr, ",") {
 		tlsConf := &tls.Config{
@@ -257,7 +256,7 @@ func loadPrivateKey(filePath string) (ssh.AuthMethod, error) {
 		return nil, err
 	}
 
-	key, err := ioutil.ReadFile(absolutePath)
+	key, err := os.ReadFile(absolutePath)
 	if err != nil {
 		return nil, err
 	}

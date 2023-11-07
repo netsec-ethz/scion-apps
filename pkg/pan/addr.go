@@ -17,19 +17,19 @@ package pan
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
-	"inet.af/netaddr"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 // UDPAddr is an address for a SCION/UDP end point.
 type UDPAddr struct {
 	IA   IA
-	IP   netaddr.IP
+	IP   netip.Addr
 	Port uint16
 }
 
@@ -68,7 +68,7 @@ func (a UDPAddr) scionAddr() scionAddr {
 func (a UDPAddr) snetUDPAddr() *snet.UDPAddr {
 	return &snet.UDPAddr{
 		IA:   addr.IA(a.IA),
-		Host: netaddr.IPPortFrom(a.IP, a.Port).UDPAddr(),
+		Host: net.UDPAddrFromAddrPort(netip.AddrPortFrom(a.IP, a.Port)),
 	}
 }
 
@@ -85,13 +85,13 @@ func ParseUDPAddr(s string) (UDPAddr, error) {
 	if err != nil {
 		return UDPAddr{}, err
 	}
-	ip, ok := netaddr.FromStdIP(addr.Host.IP)
+	ip, ok := netip.AddrFromSlice(addr.Host.IP)
 	if !ok {
 		panic("snet.ParseUDPAddr returned invalid IP")
 	}
 	return UDPAddr{
 		IA:   IA(addr.IA),
-		IP:   ip,
+		IP:   ip.Unmap(),
 		Port: uint16(addr.Host.Port),
 	}, nil
 }
@@ -143,7 +143,7 @@ func MustParseIA(s string) IA {
 // useful for applicications later.
 type scionAddr struct {
 	IA IA
-	IP netaddr.IP
+	IP netip.Addr
 }
 
 func (a scionAddr) String() string {
@@ -157,7 +157,7 @@ func (a scionAddr) WithPort(port uint16) UDPAddr {
 func (a scionAddr) snetUDPAddr() *snet.UDPAddr {
 	return &snet.UDPAddr{
 		IA:   addr.IA(a.IA),
-		Host: netaddr.IPPortFrom(a.IP, 0).UDPAddr(),
+		Host: net.UDPAddrFromAddrPort(netip.AddrPortFrom(a.IP, 0)),
 	}
 }
 
@@ -181,7 +181,7 @@ func parseSCIONAddr(address string) (scionAddr, error) {
 		return scionAddr{}, parseSCIONAddrError{in: address, msg: "invalid IA", cause: err}
 	}
 	l3Trimmed := strings.Trim(parts[addrRegexpL3Index], "[]")
-	ip, err := netaddr.ParseIP(l3Trimmed)
+	ip, err := netip.ParseAddr(l3Trimmed)
 	if err != nil {
 		return scionAddr{}, parseSCIONAddrError{in: address, msg: "invalid IP", cause: err}
 	}

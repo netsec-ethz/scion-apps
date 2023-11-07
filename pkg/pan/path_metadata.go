@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 type IfID uint64

@@ -5,11 +5,11 @@ import (
 	"crypto/tls"
 	"flag"
 	"log"
+	"net/netip"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"google.golang.org/grpc"
-	"inet.af/netaddr"
 
 	pb "examples/sgrpc/proto"
 )
@@ -35,7 +35,7 @@ var (
 func main() {
 	flag.Parse()
 
-	addr, err := netaddr.ParseIPPort(*ServerAddr)
+	addr, err := netip.ParseAddrPort(*ServerAddr)
 	if err != nil {
 		log.Fatalf("failed to parse server address")
 	}

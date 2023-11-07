@@ -17,30 +17,18 @@ package pan
 import (
 	"context"
 	"crypto/tls"
-	"net"
+	"net/netip"
 
 	"github.com/quic-go/quic-go"
-	"inet.af/netaddr"
 )
-
-// closerListener is a wrapper around quic.Listener that always closes the
-// underlying conn when closing the session.
-type closerListener struct {
-	quic.Listener
-	conn net.PacketConn
-}
-
-func (l closerListener) Close() error {
-	err := l.Listener.Close()
-	l.conn.Close()
-	return err
-}
 
 // ListenQUIC listens for QUIC connections on a SCION/UDP port.
 //
 // See note on wildcard addresses in the package documentation.
-func ListenQUIC(ctx context.Context, local netaddr.IPPort, selector ReplySelector,
-	tlsConf *tls.Config, quicConfig *quic.Config) (quic.Listener, error) {
+//
+// BUG This "leaks" the UDP connection, which is never closed.
+func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelector,
+	tlsConf *tls.Config, quicConfig *quic.Config) (*quic.Listener, error) {
 
 	conn, err := ListenUDP(ctx, local, selector)
 	if err != nil {
@@ -55,8 +43,5 @@ func ListenQUIC(ctx context.Context, local netaddr.IPPort, selector ReplySelecto
 		conn.Close()
 		return nil, err
 	}
-	return closerListener{
-		Listener: listener,
-		conn:     conn,
-	}, nil
+	return listener, nil
 }

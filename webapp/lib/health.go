@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -64,7 +63,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	hcResFp := path.Join(options.StaticRoot, resFileHealthCheck)
 	// read specified tests from json definition
 	fp := path.Join(options.StaticRoot, defFileHealthCheck)
-	raw, err := ioutil.ReadFile(fp)
+	raw, err := os.ReadFile(fp)
 	if CheckError(err) {
 		fmt.Fprint(w, `{ "err": "`+err.Error()+`" }`)
 		return
@@ -91,7 +90,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 	// export empty result set first
 	jsonRes, err := json.Marshal(results)
 	CheckError(err)
-	err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+	err = os.WriteFile(hcResFp, jsonRes, 0644)
 	CheckError(err)
 
 	// execute each script and format results for json
@@ -112,7 +111,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 		results[i].Start = start
 		jsonRes, err = json.Marshal(results)
 		CheckError(err)
-		err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+		err = os.WriteFile(hcResFp, jsonRes, 0644)
 		CheckError(err)
 
 		// start cmd timeout timer
@@ -156,7 +155,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request, options *CmdOpti
 			return
 		}
 		log.Debug(string(jsonRes))
-		err = ioutil.WriteFile(hcResFp, jsonRes, 0644)
+		err = os.WriteFile(hcResFp, jsonRes, 0644)
 		CheckError(err)
 	}
 

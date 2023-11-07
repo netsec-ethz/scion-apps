@@ -19,11 +19,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"sync"
 	"time"
-
-	"inet.af/netaddr"
 )
 
 var errBadDstAddress error = errors.New("dst address not a UDPAddr")
@@ -57,7 +56,7 @@ type ListenConn interface {
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
 }
 
-func ListenUDP(ctx context.Context, local netaddr.IPPort,
+func ListenUDP(ctx context.Context, local netip.AddrPort,
 	selector ReplySelector) (ListenConn, error) {
 
 	local, err := defaultLocalAddr(local)

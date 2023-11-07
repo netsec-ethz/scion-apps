@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -28,10 +27,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/private/serrors"
+	"github.com/scionproto/scion/pkg/snet"
 
 	"github.com/netsec-ethz/scion-apps/pkg/integration/sintegration"
 )
@@ -168,7 +167,7 @@ func (sai *ScionAppsIntegration) initLogDir(name string) error {
 	if err != nil {
 		log.Error("Failed to create log folder for testrun", "dir", tmpDir, "err", err)
 	}
-	logDir, err := ioutil.TempDir(tmpDir, strings.ReplaceAll(name, "/", "_"))
+	logDir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(name, "/", "_"))
 	if err != nil {
 		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
 		return err

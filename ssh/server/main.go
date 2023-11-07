@@ -18,12 +18,12 @@ import (
 	"context"
 	"crypto/tls"
 	golog "log"
+	"net/netip"
 	"os"
 	"strconv"
 
 	log "github.com/inconshreveable/log15"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
@@ -89,7 +89,7 @@ func main() {
 	}
 	log.Debug("Currently, ListenAddress.Port is ignored (only value from config taken)")
 
-	local := netaddr.IPPortFrom(netaddr.IP{}, uint16(port))
+	local := netip.AddrPortFrom(netip.Addr{}, uint16(port))
 	tlsConf := &tls.Config{
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{quicutil.SingleStreamProto},

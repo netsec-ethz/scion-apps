@@ -16,14 +16,14 @@ package pan
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/snet"
-	snetpath "github.com/scionproto/scion/go/lib/snet/path"
-	"inet.af/netaddr"
+	"github.com/scionproto/scion/pkg/slayers/path"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
 )
 
 // TODO: revisit: pointer or value type? what goes where? should ForwardingPath be exported?
@@ -49,7 +49,7 @@ type ForwardingPath struct {
 	dataplanePath snet.DataplanePath
 	// NOTE: could have global lookup table with ifID->UDP instead of passing this around.
 	// Might also allow to "properly" bind to wildcard (cache correct source address per ifID).
-	underlay netaddr.IPPort
+	underlay netip.AddrPort
 }
 
 func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {

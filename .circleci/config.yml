@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: cimg/go:1.20
+      - image: cimg/go:1.21
     steps:
       - run:
           name: Go version
@@ -36,8 +36,14 @@ jobs:
 
   integration:
     machine:
-      image: ubuntu-2004:202111-02 # using go1.17.3
+      image: ubuntu-2204:2023.10.1 # using go1.21.0
     steps:
+      - run:
+          name: Check build tool versions
+          command: |
+            # Log tool versions provided by CircleCi
+            go version
+            python3 --version
       - checkout
       # The following step are shared with netsec-ethz/rains
       - run:
@@ -60,45 +66,33 @@ jobs:
       - run:
           name: Build SCION services and install python3 dependencies
           command: |
-            # Log tool versions provided by CircleCi
-            go version
-            python3 --version
-
             cd ~/scion
-            for service in "posix-router" "cs" "dispatcher" "scion-pki" "daemon" "co"; do
-              go build -o ./bin/ ./go/${service}/ && echo "Built ${service}";
+            for service in "router" "control" "dispatcher" "scion-pki" "daemon"; do
+              go build -o ./bin/ ./${service}/cmd/${service} && echo "Built ${service}";
             done
 
             pip3 install -U wheel setuptools
-            pip3 install -r ~/scion/env/pip3/requirements.txt
+            pip3 install -r tools/env/pip3/requirements.txt
       - run:
           name: Configure and start local SCION AS
           command: |
             cd ~/scion
-            export PYTHONPATH=python/:.
 
             # Generate tiny4.topo
             printf '#!/bin/bash\necho "0.0.0.0"' > tools/docker-ip # Some hackery to make topo scripts run
             # Use IPv4 addresses for this test
-            python3 python/topology/generator.py -c ./topology/tiny4.topo
+            python3 tools/topogen.py -c ./topology/tiny4.topo
             # Link the gen directory containing sciond_addresses.json and as_list.json
             ln -s ~/scion/gen /home/circleci/project/gen
             mkdir gen-cache
 
             # Start all AS tiny4.topo
-            supervisor/supervisor.sh reload
-            supervisor/supervisor.sh start all
+            tools/supervisor.sh reload
+            tools/supervisor.sh start all
       - run:
           name: Install libpam0g-dev
           command:
             sudo apt-get update && sudo apt-get install -y libpam0g-dev
-      # Use different Go version to build scion-apps
-      - run:
-          name: Install Go 1.20.7 to build scion-apps
-          command: |
-            wget https://go.dev/dl/go1.20.7.linux-amd64.tar.gz
-            sudo rm -rf /usr/local/go
-            sudo tar -C /usr/local -xzf go1.20.7.linux-amd64.tar.gz
       - run:
           name: Integration tests
           command: |

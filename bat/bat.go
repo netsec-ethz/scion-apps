@@ -26,7 +26,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -152,7 +151,7 @@ func main() {
 			panic(err)
 		}
 		if fi.Size() != 0 {
-			stdin, err = ioutil.ReadAll(os.Stdin)
+			stdin, err = io.ReadAll(os.Stdin)
 			if err != nil {
 				log.Fatal("Read from Stdin", err)
 			}

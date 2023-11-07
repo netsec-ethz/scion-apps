@@ -20,7 +20,6 @@ package pan
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -52,7 +51,7 @@ func (r *rainsResolver) Resolve(ctx context.Context, name string) (scionAddr, er
 }
 
 func readRainsConfig() (UDPAddr, error) {
-	bs, err := ioutil.ReadFile(rainsConfigPath)
+	bs, err := os.ReadFile(rainsConfigPath)
 	if os.IsNotExist(err) {
 		return UDPAddr{}, nil
 	} else if err != nil {

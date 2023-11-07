@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
-	"inet.af/netaddr"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
@@ -91,7 +91,7 @@ func handleSCIONQUICTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) er
 		NextProtos:         []string{quicutil.SingleStreamProto},
 		InsecureSkipVerify: true,
 	}
-	sess, err := pan.DialQUIC(ctx, netaddr.IPPort{}, remote, nil, nil, "", tlsConf, nil)
+	sess, err := pan.DialQUIC(ctx, netip.AddrPort{}, remote, nil, nil, "", tlsConf, nil)
 	if err != nil {
 		return fmt.Errorf("could not open remote connection: %w", err)
 	}

@@ -24,8 +24,8 @@ build: scion-bat \
 	scion-web-gateway \
 	example-helloworld \
 	example-helloquic \
-	example-hellodrkey \
-	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy
+	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy \
+	example-sgrpc-server example-sgrpc-client
 
 clean:
 	go clean ./...
@@ -122,6 +122,10 @@ example-shttp-fileserver:
 example-shttp-proxy:
 	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/proxy
 
-.PHONY: example-hellodrkey
-example-hellodrkey:
-	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./hellodrkey/
+.PHONY: example-sgrpc-server
+example-sgrpc-server:
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./sgrpc/server
+
+.PHONY: example-sgrpc-client
+example-sgrpc-client:
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./sgrpc/client

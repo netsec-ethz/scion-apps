@@ -51,7 +51,7 @@ var (
 // SingleStream connections from Accept. This allows to use quic in contexts
 // where a (TCP-)net.Listener is expected.
 type SingleStreamListener struct {
-	quic.Listener
+	*quic.Listener
 }
 
 func (l SingleStreamListener) Accept() (net.Conn, error) {

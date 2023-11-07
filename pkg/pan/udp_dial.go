@@ -17,8 +17,7 @@ package pan
 import (
 	"context"
 	"net"
-
-	"inet.af/netaddr"
+	"net/netip"
 )
 
 // Conn represents a _dialed_ connection.
@@ -46,7 +45,7 @@ type Conn interface {
 // a path among this set for each Write operation.
 // If the policy is nil, all paths are allowed.
 // If the selector is nil, a DefaultSelector is used.
-func DialUDP(ctx context.Context, local netaddr.IPPort, remote UDPAddr,
+func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	policy Policy, selector Selector) (Conn, error) {
 
 	local, err := defaultLocalAddr(local)

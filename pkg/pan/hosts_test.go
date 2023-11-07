@@ -17,10 +17,10 @@ package pan
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"inet.af/netaddr"
 )
 
 const hostsTestFile = "hosts_test_file"
@@ -135,22 +135,22 @@ func TestParseSCIONAddr(t *testing.T) {
 		{
 			input:     "1-ff00:0:0,[1.1.1.1]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netaddr.MustParseIP("1.1.1.1")},
+			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("1.1.1.1")},
 		},
 		{
 			input:     "1-ff00:0:0,1.1.1.1",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netaddr.MustParseIP("1.1.1.1")},
+			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("1.1.1.1")},
 		},
 		{
 			input:     "1-ff00:0:0,[::]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netaddr.MustParseIP("::")},
+			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("::")},
 		},
 		{
 			input:     "1-ff00:0:0,::",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netaddr.MustParseIP("::")},
+			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("::")},
 		},
 		{input: "1-ff00:0:0,[[::]]", assertErr: assert.Error},
 		{input: "1-ff00:0:0,::]", assertErr: assert.Error},
