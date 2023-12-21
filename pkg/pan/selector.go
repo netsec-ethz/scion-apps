@@ -16,8 +16,10 @@ package pan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,7 +33,17 @@ import (
 type Selector interface {
 	// Path selects the path for the next packet.
 	// Invoked for each packet sent with Write.
-	Path() *Path
+	Path(remote UDPAddr) (*Path, error)
+
+	NewRemote(remote UDPAddr) error
+	// inform the selector, that it is now responsible for another address
+	// which must be in the same AS as any previous addresses
+	// this gives more complex selectors (i.e. Pinging) the chance to
+	// ping more than one scion address
+
+	// get the IA for which this selector provides paths
+	GetIA() IA
+
 	// Initialize the selector for a connection with the initial list of paths,
 	// filtered/ordered by the Policy.
 	// Invoked once during the creation of a Conn.
@@ -55,28 +67,41 @@ type Selector interface {
 // switch to the first path (in the order defined by the policy) that is not
 // affected by down notifications.
 type DefaultSelector struct {
-	mutex   sync.Mutex
-	paths   []*Path
-	current int
+	mutex     sync.Mutex
+	paths     []*Path
+	current   int
+	remote_ia IA
+}
+
+func (s *DefaultSelector) GetIA() IA {
+	return s.remote_ia
+}
+
+func (s *DefaultSelector) NewRemote(remote UDPAddr) error {
+	if remote.IA != s.remote_ia {
+		return errors.New("address must be inside the AS, which the selector was initialized with")
+	}
+	return nil
 }
 
 func NewDefaultSelector() *DefaultSelector {
 	return &DefaultSelector{}
 }
 
-func (s *DefaultSelector) Path() *Path {
+func (s *DefaultSelector) Path(remote UDPAddr) (*Path, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if len(s.paths) == 0 {
-		return nil
+		return nil, errors.New("DefaultPathSelector initialized with empty path list and never refreshed")
 	}
-	return s.paths[s.current]
+	return s.paths[s.current], nil
 }
 
 func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	s.remote_ia = remote.IA
 
 	s.paths = paths
 	s.current = 0
@@ -119,6 +144,10 @@ func (s *DefaultSelector) Close() error {
 	return nil
 }
 
+/*
+selects the path to each of set of remote hosts
+in the same remote AS by periodically pinging them
+*/
 type PingingSelector struct {
 	// Interval for pinging. Must be positive.
 	Interval time.Duration
@@ -127,14 +156,26 @@ type PingingSelector struct {
 
 	mutex   sync.Mutex
 	paths   []*Path
-	current int
+	current map[scionAddr]int
 	local   scionAddr
-	remote  scionAddr
+	remotes []scionAddr
 
 	numActive    int64
 	pingerCtx    context.Context
 	pingerCancel context.CancelFunc
 	pinger       *ping.Pinger
+}
+
+func (s *PingingSelector) GetIA() IA {
+	return s.remotes[0].IA
+}
+
+func (s *PingingSelector) NewRemote(remote UDPAddr) error {
+	if remote.IA != s.remotes[0].IA {
+		return errors.New("path selection domain for selectors can only contain addresses inside same AS!")
+	}
+	s.remotes = append(s.remotes, scionAddr{IA: remote.IA, IP: remote.IP})
+	return nil
 }
 
 // SetActive enables active pinging on at most numActive paths.
@@ -143,14 +184,14 @@ func (s *PingingSelector) SetActive(numActive int) {
 	atomic.SwapInt64(&s.numActive, int64(numActive))
 }
 
-func (s *PingingSelector) Path() *Path {
+func (s *PingingSelector) Path(remote UDPAddr) (*Path, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if len(s.paths) == 0 {
-		return nil
+		return nil, errors.New("PingingSelector initialized with empty path list and never refreshed")
 	}
-	return s.paths[s.current]
+	return s.paths[s.current[scionAddr{IA: remote.IA, IP: remote.IP}]], nil
 }
 
 func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path) {
@@ -158,9 +199,12 @@ func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 	defer s.mutex.Unlock()
 
 	s.local = local.scionAddr()
-	s.remote = remote.scionAddr()
+	s.remotes = append(s.remotes, remote.scionAddr())
 	s.paths = paths
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	for _, rem := range s.remotes {
+		s.current[rem] = stats.LowestLatency(rem, s.paths)
+	}
+	//s.current = stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) Refresh(paths []*Path) {
@@ -168,25 +212,31 @@ func (s *PingingSelector) Refresh(paths []*Path) {
 	defer s.mutex.Unlock()
 
 	s.paths = paths
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	// s.current = stats.LowestLatency(s.remote, s.paths)
+	for _, rem := range s.remotes {
+		s.current[rem] = stats.LowestLatency(rem, s.paths)
+	}
 }
 
 func (s *PingingSelector) PathDown(pf PathFingerprint, pi PathInterface) {
-	s.reselectPath()
+	s.reselectPaths()
 }
 
-func (s *PingingSelector) reselectPath() {
+func (s *PingingSelector) reselectPaths() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	// s.current = stats.LowestLatency(s.remote, s.paths)
+	for _, rem := range s.remotes {
+		s.current[rem] = stats.LowestLatency(rem, s.paths)
+	}
 }
 
 func (s *PingingSelector) ensureRunning() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if s.local.IA == s.remote.IA {
+	if s.local.IA == s.remotes[0].IA {
 		return
 	}
 	if s.pinger != nil {
@@ -203,6 +253,11 @@ func (s *PingingSelector) ensureRunning() {
 	go s.run()
 }
 
+type probeKey struct {
+	pf   PathFingerprint
+	addr scionAddr
+}
+
 func (s *PingingSelector) run() {
 	pingTicker := time.NewTicker(s.Interval)
 	pingTimeout := time.NewTimer(0)
@@ -211,7 +266,7 @@ func (s *PingingSelector) run() {
 	}
 
 	var sequenceNo uint16
-	replyPending := make(map[PathFingerprint]struct{})
+	replyPending := make(map[probeKey]struct{})
 
 	for {
 		select {
@@ -228,7 +283,9 @@ func (s *PingingSelector) run() {
 
 			activePaths := s.paths[:numActive]
 			for _, p := range activePaths {
-				replyPending[p.Fingerprint] = struct{}{}
+				for _, rem := range s.remotes {
+					replyPending[probeKey{p.Fingerprint, rem}] = struct{}{}
+				}
 			}
 			sequenceNo++
 			s.sendPings(activePaths, sequenceNo)
@@ -237,35 +294,37 @@ func (s *PingingSelector) run() {
 			s.handlePingReply(r, replyPending, sequenceNo)
 			if len(replyPending) == 0 {
 				pingTimeout.Stop()
-				s.reselectPath()
+				s.reselectPaths()
 			}
 		case <-pingTimeout.C:
 			if len(replyPending) == 0 {
 				continue // already handled above
 			}
-			for pf := range replyPending {
-				stats.RecordLatency(s.remote, pf, s.Timeout)
-				delete(replyPending, pf)
+			for probe := range replyPending {
+				stats.RecordLatency(probe.addr, probe.pf, s.Timeout)
+				delete(replyPending, probe)
 			}
-			s.reselectPath()
+			s.reselectPaths()
 		}
 	}
 }
 
 func (s *PingingSelector) sendPings(paths []*Path, sequenceNo uint16) {
 	for _, p := range paths {
-		remote := s.remote.snetUDPAddr()
-		remote.Path = p.ForwardingPath.dataplanePath
-		remote.NextHop = net.UDPAddrFromAddrPort(p.ForwardingPath.underlay)
-		err := s.pinger.Send(s.pingerCtx, remote, sequenceNo, 16)
-		if err != nil {
-			panic(err)
+		for _, rem := range s.remotes {
+			remote := rem.snetUDPAddr()
+			remote.Path = p.ForwardingPath.dataplanePath
+			remote.NextHop = net.UDPAddrFromAddrPort(p.ForwardingPath.underlay)
+			err := s.pinger.Send(s.pingerCtx, remote, sequenceNo, 16)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }
 
 func (s *PingingSelector) handlePingReply(reply ping.Reply,
-	expectedReplies map[PathFingerprint]struct{},
+	expectedReplies map[probeKey]struct{},
 	expectedSequenceNo uint16) {
 	if reply.Error != nil {
 		// handle NotifyPathDown.
@@ -299,18 +358,18 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		IA: IA(reply.Source.IA),
 		IP: reply.Source.Host.IP(),
 	}
-	if src != s.remote || reply.Reply.SeqNumber != expectedSequenceNo {
+	if !slices.Contains(s.remotes, src) || reply.Reply.SeqNumber != expectedSequenceNo {
 		return
 	}
 	pf, err := reversePathFingerprint(reply.Path)
 	if err != nil {
 		return
 	}
-	if _, expected := expectedReplies[pf]; !expected {
+	if _, expected := expectedReplies[probeKey{pf, src}]; !expected {
 		return
 	}
-	stats.RecordLatency(s.remote, pf, reply.RTT())
-	delete(expectedReplies, pf)
+	stats.RecordLatency(src, pf, reply.RTT())
+	delete(expectedReplies, probeKey{pf, src})
 }
 
 func (s *PingingSelector) Close() error {

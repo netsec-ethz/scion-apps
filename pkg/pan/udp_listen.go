@@ -31,7 +31,7 @@ var errBadDstAddress error = errors.New("dst address not a UDPAddr")
 type ReplySelector interface {
 	// Path selects the path for the next packet to remote.
 	// Invoked for each packet sent with WriteTo.
-	Path(remote UDPAddr) *Path
+	Path(remote UDPAddr) (*Path, error)
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
 	Initialize(local UDPAddr)
@@ -120,7 +120,8 @@ func (c *listenConn) WriteTo(b []byte, dst net.Addr) (int, error) {
 	}
 	var path *Path
 	if c.local.IA != sdst.IA {
-		path = c.selector.Path(sdst)
+
+		path, _ = c.selector.Path(sdst)
 		if path == nil {
 			return 0, errNoPathTo(sdst.IA)
 		}
@@ -153,14 +154,14 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 func (s *DefaultReplySelector) Initialize(local UDPAddr) {
 }
 
-func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {
+func (s *DefaultReplySelector) Path(remote UDPAddr) (*Path, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	r, ok := s.remotes[remote]
 	if !ok || len(r.paths) == 0 {
-		return nil
+		return nil, errors.New("path requested for remote from which no package was received earlier")
 	}
-	return r.paths[0]
+	return r.paths[0], nil
 }
 
 func (s *DefaultReplySelector) Record(remote UDPAddr, path *Path) {
