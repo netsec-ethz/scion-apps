@@ -43,9 +43,19 @@ type CombiSelector interface {
 	// in its ctor (or once the local addr is known i.e after Bind() was called )
 }
 
+/*
+ensures that its Path(remote) method returns a path to the remote that is valid at the moment it was requested.
+It can be used to send the current packet, but not any subsequent ones,
+as theoretically the path could have expired in between (so a new one has to be requested from the selector).
+Beyond that, the DefaultCombiSelector (if default constructed) makes no promises,
+i.e. the returned Path probably wont be the one with the LeastLatency, Hops or Highest Bandwidth.
+If you want to get this kind of behaviour you have to mutate the selector by explicitly setting one or more
+of its aggregate strategies: Selector,Policy and ReplySelector
+*/
 type DefaultCombiSelector struct {
-	local UDPAddr
-	roles map[UDPAddr]int // is this host the dialer or listener for the connection to this remote host
+	local_ia IA
+	local    UDPAddr
+	roles    map[UDPAddr]int // is this host the dialer or listener for the connection to this remote host
 	// decided from which method is called first for a remote address X
 	// Record(X)->listener or Path(X)->dialer
 
@@ -89,8 +99,9 @@ func (s *DefaultCombiSelector) Close() error {
 
 func NewDefaultCombiSelector(local UDPAddr) (CombiSelector, error) {
 	selector := &DefaultCombiSelector{
-		local: local,
-		roles: make(map[UDPAddr]int),
+		local:    local,
+		local_ia: local.IA,
+		roles:    make(map[UDPAddr]int),
 		//	policies:      make(map[UDPAddr]Policy),
 		policy_factory: func() Policy {
 			var s Policy = nil
@@ -102,7 +113,27 @@ func NewDefaultCombiSelector(local UDPAddr) (CombiSelector, error) {
 		replyselector:    NewDefaultReplySelector(),
 	}
 
-	selector.replyselector.Initialize(local)
+	selector.replyselector.Initialize(local.IA)
+
+	return selector, nil
+}
+
+func NewDefaultCombiSelector2() (CombiSelector, error) {
+	selector := &DefaultCombiSelector{
+		local_ia: GetLocalIA(),
+		roles:    make(map[UDPAddr]int),
+		//	policies:      make(map[UDPAddr]Policy),
+		policy_factory: func() Policy {
+			var s Policy = nil
+			return s
+		},
+		selector_factory: func() Selector { return NewDefaultSelector() },
+		selectors:        make(map[IA]Selector),
+		subscribers:      make(map[IA]*pathRefreshSubscriber),
+		replyselector:    NewDefaultReplySelector(),
+	}
+
+	selector.replyselector.Initialize(selector.local_ia)
 
 	return selector, nil
 }
@@ -113,6 +144,7 @@ func (s *DefaultCombiSelector) SetReplySelector(rep ReplySelector) {
 
 func (s *DefaultCombiSelector) LocalAddrChanged(newlocal UDPAddr) {
 	s.local = newlocal
+	s.replyselector.LocalAddrChanged(newlocal)
 }
 
 func (s *DefaultCombiSelector) Path(remote UDPAddr) (*Path, error) {

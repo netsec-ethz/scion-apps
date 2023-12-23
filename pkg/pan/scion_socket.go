@@ -2,8 +2,14 @@ package pan
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/netip"
+	"time"
+
+	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/private/app"
+	"github.com/scionproto/scion/private/app/flag"
 )
 
 /*
@@ -16,6 +22,13 @@ import (
 	not connections as in Go. It is a prerequisite for i.e. P2P applications
 	where you want to act as both client and server on the same address/socket
 	utilizing QUIC implementations that support it i.e rust-quinn.
+
+the socket's task is to wrap any application layer data it gets passed into a valid Scion Header
+and send it off the IP underlay.
+Any received ScionPackets will be stripped off their underlay and ScionHeader and the payload
+passed to the application.
+Packets with data other than application payload i.e. SCMP messages will be handled by the socket
+and are not propagated to the application.
 */
 type ScionSocket interface {
 	Close() error
@@ -42,6 +55,7 @@ type ScionSocket interface {
 }
 
 type scionSocket struct {
+	local_ia IA
 	local    UDPAddr
 	conn     baseUDPConn
 	selector CombiSelector
@@ -75,10 +89,65 @@ func NewScionSocket(ctx context.Context /*rsel ReplySelector, pol Policy, sel Se
 	}
 
 	return &scionSocket{
+		local_ia: slocal.IA,
 		local:    slocal,
 		conn:     baseUDPConn{raw: raw},
 		selector: sel,
 	}, nil
+}
+
+/*
+returns a socket which is not bound to an address yet
+Bind() has to be called later in order to receive packets
+*/
+func NewScionSocket2() (ScionSocket, error) {
+
+	// as of now the local parameter is only required
+	// for the selector to determine if a remote is in the same AS as itself
+	sel, e := NewDefaultCombiSelector2()
+	if e != nil {
+		return nil, e
+	}
+
+	return &scionSocket{
+		local_ia: GetLocalIA(),
+
+		selector: sel,
+	}, nil
+}
+
+var local_ia_init bool = false
+var local_ia IA
+
+func GetLocalIA() IA {
+	if !local_ia_init {
+		var envFlags flag.SCIONEnvironment
+		var service daemon.Service
+
+		if err := envFlags.LoadExternalVars(); err != nil {
+			panic(fmt.Sprintf("pan initialization failed: %v", err))
+		}
+
+		// is this even necessary ?! or can the IA be read from the envFlags already?! docs dont tell it
+		daemonAddr := envFlags.Daemon()
+		service = daemon.NewService(daemonAddr)
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		conn, err := service.Connect(ctx)
+		if err != nil {
+			panic(fmt.Sprintf("connecting to SCION Daemon: %v", err))
+		}
+		defer conn.Close()
+
+		info, err := app.QueryASInfo(ctx, conn)
+		if err != nil {
+			panic(fmt.Sprintf("%v", err))
+		}
+		local_ia_init = true
+		local_ia = IA(info.IA)
+
+	}
+	return local_ia
 }
 
 func (s *scionSocket) Close() error {
@@ -102,6 +171,10 @@ func (s *scionSocket) SetPolicy(pol func() Policy) {
 }
 
 func (s *scionSocket) Bind(ctx context.Context, local netip.AddrPort) error {
+	local, err := defaultLocalAddr(local)
+	if err != nil {
+		return err
+	}
 	raw, slocal, err := openBaseUDPConn(ctx, local)
 	if err != nil {
 		return err

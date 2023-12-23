@@ -34,7 +34,10 @@ type ReplySelector interface {
 	Path(remote UDPAddr) (*Path, error)
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
-	Initialize(local UDPAddr)
+	// local Isd-As is enough ?! i cant think of an application for the address here
+	Initialize(local IA)
+	// called when the scion-socket is bound to an address
+	LocalAddrChanged(newlocal UDPAddr)
 	// Record a path used by the remote for a packet received.
 	// Invoked whenever a packet is received.
 	// The path is reversed, i.e. it's the path from here to remote.
@@ -72,7 +75,7 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 	if err != nil {
 		return nil, err
 	}
-	selector.Initialize(slocal)
+	selector.Initialize(slocal.IA)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", slocal)
@@ -151,7 +154,11 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 	}
 }
 
-func (s *DefaultReplySelector) Initialize(local UDPAddr) {
+func (s *DefaultReplySelector) Initialize(local IA) {
+}
+
+func (s *DefaultReplySelector) LocalAddrChanged(newlocal UDPAddr) {
+
 }
 
 func (s *DefaultReplySelector) Path(remote UDPAddr) (*Path, error) {
