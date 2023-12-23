@@ -36,8 +36,8 @@ type ScionSocket interface {
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
 	ReadFromVia(b []byte) (int, UDPAddr, *Path, error)
 	LocalAddr() net.Addr
-	WriteTo(b []byte, dst UDPAddr) (int, error)
-	ReadFrom(b []byte) (int, UDPAddr, error)
+	WriteTo(b []byte, dst net.Addr) (int, error)
+	ReadFrom(b []byte) (int, net.Addr, error)
 
 	// SetCombiSelector(CombiSelector)
 	SetReplySelector(ReplySelector)
@@ -49,9 +49,9 @@ type ScionSocket interface {
 	// SetPolicyFor(remote IA, pol Policy)
 	// SetPolicedSelectorFor(remote IA, sel Selector, pol Policy)
 
-	// SetReadDeadline()
-	// SetWriteDeadline()
-	// SetDeadline()
+	SetReadDeadline(time.Time) error
+	SetWriteDeadline(time.Time) error
+	SetDeadline(time.Time) error
 }
 
 type scionSocket struct {
@@ -59,6 +59,18 @@ type scionSocket struct {
 	local    UDPAddr
 	conn     baseUDPConn
 	selector CombiSelector
+}
+
+func (s *scionSocket) SetReadDeadline(t time.Time) error {
+	return s.conn.SetReadDeadline(t)
+}
+
+func (s *scionSocket) SetWriteDeadline(t time.Time) error {
+	return s.conn.SetWriteDeadline(t)
+}
+
+func (s *scionSocket) SetDeadline(t time.Time) error {
+	return s.conn.SetDeadline(t)
 }
 
 /*
@@ -210,18 +222,22 @@ func (s *scionSocket) LocalAddr() net.Addr {
 	return s.local
 }
 
-func (s *scionSocket) WriteTo(b []byte, dst UDPAddr) (int, error) {
+func (s *scionSocket) WriteTo(b []byte, dst net.Addr) (int, error) {
+	sdst, ok := dst.(UDPAddr)
+	if !ok {
+		return 0, errBadDstAddress
+	}
 	var path *Path
-	if s.needPathTo(dst) {
-		path, _ = s.selector.Path(dst)
+	if s.needPathTo(sdst) {
+		path, _ = s.selector.Path(sdst)
 		if path == nil {
-			return 0, errNoPathTo(dst.IA)
+			return 0, errNoPathTo(sdst.IA)
 		}
 	}
-	return s.WriteToVia(b, dst, path)
+	return s.WriteToVia(b, sdst, path)
 }
 
-func (s *scionSocket) ReadFrom(b []byte) (int, UDPAddr, error) {
+func (s *scionSocket) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, a, _, e := s.ReadFromVia(b)
 	return n, a, e
 }
