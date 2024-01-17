@@ -215,6 +215,7 @@ func (s *DefaultCombiSelector) Record(remote UDPAddr, path *Path) {
 		// no role yet -> no path to remote has been requested yet Path()
 		// so we are acting as a server
 		s.roles[remote] = listener
+		s.replyselector.Record(remote, path)
 	}
 
 }
