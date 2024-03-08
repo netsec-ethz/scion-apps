@@ -98,6 +98,9 @@ func (c *dialedConn) LocalAddr() net.Addr {
 }
 
 func (c *dialedConn) GetPath() *Path {
+	if c.selector == nil {
+		return nil
+	}
 	return c.selector.Path()
 }
 
