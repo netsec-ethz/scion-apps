@@ -45,6 +45,15 @@ issues:
         - stylecheck
         - staticcheck
         - errcheck
+  # Bat is mostly copied third-party code that we don't care to fix
+  # Modifications are only (?) in bat/bat.go
+  exclude-dirs:
+    - bat/*/
+  exclude-files:
+    - bat/color.go
+    - bat/bench.go
+    - bat/pb.go
+    - bat/http.go
   max-same-issues: 0
 
 linters-settings:
@@ -55,12 +64,3 @@ linters-settings:
 
 run:
   build-tags: integration
-  # Bat is mostly copied third-party code that we don't care to fix
-  # Modifications are only (?) in bat/bat.go
-  skip-dirs:
-    - bat/*/
-  skip-files:
-    - bat/color.go
-    - bat/bench.go
-    - bat/pb.go
-    - bat/http.go
