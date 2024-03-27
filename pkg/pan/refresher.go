@@ -16,6 +16,7 @@ package pan
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -124,6 +125,7 @@ func (r *refresher) refresh() {
 				// when the paths actually expire).
 				// TODO: check whether there are errors that could be handled, like try to reconnect
 				// to sciond or something like that.
+				fmt.Printf("unable to queryPaths: %v \n", err)
 				continue
 			}
 			r.subscribersMutex.Lock()

@@ -98,7 +98,8 @@ func (c *dialedConn) LocalAddr() net.Addr {
 }
 
 func (c *dialedConn) GetPath() *Path {
-	return c.selector.Path()
+	p, _ := c.selector.Path(c.remote)
+	return p
 }
 
 func (c *dialedConn) RemoteAddr() net.Addr {
@@ -108,9 +109,15 @@ func (c *dialedConn) RemoteAddr() net.Addr {
 func (c *dialedConn) Write(b []byte) (int, error) {
 	var path *Path
 	if c.local.IA != c.remote.IA {
-		path = c.selector.Path()
-		if path == nil {
-			return 0, errNoPathTo(c.remote.IA)
+
+		var err error
+		path, err = c.selector.Path(c.remote)
+		if err != nil {
+
+			return 0, err
+			/*if path == nil {
+				return 0, errNoPathTo(c.remote.IA)
+			}*/
 		}
 	}
 	return c.baseUDPConn.writeMsg(c.local, c.remote, path, b)
