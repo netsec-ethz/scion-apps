@@ -11,7 +11,7 @@ jobs:
       - run:
           name: Install libpam0g-dev
           command:
-            sudo apt-get update && sudo apt-get install -y libpam0g-dev
+            sudo apt-get update && sudo NEEDRESTART_MODE=a apt-get install -y libpam0g-dev
       - checkout
       - restore_cache:
           keys:
