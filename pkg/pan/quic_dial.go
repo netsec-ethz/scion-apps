@@ -65,6 +65,18 @@ func DialQUIC(ctx context.Context,
 	// set receive buffer size (it's not a UDPConn, we know).
 	silenceLog()
 	defer unsilenceLog()
+
+	// Enable SNI on underlying TLS connection
+	// based on quic-go@v0.41.0/transport.go
+	if host != "" {
+		h, _, err := net.SplitHostPort(host)
+		if err != nil { // This happens if the host doesn't contain a port number.
+			tlsConf.ServerName = host
+		} else {
+			tlsConf.ServerName = h
+		}
+	}
+
 	session, err := quic.Dial(ctx, pconn, remote, tlsConf, quicConf)
 	if err != nil {
 		return nil, err
