@@ -31,10 +31,13 @@ var errBadDstAddress error = errors.New("dst address not a UDPAddr")
 type ReplySelector interface {
 	// Path selects the path for the next packet to remote.
 	// Invoked for each packet sent with WriteTo.
-	Path(remote UDPAddr) *Path
+	Path(remote UDPAddr) (*Path, error)
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
-	Initialize(local UDPAddr)
+	// local Isd-As is enough ?! i cant think of an application for the address here
+	Initialize(local IA)
+	// called when the scion-socket is bound to an address
+	LocalAddrChanged(newlocal UDPAddr)
 	// Record a path used by the remote for a packet received.
 	// Invoked whenever a packet is received.
 	// The path is reversed, i.e. it's the path from here to remote.
@@ -72,7 +75,7 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 	if err != nil {
 		return nil, err
 	}
-	selector.Initialize(slocal)
+	selector.Initialize(slocal.IA)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", slocal)
@@ -120,7 +123,8 @@ func (c *listenConn) WriteTo(b []byte, dst net.Addr) (int, error) {
 	}
 	var path *Path
 	if c.local.IA != sdst.IA {
-		path = c.selector.Path(sdst)
+
+		path, _ = c.selector.Path(sdst)
 		if path == nil {
 			return 0, errNoPathTo(sdst.IA)
 		}
@@ -150,17 +154,21 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 	}
 }
 
-func (s *DefaultReplySelector) Initialize(local UDPAddr) {
+func (s *DefaultReplySelector) Initialize(local IA) {
 }
 
-func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {
+func (s *DefaultReplySelector) LocalAddrChanged(newlocal UDPAddr) {
+
+}
+
+func (s *DefaultReplySelector) Path(remote UDPAddr) (*Path, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	r, ok := s.remotes[remote]
 	if !ok || len(r.paths) == 0 {
-		return nil
+		return nil, errors.New("path requested for remote from which no package was received earlier")
 	}
-	return r.paths[0]
+	return r.paths[0], nil
 }
 
 func (s *DefaultReplySelector) Record(remote UDPAddr, path *Path) {
