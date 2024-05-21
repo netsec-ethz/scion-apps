@@ -130,7 +130,7 @@ func (s *pathStatsDB) FirstMoreAlive(p *Path, paths []*Path) int {
 	defer s.mutex.RUnlock()
 
 	for i, pc := range paths {
-		if s.IsMoreAlive(pc, p) {
+		if s.isMoreAlive(pc, p) {
 			return i
 		}
 	}
@@ -144,7 +144,10 @@ func (s *pathStatsDB) FirstMoreAlive(p *Path, paths []*Path) int {
 func (s *pathStatsDB) IsMoreAlive(a, b *Path) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+	return s.isMoreAlive(a, b)
+}
 
+func (s *pathStatsDB) IsMoreAlive(a, b *Path) bool {
 	newestA := s.newestDownNotification(a)
 	oldestB := s.oldestDownNotification(b)
 	return newestA.Before(oldestB.Add(-pathDownNotificationTimeout)) // XXX: what is this value, what does it mean?
