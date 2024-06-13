@@ -16,8 +16,11 @@ package pan
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/netip"
+
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 // Conn represents a _dialed_ connection.
@@ -53,25 +56,38 @@ func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 		return nil, err
 	}
 
-	raw, slocal, err := openBaseUDPConn(ctx, local)
+	sn := snet.SCIONNetwork{
+		Topology:    host().sciond,
+		SCMPHandler: scmpHandler{},
+	}
+	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
 		return nil, err
 	}
+	ip, ok := netip.AddrFromSlice((conn.LocalAddr().(*net.UDPAddr).IP))
+	if !ok {
+		return nil, fmt.Errorf("invalid local addr value %v", conn.LocalAddr().(*net.UDPAddr).IP)
+	}
+	localUDPAddr := UDPAddr{
+		IA:   host().ia,
+		IP:   ip,
+		Port: uint16(conn.LocalAddr().(*net.UDPAddr).Port),
+	}
 	var subscriber *pathRefreshSubscriber
-	if remote.IA != slocal.IA {
+	if remote.IA != localUDPAddr.IA {
 		if selector == nil {
 			selector = NewDefaultSelector()
 		}
-		subscriber, err = openPathRefreshSubscriber(ctx, slocal, remote, policy, selector)
+		subscriber, err = openPathRefreshSubscriber(ctx, localUDPAddr, remote, policy, selector)
 		if err != nil {
 			return nil, err
 		}
 	}
 	return &dialedConn{
 		baseUDPConn: baseUDPConn{
-			raw: raw,
+			raw: conn,
 		},
-		local:      slocal,
+		local:      localUDPAddr,
 		remote:     remote,
 		subscriber: subscriber,
 		selector:   selector,

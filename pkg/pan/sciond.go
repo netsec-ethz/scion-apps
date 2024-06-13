@@ -27,15 +27,13 @@ import (
 	"github.com/scionproto/scion/pkg/daemon"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 )
 
 // hostContext contains the information needed to connect to the host's local SCION stack,
-// i.e. the connection to sciond and dispatcher.
+// i.e. the connection to sciond.
 type hostContext struct {
 	ia            IA
 	sciond        daemon.Connector
-	dispatcher    reliable.Dispatcher
 	hostInLocalAS net.IP
 }
 
@@ -64,10 +62,6 @@ func mustInitHostContext() {
 func initHostContext() (hostContext, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), initTimeout)
 	defer cancel()
-	dispatcher, err := findDispatcher()
-	if err != nil {
-		return hostContext{}, err
-	}
 	sciondConn, err := findSciond(ctx)
 	if err != nil {
 		return hostContext{}, err
@@ -83,7 +77,6 @@ func initHostContext() (hostContext, error) {
 	return hostContext{
 		ia:            IA(localIA),
 		sciond:        sciondConn,
-		dispatcher:    dispatcher,
 		hostInLocalAS: hostInLocalAS,
 	}, nil
 }
@@ -98,42 +91,6 @@ func findSciond(ctx context.Context) (daemon.Connector, error) {
 		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", address, err)
 	}
 	return sciondConn, nil
-}
-
-func findDispatcher() (reliable.Dispatcher, error) {
-	path, err := findDispatcherSocket()
-	if err != nil {
-		return nil, err
-	}
-	dispatcher := reliable.NewDispatcher(path)
-	return dispatcher, nil
-}
-
-func findDispatcherSocket() (string, error) {
-	path, ok := os.LookupEnv("SCION_DISPATCHER_SOCKET")
-	if !ok {
-		path = reliable.DefaultDispPath
-	}
-
-	if err := statSocket(path); err != nil {
-		return "", fmt.Errorf("error looking for SCION dispatcher socket at %s (override with SCION_DISPATCHER_SOCKET): %w", path, err)
-	}
-	return path, nil
-}
-
-func statSocket(path string) error {
-	fileinfo, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-	if !isSocket(fileinfo.Mode()) {
-		return fmt.Errorf("%s is not a socket (mode: %s)", path, fileinfo.Mode())
-	}
-	return nil
-}
-
-func isSocket(mode os.FileMode) bool {
-	return mode&os.ModeSocket != 0
 }
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.

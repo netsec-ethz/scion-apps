@@ -23,6 +23,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 var errBadDstAddress error = errors.New("dst address not a UDPAddr")
@@ -68,21 +70,34 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 		selector = NewDefaultReplySelector()
 	}
 	stats.subscribe(selector)
-	raw, slocal, err := openBaseUDPConn(ctx, local)
+	sn := snet.SCIONNetwork{
+		Topology:    host().sciond,
+		SCMPHandler: scmpHandler{},
+	}
+	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
 		return nil, err
 	}
-	selector.Initialize(slocal)
+	ip, ok := netip.AddrFromSlice((conn.LocalAddr().(*net.UDPAddr).IP))
+	if !ok {
+		return nil, fmt.Errorf("invalid local addr value %v", conn.LocalAddr().(*net.UDPAddr).IP)
+	}
+	localUDPAddr := UDPAddr{
+		IA:   host().ia,
+		IP:   ip,
+		Port: uint16(conn.LocalAddr().(*net.UDPAddr).Port),
+	}
+	selector.Initialize(localUDPAddr)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
-		fmt.Printf("Listening addr=%s\n", slocal)
+		fmt.Printf("Listening addr=%s\n", localUDPAddr)
 	}
 
 	return &listenConn{
 		baseUDPConn: baseUDPConn{
-			raw: raw,
+			raw: conn,
 		},
-		local:    slocal,
+		local:    localUDPAddr,
 		selector: selector,
 	}, nil
 }

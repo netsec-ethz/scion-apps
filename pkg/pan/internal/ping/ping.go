@@ -24,7 +24,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/netip"
 	"time"
@@ -34,7 +33,6 @@ import (
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/pkg/sock/reliable"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
 
@@ -52,32 +50,35 @@ type Pinger struct {
 }
 
 func NewPinger(ctx context.Context,
-	dispatcher reliable.Dispatcher,
+	topo snet.Topology,
 	local *snet.UDPAddr,
 ) (*Pinger, error) {
 
-	id := rand.Uint64()
 	replies := make(chan Reply, 10)
-
-	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher: dispatcher,
-		SCMPHandler: scmpHandler{
-			id:      uint16(id),
-			replies: replies,
-		},
+	scmpHandler := &scmpHandler{
+		replies: replies,
 	}
-	conn, port, err := svc.Register(ctx, local.IA, local.Host, addr.SvcNone)
+
+	sn := &snet.SCIONNetwork{
+		SCMPHandler: scmpHandler,
+		Topology:    topo,
+	}
+	conn, err := sn.OpenRaw(ctx, local.Host)
 	if err != nil {
 		return nil, err
 	}
 
 	local = local.Copy()
-	local.Host.Port = int(port)
+	local.Host = conn.LocalAddr().(*net.UDPAddr)
+	// we set the identifier on the handler to the same value as
+	// the udp port
+	id := local.Host.Port
+	scmpHandler.SetID(id)
 
 	return &Pinger{
 		Replies:    replies,
 		errHandler: nil,
-		id:         id,
+		id:         uint64(local.Host.Port),
 		conn:       conn,
 		local:      local,
 		pld:        make([]byte, 8), // min payload size
@@ -175,6 +176,10 @@ func (e InternalConnectivityDownError) Error() string {
 type scmpHandler struct {
 	id      uint16
 	replies chan<- Reply
+}
+
+func (h *scmpHandler) SetID(id int) {
+	h.id = uint16(id)
 }
 
 func (h scmpHandler) Handle(pkt *snet.Packet) error {
