@@ -78,14 +78,11 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 	if err != nil {
 		return nil, err
 	}
-	ip, ok := netip.AddrFromSlice((conn.LocalAddr().(*net.UDPAddr).IP))
-	if !ok {
-		return nil, fmt.Errorf("invalid local addr value %v", conn.LocalAddr().(*net.UDPAddr).IP)
-	}
+	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
 		IA:   host().ia,
-		IP:   ip,
-		Port: uint16(conn.LocalAddr().(*net.UDPAddr).Port),
+		IP:   ipport.Addr(),
+		Port: ipport.Port(),
 	}
 	selector.Initialize(localUDPAddr)
 
