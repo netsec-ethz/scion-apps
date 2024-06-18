@@ -13,7 +13,7 @@ require (
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/pelletier/go-toml v1.9.5
 	github.com/quic-go/quic-go v0.43.1
-	github.com/scionproto/scion v0.9.1-0.20240610170620-50b971ca2d4b
+	github.com/scionproto/scion v0.11.1-0.20240610170620-50b971ca2d4b
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.23.0
