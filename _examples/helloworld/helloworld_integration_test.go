@@ -34,11 +34,13 @@ func TestMain(m *testing.M) {
 func TestHelloworldSample(t *testing.T) {
 	cmd := integration.AppBinPath(bin)
 	// Server
-	serverPort := "12345"
-	serverArgs := []string{"-listen", ":" + serverPort}
+	serverPortOffset := 12345
+	serverArgs := []string{"-listen", ":" + integration.ServerPortReplace}
 
 	// Client
-	clientArgs := []string{"-remote", integration.DstAddrPattern + ":" + serverPort}
+	clientArgs := []string{
+		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+	}
 
 	in := integration.NewAppsIntegration(cmd, cmd, clientArgs, serverArgs)
 	in.ServerOutMatch = integration.RegExp("(?m)^Received .*: hello world .*\nWrote 24 bytes")
@@ -47,6 +49,8 @@ func TestHelloworldSample(t *testing.T) {
 	// restricted to a subset to reduce the number of tests to run without significant
 	// loss of coverage
 	iaPairs := integration.DefaultIAPairs()
+	// Add different ports to servers.
+	integration.AssignUniquePorts(iaPairs, serverPortOffset, 2)
 	// Run the tests to completion or until a test fails,
 	// increase the ClientTimeout if clients need more time to start
 	if err := in.Run(t, iaPairs); err != nil {
