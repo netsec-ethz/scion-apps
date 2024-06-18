@@ -155,6 +155,30 @@ func DefaultIAPairs() []sintegration.IAPair {
 	return filtered
 }
 
+// AssignUniquePorts assigns unique ports to all combinations, so that for each distinct
+// (IA,IP) no (IP:port) is the same. This prevents clashes while listening at the same time,
+// with the dispatcher-less approach.
+// The arguments portOffset and stride specify the initial port and how many ports will be skipped
+// per server instance. E.g., with offset=1234, stride=2 the first server will use port 1234,
+// second 1234+2, etc. In the case of bwtestserver, since the client uses two ports to the server,
+// stride would have to be at least 2.
+// Note: on each pair, Dst represents the server.
+func AssignUniquePorts(pairs []sintegration.IAPair, portOffset int, stride int) {
+	unique := make(map[string]int)
+	portInc := 0
+	for _, pair := range pairs {
+		s := iaIPtoString(pair.Dst)
+		port, ok := unique[s]
+		if !ok {
+			port = portOffset + portInc
+			unique[s] = port
+			portInc += stride
+		}
+		// Assign the port (always) to that server.
+		pair.Dst.Host.Port = port
+	}
+}
+
 func closeAll(closers []io.Closer) error {
 	var firstError error
 	for _, c := range closers {
@@ -222,4 +246,8 @@ func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net
 		return nil, err
 	}
 	return bsAddr.IP, nil
+}
+
+func iaIPtoString(addr *snet.UDPAddr) string {
+	return fmt.Sprintf("%s,[%s]", addr.IA.String(), addr.Host.IP.String())
 }

@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -81,6 +82,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 	args := replacePattern(SCIOND, sciondAddr, sai.serverArgs)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
+	args = replacePattern(ServerPortReplace, strconv.Itoa(dst.Host.Port), args)
 	log.Debug(fmt.Sprintf("Running server command: %v %v\n", sai.serverCmd, strings.Join(args, " ")))
 
 	cmd := exec.CommandContext(ctx, sai.serverCmd, args...)
@@ -135,6 +137,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 	args = replacePattern(SrcHostReplace, src.Host.IP.String(), args)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
+	args = replacePattern(ServerPortReplace, strconv.Itoa(dst.Host.Port), args)
 	log.Debug(fmt.Sprintf("Running client command: %v %v\n", sai.clientCmd, strings.Join(args, " ")))
 
 	cmd := exec.CommandContext(ctx, sai.clientCmd, args...)
