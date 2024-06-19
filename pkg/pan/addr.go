@@ -65,13 +65,6 @@ func (a UDPAddr) scionAddr() scionAddr {
 	return scionAddr{IA: a.IA, IP: a.IP}
 }
 
-func (a UDPAddr) snetUDPAddr() *snet.UDPAddr {
-	return &snet.UDPAddr{
-		IA:   addr.IA(a.IA),
-		Host: net.UDPAddrFromAddrPort(netip.AddrPortFrom(a.IP, a.Port)),
-	}
-}
-
 // Set implements flag.Value
 func (a *UDPAddr) Set(s string) error {
 	var err error

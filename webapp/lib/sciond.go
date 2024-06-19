@@ -282,7 +282,7 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, 
 	ajsonInfo, _ := json.Marshal(asir)
 	log.Debug("AsTopoHandler:", "ajsonInfo", string(ajsonInfo))
 
-	ifirs, err := c.IFInfo(context.Background(), []common.IFIDType{})
+	ifirs, err := c.Interfaces(context.Background())
 	if CheckError(err) {
 		returnError(w, err)
 		return

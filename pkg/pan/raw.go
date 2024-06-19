@@ -15,7 +15,6 @@
 package pan
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/netip"
@@ -29,27 +28,6 @@ import (
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/scionproto/scion/private/topology/underlay"
 )
-
-// openBaseUDPConn opens new raw SCION UDP conn.
-func openBaseUDPConn(ctx context.Context, local netip.AddrPort) (snet.PacketConn, UDPAddr, error) {
-	dispatcher := host().dispatcher
-	ia := host().ia
-
-	rconn, port, err := dispatcher.Register(ctx, addr.IA(ia), net.UDPAddrFromAddrPort(local), addr.SvcNone)
-	if err != nil {
-		return nil, UDPAddr{}, err
-	}
-	conn := &snet.SCIONPacketConn{
-		Conn:        rconn,
-		SCMPHandler: scmpHandler{},
-	}
-	slocal := UDPAddr{
-		IA:   ia,
-		IP:   local.Addr(),
-		Port: port,
-	}
-	return conn, slocal, nil
-}
 
 // baseUDPConn contains the common message read/write logic for different the
 // UDP porcelains (dialedConn and listenConn).
