@@ -11,7 +11,7 @@ require (
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
-	github.com/netsec-ethz/rains v0.5.1-0.20240619074701-a2df96466887
+	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403
 	github.com/pelletier/go-toml v1.9.5
 	github.com/quic-go/quic-go v0.43.1
 	github.com/scionproto/scion v0.11.1-0.20240610170620-50b971ca2d4b

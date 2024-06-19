@@ -34,7 +34,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
-	github.com/netsec-ethz/rains v0.5.1-0.20240619074701-a2df96466887 // indirect
+	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403 // indirect
 	github.com/onsi/ginkgo/v2 v2.17.3 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
