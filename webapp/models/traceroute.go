@@ -138,10 +138,10 @@ func createTracerouteTable() error {
         CAddr TEXT,
         SIa TEXT,
         SAddr TEXT,
-		Timeout REAL,
-		CmdOutput TEXT,
-		Error TEXT,
-		Path TEXT
+        Timeout REAL,
+        CmdOutput TEXT,
+        Error TEXT,
+        Path TEXT
     );
     `
 	_, err := db.Exec(sqlCreateTable)
@@ -153,13 +153,13 @@ func createTrHopTable() error {
     CREATE TABLE IF NOT EXISTS trhops(
         Inserted BIGINT NOT NULL PRIMARY KEY,
         RunTimeKey BIGINT,
-    	Ord INT,
-		HopIa TEXT,
-		HopAddr TEXT,
+        Ord INT,
+        HopIa TEXT,
+        HopAddr TEXT,
         IntfID INT,
-		RespTime1 REAL,
-		RespTime2 REAL,
-		RespTime3 REAL
+        RespTime1 REAL,
+        RespTime2 REAL,
+        RespTime3 REAL
     );
     `
 	_, err := db.Exec(sqlCreateTable)
@@ -170,16 +170,16 @@ func createTrHopTable() error {
 func StoreTracerouteItem(tr *TracerouteItem) error {
 	sqlInsert := `
     INSERT INTO traceroute(
-		Inserted,
+        Inserted,
         ActualDuration,
         CIa,
         CAddr,
         SIa,
         SAddr,
-		Timeout,
-		CmdOutput,
-		Error,
-		Path
+        Timeout,
+        CmdOutput,
+        Error,
+        Path
     ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
@@ -206,15 +206,15 @@ func StoreTracerouteItem(tr *TracerouteItem) error {
 func StoreTrHopItem(hop *TrHopItem) error {
 	sqlInsert := `
     INSERT INTO trhops(
-		Inserted,
+        Inserted,
         RunTimeKey,
         Ord,
-		HopIa,
-		HopAddr,
+        HopIa,
+        HopAddr,
         IntfID,
-		RespTime1,
-		RespTime2,
-		RespTime3
+        RespTime1,
+        RespTime2,
+        RespTime3
     ) values(?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	stmt, err := db.Prepare(sqlInsert)
@@ -239,18 +239,18 @@ func StoreTrHopItem(hop *TrHopItem) error {
 // ReadTracerouteItemsAll operates on the DB to return all traceroute rows.
 func ReadTracerouteItemsAll() ([]TracerouteItem, error) {
 	sqlReadAll := `
-	SELECT
-		Inserted,
-		ActualDuration,
-		CIa,
-		CAddr,
-		SIa,
-		SAddr,
-		Timeout,
-		CmdOutput,
-		Error,
-		Path
-	FROM traceroute
+    SELECT
+        Inserted,
+        ActualDuration,
+        CIa,
+        CAddr,
+        SIa,
+        SAddr,
+        Timeout,
+        CmdOutput,
+        Error,
+        Path
+    FROM traceroute
     ORDER BY datetime(Inserted) DESC
     `
 	rows, err := db.Query(sqlReadAll)
@@ -285,36 +285,36 @@ func ReadTracerouteItemsAll() ([]TracerouteItem, error) {
 // which are more recent than the 'since' epoch in ms.
 func ReadTracerouteItemsSince(since string) ([]TracerouteGraph, error) {
 	sqlReadSince := `
-	SELECT
-		a.Inserted,   
-		a.ActualDuration, 
-		h.Ord,          
-		h.HopIa,          
-		h.HopAddr,        
-		h.IntfID,         
-		h.RespTime1,      
-		h.RespTime2,     
-		h.RespTime3,	   
-		a.CmdOutput,       
-		a.Error,
-		a.Path       
-	FROM (
-			SELECT
-				Inserted,
-				ActualDuration,
-				CIa,
-				CAddr,
-				SIa,
-				SAddr,
-				Timeout,
-				CmdOutput,
-				Error,
-				Path
-			FROM traceroute
-			WHERE Inserted > ?			
-	) AS a
-	INNER JOIN trhops AS h ON a.Inserted = h.RunTimeKey
-	ORDER BY datetime(a.Inserted) DESC
+    SELECT
+        a.Inserted,
+        a.ActualDuration,
+        h.Ord,
+        h.HopIa,
+        h.HopAddr,
+        h.IntfID,
+        h.RespTime1,
+        h.RespTime2,
+        h.RespTime3,
+        a.CmdOutput,
+        a.Error,
+        a.Path
+    FROM (
+            SELECT
+                Inserted,
+                ActualDuration,
+                CIa,
+                CAddr,
+                SIa,
+                SAddr,
+                Timeout,
+                CmdOutput,
+                Error,
+                Path
+            FROM traceroute
+            WHERE Inserted > ?
+    ) AS a
+    INNER JOIN trhops AS h ON a.Inserted = h.RunTimeKey
+    ORDER BY datetime(a.Inserted) DESC
     `
 	rows, err := db.Query(sqlReadSince, since)
 	if err != nil {
