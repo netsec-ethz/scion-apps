@@ -60,23 +60,27 @@ func TestIntegrationScionNetcatCmd(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
+		serverPortOffset := 1234
 		t.Run(tc.name, func(t *testing.T) {
-			serverPort := "1234"
 			serverArgs := concat(
 				tc.flags,
-				[]string{"-N", "-K", "-c", "echo " + tc.message, "-l", serverPort},
+				[]string{"-N", "-K", "-c",
+					"echo " + tc.message,
+					"-l", integration.ServerPortReplace},
 			)
 			// BUG: should also work with -k, but doesn't (!?)
 
 			clientScriptArgs := concat(
 				tc.flags,
-				[]string{integration.DstAddrPattern + ":" + serverPort},
+				[]string{integration.DstAddrPattern + ":" + integration.ServerPortReplace},
 			)
 			in := integration.NewAppsIntegration(netcatCmd, netcatCmd, clientScriptArgs, serverArgs)
 			in.ClientDelay = 250 * time.Millisecond
 			in.ClientOutMatch = integration.RegExp(fmt.Sprintf("(?m)^%s$", tc.message))
 
 			iaPairs := integration.DefaultIAPairs()
+			// Add different ports to servers.
+			integration.AssignUniquePorts(iaPairs, serverPortOffset, 1)
 			if err := in.Run(t, iaPairs); err != nil {
 				t.Error(err)
 			}

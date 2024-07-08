@@ -194,7 +194,7 @@ func (s *PingingSelector) ensureRunning() {
 	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
 	local := s.local.snetUDPAddr()
-	pinger, err := ping.NewPinger(s.pingerCtx, host().dispatcher, local)
+	pinger, err := ping.NewPinger(s.pingerCtx, host().sciond, local)
 	if err != nil {
 		return
 	}

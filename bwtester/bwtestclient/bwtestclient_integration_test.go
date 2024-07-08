@@ -37,15 +37,21 @@ func TestIntegrationBwtestclient(t *testing.T) {
 	serverCmd := integration.AppBinPath(serverBin)
 
 	// Server
-	serverArgs := []string{}
+	serverPortOffset := 40002
+	serverArgs := []string{"--listen=:" + integration.ServerPortReplace}
 	// Client
-	clientArgs := []string{"-s", integration.DstAddrPattern + ":40002", "-cs", "1,?,?,1Mbps"}
+	clientArgs := []string{
+		"-s", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+		"-cs", "1,?,?,1Mbps",
+	}
 
 	in := integration.NewAppsIntegration(clientCmd, serverCmd, clientArgs, serverArgs)
 	in.ServerOutMatch = integration.Contains("Received request")
 	in.ClientOutMatch = integration.RegExp("(?m)^Achieved bandwidth: \\d+ bps / \\d+.\\d+ [Mk]bps$")
 
 	iaPairs := integration.DefaultIAPairs()
+	// Add different ports to servers.
+	integration.AssignUniquePorts(iaPairs, serverPortOffset, 2)
 	if err := in.Run(t, iaPairs); err != nil {
 		t.Error(err)
 	}

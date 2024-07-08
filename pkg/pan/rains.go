@@ -21,11 +21,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/netsec-ethz/rains/pkg/rains"
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 const rainsConfigPath = "/etc/scion/rains.cfg"
@@ -75,7 +78,10 @@ func rainsQuery(ctx context.Context, server UDPAddr, hostname string) (scionAddr
 
 	// TODO(chaehni): This call can sometimes cause a timeout even though the server is reachable (see issue #221)
 	// The (default) timeout value has been decreased to counter this behavior until the problem is resolved.
-	srv := server.snetUDPAddr()
+	srv := &snet.UDPAddr{
+		IA:   addr.IA(server.IA),
+		Host: net.UDPAddrFromAddrPort(netip.AddrPortFrom(server.IP, server.Port)),
+	}
 
 	reply, err := rainsQueryChecked(ctx, hostname, rainsCtx, []rains.Type{qType}, qOpts, expire, timeout, srv)
 	if err != nil {

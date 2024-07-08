@@ -35,8 +35,8 @@ func TestMain(m *testing.M) {
 
 func TestIntegrationSensorserver(t *testing.T) {
 	// Server
-	serverPort := "42003"
-	serverArgs := []string{"-p", serverPort}
+	serverPortOffset := 42003
+	serverArgs := []string{"-p", integration.ServerPortReplace}
 
 	scriptServerWithInput := integration.InputPipeScript(
 		t.TempDir(),
@@ -47,13 +47,15 @@ func TestIntegrationSensorserver(t *testing.T) {
 
 	// Client
 	clientCmd := integration.AppBinPath(clientBin)
-	clientArgs := []string{"-s", integration.DstAddrPattern + ":" + serverPort}
+	clientArgs := []string{"-s", integration.DstAddrPattern + ":" + integration.ServerPortReplace}
 
 	in := integration.NewAppsIntegration(clientCmd, scriptServerWithInput, clientArgs, serverArgs)
 	in.ClientOutMatch = integration.RegExp(`^20\d{2}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}` + "\n")
 	in.ClientDelay = 250 * time.Millisecond
 
 	iaPairs := integration.DefaultIAPairs()
+	// Add different ports to servers.
+	integration.AssignUniquePorts(iaPairs, serverPortOffset, 1)
 	if err := in.Run(t, iaPairs); err != nil {
 		t.Error(err)
 	}
