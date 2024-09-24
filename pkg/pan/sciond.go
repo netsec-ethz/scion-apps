@@ -17,6 +17,7 @@ package pan
 import (
 	"context"
 	"fmt"
+	"github.com/scionproto/scion/pkg/drkey"
 	"net"
 	"net/netip"
 	"os"
@@ -146,6 +147,7 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			LinkType:     snetMetadata.LinkType,
 			InternalHops: snetMetadata.InternalHops,
 			Notes:        snetMetadata.Notes,
+			FabridInfo:   snetMetadata.FabridInfo,
 		}
 		underlay := p.UnderlayNextHop().AddrPort()
 		paths[i] = &Path{
@@ -161,6 +163,10 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 		}
 	}
 	return paths, nil
+}
+
+func GetDRKeyHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+	return host().sciond.DRKeyGetHostHostKey(ctx, meta)
 }
 
 func convertPathInterfaceSlice(spis []snet.PathInterface) []PathInterface {

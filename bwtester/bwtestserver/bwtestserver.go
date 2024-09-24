@@ -18,9 +18,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"github.com/scionproto/scion/pkg/log"
 	"net"
 	"net/netip"
+	"os"
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -36,13 +39,21 @@ const (
 func main() {
 	var listen pan.IPPortValue
 	kingpin.Flag("listen", "Address to listen on").Default(":40002").SetValue(&listen)
+	fabrid := kingpin.Flag("fabrid", "Enable FABRID").Bool()
 	kingpin.Parse()
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: "debug", StacktraceLevel: "none"}}
+	if err := log.Setup(logCfg); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
+	log.Info("Starting server", "fabrid", fabrid)
 
-	err := runServer(listen.Get())
+	err := runServer(listen.Get(), *fabrid)
 	bwtest.Check(err)
 }
 
-func runServer(listen netip.AddrPort) error {
+func runServer(listen netip.AddrPort, enableFabrid bool) error {
 	receivePacketBuffer := make([]byte, 2500)
 
 	var currentBwtest string
@@ -103,7 +114,7 @@ func runServer(listen netip.AddrPort) error {
 			}
 			path := ccSelector.Path(clientCCAddr.(pan.UDPAddr))
 			finishTime, err := startBwtestBackground(serverCCAddr, clientCCAddr.(pan.UDPAddr), path,
-				clientBwp, serverBwp, currentResult)
+				clientBwp, serverBwp, currentResult, enableFabrid)
 			if err != nil {
 				// Ask the client to try again in 1 second
 				writeResponseN(ccConn, clientCCAddr, 1)
@@ -134,7 +145,7 @@ func runServer(listen netip.AddrPort) error {
 // startBwtestBackground starts a bandwidth test, in the background.
 // Returns the expected finish time of the test, or any error during the setup.
 func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
-	path *pan.Path, clientBwp, serverBwp bwtest.Parameters, res chan<- bwtest.Result) (time.Time, error) {
+	path *pan.Path, clientBwp, serverBwp bwtest.Parameters, res chan<- bwtest.Result, enableFabrid bool) (time.Time, error) {
 
 	// Data Connection addresses:
 	clientDCAddr := clientCCAddr
@@ -143,7 +154,7 @@ func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 
 	// Open Data Connection
 	dcSelector := initializedReplySelector(clientDCAddr, path)
-	dcConn, err := listenConnected(serverDCAddr, clientDCAddr, dcSelector)
+	dcConn, err := listenConnected(serverDCAddr, clientDCAddr, dcSelector, enableFabrid)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -286,8 +297,15 @@ func (r resultsMap) purgeExpired() {
 	}
 }
 
-func listenConnected(local netip.AddrPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
-	conn, err := pan.ListenUDP(context.Background(), local, selector)
+func listenConnected(local netip.AddrPort, remote pan.UDPAddr, selector pan.ReplySelector, enableFabrid bool) (net.Conn, error) {
+	var err error
+	var conn pan.ListenConn
+	if enableFabrid {
+		conn, err = pan.ListenUDPWithFabrid(context.Background(), local, selector)
+
+	} else {
+		conn, err = pan.ListenUDP(context.Background(), local, selector)
+	}
 	return connectedPacketConn{
 		ListenConn: conn,
 		remote:     remote,

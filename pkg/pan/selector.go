@@ -17,6 +17,10 @@ package pan
 import (
 	"context"
 	"fmt"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/path/fabridquery"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -321,4 +325,116 @@ func (s *PingingSelector) Close() error {
 	}
 	s.pingerCancel()
 	return s.pinger.Close()
+}
+
+// FabridSelector is a Selector for a single dialed socket.
+type FabridSelector struct {
+	mutex        sync.Mutex
+	paths        []*Path
+	current      int
+	activePaths  int
+	fabridQuery  fabridquery.Expressions
+	fabridConfig snetpath.FabridConfig
+	ctx          context.Context
+}
+
+func NewFabridSelector(query fabridquery.Expressions, ctx context.Context) *FabridSelector {
+	return &FabridSelector{
+		fabridQuery: query,
+		ctx:         ctx,
+	}
+}
+
+func (s *FabridSelector) Path() *Path {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if len(s.paths) == 0 {
+		return nil
+	}
+	return s.paths[s.current]
+}
+
+func convertInterfaces(interfaces []PathInterface) []snet.PathInterface {
+	snetInterfaces := make([]snet.PathInterface, len(interfaces))
+	for i, pathInterface := range interfaces {
+		snetInterfaces[i] = snet.PathInterface{
+			ID: common.IFIDType(pathInterface.IfID),
+			IA: addr.IA(pathInterface.IA),
+		}
+	}
+	return snetInterfaces
+}
+
+func (s *FabridSelector) Initialize(local, remote UDPAddr, paths []*Path) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	fabridPaths := []*Path{}
+	for _, p := range paths {
+		scionPath, isSCIONPath := p.ForwardingPath.dataplanePath.(snetpath.SCION)
+		if !isSCIONPath {
+			continue
+		}
+		snetMetadata := snet.PathMetadata{
+			Interfaces: convertInterfaces(p.Metadata.Interfaces),
+			FabridInfo: p.Metadata.FabridInfo}
+		hopIntfs := snetMetadata.Hops()
+		ml := fabridquery.MatchList{
+			SelectedPolicies: make([]*fabridquery.Policy, len(hopIntfs)),
+		}
+		_, pols := s.fabridQuery.Evaluate(hopIntfs, &ml)
+
+		if !pols.Accepted() {
+			continue
+		}
+		fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hopIntfs,
+			pols.Policies(), &s.fabridConfig)
+		if err != nil {
+			return
+		}
+		p.ForwardingPath.dataplanePath = fabridPath
+
+		fabridPaths = append(fabridPaths, p)
+	}
+
+	s.paths = fabridPaths
+	s.current = 0
+}
+
+func (s *FabridSelector) Refresh(paths []*Path) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	newcurrent := 0
+	if len(s.paths) > 0 {
+		currentFingerprint := s.paths[s.current].Fingerprint
+		for i, p := range paths {
+			if p.Fingerprint == currentFingerprint {
+				newcurrent = i
+				break
+			}
+		}
+	}
+	s.paths = paths
+	s.current = newcurrent
+}
+
+func (s *FabridSelector) PathDown(pf PathFingerprint, pi PathInterface) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if current := s.paths[s.current]; isInterfaceOnPath(current, pi) || pf == current.Fingerprint {
+		fmt.Println("down:", s.current, len(s.paths))
+		better := stats.FirstMoreAlive(current, s.paths)
+		if better >= 0 {
+			// Try next path. Note that this will keep cycling if we get down notifications
+			s.current = better
+			fmt.Println("failover:", s.current, len(s.paths))
+		}
+	}
+}
+
+func (s *FabridSelector) Close() error {
+	return nil
 }
