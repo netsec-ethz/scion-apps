@@ -26,64 +26,55 @@ import (
 	"github.com/scionproto/scion/pkg/slayers/extension"
 )
 
-type ClientConnection struct {
+type FabridServer struct {
+	Local     UDPAddr
 	Source    UDPAddr
 	tmpBuffer []byte
-	pathKey   drkey.Key
+	pathKey   *drkey.HostHostKey
 }
 
-type FabridServer struct {
-	Local       UDPAddr
-	Connections map[string]*ClientConnection
-	ASKeyCache  map[addr.IA]drkey.HostASKey
-}
-
-func NewFabridServer(local *UDPAddr) *FabridServer {
+func NewFabridServer(local UDPAddr, remote UDPAddr) *FabridServer {
 	server := &FabridServer{
-		Local:       *local,
-		Connections: make(map[string]*ClientConnection),
-		ASKeyCache:  make(map[addr.IA]drkey.HostASKey),
+		Local:     local,
+		Source:    remote,
+		tmpBuffer: make([]byte, 192),
 	}
+	server.refreshPathKey(time.Now())
 	return server
 }
 
-func (s *FabridServer) FetchHostHostKey(dstHost UDPAddr,
-	validity time.Time) (drkey.Key, error) {
-	meta := drkey.HostHostMeta{
-		Validity: validity,
-		SrcIA:    addr.IA(s.Local.IA),
-		SrcHost:  s.Local.IP.String(),
-		DstIA:    addr.IA(dstHost.IA),
-		DstHost:  dstHost.IP.String(),
-		ProtoId:  drkey.FABRID,
+func (s *FabridServer) refreshPathKey(validity time.Time) error {
+	if s.pathKey == nil || !s.pathKey.Epoch.Contains(validity) {
+		meta := drkey.HostHostMeta{
+			Validity: validity,
+			SrcIA:    addr.IA(s.Local.IA),
+			SrcHost:  s.Local.IP.String(),
+			DstIA:    addr.IA(s.Source.IA),
+			DstHost:  s.Source.IP.String(),
+			ProtoId:  drkey.FABRID,
+		}
+		log.Debug("Fetching path key", "meta", meta)
+		hostHostKey, err := host().drkeyGetHostHostKey(context.Background(), meta)
+		if err != nil {
+			return serrors.WrapStr("getting host key", err)
+		}
+		s.pathKey = &hostHostKey
+
 	}
-	hostHostKey, err := GetDRKeyHostHostKey(context.Background(), meta)
-	if err != nil {
-		return drkey.Key{}, serrors.WrapStr("getting host key", err)
-	}
-	return hostHostKey.Key, nil
+	return nil
 }
 
-func (s *FabridServer) HandleFabridPacket(remote UDPAddr, fabridOption *extension.FabridOption,
+func (s *FabridServer) HandleFabridPacket(fabridOption *extension.FabridOption,
 	identifierOption *extension.IdentifierOption) error {
-	client, found := s.Connections[remote.String()]
-	if !found {
-		pathKey, err := s.FetchHostHostKey(remote, identifierOption.Timestamp)
-		if err != nil {
-			return err
-		}
-		client = &ClientConnection{
-			Source:    remote,
-			tmpBuffer: make([]byte, 192),
-			pathKey:   pathKey,
-		}
-		s.Connections[remote.String()] = client
-		log.Info("Opened new connection", "remote", remote.String())
-	}
-
-	_, err := crypto.VerifyPathValidator(fabridOption,
-		client.tmpBuffer, client.pathKey[:])
+	err := s.refreshPathKey(identifierOption.Timestamp)
 	if err != nil {
+		log.Error("Failed to fetch path key", "err", err)
+		return err
+	}
+	_, err = crypto.VerifyPathValidator(fabridOption,
+		s.tmpBuffer, s.pathKey.Key[:])
+	if err != nil {
+		log.Error("Failed to verify", "err", err)
 		return err
 	}
 	return nil

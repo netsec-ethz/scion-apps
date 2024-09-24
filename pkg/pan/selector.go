@@ -369,6 +369,13 @@ func (s *FabridSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	s.fabridConfig = snetpath.FabridConfig{
+		LocalIA:         addr.IA(local.IA),
+		LocalAddr:       local.IP.String(),
+		DestinationIA:   addr.IA(remote.IA),
+		DestinationAddr: remote.IP.String(),
+	}
+
 	fabridPaths := []*Path{}
 	for _, p := range paths {
 		scionPath, isSCIONPath := p.ForwardingPath.dataplanePath.(snetpath.SCION)
@@ -393,6 +400,7 @@ func (s *FabridSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 			return
 		}
 		p.ForwardingPath.dataplanePath = fabridPath
+		fabridPath.RegisterDRKeyFetcher(host().fabridKeys())
 
 		fabridPaths = append(fabridPaths, p)
 	}

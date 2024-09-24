@@ -301,7 +301,7 @@ func listenConnected(local netip.AddrPort, remote pan.UDPAddr, selector pan.Repl
 	var err error
 	var conn pan.ListenConn
 	if enableFabrid {
-		conn, err = pan.ListenUDPWithFabrid(context.Background(), local, selector)
+		conn, err = pan.ListenUDPWithFabrid(context.Background(), local, remote, selector)
 
 	} else {
 		conn, err = pan.ListenUDP(context.Background(), local, selector)

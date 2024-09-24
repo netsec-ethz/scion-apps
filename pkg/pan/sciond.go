@@ -165,8 +165,12 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 	return paths, nil
 }
 
-func GetDRKeyHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
-	return host().sciond.DRKeyGetHostHostKey(ctx, meta)
+func (h *hostContext) drkeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+	return h.sciond.DRKeyGetHostHostKey(ctx, meta)
+}
+
+func (h *hostContext) fabridKeys() func(ctx context.Context, meta drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error) {
+	return h.sciond.FabridKeys
 }
 
 func convertPathInterfaceSlice(spis []snet.PathInterface) []PathInterface {

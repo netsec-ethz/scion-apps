@@ -102,7 +102,7 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 	}, nil
 }
 
-func ListenUDPWithFabrid(ctx context.Context, local netip.AddrPort,
+func ListenUDPWithFabrid(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	selector ReplySelector) (ListenConn, error) {
 
 	local, err := defaultLocalAddr(local)
@@ -134,7 +134,7 @@ func ListenUDPWithFabrid(ctx context.Context, local netip.AddrPort,
 		fmt.Printf("Listening addr=%s\n", localUDPAddr)
 	}
 
-	server := NewFabridServer(&localUDPAddr)
+	server := NewFabridServer(localUDPAddr, remote)
 	return &fabridListenConn{
 		listenConn: listenConn{
 			baseUDPConn: baseUDPConn{
@@ -254,7 +254,7 @@ func (c *fabridListenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
 	}
 	if fabridOption != nil && identifierOption != nil {
 
-		err = c.fabridServer.HandleFabridPacket(panRemote, fabridOption, identifierOption)
+		err = c.fabridServer.HandleFabridPacket(fabridOption, identifierOption)
 		if err != nil {
 			return 0, UDPAddr{}, nil, err
 		}
