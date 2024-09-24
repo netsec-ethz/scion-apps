@@ -17,7 +17,6 @@ package pan
 import (
 	"context"
 	"fmt"
-	"github.com/scionproto/scion/pkg/drkey"
 	"net"
 	"net/netip"
 	"os"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 )

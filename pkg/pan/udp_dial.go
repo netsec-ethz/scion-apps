@@ -16,9 +16,10 @@ package pan
 
 import (
 	"context"
-	"github.com/scionproto/scion/pkg/snet"
 	"net"
 	"net/netip"
+
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 // Conn represents a _dialed_ connection.

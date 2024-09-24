@@ -21,8 +21,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/scionproto/scion/pkg/log"
-	"github.com/scionproto/scion/private/path/fabridquery"
 	"math"
 	"net"
 	"net/netip"
@@ -31,6 +29,9 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/private/path/fabridquery"
 
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"

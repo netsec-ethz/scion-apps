@@ -20,12 +20,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/scionproto/scion/pkg/log"
 	"net"
 	"net/netip"
 	"os"
 	"time"
 
+	"github.com/scionproto/scion/pkg/log"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"

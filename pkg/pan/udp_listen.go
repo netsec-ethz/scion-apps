@@ -18,15 +18,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/scionproto/scion/pkg/slayers"
-	"github.com/scionproto/scion/pkg/slayers/extension"
-	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"net"
 	"net/netip"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/pkg/slayers"
+	"github.com/scionproto/scion/pkg/slayers/extension"
+	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 )
 

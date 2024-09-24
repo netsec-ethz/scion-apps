@@ -17,16 +17,16 @@ package pan
 import (
 	"context"
 	"fmt"
-	"github.com/scionproto/scion/pkg/private/common"
-	"github.com/scionproto/scion/pkg/snet"
-	snetpath "github.com/scionproto/scion/pkg/snet/path"
-	"github.com/scionproto/scion/private/path/fabridquery"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
+	"github.com/scionproto/scion/private/path/fabridquery"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan/internal/ping"
 )
@@ -332,7 +332,6 @@ type FabridSelector struct {
 	mutex        sync.Mutex
 	paths        []*Path
 	current      int
-	activePaths  int
 	fabridQuery  fabridquery.Expressions
 	fabridConfig snetpath.FabridConfig
 	ctx          context.Context

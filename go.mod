@@ -22,7 +22,6 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
-replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20240920134723-b45a8ff2a753
 
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
