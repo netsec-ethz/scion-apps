@@ -30,7 +30,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/private/path/fabridquery"
 
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"

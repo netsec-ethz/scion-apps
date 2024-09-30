@@ -16,12 +16,12 @@ package pan
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/experimental/fabrid/crypto"
-	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/serrors"
 	"github.com/scionproto/scion/pkg/slayers/extension"
 )
@@ -31,15 +31,21 @@ type FabridServer struct {
 	Source    UDPAddr
 	tmpBuffer []byte
 	pathKey   *drkey.HostHostKey
+	ctx       context.Context
 }
 
-func NewFabridServer(local UDPAddr, remote UDPAddr) *FabridServer {
+func NewFabridServer(ctx context.Context, local UDPAddr, remote UDPAddr) *FabridServer {
 	server := &FabridServer{
 		Local:     local,
 		Source:    remote,
 		tmpBuffer: make([]byte, 192),
+		ctx:       ctx,
 	}
-	server.refreshPathKey(time.Now())
+	err := server.refreshPathKey(time.Now())
+	if err != nil {
+		fmt.Println("Failed to fetch path key. Does your local IP differ from your SD?\nError:", err)
+		return nil
+	}
 	return server
 }
 
@@ -53,8 +59,7 @@ func (s *FabridServer) refreshPathKey(validity time.Time) error {
 			DstHost:  s.Source.IP.String(),
 			ProtoId:  drkey.FABRID,
 		}
-		log.Debug("Fetching path key", "meta", meta)
-		hostHostKey, err := host().drkeyGetHostHostKey(context.Background(), meta)
+		hostHostKey, err := host().drkeyGetHostHostKey(s.ctx, meta)
 		if err != nil {
 			return serrors.WrapStr("getting host key", err)
 		}
@@ -68,13 +73,13 @@ func (s *FabridServer) HandleFabridPacket(fabridOption *extension.FabridOption,
 	identifierOption *extension.IdentifierOption) error {
 	err := s.refreshPathKey(identifierOption.Timestamp)
 	if err != nil {
-		log.Error("Failed to fetch path key", "err", err)
+		fmt.Println("Failed to fetch path key. Does your local IP differ from your SD?\nError:", err)
 		return err
 	}
 	_, err = crypto.VerifyPathValidator(fabridOption,
 		s.tmpBuffer, s.pathKey.Key[:])
 	if err != nil {
-		log.Error("Failed to verify", "err", err)
+		fmt.Println("Failed to verify FABRID packet. Error:", err)
 		return err
 	}
 	return nil

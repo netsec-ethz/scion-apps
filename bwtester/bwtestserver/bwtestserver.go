@@ -18,14 +18,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"time"
 
-	"github.com/scionproto/scion/pkg/log"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"
@@ -41,13 +38,6 @@ func main() {
 	kingpin.Flag("listen", "Address to listen on").Default(":40002").SetValue(&listen)
 	fabrid := kingpin.Flag("fabrid", "Enable FABRID").Bool()
 	kingpin.Parse()
-	logCfg := log.Config{Console: log.ConsoleConfig{Level: "debug", StacktraceLevel: "none"}}
-	if err := log.Setup(logCfg); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
-		flag.Usage()
-		os.Exit(1)
-	}
-	log.Info("Starting server", "fabrid", fabrid)
 
 	err := runServer(listen.Get(), *fabrid)
 	bwtest.Check(err)
@@ -68,6 +58,7 @@ func runServer(listen netip.AddrPort, enableFabrid bool) error {
 		return err
 	}
 	serverCCAddr := ccConn.LocalAddr().(pan.UDPAddr)
+	fmt.Println("Server listening on ", serverCCAddr, " fabrid:", enableFabrid)
 	for {
 		// Handle client requests
 		n, clientCCAddr, err := ccConn.ReadFrom(receivePacketBuffer)

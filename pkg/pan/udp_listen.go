@@ -134,7 +134,7 @@ func ListenUDPWithFabrid(ctx context.Context, local netip.AddrPort, remote UDPAd
 		fmt.Printf("Listening addr=%s\n", localUDPAddr)
 	}
 
-	server := NewFabridServer(localUDPAddr, remote)
+	server := NewFabridServer(ctx, localUDPAddr, remote)
 	return &fabridListenConn{
 		listenConn: listenConn{
 			baseUDPConn: baseUDPConn{
@@ -238,7 +238,10 @@ func (c *fabridListenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
 			switch opt.OptType {
 			case slayers.OptTypeIdentifier:
 				decoded := scion.Decoded{}
-				decoded.DecodeFromBytes(fwPath.dataplanePath.(snet.RawPath).Raw)
+				err = decoded.DecodeFromBytes(fwPath.dataplanePath.(snet.RawPath).Raw)
+				if err != nil {
+					return 0, UDPAddr{}, nil, err
+				}
 				baseTimestamp := decoded.InfoFields[0].Timestamp
 				identifierOption, err = extension.ParseIdentifierOption(opt, baseTimestamp)
 				if err != nil {
