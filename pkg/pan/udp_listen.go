@@ -61,7 +61,12 @@ type ListenConn interface {
 func ListenUDP(ctx context.Context, local netip.AddrPort,
 	selector ReplySelector) (ListenConn, error) {
 
-	local, err := defaultLocalAddr(local)
+	host, err := getHost()
+	if err != nil {
+		return nil, err
+	}
+
+	local, err = defaultLocalAddr(local)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +76,7 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 	}
 	stats.subscribe(selector)
 	sn := snet.SCIONNetwork{
-		Topology:    host().sciond,
+		Topology:    host.sciond,
 		SCMPHandler: scmpHandler{},
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
@@ -80,7 +85,7 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   host().ia,
+		IA:   host.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}

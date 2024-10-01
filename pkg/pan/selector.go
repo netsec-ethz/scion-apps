@@ -186,6 +186,10 @@ func (s *PingingSelector) ensureRunning() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	host, err := getHost()
+	if err != nil {
+		return
+	}
 	if s.local.IA == s.remote.IA {
 		return
 	}
@@ -194,7 +198,7 @@ func (s *PingingSelector) ensureRunning() {
 	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
 	local := s.local.snetUDPAddr()
-	pinger, err := ping.NewPinger(s.pingerCtx, host().sciond, local)
+	pinger, err := ping.NewPinger(s.pingerCtx, host.sciond, local)
 	if err != nil {
 		return
 	}

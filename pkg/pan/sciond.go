@@ -41,22 +41,36 @@ const (
 	initTimeout = 1 * time.Second
 )
 
-var singletonHostContext hostContext
-var initOnce sync.Once
-
-// host initialises and returns the singleton hostContext.
-func host() *hostContext {
-	initOnce.Do(mustInitHostContext)
-	return &singletonHostContext
+// HostContextError is returned by the API if the SCION host context initialization
+// failed. This error most likely appears if the SCION daemon is not running or
+// can't be reached.
+type HostContextError struct {
+	Cause error
 }
 
-func mustInitHostContext() {
+func (e HostContextError) Error() string {
+	return fmt.Sprintf("error initializing SCION host context: '%s'", e.Cause)
+}
+
+var singletonHostContext hostContext
+var initOnce = sync.OnceValue(mustInitHostContext)
+
+// host initialises and returns the singleton hostContext.
+func getHost() (*hostContext, error) {
+	err := initOnce()
+	if err != nil {
+		return nil, err
+	}
+	return &singletonHostContext, nil
+}
+
+func mustInitHostContext() error {
 	hostCtx, err := initHostContext()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error initializing SCION host context: %v\n", err)
-		os.Exit(1)
+		return HostContextError{Cause: err}
 	}
 	singletonHostContext = hostCtx
+	return nil
 }
 
 func initHostContext() (hostContext, error) {
@@ -108,7 +122,11 @@ func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net
 // wildcard addresses in snet.
 // See note on wildcard addresses in the package documentation.
 func defaultLocalIP() (netip.Addr, error) {
-	stdIP, err := addrutil.ResolveLocal(host().hostInLocalAS)
+	host, err := getHost()
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	stdIP, err := addrutil.ResolveLocal(host.hostInLocalAS)
 	ip, ok := netip.AddrFromSlice(stdIP)
 	if err != nil || !ok {
 		return netip.Addr{}, fmt.Errorf("unable to resolve default local address %w", err)

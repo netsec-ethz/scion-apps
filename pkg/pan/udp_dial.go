@@ -50,13 +50,18 @@ type Conn interface {
 func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	policy Policy, selector Selector) (Conn, error) {
 
-	local, err := defaultLocalAddr(local)
+	host, err := getHost()
+	if err != nil {
+		return nil, err
+	}
+
+	local, err = defaultLocalAddr(local)
 	if err != nil {
 		return nil, err
 	}
 
 	sn := snet.SCIONNetwork{
-		Topology:    host().sciond,
+		Topology:    host.sciond,
 		SCMPHandler: scmpHandler{},
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
@@ -65,7 +70,7 @@ func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   host().ia,
+		IA:   host.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
