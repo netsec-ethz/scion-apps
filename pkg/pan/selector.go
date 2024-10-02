@@ -31,7 +31,7 @@ import (
 type Selector interface {
 	// Path selects the path for the next packet.
 	// Invoked for each packet sent with Write.
-	Path() *Path
+	Path(ctx interface{}) *Path
 	// Initialize the selector for a connection with the initial list of paths,
 	// filtered/ordered by the Policy.
 	// Invoked once during the creation of a Conn.
@@ -64,7 +64,7 @@ func NewDefaultSelector() *DefaultSelector {
 	return &DefaultSelector{}
 }
 
-func (s *DefaultSelector) Path() *Path {
+func (s *DefaultSelector) Path(ctx interface{}) *Path {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -143,7 +143,7 @@ func (s *PingingSelector) SetActive(numActive int) {
 	atomic.SwapInt64(&s.numActive, int64(numActive))
 }
 
-func (s *PingingSelector) Path() *Path {
+func (s *PingingSelector) Path(ctx interface{}) *Path {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

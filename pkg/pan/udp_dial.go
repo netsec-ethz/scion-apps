@@ -28,6 +28,9 @@ type Conn interface {
 	// SetPolicy allows to set the path policy for paths used by Write, at any
 	// time.
 	SetPolicy(policy Policy)
+	// WriteWithCtx writes a message to the remote address using a path from the
+	// path policy and selector. ctx is passed to the path selector.
+	WriteWithCtx(ctx interface{}, b []byte) (n int, err error)
 	// WriteVia writes a message to the remote address via the given path.
 	// This bypasses the path policy and selector used for Write.
 	WriteVia(path *Path, b []byte) (int, error)
@@ -36,6 +39,7 @@ type Conn interface {
 	ReadVia(b []byte) (int, *Path, error)
 
 	GetPath() *Path
+	GetPathWithCtx(ctx interface{}) *Path
 }
 
 // DialUDP opens a SCION/UDP socket, connected to the remote address.
@@ -115,10 +119,14 @@ func (c *dialedConn) LocalAddr() net.Addr {
 }
 
 func (c *dialedConn) GetPath() *Path {
+	return c.GetPathWithCtx(nil)
+}
+
+func (c *dialedConn) GetPathWithCtx(ctx interface{}) *Path {
 	if c.selector == nil {
 		return nil
 	}
-	return c.selector.Path()
+	return c.selector.Path(ctx)
 }
 
 func (c *dialedConn) RemoteAddr() net.Addr {
@@ -126,9 +134,13 @@ func (c *dialedConn) RemoteAddr() net.Addr {
 }
 
 func (c *dialedConn) Write(b []byte) (int, error) {
+	return c.WriteWithCtx(nil, b)
+}
+
+func (c *dialedConn) WriteWithCtx(ctx interface{}, b []byte) (int, error) {
 	var path *Path
 	if c.local.IA != c.remote.IA {
-		path = c.selector.Path()
+		path = c.selector.Path(ctx)
 		if path == nil {
 			return 0, errNoPathTo(c.remote.IA)
 		}
