@@ -72,11 +72,11 @@ func (p *pathPool) paths(ctx context.Context, dstIA IA) ([]*Path, error) {
 	entry, ok := p.entries[dstIA]
 	p.entriesMutex.RUnlock()
 
-	if !ok || shouldRefresh(time.Now(), entry.earliestExpiry, entry.lastQuery) {
-		return p.queryPaths(ctx, dstIA)
+	if ok && !shouldRefresh(time.Now(), entry.earliestExpiry, entry.lastQuery) {
+		return append([]*Path{}, entry.paths...), nil
 	}
 
-	return append([]*Path{}, entry.paths...), nil
+	return p.queryPaths(ctx, dstIA)
 }
 
 // queryPaths returns paths to dstIA. Unconditionally requests paths from sciond.
