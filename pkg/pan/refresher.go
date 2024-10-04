@@ -43,7 +43,7 @@ func makeRefresher(pool *pathPool) refresher {
 // subscribe for paths to dst.
 func (r *refresher) subscribe(ctx context.Context, dst IA, s refreshee) ([]*Path, error) {
 	// BUG: oops, this will not inform subscribers of updated paths. Need to explicily check here
-	paths, err := r.pool.paths(ctx, dst)
+	paths, _, err := r.pool.paths(ctx, dst)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +114,8 @@ func (r *refresher) refresh() {
 	r.subscribersMutex.Unlock()
 
 	for _, dstIA := range refreshIAs {
-		paths, err := r.pool.paths(context.Background(), dstIA)
-		if err != nil {
+		paths, areFresh, err := r.pool.paths(context.Background(), dstIA)
+		if err != nil || !areFresh {
 			// ignore errors here. The idea is that there is probably a lot of time
 			// until this manifests as an actual problem to the application (i.e.
 			// when the paths actually expire).

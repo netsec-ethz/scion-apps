@@ -67,16 +67,20 @@ func (p *pathPool) unsubscribe(dstIA IA, s pathPoolSubscriber) {
 }
 
 // paths returns paths to dstIA. This _may_ query paths, unless they have recently been queried.
-func (p *pathPool) paths(ctx context.Context, dstIA IA) ([]*Path, error) {
+func (p *pathPool) paths(ctx context.Context, dstIA IA) ([]*Path, bool, error) {
 	p.entriesMutex.RLock()
 	entry, ok := p.entries[dstIA]
 	p.entriesMutex.RUnlock()
 
-	if ok && !shouldRefresh(time.Now(), entry.earliestExpiry, entry.lastQuery) {
-		return append([]*Path{}, entry.paths...), nil
+	if ok && !shouldQuery(time.Now(), entry.earliestExpiry, entry.lastQuery) {
+		return append([]*Path{}, entry.paths...), false, nil
 	}
 
-	return p.queryPaths(ctx, dstIA)
+	paths, err := p.queryPaths(ctx, dstIA)
+	if err != nil {
+		return nil, false, err
+	}
+	return paths, true, nil
 }
 
 // queryPaths returns paths to dstIA. Unconditionally requests paths from sciond.
@@ -145,7 +149,7 @@ func earliestPathExpiry(paths []*Path) time.Time {
 	return ret
 }
 
-func shouldRefresh(now, expiry, lastQuery time.Time) bool {
+func shouldQuery(now, expiry, lastQuery time.Time) bool {
 	earliestAllowedRefresh := lastQuery.Add(pathRefreshMinInterval)
 	timeForRefresh := expiry.Add(-pathRefreshLeadTime)
 	return now.After(earliestAllowedRefresh) && now.After(timeForRefresh)
