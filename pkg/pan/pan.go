@@ -128,9 +128,5 @@ func (e HostNotFoundError) Error() string {
 
 // Query paths to a particular destination AS.
 func QueryPaths(ctx context.Context, dst IA) ([]*Path, error) {
-	host, err := getHost()
-	if err != nil {
-		return nil, err
-	}
-	return host.queryPaths(ctx, dst)
+	return (&pool).paths(ctx, dst)
 }
