@@ -79,6 +79,8 @@ func DialQUIC(ctx context.Context,
 
 	session, err := quic.Dial(ctx, pconn, remote, tlsConf, quicConf)
 	if err != nil {
+		// Close the underlying connection if the QUIC session could not be established.
+		pconn.Close()
 		return nil, err
 	}
 	return &QUICSession{session, conn}, nil

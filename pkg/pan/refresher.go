@@ -43,7 +43,7 @@ func makeRefresher(pool *pathPool) refresher {
 // subscribe for paths to dst.
 func (r *refresher) subscribe(ctx context.Context, dst IA, s refreshee) ([]*Path, error) {
 	// BUG: oops, this will not inform subscribers of updated paths. Need to explicily check here
-	paths, err := r.pool.paths(ctx, dst)
+	paths, _, err := r.pool.paths(ctx, dst)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,6 @@ func (r *refresher) run() {
 }
 
 func (r *refresher) refresh() {
-	now := time.Now()
 	// when a refresh is triggered, we batch all
 	r.subscribersMutex.Lock()
 	refreshIAs := make([]IA, 0, len(r.subscribers))
@@ -115,30 +114,21 @@ func (r *refresher) refresh() {
 	r.subscribersMutex.Unlock()
 
 	for _, dstIA := range refreshIAs {
-		poolEntry, _ := r.pool.entry(dstIA)
-		if r.shouldRefresh(now, poolEntry.earliestExpiry, poolEntry.lastQuery) {
-			paths, err := r.pool.queryPaths(context.Background(), dstIA)
-			if err != nil {
-				// ignore errors here. The idea is that there is probably a lot of time
-				// until this manifests as an actual problem to the application (i.e.
-				// when the paths actually expire).
-				// TODO: check whether there are errors that could be handled, like try to reconnect
-				// to sciond or something like that.
-				continue
-			}
-			r.subscribersMutex.Lock()
-			for _, subscriber := range r.subscribers[dstIA] {
-				subscriber.refresh(dstIA, paths)
-			}
-			r.subscribersMutex.Unlock()
+		paths, areFresh, err := r.pool.paths(context.Background(), dstIA)
+		if err != nil || !areFresh {
+			// ignore errors here. The idea is that there is probably a lot of time
+			// until this manifests as an actual problem to the application (i.e.
+			// when the paths actually expire).
+			// TODO: check whether there are errors that could be handled, like try to reconnect
+			// to sciond or something like that.
+			continue
 		}
+		r.subscribersMutex.Lock()
+		for _, subscriber := range r.subscribers[dstIA] {
+			subscriber.refresh(dstIA, paths)
+		}
+		r.subscribersMutex.Unlock()
 	}
-}
-
-func (r *refresher) shouldRefresh(now, expiry, lastQuery time.Time) bool {
-	earliestAllowedRefresh := lastQuery.Add(pathRefreshMinInterval)
-	timeForRefresh := expiry.Add(-pathRefreshLeadTime)
-	return now.After(earliestAllowedRefresh) && now.After(timeForRefresh)
 }
 
 func (r *refresher) untilNextRefresh(prevRefresh time.Time) time.Duration {

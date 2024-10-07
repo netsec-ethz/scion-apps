@@ -67,16 +67,20 @@ func (p *pathPool) unsubscribe(dstIA IA, s pathPoolSubscriber) {
 }
 
 // paths returns paths to dstIA. This _may_ query paths, unless they have recently been queried.
-func (p *pathPool) paths(ctx context.Context, dstIA IA) ([]*Path, error) {
+func (p *pathPool) paths(ctx context.Context, dstIA IA) ([]*Path, bool, error) {
 	p.entriesMutex.RLock()
-	if entry, ok := p.entries[dstIA]; ok {
-		if time.Since(entry.lastQuery) > pathRefreshMinInterval {
-			defer p.entriesMutex.RUnlock()
-			return append([]*Path{}, entry.paths...), nil
-		}
-	}
+	entry, ok := p.entries[dstIA]
 	p.entriesMutex.RUnlock()
-	return p.queryPaths(ctx, dstIA)
+
+	if ok && !shouldQuery(time.Now(), entry.earliestExpiry, entry.lastQuery) {
+		return append([]*Path{}, entry.paths...), false, nil
+	}
+
+	paths, err := p.queryPaths(ctx, dstIA)
+	if err != nil {
+		return nil, false, err
+	}
+	return paths, true, nil
 }
 
 // queryPaths returns paths to dstIA. Unconditionally requests paths from sciond.
@@ -98,13 +102,6 @@ func (p *pathPool) cachedPaths(dst IA) []*Path {
 	p.entriesMutex.RLock()
 	defer p.entriesMutex.RUnlock()
 	return append([]*Path{}, p.entries[dst].paths...)
-}
-
-func (p *pathPool) entry(dstIA IA) (pathPoolDst, bool) {
-	p.entriesMutex.RLock()
-	defer p.entriesMutex.RUnlock()
-	e, ok := p.entries[dstIA]
-	return e, ok
 }
 
 func (e *pathPoolDst) update(paths []*Path) {
@@ -150,4 +147,10 @@ func earliestPathExpiry(paths []*Path) time.Time {
 		}
 	}
 	return ret
+}
+
+func shouldQuery(now, expiry, lastQuery time.Time) bool {
+	earliestAllowedRefresh := lastQuery.Add(pathRefreshMinInterval)
+	timeForRefresh := expiry.Add(-pathRefreshLeadTime)
+	return now.After(earliestAllowedRefresh) && now.After(timeForRefresh)
 }
