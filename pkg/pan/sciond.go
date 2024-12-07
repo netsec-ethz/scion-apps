@@ -49,7 +49,7 @@ type HostContextError struct {
 }
 
 func (e HostContextError) Error() string {
-	return fmt.Sprintf("error initializing SCION host context: '%s'", e.Cause)
+	return fmt.Sprintf("error initializing SCION host context: '%v'", e.Cause)
 }
 
 var singletonHostContext hostContext

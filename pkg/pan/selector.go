@@ -64,7 +64,7 @@ func NewDefaultSelector() *DefaultSelector {
 	return &DefaultSelector{}
 }
 
-func (s *DefaultSelector) Path(ctx interface{}) *Path {
+func (s *DefaultSelector) Path(_ interface{}) *Path {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -143,7 +143,7 @@ func (s *PingingSelector) SetActive(numActive int) {
 	atomic.SwapInt64(&s.numActive, int64(numActive))
 }
 
-func (s *PingingSelector) Path(ctx interface{}) *Path {
+func (s *PingingSelector) Path(_ interface{}) *Path {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

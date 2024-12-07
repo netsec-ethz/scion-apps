@@ -29,7 +29,9 @@ type Conn interface {
 	// time.
 	SetPolicy(policy Policy)
 	// WriteWithCtx writes a message to the remote address using a path from the
-	// path policy and selector. ctx is passed to the path selector.
+	// path policy and selector. ctx is passed to the path selector where it can
+	// provide additional user-defined information, e.g., whether the packet is
+	// urgent or not.
 	WriteWithCtx(ctx interface{}, b []byte) (n int, err error)
 	// WriteVia writes a message to the remote address via the given path.
 	// This bypasses the path policy and selector used for Write.

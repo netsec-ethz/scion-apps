@@ -54,7 +54,9 @@ type ListenConn interface {
 	// message was received.
 	ReadFromVia(b []byte) (int, UDPAddr, *Path, error)
 	// WriteToWithCtx writes a message to the remote address using a path from
-	// the path selector. ctx is passed to the path selector.
+	// the path selector. ctx is passed to the path selector where it can
+	// provide additional user-defined information, e.g., whether the packet is
+	// urgent or not.
 	WriteToWithCtx(ctx interface{}, b []byte, dst net.Addr) (n int, err error)
 	// WriteToVia writes a message to the remote address via the given path.
 	// This bypasses selector used for WriteTo.
@@ -177,7 +179,7 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 func (s *DefaultReplySelector) Initialize(local UDPAddr) {
 }
 
-func (s *DefaultReplySelector) Path(ctx interface{}, remote UDPAddr) *Path {
+func (s *DefaultReplySelector) Path(_ interface{}, remote UDPAddr) *Path {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	r, ok := s.remotes[remote]

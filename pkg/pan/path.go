@@ -44,7 +44,7 @@ func (p *Path) String() string {
 	}
 }
 
-// DataplaneLen returns the legnth of the path in the data plane.
+// DataplaneLen returns the length of the path in the data plane.
 func (p *Path) DataplaneLen() (int, error) {
 	switch dataplanePath := p.ForwardingPath.dataplanePath.(type) {
 	case snet.RawReplyPath:
