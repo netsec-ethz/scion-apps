@@ -1,8 +1,7 @@
 module github.com/netsec-ethz/scion-apps
 
 go 1.21.10
-
-toolchain go1.21.11
+toolchain go1.22.5
 
 require (
 	github.com/creack/pty v1.1.17
@@ -13,7 +12,7 @@ require (
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403
 	github.com/pelletier/go-toml v1.9.5
-	github.com/quic-go/quic-go v0.43.1
+	github.com/quic-go/quic-go v0.48.2
 	github.com/scionproto/scion v0.11.1-0.20240610170620-50b971ca2d4b
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
@@ -58,7 +57,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.14.0 // indirect
-	github.com/quic-go/qpack v0.4.0 // indirect
+	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/smarty/assertions v1.16.0 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
@@ -69,7 +68,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
 	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
