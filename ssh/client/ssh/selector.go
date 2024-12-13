@@ -15,6 +15,7 @@
 package ssh
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"sync"
@@ -55,7 +56,7 @@ type roundRobinSelector struct {
 	current int
 }
 
-func (s *roundRobinSelector) Path(_ interface{}) *pan.Path {
+func (s *roundRobinSelector) Path(_ context.Context) *pan.Path {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -94,7 +95,7 @@ type randomSelector struct {
 	paths []*pan.Path
 }
 
-func (s *randomSelector) Path(_ interface{}) *pan.Path {
+func (s *randomSelector) Path(_ context.Context) *pan.Path {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

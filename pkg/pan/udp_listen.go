@@ -33,7 +33,7 @@ var errBadDstAddress error = errors.New("dst address not a UDPAddr")
 type ReplySelector interface {
 	// Path selects the path for the next packet to remote.
 	// Invoked for each packet sent with WriteTo.
-	Path(ctx interface{}, remote UDPAddr) *Path
+	Path(ctx context.Context, remote UDPAddr) *Path
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
 	Initialize(local UDPAddr)
@@ -57,7 +57,7 @@ type ListenConn interface {
 	// the path selector. ctx is passed to the path selector where it can
 	// provide additional user-defined information, e.g., whether the packet is
 	// urgent or not.
-	WriteToWithCtx(ctx interface{}, b []byte, dst net.Addr) (n int, err error)
+	WriteToWithCtx(ctx context.Context, b []byte, dst net.Addr) (n int, err error)
 	// WriteToVia writes a message to the remote address via the given path.
 	// This bypasses selector used for WriteTo.
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
@@ -136,10 +136,10 @@ func (c *listenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
 }
 
 func (c *listenConn) WriteTo(b []byte, dst net.Addr) (int, error) {
-	return c.WriteToWithCtx(nil, b, dst)
+	return c.WriteToWithCtx(context.TODO(), b, dst)
 }
 
-func (c *listenConn) WriteToWithCtx(ctx interface{}, b []byte, dst net.Addr) (n int, err error) {
+func (c *listenConn) WriteToWithCtx(ctx context.Context, b []byte, dst net.Addr) (n int, err error) {
 	sdst, ok := dst.(UDPAddr)
 	if !ok {
 		return 0, errBadDstAddress
@@ -179,7 +179,7 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 func (s *DefaultReplySelector) Initialize(local UDPAddr) {
 }
 
-func (s *DefaultReplySelector) Path(_ interface{}, remote UDPAddr) *Path {
+func (s *DefaultReplySelector) Path(_ context.Context, remote UDPAddr) *Path {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	r, ok := s.remotes[remote]
