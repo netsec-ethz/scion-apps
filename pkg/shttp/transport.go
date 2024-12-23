@@ -79,7 +79,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		InsecureSkipVerify: true,
 	}
 
-	remote, err := pan.ResolveUDPAddr(ctx, pan.UnmangleSCIONAddr(addr))
+	remote, err := pan.ResolveUDPAddr(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
