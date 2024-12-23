@@ -34,7 +34,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
-	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 
 	pathdb "github.com/netsec-ethz/scion-apps/webapp/models/path"
@@ -93,7 +93,7 @@ type Path struct {
 
 // Hop represents an hop on the path.
 type Hop struct {
-	IfID common.IFIDType
+	IfID iface.ID
 	IA   addr.IA
 }
 

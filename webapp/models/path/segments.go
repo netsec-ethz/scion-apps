@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/private/ctrl/path_mgmt/proto"
 	seg "github.com/scionproto/scion/pkg/segment"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/private/pathdb"
 
 	. "github.com/netsec-ethz/scion-apps/webapp/util"
@@ -29,7 +29,7 @@ import (
 
 type asIface struct {
 	IA    addr.IA
-	IfNum common.IFIDType
+	IfNum iface.ID
 }
 
 type segment struct {
@@ -55,10 +55,10 @@ func newSegment(segType proto.PathSegType, srcIa addr.IA, dstIa addr.IA,
 	for _, ase := range theseg.ASEntries {
 		hof := ase.HopEntry.HopField
 		if hof.ConsIngress > 0 {
-			interfaces = append(interfaces, asIface{ase.Local, common.IFIDType(hof.ConsIngress)})
+			interfaces = append(interfaces, asIface{ase.Local, iface.ID(hof.ConsIngress)})
 		}
 		if hof.ConsEgress > 0 {
-			interfaces = append(interfaces, asIface{ase.Local, common.IFIDType(hof.ConsEgress)})
+			interfaces = append(interfaces, asIface{ase.Local, iface.ID(hof.ConsEgress)})
 		}
 	}
 	return segment{SegType: segType.String(), Src: srcIa, Dst: dstIa,
@@ -113,7 +113,7 @@ func ReadIntfToSegAll(db *sql.DB) (map[int64][]asIface, error) {
 	var segRowID int64
 	var isd addr.ISD
 	var as addr.AS
-	var ifaceID common.IFIDType
+	var ifaceID iface.ID
 	var result = map[int64][]asIface{}
 	for rows.Next() {
 		err = rows.Scan(
