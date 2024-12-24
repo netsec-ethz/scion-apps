@@ -205,7 +205,7 @@ func (client *Client) StartTunnel(local netip.AddrPort, addr string) error {
 		if err != nil {
 			return err
 		}
-		localListener = quicutil.SingleStreamListener{Listener: ql}
+		localListener = quicutil.SingleStreamListener{QUICListener: ql}
 	} else {
 		// That's right, TCP listen on UDPAddr. XXX replace with netip.AddrPort once available
 		tl, err := net.Listen("tcp", local.String())

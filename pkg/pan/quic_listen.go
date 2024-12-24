@@ -17,18 +17,31 @@ package pan
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"net/netip"
 
 	"github.com/quic-go/quic-go"
 )
 
+// QUICListener is a wrapper around a quic.Listener that also holds the underlying
+// net.PacketConn. This is necessary because quic.Listener does not expose the
+// underlying connection, which is needed to close it.
+type QUICListener struct {
+	*quic.Listener
+	conn net.PacketConn
+}
+
+func (l *QUICListener) Close() error {
+	err := l.Listener.Close()
+	l.conn.Close()
+	return err
+}
+
 // ListenQUIC listens for QUIC connections on a SCION/UDP port.
 //
 // See note on wildcard addresses in the package documentation.
-//
-// BUG This "leaks" the UDP connection, which is never closed.
 func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelector,
-	tlsConf *tls.Config, quicConfig *quic.Config) (*quic.Listener, error) {
+	tlsConf *tls.Config, quicConfig *quic.Config) (*QUICListener, error) {
 
 	conn, err := ListenUDP(ctx, local, selector)
 	if err != nil {
@@ -43,5 +56,5 @@ func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelecto
 		conn.Close()
 		return nil, err
 	}
-	return listener, nil
+	return &QUICListener{Listener: listener, conn: conn}, nil
 }

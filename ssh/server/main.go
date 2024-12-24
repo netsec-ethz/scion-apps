@@ -98,7 +98,7 @@ func main() {
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
-	listener := quicutil.SingleStreamListener{Listener: ql}
+	listener := quicutil.SingleStreamListener{QUICListener: ql}
 
 	log.Debug("Starting to wait for connections")
 	for {
