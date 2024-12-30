@@ -32,7 +32,7 @@ func NewPanQuicDialer(tlsCfg *tls.Config) func(context.Context, string) (net.Con
 		}
 
 		clientQuicConfig := &quic.Config{KeepAlivePeriod: 15 * time.Second}
-		session, err := pan.DialQUIC(ctx, netip.AddrPort{}, panAddr, nil, nil, "", tlsCfg, clientQuicConfig)
+		session, err := pan.DialQUIC(ctx, netip.AddrPort{}, panAddr, nil, nil, nil, "", tlsCfg, clientQuicConfig)
 		if err != nil {
 			return nil, fmt.Errorf("did not dial: %w", err)
 		}

@@ -81,7 +81,7 @@ func main() {
 	flag.Parse()
 
 	local := netip.AddrPortFrom(netip.Addr{}, uint16(*port))
-	conn, err := pan.ListenUDP(context.Background(), local, nil)
+	conn, err := pan.ListenUDP(context.Background(), local, nil, nil)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)
