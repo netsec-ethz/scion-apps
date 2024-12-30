@@ -58,8 +58,12 @@ type ListenConn interface {
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
 }
 
-func ListenUDP(ctx context.Context, local netip.AddrPort,
-	selector ReplySelector) (ListenConn, error) {
+func ListenUDP(
+	ctx context.Context,
+	local netip.AddrPort,
+	selector ReplySelector,
+	scmpHandler snet.SCMPHandler,
+) (ListenConn, error) {
 
 	local, err := defaultLocalAddr(local)
 	if err != nil {
@@ -69,10 +73,15 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 	if selector == nil {
 		selector = NewDefaultReplySelector()
 	}
+
+	if scmpHandler == nil {
+		scmpHandler = DefaultScmpHandler{}
+	}
+
 	stats.subscribe(selector)
 	sn := snet.SCIONNetwork{
 		Topology:    host().sciond,
-		SCMPHandler: scmpHandler{},
+		SCMPHandler: scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {

@@ -21,6 +21,7 @@ import (
 	"net/netip"
 
 	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 // QUICSession is a wrapper around quic.Connection that always closes the
@@ -52,11 +53,18 @@ func (s *QUICEarlySession) CloseWithError(code quic.ApplicationErrorCode, desc s
 //
 // The host parameter is used for SNI.
 // The tls.Config must define an application protocol (using NextProtos).
-func DialQUIC(ctx context.Context,
-	local netip.AddrPort, remote UDPAddr, policy Policy, selector Selector,
-	host string, tlsConf *tls.Config, quicConf *quic.Config) (*QUICSession, error) {
+func DialQUIC(
+	ctx context.Context,
+	local netip.AddrPort,
+	remote UDPAddr,
+	policy Policy,
+	selector Selector,
+	scmpHandler snet.SCMPHandler,
+	host string,
+	tlsConf *tls.Config,
+	quicConf *quic.Config) (*QUICSession, error) {
 
-	conn, err := DialUDP(ctx, local, remote, policy, selector)
+	conn, err := DialUDP(ctx, local, remote, policy, selector, scmpHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -87,11 +95,19 @@ func DialQUIC(ctx context.Context,
 }
 
 // DialQUICEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialQUIC.
-func DialQUICEarly(ctx context.Context,
-	local netip.AddrPort, remote UDPAddr, policy Policy, selector Selector,
-	host string, tlsConf *tls.Config, quicConf *quic.Config) (*QUICEarlySession, error) {
+func DialQUICEarly(
+	ctx context.Context,
+	local netip.AddrPort,
+	remote UDPAddr,
+	policy Policy,
+	selector Selector,
+	scmpHandler snet.SCMPHandler,
+	host string,
+	tlsConf *tls.Config,
+	quicConf *quic.Config,
+) (*QUICEarlySession, error) {
 
-	conn, err := DialUDP(ctx, local, remote, policy, selector)
+	conn, err := DialUDP(ctx, local, remote, policy, selector, scmpHandler)
 	if err != nil {
 		return nil, err
 	}

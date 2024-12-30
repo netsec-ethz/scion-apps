@@ -49,7 +49,7 @@ func main() {
 		NextProtos:   []string{"echo_service"},
 	}
 
-	quicListener, err := pan.ListenQUIC(context.Background(), addr, nil, tlsCfg, nil)
+	quicListener, err := pan.ListenQUIC(context.Background(), addr, nil, nil, tlsCfg, nil)
 	if err != nil {
 		log.Fatalf("failed to listen SCION QUIC on %s: %v", *ServerAddr, err)
 	}

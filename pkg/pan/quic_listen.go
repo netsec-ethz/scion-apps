@@ -20,6 +20,7 @@ import (
 	"net/netip"
 
 	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 // ListenQUIC listens for QUIC connections on a SCION/UDP port.
@@ -27,10 +28,15 @@ import (
 // See note on wildcard addresses in the package documentation.
 //
 // BUG This "leaks" the UDP connection, which is never closed.
-func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelector,
-	tlsConf *tls.Config, quicConfig *quic.Config) (*quic.Listener, error) {
+func ListenQUIC(
+	ctx context.Context,
+	local netip.AddrPort,
+	selector ReplySelector,
+	scmpHandler snet.SCMPHandler,
+	tlsConf *tls.Config,
+	quicConfig *quic.Config) (*quic.Listener, error) {
 
-	conn, err := ListenUDP(ctx, local, selector)
+	conn, err := ListenUDP(ctx, local, selector, scmpHandler)
 	if err != nil {
 		return nil, err
 	}

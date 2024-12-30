@@ -47,17 +47,27 @@ type Conn interface {
 // a path among this set for each Write operation.
 // If the policy is nil, all paths are allowed.
 // If the selector is nil, a DefaultSelector is used.
-func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
-	policy Policy, selector Selector) (Conn, error) {
+func DialUDP(
+	ctx context.Context,
+	local netip.AddrPort,
+	remote UDPAddr,
+	policy Policy,
+	selector Selector,
+	scmpHandler snet.SCMPHandler,
+) (Conn, error) {
 
 	local, err := defaultLocalAddr(local)
 	if err != nil {
 		return nil, err
 	}
 
+	if scmpHandler == nil {
+		scmpHandler = DefaultScmpHandler{}
+	}
+
 	sn := snet.SCIONNetwork{
 		Topology:    host().sciond,
-		SCMPHandler: scmpHandler{},
+		SCMPHandler: scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {

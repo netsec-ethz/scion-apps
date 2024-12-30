@@ -37,6 +37,7 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 		context.Background(),
 		netip.AddrPortFrom(netip.Addr{}, port),
 		nil,
+		nil,
 		&tls.Config{
 			Certificates: quicutil.MustGenerateSelfSignedCert(),
 			NextProtos:   nextProtos,
@@ -75,6 +76,7 @@ func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 		netip.AddrPort{},
 		remoteAddr,
 		policy,
+		nil,
 		nil,
 		pan.MangleSCIONAddr(remote),
 		&tls.Config{
