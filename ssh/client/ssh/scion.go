@@ -49,7 +49,7 @@ func dialSCION(ctx context.Context,
 	quicConf := &quic.Config{
 		KeepAlivePeriod: 15 * time.Second,
 	}
-	sess, err := pan.DialQUIC(ctx, netip.AddrPort{}, remote, policy, sel, "", tlsConf, quicConf)
+	sess, err := pan.DialQUIC(ctx, netip.AddrPort{}, remote, policy, sel, nil, "", tlsConf, quicConf)
 	if err != nil {
 		return nil, err
 	}

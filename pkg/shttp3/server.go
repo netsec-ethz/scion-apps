@@ -59,7 +59,7 @@ func (s *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	sconn, err := pan.ListenUDP(context.Background(), laddr, nil)
+	sconn, err := pan.ListenUDP(context.Background(), laddr, nil, nil)
 	if err != nil {
 		return err
 	}
