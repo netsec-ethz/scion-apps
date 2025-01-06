@@ -26,12 +26,18 @@ import (
 // QUICListener is a wrapper around a quic.Listener that also holds the underlying
 // net.PacketConn. This is necessary because quic.Listener does not expose the
 // underlying connection, which is needed to close it.
-type QUICListener struct {
+type QUICListener interface {
+	Accept(ctx context.Context) (quic.Connection, error)
+	Close() error
+	Addr() net.Addr
+}
+
+type quicListener struct {
 	*quic.Listener
 	conn net.PacketConn
 }
 
-func (l *QUICListener) Close() error {
+func (l *quicListener) Close() error {
 	err := l.Listener.Close()
 	l.conn.Close()
 	return err
@@ -41,7 +47,7 @@ func (l *QUICListener) Close() error {
 //
 // See note on wildcard addresses in the package documentation.
 func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelector,
-	tlsConf *tls.Config, quicConfig *quic.Config) (*QUICListener, error) {
+	tlsConf *tls.Config, quicConfig *quic.Config) (QUICListener, error) {
 
 	conn, err := ListenUDP(ctx, local, selector)
 	if err != nil {
@@ -56,5 +62,5 @@ func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelecto
 		conn.Close()
 		return nil, err
 	}
-	return &QUICListener{Listener: listener, conn: conn}, nil
+	return &quicListener{Listener: listener, conn: conn}, nil
 }
