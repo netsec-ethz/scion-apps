@@ -46,7 +46,7 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	listener := quicutil.SingleStreamListener{Listener: quicListener}
+	listener := quicutil.SingleStreamListener{QUICListener: quicListener}
 
 	conns := make(chan io.ReadWriteCloser)
 	go func() {

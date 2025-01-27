@@ -96,5 +96,5 @@ func listen(addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	return quicutil.SingleStreamListener{Listener: quicListener}, nil
+	return quicutil.SingleStreamListener{QUICListener: quicListener}, nil
 }
