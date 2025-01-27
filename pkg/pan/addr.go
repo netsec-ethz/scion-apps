@@ -237,8 +237,6 @@ func MangleSCIONAddr(address string) string {
 
 	// Turn this into [IA,IP]:port format. This is a valid host in a URI, as per
 	// the "IP-literal" case in RFC 3986, §3.2.2.
-	// Unfortunately, this is not currently compatible with snet.ParseUDPAddr,
-	// so this will have to be _unmangled_ before use.
 	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
 	if raddr.Host.Port != 0 {
 		mangledAddr += fmt.Sprintf(":%d", raddr.Host.Port)
