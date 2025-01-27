@@ -56,19 +56,9 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 				t.Fatalf("MangleSCIONAddrURL returned different result, actual='%s', expected='%s'", mangled, expected)
 			}
 			// Now attempt to parse this URL. If this fails, the expected test results are broken.
-			u, err := url.Parse(mangled)
+			_, err := url.Parse(mangled)
 			if err != nil {
 				t.Fatalf("MangleSCIONAddrURL returned URL that cannot be parsed: %s", err)
-			}
-
-			// Check that unmangling the address can be parsed by ParseUDPAddr
-			// Only for testcases that have a port set:
-			if _, _, err := net.SplitHostPort(u.Host); err != nil {
-				continue
-			}
-			unmangled := pan.UnmangleSCIONAddr(u.Host)
-			if unmangled != tc.HostPort {
-				t.Fatalf("UnmangleSCIONAddr('%s') returned different result, actual='%s', expected='%s'", u.Host, unmangled, tc.HostPort)
 			}
 		}
 	}
@@ -100,11 +90,10 @@ func TestRoundTripper(t *testing.T) {
 		//  remote, err := pan.ResolveUDPAddr(pan.UnmangleSCIONAddr(addr))
 		// We mock pan.ResolveUDPAddr here; don't want to rely on hosts files etc
 		// for this test.
-		unmangled := pan.UnmangleSCIONAddr(addr)
-		if strings.HasPrefix(unmangled, "host") {
-			_, err := pan.ParseUDPAddr(unmangled)
+		if strings.HasPrefix(addr, "host") {
+			_, err := pan.ParseUDPAddr(addr)
 			require.Error(t, err)
-			hostStr, portStr, err := net.SplitHostPort(unmangled)
+			hostStr, portStr, err := net.SplitHostPort(addr)
 			require.NoError(t, err)
 			port, err := strconv.Atoi(portStr)
 			require.NoError(t, err)
@@ -115,7 +104,7 @@ func TestRoundTripper(t *testing.T) {
 			remote := pan.UDPAddr{IA: hostIA, IP: hostIP, Port: uint16(port)}
 			assert.Equal(t, expected, remote.String())
 		} else {
-			remote, err := pan.ParseUDPAddr(unmangled)
+			remote, err := pan.ParseUDPAddr(addr)
 			require.NoError(t, err)
 			assert.Equal(t, expected, remote.String())
 		}

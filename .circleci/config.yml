@@ -85,6 +85,9 @@ jobs:
             # Link the gen directory containing sciond_addresses.json and as_list.json
             ln -s ~/scion/gen /home/circleci/project/gen
             mkdir gen-cache
+            # Symlink supervisord and supervisorctl to path expected in tools/supervisor.sh
+            ln -s $(which supervisord) bin/supervisord
+            ln -s $(which supervisorctl) bin/supervisorctl
 
             # Start all AS tiny4.topo
             tools/supervisor.sh reload

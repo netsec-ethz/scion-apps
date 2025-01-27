@@ -20,7 +20,7 @@ import (
 	"sort"
 
 	"github.com/scionproto/scion/pkg/addr"
-	"github.com/scionproto/scion/pkg/private/common"
+	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/private/path/pathpol"
 )
@@ -195,7 +195,7 @@ func (p snetPathWrapper) Metadata() *snet.PathMetadata {
 	for i, spi := range p.wrapped.Metadata.Interfaces {
 		pis[i] = snet.PathInterface{
 			IA: addr.IA(spi.IA),
-			ID: common.IFIDType(spi.IfID), //nolint:staticcheck // False deprecation
+			ID: iface.ID(spi.IfID),
 		}
 	}
 	return &snet.PathMetadata{

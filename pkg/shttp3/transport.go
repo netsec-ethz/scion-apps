@@ -47,7 +47,7 @@ type Dialer struct {
 func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 	cfg *quic.Config) (quic.EarlyConnection, error) {
 
-	remote, err := pan.ResolveUDPAddr(ctx, pan.UnmangleSCIONAddr(addr))
+	remote, err := pan.ResolveUDPAddr(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
