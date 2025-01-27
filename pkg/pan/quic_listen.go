@@ -28,12 +28,12 @@ import (
 // underlying connection, which is needed to close it.
 type QUICListener struct {
 	*quic.Listener
-	conn net.PacketConn
+	Conn net.PacketConn
 }
 
 func (l *QUICListener) Close() error {
 	err := l.Listener.Close()
-	l.conn.Close()
+	l.Conn.Close()
 	return err
 }
 
@@ -56,5 +56,5 @@ func ListenQUIC(ctx context.Context, local netip.AddrPort, selector ReplySelecto
 		conn.Close()
 		return nil, err
 	}
-	return &QUICListener{Listener: listener, conn: conn}, nil
+	return &QUICListener{Listener: listener, Conn: conn}, nil
 }
