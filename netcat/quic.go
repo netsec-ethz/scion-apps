@@ -36,8 +36,6 @@ func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 	quicListener, err := pan.ListenQUIC(
 		context.Background(),
 		netip.AddrPortFrom(netip.Addr{}, port),
-		nil,
-		nil,
 		&tls.Config{
 			Certificates: quicutil.MustGenerateSelfSignedCert(),
 			NextProtos:   nextProtos,
@@ -75,15 +73,13 @@ func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 		context.Background(),
 		netip.AddrPort{},
 		remoteAddr,
-		policy,
-		nil,
-		nil,
 		pan.MangleSCIONAddr(remote),
 		&tls.Config{
 			InsecureSkipVerify: true,
 			NextProtos:         nextProtos,
 		},
 		&quic.Config{KeepAlivePeriod: 15 * time.Second},
+		pan.WithPolicy(policy),
 	)
 	if err != nil {
 		return nil, err

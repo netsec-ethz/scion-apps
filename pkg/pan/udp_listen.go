@@ -61,27 +61,19 @@ type ListenConn interface {
 func ListenUDP(
 	ctx context.Context,
 	local netip.AddrPort,
-	selector ReplySelector,
-	scmpHandler snet.SCMPHandler,
+	opts ...ListenConnOptions,
 ) (ListenConn, error) {
+	o := apply(opts)
 
 	local, err := defaultLocalAddr(local)
 	if err != nil {
 		return nil, err
 	}
 
-	if selector == nil {
-		selector = NewDefaultReplySelector()
-	}
-
-	if scmpHandler == nil {
-		scmpHandler = DefaultScmpHandler{}
-	}
-
-	stats.subscribe(selector)
+	stats.subscribe(o.selector)
 	sn := snet.SCIONNetwork{
 		Topology:    host().sciond,
-		SCMPHandler: scmpHandler,
+		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
@@ -93,7 +85,7 @@ func ListenUDP(
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
-	selector.Initialize(localUDPAddr)
+	o.selector.Initialize(localUDPAddr)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", localUDPAddr)
@@ -104,8 +96,38 @@ func ListenUDP(
 			raw: conn,
 		},
 		local:    localUDPAddr,
-		selector: selector,
+		selector: o.selector,
 	}, nil
+}
+
+type ListenConnOptions func(*listenConnOptions)
+
+func WithReplySelector(selector ReplySelector) ListenConnOptions {
+	return func(o *listenConnOptions) {
+		o.selector = selector
+	}
+}
+
+func WithListenSCMPHandler(handler snet.SCMPHandler) ListenConnOptions {
+	return func(o *listenConnOptions) {
+		o.scmpHandler = handler
+	}
+}
+
+type listenConnOptions struct {
+	selector    ReplySelector
+	scmpHandler snet.SCMPHandler
+}
+
+func apply(opts []ListenConnOptions) listenConnOptions {
+	o := listenConnOptions{
+		selector:    NewDefaultReplySelector(),
+		scmpHandler: DefaultScmpHandler{},
+	}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
 }
 
 type listenConn struct {
