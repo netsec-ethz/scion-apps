@@ -54,7 +54,7 @@ func main() {
 	check(err)
 	serverAddr, err := pan.ResolveUDPAddr(context.TODO(), *serverAddrStr)
 	check(err)
-	conn, err := pan.DialUDP(context.Background(), netip.AddrPort{}, serverAddr, policy, nil, nil)
+	conn, err := pan.DialUDP(context.Background(), netip.AddrPort{}, serverAddr, pan.WithPolicy(policy))
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

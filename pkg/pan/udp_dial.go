@@ -51,23 +51,16 @@ func DialUDP(
 	ctx context.Context,
 	local netip.AddrPort,
 	remote UDPAddr,
-	policy Policy,
-	selector Selector,
-	scmpHandler snet.SCMPHandler,
+	opts ...ConnOptions,
 ) (Conn, error) {
-
+	o := applyConnOpts(opts)
 	local, err := defaultLocalAddr(local)
 	if err != nil {
 		return nil, err
 	}
-
-	if scmpHandler == nil {
-		scmpHandler = DefaultScmpHandler{}
-	}
-
 	sn := snet.SCIONNetwork{
 		Topology:    host().sciond,
-		SCMPHandler: scmpHandler,
+		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
@@ -81,10 +74,7 @@ func DialUDP(
 	}
 	var subscriber *pathRefreshSubscriber
 	if remote.IA != localUDPAddr.IA {
-		if selector == nil {
-			selector = NewDefaultSelector()
-		}
-		subscriber, err = openPathRefreshSubscriber(ctx, localUDPAddr, remote, policy, selector)
+		subscriber, err = openPathRefreshSubscriber(ctx, localUDPAddr, remote, o.policy, o.selector)
 		if err != nil {
 			return nil, err
 		}
@@ -96,8 +86,45 @@ func DialUDP(
 		local:      localUDPAddr,
 		remote:     remote,
 		subscriber: subscriber,
-		selector:   selector,
+		selector:   o.selector,
 	}, nil
+}
+
+type ConnOptions func(*connOptions)
+
+func WithSelector(selector Selector) ConnOptions {
+	return func(o *connOptions) {
+		o.selector = selector
+	}
+}
+
+func WithDialSCMPHandler(handler snet.SCMPHandler) ConnOptions {
+	return func(o *connOptions) {
+		o.scmpHandler = handler
+	}
+}
+
+func WithPolicy(policy Policy) ConnOptions {
+	return func(o *connOptions) {
+		o.policy = policy
+	}
+}
+
+type connOptions struct {
+	selector    Selector
+	scmpHandler snet.SCMPHandler
+	policy      Policy
+}
+
+func applyConnOpts(opts []ConnOptions) connOptions {
+	o := connOptions{
+		selector:    NewDefaultSelector(),
+		scmpHandler: DefaultScmpHandler{},
+	}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
 }
 
 type dialedConn struct {
@@ -120,9 +147,6 @@ func (c *dialedConn) LocalAddr() net.Addr {
 }
 
 func (c *dialedConn) GetPath() *Path {
-	if c.selector == nil {
-		return nil
-	}
 	return c.selector.Path()
 }
 

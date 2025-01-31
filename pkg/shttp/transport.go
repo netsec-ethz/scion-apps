@@ -84,7 +84,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		return nil, err
 	}
 
-	session, err := pan.DialQUIC(ctx, d.Local, remote, d.Policy, nil, nil, addr, tlsCfg, d.QuicConfig)
+	session, err := pan.DialQUIC(ctx, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}

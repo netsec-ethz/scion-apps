@@ -21,7 +21,6 @@ import (
 	"net/netip"
 
 	"github.com/quic-go/quic-go"
-	"github.com/scionproto/scion/pkg/snet"
 )
 
 // QUICSession is a wrapper around quic.Connection that always closes the
@@ -57,14 +56,13 @@ func DialQUIC(
 	ctx context.Context,
 	local netip.AddrPort,
 	remote UDPAddr,
-	policy Policy,
-	selector Selector,
-	scmpHandler snet.SCMPHandler,
 	host string,
 	tlsConf *tls.Config,
-	quicConf *quic.Config) (*QUICSession, error) {
+	quicConf *quic.Config,
+	connOptions ...ConnOptions,
+) (*QUICSession, error) {
 
-	conn, err := DialUDP(ctx, local, remote, policy, selector, scmpHandler)
+	conn, err := DialUDP(ctx, local, remote, connOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -99,15 +97,13 @@ func DialQUICEarly(
 	ctx context.Context,
 	local netip.AddrPort,
 	remote UDPAddr,
-	policy Policy,
-	selector Selector,
-	scmpHandler snet.SCMPHandler,
 	host string,
 	tlsConf *tls.Config,
 	quicConf *quic.Config,
+	connOptions ...ConnOptions,
 ) (*QUICEarlySession, error) {
 
-	conn, err := DialUDP(ctx, local, remote, policy, selector, scmpHandler)
+	conn, err := DialUDP(ctx, local, remote, connOptions...)
 	if err != nil {
 		return nil, err
 	}

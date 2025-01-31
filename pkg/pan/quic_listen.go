@@ -21,7 +21,6 @@ import (
 	"net/netip"
 
 	"github.com/quic-go/quic-go"
-	"github.com/scionproto/scion/pkg/snet"
 )
 
 // QUICListener is a wrapper around a quic.Listener that also holds the underlying
@@ -46,12 +45,12 @@ func (l *QUICListener) Close() error {
 func ListenQUIC(
 	ctx context.Context,
 	local netip.AddrPort,
-	selector ReplySelector,
-	scmpHandler snet.SCMPHandler,
 	tlsConf *tls.Config,
-	quicConfig *quic.Config) (*QUICListener, error) {
+	quicConfig *quic.Config,
+	listenConnOptions ...ListenConnOptions,
+) (*QUICListener, error) {
 
-	conn, err := ListenUDP(ctx, local, selector, scmpHandler)
+	conn, err := ListenUDP(ctx, local, listenConnOptions...)
 	if err != nil {
 		return nil, err
 	}
