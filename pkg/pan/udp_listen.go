@@ -125,7 +125,9 @@ func apply(opts []ListenConnOptions) listenConnOptions {
 		scmpHandler: DefaultScmpHandler{},
 	}
 	for _, opt := range opts {
-		opt(&o)
+		if opt != nil {
+			opt(&o)
+		}
 	}
 	return o
 }
