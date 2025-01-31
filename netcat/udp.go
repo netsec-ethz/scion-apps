@@ -71,8 +71,6 @@ func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
 	conn, err := pan.ListenUDP(
 		context.Background(),
 		netip.AddrPortFrom(netip.Addr{}, port),
-		nil,
-		nil,
 	)
 	if err != nil {
 		return nil, err
