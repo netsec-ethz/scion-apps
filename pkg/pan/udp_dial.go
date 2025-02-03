@@ -28,6 +28,11 @@ type Conn interface {
 	// SetPolicy allows to set the path policy for paths used by Write, at any
 	// time.
 	SetPolicy(policy Policy)
+	// WriteWithCtx writes a message to the remote address using a path from the
+	// path policy and selector. ctx is passed to the path selector where it can
+	// provide additional user-defined information, e.g., whether the packet is
+	// urgent or not.
+	WriteWithCtx(ctx context.Context, b []byte) (n int, err error)
 	// WriteVia writes a message to the remote address via the given path.
 	// This bypasses the path policy and selector used for Write.
 	WriteVia(path *Path, b []byte) (int, error)
@@ -36,6 +41,7 @@ type Conn interface {
 	ReadVia(b []byte) (int, *Path, error)
 
 	GetPath() *Path
+	GetPathWithCtx(ctx context.Context) *Path
 }
 
 // DialUDP opens a SCION/UDP socket, connected to the remote address.
@@ -50,13 +56,18 @@ type Conn interface {
 func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	policy Policy, selector Selector) (Conn, error) {
 
-	local, err := defaultLocalAddr(local)
+	host, err := getHost()
+	if err != nil {
+		return nil, err
+	}
+
+	local, err = defaultLocalAddr(local)
 	if err != nil {
 		return nil, err
 	}
 
 	sn := snet.SCIONNetwork{
-		Topology:    host().sciond,
+		Topology:    host.sciond,
 		SCMPHandler: scmpHandler{},
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
@@ -65,7 +76,7 @@ func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   host().ia,
+		IA:   host.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
@@ -110,10 +121,14 @@ func (c *dialedConn) LocalAddr() net.Addr {
 }
 
 func (c *dialedConn) GetPath() *Path {
+	return c.GetPathWithCtx(context.TODO())
+}
+
+func (c *dialedConn) GetPathWithCtx(ctx context.Context) *Path {
 	if c.selector == nil {
 		return nil
 	}
-	return c.selector.Path()
+	return c.selector.Path(ctx)
 }
 
 func (c *dialedConn) RemoteAddr() net.Addr {
@@ -121,9 +136,13 @@ func (c *dialedConn) RemoteAddr() net.Addr {
 }
 
 func (c *dialedConn) Write(b []byte) (int, error) {
+	return c.WriteWithCtx(context.TODO(), b)
+}
+
+func (c *dialedConn) WriteWithCtx(ctx context.Context, b []byte) (int, error) {
 	var path *Path
 	if c.local.IA != c.remote.IA {
-		path = c.selector.Path()
+		path = c.selector.Path(ctx)
 		if path == nil {
 			return 0, errNoPathTo(c.remote.IA)
 		}
