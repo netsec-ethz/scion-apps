@@ -102,27 +102,35 @@ func ListenUDP(
 
 type ListenConnOptions func(*listenConnOptions)
 
-func WithReplySelector(selector ReplySelector) ListenConnOptions {
-	return func(o *listenConnOptions) {
-		o.selector = selector
-	}
-}
-
+// WithListenSCMPHandler sets the SCMP handler for the ListenConn.
 func WithListenSCMPHandler(handler snet.SCMPHandler) ListenConnOptions {
 	return func(o *listenConnOptions) {
+		if handler == nil {
+			panic("nil SCMP handler not allowed")
+		}
 		o.scmpHandler = handler
 	}
 }
 
+// WithReplySelector sets the reply path selector for the ListenConn.
+func WithReplySelector(selector ReplySelector) ListenConnOptions {
+	return func(o *listenConnOptions) {
+		if selector == nil {
+			panic("nil selector not allowed")
+		}
+		o.selector = selector
+	}
+}
+
 type listenConnOptions struct {
-	selector    ReplySelector
 	scmpHandler snet.SCMPHandler
+	selector    ReplySelector
 }
 
 func apply(opts []ListenConnOptions) listenConnOptions {
 	o := listenConnOptions{
+		scmpHandler: DefaultSCMPHandler{},
 		selector:    NewDefaultReplySelector(),
-		scmpHandler: DefaultScmpHandler{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
