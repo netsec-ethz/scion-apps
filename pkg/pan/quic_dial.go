@@ -52,11 +52,17 @@ func (s *QUICEarlySession) CloseWithError(code quic.ApplicationErrorCode, desc s
 //
 // The host parameter is used for SNI.
 // The tls.Config must define an application protocol (using NextProtos).
-func DialQUIC(ctx context.Context,
-	local netip.AddrPort, remote UDPAddr, policy Policy, selector Selector,
-	host string, tlsConf *tls.Config, quicConf *quic.Config) (*QUICSession, error) {
+func DialQUIC(
+	ctx context.Context,
+	local netip.AddrPort,
+	remote UDPAddr,
+	host string,
+	tlsConf *tls.Config,
+	quicConf *quic.Config,
+	connOptions ...ConnOptions,
+) (*QUICSession, error) {
 
-	conn, err := DialUDP(ctx, local, remote, policy, selector)
+	conn, err := DialUDP(ctx, local, remote, connOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -87,11 +93,17 @@ func DialQUIC(ctx context.Context,
 }
 
 // DialQUICEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialQUIC.
-func DialQUICEarly(ctx context.Context,
-	local netip.AddrPort, remote UDPAddr, policy Policy, selector Selector,
-	host string, tlsConf *tls.Config, quicConf *quic.Config) (*QUICEarlySession, error) {
+func DialQUICEarly(
+	ctx context.Context,
+	local netip.AddrPort,
+	remote UDPAddr,
+	host string,
+	tlsConf *tls.Config,
+	quicConf *quic.Config,
+	connOptions ...ConnOptions,
+) (*QUICEarlySession, error) {
 
-	conn, err := DialUDP(ctx, local, remote, policy, selector)
+	conn, err := DialUDP(ctx, local, remote, connOptions...)
 	if err != nil {
 		return nil, err
 	}
