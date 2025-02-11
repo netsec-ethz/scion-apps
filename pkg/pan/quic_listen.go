@@ -40,8 +40,6 @@ func (l *QUICListener) Close() error {
 // ListenQUIC listens for QUIC connections on a SCION/UDP port.
 //
 // See note on wildcard addresses in the package documentation.
-//
-// BUG This "leaks" the UDP connection, which is never closed.
 func ListenQUIC(
 	ctx context.Context,
 	local netip.AddrPort,

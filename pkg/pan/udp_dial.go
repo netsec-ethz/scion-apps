@@ -92,18 +92,27 @@ func DialUDP(
 
 type ConnOptions func(*connOptions)
 
-func WithSelector(selector Selector) ConnOptions {
-	return func(o *connOptions) {
-		o.selector = selector
-	}
-}
-
+// WithDialSCMPHandler sets the SCMP handler for the connection.
 func WithDialSCMPHandler(handler snet.SCMPHandler) ConnOptions {
 	return func(o *connOptions) {
+		if handler == nil {
+			panic("nil SCMP handler not allowed")
+		}
 		o.scmpHandler = handler
 	}
 }
 
+// WithSelector sets the path selector for the connection.
+func WithSelector(selector Selector) ConnOptions {
+	return func(o *connOptions) {
+		if selector == nil {
+			panic("nil selector not allowed")
+		}
+		o.selector = selector
+	}
+}
+
+// WithPolicy sets the path policy for the connection.
 func WithPolicy(policy Policy) ConnOptions {
 	return func(o *connOptions) {
 		o.policy = policy
@@ -111,15 +120,15 @@ func WithPolicy(policy Policy) ConnOptions {
 }
 
 type connOptions struct {
-	selector    Selector
 	scmpHandler snet.SCMPHandler
+	selector    Selector
 	policy      Policy
 }
 
 func applyConnOpts(opts []ConnOptions) connOptions {
 	o := connOptions{
+		scmpHandler: DefaultSCMPHandler{},
 		selector:    NewDefaultSelector(),
-		scmpHandler: DefaultScmpHandler{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
