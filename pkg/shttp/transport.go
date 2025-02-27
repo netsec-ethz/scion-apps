@@ -79,12 +79,12 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		InsecureSkipVerify: true,
 	}
 
-	remote, err := pan.ResolveUDPAddr(ctx, pan.UnmangleSCIONAddr(addr))
+	remote, err := pan.ResolveUDPAddr(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	session, err := pan.DialQUIC(ctx, d.Local, remote, d.Policy, nil, addr, tlsCfg, d.QuicConfig)
+	session, err := pan.DialQUIC(ctx, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}

@@ -47,11 +47,11 @@ type Dialer struct {
 func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 	cfg *quic.Config) (quic.EarlyConnection, error) {
 
-	remote, err := pan.ResolveUDPAddr(ctx, pan.UnmangleSCIONAddr(addr))
+	remote, err := pan.ResolveUDPAddr(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
-	session, err := pan.DialQUICEarly(ctx, d.Local, remote, d.Policy, nil, addr, tlsCfg, cfg)
+	session, err := pan.DialQUICEarly(ctx, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}

@@ -335,7 +335,7 @@ func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 
 	// Control channel connection
 	ccSelector := pan.NewDefaultSelector()
-	ccConn, err := pan.DialUDP(context.Background(), local, serverCCAddr, policy, ccSelector)
+	ccConn, err := pan.DialUDP(context.Background(), local, serverCCAddr, pan.WithPolicy(policy), pan.WithSelector(ccSelector))
 	if err != nil {
 		return
 	}
@@ -345,7 +345,7 @@ func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 	serverDCAddr := serverCCAddr.WithPort(serverCCAddr.Port + 1)
 
 	// Data channel connection
-	dcConn, err := pan.DialUDP(context.Background(), dcLocal, serverDCAddr, policy, nil)
+	dcConn, err := pan.DialUDP(context.Background(), dcLocal, serverDCAddr, pan.WithPolicy(policy))
 	if err != nil {
 		return
 	}

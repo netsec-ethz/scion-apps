@@ -1,8 +1,8 @@
 module examples
 
-go 1.21.10
+go 1.22.7
 
-toolchain go1.21.11
+toolchain go1.22.10
 
 require (
 	github.com/golang/protobuf v1.5.4
@@ -13,7 +13,7 @@ require (
 )
 
 require (
-	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/britram/borat v0.0.0-20181011130314-f891bcfcfb9b // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -43,7 +43,7 @@ require (
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.14.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/scionproto/scion v0.11.1-0.20240610170620-50b971ca2d4b // indirect
+	github.com/scionproto/scion v0.12.1-0.20241223103250-0b42cbc42486 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	go.uber.org/atomic v1.11.0 // indirect

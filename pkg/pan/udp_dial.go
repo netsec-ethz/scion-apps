@@ -53,8 +53,13 @@ type Conn interface {
 // a path among this set for each Write operation.
 // If the policy is nil, all paths are allowed.
 // If the selector is nil, a DefaultSelector is used.
-func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
-	policy Policy, selector Selector) (Conn, error) {
+func DialUDP(
+	ctx context.Context,
+	local netip.AddrPort,
+	remote UDPAddr,
+	opts ...ConnOptions,
+) (Conn, error) {
+	o := applyConnOpts(opts)
 
 	host, err := getHost()
 	if err != nil {
@@ -65,10 +70,9 @@ func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	if err != nil {
 		return nil, err
 	}
-
 	sn := snet.SCIONNetwork{
 		Topology:    host.sciond,
-		SCMPHandler: scmpHandler{},
+		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
@@ -82,10 +86,7 @@ func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 	}
 	var subscriber *pathRefreshSubscriber
 	if remote.IA != localUDPAddr.IA {
-		if selector == nil {
-			selector = NewDefaultSelector()
-		}
-		subscriber, err = openPathRefreshSubscriber(ctx, localUDPAddr, remote, policy, selector)
+		subscriber, err = openPathRefreshSubscriber(ctx, localUDPAddr, remote, o.policy, o.selector)
 		if err != nil {
 			return nil, err
 		}
@@ -97,8 +98,56 @@ func DialUDP(ctx context.Context, local netip.AddrPort, remote UDPAddr,
 		local:      localUDPAddr,
 		remote:     remote,
 		subscriber: subscriber,
-		selector:   selector,
+		selector:   o.selector,
 	}, nil
+}
+
+type ConnOptions func(*connOptions)
+
+// WithDialSCMPHandler sets the SCMP handler for the connection.
+func WithDialSCMPHandler(handler snet.SCMPHandler) ConnOptions {
+	return func(o *connOptions) {
+		if handler == nil {
+			panic("nil SCMP handler not allowed")
+		}
+		o.scmpHandler = handler
+	}
+}
+
+// WithSelector sets the path selector for the connection.
+func WithSelector(selector Selector) ConnOptions {
+	return func(o *connOptions) {
+		if selector == nil {
+			panic("nil selector not allowed")
+		}
+		o.selector = selector
+	}
+}
+
+// WithPolicy sets the path policy for the connection.
+func WithPolicy(policy Policy) ConnOptions {
+	return func(o *connOptions) {
+		o.policy = policy
+	}
+}
+
+type connOptions struct {
+	scmpHandler snet.SCMPHandler
+	selector    Selector
+	policy      Policy
+}
+
+func applyConnOpts(opts []ConnOptions) connOptions {
+	o := connOptions{
+		scmpHandler: DefaultSCMPHandler{},
+		selector:    NewDefaultSelector(),
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&o)
+		}
+	}
+	return o
 }
 
 type dialedConn struct {
@@ -125,9 +174,6 @@ func (c *dialedConn) GetPath() *Path {
 }
 
 func (c *dialedConn) GetPathWithCtx(ctx context.Context) *Path {
-	if c.selector == nil {
-		return nil
-	}
 	return c.selector.Path(ctx)
 }
 

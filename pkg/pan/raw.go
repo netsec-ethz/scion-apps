@@ -152,9 +152,9 @@ func (c *baseUDPConn) Close() error {
 	return c.raw.Close()
 }
 
-type scmpHandler struct{}
+type DefaultSCMPHandler struct{}
 
-func (h scmpHandler) Handle(pkt *snet.Packet) error {
+func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 	scmp := pkt.Payload.(snet.SCMPPayload)
 	switch scmp.Type() {
 	case slayers.SCMPTypeExternalInterfaceDown:

@@ -1,8 +1,8 @@
 module github.com/netsec-ethz/scion-apps
 
-go 1.21.10
+go 1.22.7
 
-toolchain go1.21.11
+toolchain go1.22.10
 
 require (
 	github.com/creack/pty v1.1.17
@@ -14,7 +14,7 @@ require (
 	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403
 	github.com/pelletier/go-toml v1.9.5
 	github.com/quic-go/quic-go v0.43.1
-	github.com/scionproto/scion v0.11.1-0.20240610170620-50b971ca2d4b
+	github.com/scionproto/scion v0.12.1-0.20241223103250-0b42cbc42486
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.31.0
@@ -25,7 +25,7 @@ require (
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
-	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20220209173558-ad29539cd2e9 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/britram/borat v0.0.0-20181011130314-f891bcfcfb9b // indirect

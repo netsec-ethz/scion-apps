@@ -133,6 +133,9 @@ func (e *pathPoolDst) update(paths []*Path) {
 func (p *pathPool) earliestPathExpiry() time.Time {
 	p.entriesMutex.RLock()
 	defer p.entriesMutex.RUnlock()
+	if len(p.entries) == 0 {
+		return time.Time{}
+	}
 	ret := maxTime
 	for _, entry := range p.entries {
 		if entry.earliestExpiry.Before(ret) {
@@ -143,6 +146,9 @@ func (p *pathPool) earliestPathExpiry() time.Time {
 }
 
 func earliestPathExpiry(paths []*Path) time.Time {
+	if len(paths) == 0 {
+		return time.Time{}
+	}
 	ret := maxTime
 	for _, p := range paths {
 		expiry := p.Expiry

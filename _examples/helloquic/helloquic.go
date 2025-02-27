@@ -57,7 +57,7 @@ func runServer(listen netip.AddrPort) error {
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{"hello-quic"},
 	}
-	listener, err := pan.ListenQUIC(context.Background(), listen, nil, tlsCfg, nil)
+	listener, err := pan.ListenQUIC(context.Background(), listen, tlsCfg, nil)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func runClient(address string, count int) error {
 		Timeout:  time.Second,
 	}
 	selector.SetActive(2)
-	session, err := pan.DialQUIC(context.Background(), netip.AddrPort{}, addr, nil, selector, "", tlsCfg, nil)
+	session, err := pan.DialQUIC(context.Background(), netip.AddrPort{}, addr, "", tlsCfg, nil, pan.WithSelector(selector))
 	if err != nil {
 		return err
 	}

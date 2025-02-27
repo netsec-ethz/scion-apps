@@ -201,11 +201,11 @@ func (client *Client) StartTunnel(local netip.AddrPort, addr string) error {
 		tlsConf := &tls.Config{
 			NextProtos: []string{quicutil.SingleStreamProto},
 		}
-		ql, err := pan.ListenQUIC(context.Background(), local, nil, tlsConf, nil)
+		ql, err := pan.ListenQUIC(context.Background(), local, tlsConf, nil)
 		if err != nil {
 			return err
 		}
-		localListener = quicutil.SingleStreamListener{Listener: ql}
+		localListener = quicutil.SingleStreamListener{QUICListener: ql}
 	} else {
 		// That's right, TCP listen on UDPAddr. XXX replace with netip.AddrPort once available
 		tl, err := net.Listen("tcp", local.String())

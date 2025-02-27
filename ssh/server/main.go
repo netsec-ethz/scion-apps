@@ -94,11 +94,11 @@ func main() {
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{quicutil.SingleStreamProto},
 	}
-	ql, err := pan.ListenQUIC(context.Background(), local, nil, tlsConf, nil)
+	ql, err := pan.ListenQUIC(context.Background(), local, tlsConf, nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
-	listener := quicutil.SingleStreamListener{Listener: ql}
+	listener := quicutil.SingleStreamListener{QUICListener: ql}
 
 	log.Debug("Starting to wait for connections")
 	for {

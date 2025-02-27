@@ -53,7 +53,7 @@ func runServer(listen netip.AddrPort) error {
 
 	ctx := context.Background()
 	ccSelector := pan.NewDefaultReplySelector()
-	ccConn, err := pan.ListenUDP(context.Background(), listen, ccSelector)
+	ccConn, err := pan.ListenUDP(context.Background(), listen, pan.WithReplySelector(ccSelector))
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func (r resultsMap) purgeExpired() {
 }
 
 func listenConnected(local netip.AddrPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
-	conn, err := pan.ListenUDP(context.Background(), local, selector)
+	conn, err := pan.ListenUDP(context.Background(), local, pan.WithReplySelector(selector))
 	return connectedPacketConn{
 		ListenConn: conn,
 		remote:     remote,

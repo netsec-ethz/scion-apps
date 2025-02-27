@@ -92,9 +92,9 @@ func listen(addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	quicListener, err := pan.ListenQUIC(context.Background(), laddr, nil, tlsCfg, nil)
+	quicListener, err := pan.ListenQUIC(context.Background(), laddr, tlsCfg, nil)
 	if err != nil {
 		return nil, err
 	}
-	return quicutil.SingleStreamListener{Listener: quicListener}, nil
+	return quicutil.SingleStreamListener{QUICListener: quicListener}, nil
 }

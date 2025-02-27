@@ -77,7 +77,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 
 	sciondAddr, err := getSCIONDAddress(dst.IA)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to determine SCIOND address", err)
+		return nil, serrors.Wrap("unable to determine SCIOND address", err)
 	}
 	args := replacePattern(SCIOND, sciondAddr, sai.serverArgs)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
@@ -103,7 +103,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 	cmd.Stderr = io.MultiWriter(stderrLog, stderrBuf)
 
 	if err = cmd.Start(); err != nil {
-		return nil, serrors.WrapStr("Failed to start server", err, "dst", dst.IA)
+		return nil, serrors.Wrap("Failed to start server", err, "dst", dst.IA)
 	}
 	select {
 	case <-readyDetector.Signal:
@@ -130,7 +130,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 
 	sciondAddr, err := getSCIONDAddress(src.IA)
 	if err != nil {
-		return nil, serrors.WrapStr("unable to determine SCIOND address", err)
+		return nil, serrors.Wrap("unable to determine SCIOND address", err)
 	}
 	args := replacePattern(SCIOND, sciondAddr, sai.clientArgs)
 	args = replacePattern(SrcIAReplace, src.IA.String(), args)

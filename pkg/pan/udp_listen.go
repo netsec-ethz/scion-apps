@@ -63,8 +63,12 @@ type ListenConn interface {
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
 }
 
-func ListenUDP(ctx context.Context, local netip.AddrPort,
-	selector ReplySelector) (ListenConn, error) {
+func ListenUDP(
+	ctx context.Context,
+	local netip.AddrPort,
+	opts ...ListenConnOptions,
+) (ListenConn, error) {
+	o := apply(opts)
 
 	host, err := getHost()
 	if err != nil {
@@ -76,13 +80,10 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 		return nil, err
 	}
 
-	if selector == nil {
-		selector = NewDefaultReplySelector()
-	}
-	stats.subscribe(selector)
+	stats.subscribe(o.selector)
 	sn := snet.SCIONNetwork{
 		Topology:    host.sciond,
-		SCMPHandler: scmpHandler{},
+		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
@@ -94,7 +95,7 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
-	selector.Initialize(localUDPAddr)
+	o.selector.Initialize(localUDPAddr)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", localUDPAddr)
@@ -105,8 +106,48 @@ func ListenUDP(ctx context.Context, local netip.AddrPort,
 			raw: conn,
 		},
 		local:    localUDPAddr,
-		selector: selector,
+		selector: o.selector,
 	}, nil
+}
+
+type ListenConnOptions func(*listenConnOptions)
+
+// WithListenSCMPHandler sets the SCMP handler for the ListenConn.
+func WithListenSCMPHandler(handler snet.SCMPHandler) ListenConnOptions {
+	return func(o *listenConnOptions) {
+		if handler == nil {
+			panic("nil SCMP handler not allowed")
+		}
+		o.scmpHandler = handler
+	}
+}
+
+// WithReplySelector sets the reply path selector for the ListenConn.
+func WithReplySelector(selector ReplySelector) ListenConnOptions {
+	return func(o *listenConnOptions) {
+		if selector == nil {
+			panic("nil selector not allowed")
+		}
+		o.selector = selector
+	}
+}
+
+type listenConnOptions struct {
+	scmpHandler snet.SCMPHandler
+	selector    ReplySelector
+}
+
+func apply(opts []ListenConnOptions) listenConnOptions {
+	o := listenConnOptions{
+		scmpHandler: DefaultSCMPHandler{},
+		selector:    NewDefaultReplySelector(),
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&o)
+		}
+	}
+	return o
 }
 
 type listenConn struct {
