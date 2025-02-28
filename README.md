@@ -59,20 +59,18 @@ started.
 
 #### Environment
 
-The dispatcher and sciond sockets are assumed to be at default locations, but
-this can be overridden using environment variables:
+The SCION daemon is assumed to be at the default address, but this can be
+overridden using an environment variable:
 
-		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
 		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
 This is convenient for the normal use case of running the endhost stack for a
-single SCION AS.
-When running multiple local ASes, e.g. during development, the address of the
-sciond corresponding to the desired AS needs to be specified in the
-`SCION_DAEMON_ADDRESS` environment variable.
-In this case, the different sciond addresses can be found in their
-corresponding `sd.toml` configuration files in the `gen/ASx`
-directory, or summarized in the file `gen/sciond_addresses.json`.
+single SCION AS. When running multiple local ASes, e.g. during development, the
+address of the SCION daemon corresponding to the desired AS needs to be
+specified in the `SCION_DAEMON_ADDRESS` environment variable.
+In this case, the different daemon addresses can be found in their corresponding
+`sd.toml` configuration files in the `gen/ASx` directory, or summarized in the
+file `gen/sciond_addresses.json`.
 
 
 #### Hostnames
