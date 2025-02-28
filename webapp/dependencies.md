@@ -40,7 +40,6 @@ webapp -h
 - $sgenc/*.crt
 - $sgenc/*.trc
 - $sgenc/ps[IA]-1.path.db
-- /run/shm/dispatcher/default.sock
 
 ## Static Webserver Required
 - $srvroot/favico.ico

@@ -54,20 +54,17 @@ The default reply path selector records a fixed number of paths used by a client
 It normally uses the path last used by the client for replies, but does use other
 recorded paths to try routing around temporarily broken paths.
 
-# Dispatcher and SCION daemon connections
+# SCION daemon connection
 
-During the hidden initialisation of this package, the dispatcher and sciond
-connections are opened. The sciond connection determines the local IA.
-The dispatcher and sciond sockets are assumed to be at default locations, but this can
-be overridden using environment variables:
+The SCION daemon is assumed to be at the default address, but this can be
+overridden using an environment variable:
 
-	SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
 	SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
 This is convenient for the normal use case of running the endhost stack for a
 single SCION AS. When running multiple local ASes, e.g. during development, the
-address of the sciond corresponding to the desired AS needs to be specified in
-the SCION_DAEMON_ADDRESS environment variable.
+address of the SCION daemon corresponding to the desired AS needs to be
+specified in the SCION_DAEMON_ADDRESS environment variable.
 
 # Wildcard IP Addresses
 
