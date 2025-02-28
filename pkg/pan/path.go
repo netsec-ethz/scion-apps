@@ -44,6 +44,22 @@ func (p *Path) String() string {
 	}
 }
 
+// DataplaneLen returns the length of the path in the data plane.
+func (p *Path) DataplaneLen() (int, error) {
+	switch dataplanePath := p.ForwardingPath.dataplanePath.(type) {
+	case snet.RawReplyPath:
+		return dataplanePath.Path.Len(), nil
+	case snet.RawPath:
+		return len(dataplanePath.Raw), nil
+	case snetpath.SCION:
+		return len(dataplanePath.Raw), nil
+	case snetpath.Empty:
+		return 0, nil
+	default:
+		return 0, fmt.Errorf("unsupported path type %T", p.ForwardingPath.dataplanePath)
+	}
+}
+
 // ForwardingPath represents a data plane forwarding path.
 type ForwardingPath struct {
 	dataplanePath snet.DataplanePath

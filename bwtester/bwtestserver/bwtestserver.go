@@ -51,6 +51,7 @@ func runServer(listen netip.AddrPort) error {
 
 	results := make(resultsMap)
 
+	ctx := context.Background()
 	ccSelector := pan.NewDefaultReplySelector()
 	ccConn, err := pan.ListenUDP(context.Background(), listen, pan.WithReplySelector(ccSelector))
 	if err != nil {
@@ -101,7 +102,7 @@ func runServer(listen netip.AddrPort) error {
 			if err != nil {
 				continue
 			}
-			path := ccSelector.Path(clientCCAddr.(pan.UDPAddr))
+			path := ccSelector.Path(ctx, clientCCAddr.(pan.UDPAddr))
 			finishTime, err := startBwtestBackground(serverCCAddr, clientCCAddr.(pan.UDPAddr), path,
 				clientBwp, serverBwp, currentResult)
 			if err != nil {
