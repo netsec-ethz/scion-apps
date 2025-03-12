@@ -33,7 +33,7 @@ var errBadDstAddress error = errors.New("dst address not a UDPAddr")
 type ReplySelector interface {
 	// Path selects the path for the next packet to remote.
 	// Invoked for each packet sent with WriteTo.
-	Path(remote UDPAddr) *Path
+	Path(ctx context.Context, remote UDPAddr) *Path
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
 	Initialize(local UDPAddr)
@@ -53,6 +53,11 @@ type ListenConn interface {
 	// ReadFromVia reads a message and returns the (return-)path via which the
 	// message was received.
 	ReadFromVia(b []byte) (int, UDPAddr, *Path, error)
+	// WriteToWithCtx writes a message to the remote address using a path from
+	// the path selector. ctx is passed to the path selector where it can
+	// provide additional user-defined information, e.g., whether the packet is
+	// urgent or not.
+	WriteToWithCtx(ctx context.Context, b []byte, dst net.Addr) (n int, err error)
 	// WriteToVia writes a message to the remote address via the given path.
 	// This bypasses selector used for WriteTo.
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
@@ -65,14 +70,19 @@ func ListenUDP(
 ) (ListenConn, error) {
 	o := apply(opts)
 
-	local, err := defaultLocalAddr(local)
+	host, err := getHost()
+	if err != nil {
+		return nil, err
+	}
+
+	local, err = defaultLocalAddr(local)
 	if err != nil {
 		return nil, err
 	}
 
 	stats.subscribe(o.selector)
 	sn := snet.SCIONNetwork{
-		Topology:    host().sciond,
+		Topology:    host.sciond,
 		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
@@ -81,7 +91,7 @@ func ListenUDP(
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   host().ia,
+		IA:   host.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
@@ -167,13 +177,17 @@ func (c *listenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
 }
 
 func (c *listenConn) WriteTo(b []byte, dst net.Addr) (int, error) {
+	return c.WriteToWithCtx(context.TODO(), b, dst)
+}
+
+func (c *listenConn) WriteToWithCtx(ctx context.Context, b []byte, dst net.Addr) (n int, err error) {
 	sdst, ok := dst.(UDPAddr)
 	if !ok {
 		return 0, errBadDstAddress
 	}
 	var path *Path
 	if c.local.IA != sdst.IA {
-		path = c.selector.Path(sdst)
+		path = c.selector.Path(ctx, sdst)
 		if path == nil {
 			return 0, errNoPathTo(sdst.IA)
 		}
@@ -206,7 +220,7 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 func (s *DefaultReplySelector) Initialize(local UDPAddr) {
 }
 
-func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {
+func (s *DefaultReplySelector) Path(_ context.Context, remote UDPAddr) *Path {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	r, ok := s.remotes[remote]

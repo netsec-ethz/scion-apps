@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
+	"github.com/scionproto/scion/pkg/snet"
+	snetpath "github.com/scionproto/scion/pkg/snet/path"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -71,6 +73,81 @@ func TestPathString(t *testing.T) {
 			p := &Path{Metadata: m, Fingerprint: testFingerprint}
 			actual := p.String()
 			assert.Equal(t, c.expected, actual)
+		})
+	}
+}
+
+func TestDataplaneLen(t *testing.T) {
+	cases := []struct {
+		name      string
+		path      *Path
+		length    int
+		expectErr bool
+	}{
+		{
+			name: "raw reply path",
+			path: &Path{ForwardingPath: ForwardingPath{
+				dataplanePath: snet.RawReplyPath{
+					Path: &scion.Raw{
+						Base: scion.Base{
+							PathMeta: scion.MetaHdr{
+								CurrINF: 1, CurrHF: 3, SegLen: [3]uint8{2, 2, 0},
+							},
+							NumINF:  2,
+							NumHops: 4,
+						},
+						Raw: make([]byte, 68),
+					},
+				},
+			}},
+			length:    68,
+			expectErr: false,
+		},
+		{
+			name: "raw path",
+			path: &Path{ForwardingPath: ForwardingPath{
+				dataplanePath: snet.RawPath{
+					PathType: scion.PathType,
+					Raw:      make([]byte, 68),
+				},
+			}},
+			length:    68,
+			expectErr: false,
+		},
+		{
+			name: "scion path",
+			path: &Path{ForwardingPath: ForwardingPath{
+				dataplanePath: snetpath.SCION{
+					Raw: make([]byte, 68),
+				},
+			}},
+			length:    68,
+			expectErr: false,
+		},
+		{
+			name: "empty path",
+			path: &Path{ForwardingPath: ForwardingPath{
+				dataplanePath: snetpath.Empty{},
+			}},
+			length:    0,
+			expectErr: false,
+		},
+		{
+			name: "unsupported (one hop) path",
+			path: &Path{ForwardingPath: ForwardingPath{
+				dataplanePath: snetpath.OneHop{},
+			}},
+			length:    0,
+			expectErr: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			l, err := c.path.DataplaneLen()
+			assert.Equal(t, c.expectErr, err != nil)
+			if err == nil {
+				assert.Equal(t, c.length, l)
+			}
 		})
 	}
 }

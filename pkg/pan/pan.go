@@ -122,3 +122,9 @@ type HostNotFoundError struct {
 func (e HostNotFoundError) Error() string {
 	return fmt.Sprintf("host not found: '%s'", e.Host)
 }
+
+// Query paths to a particular destination AS.
+func QueryPaths(ctx context.Context, dst IA) ([]*Path, error) {
+	paths, _, err := (&pool).paths(ctx, dst)
+	return paths, err
+}

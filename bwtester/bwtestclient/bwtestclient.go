@@ -379,7 +379,7 @@ func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 
 	// Pin DC to path used for request
 	if serverDCAddr.IA != clientDCAddr.IA {
-		dcConn.SetPolicy(pan.Pinned{ccSelector.Path().Fingerprint})
+		dcConn.SetPolicy(pan.Pinned{ccSelector.Path(context.Background()).Fingerprint})
 	}
 
 	// Start blasting client->server
