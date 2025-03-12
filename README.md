@@ -51,13 +51,15 @@ sudo apt install scion-apps-*
 
 ### Running:
 
-All of these applications require a running SCION endhost stack, i.e. a running
-SCION dispatcher and SCION daemon.
+All of these applications require a running SCION endhost stack, i.e. a running SCION daemon and depending on the environment a running SCION dispatcher. The SCION dispatcher is needed if you plan to use your SCION application on a port outside the defined `dispatched_ports` range or with legacy versions of the BR (previous versions to 0.12.0 [release](https://github.com/scionproto/scion/releases)).
 Please refer to the [SCIONLab tutorials](https://docs.scionlab.org) to get
 started.
 
 
 #### Environment
+
+The SCION dispatcher listens for incoming packets on the unspecified IPv6 address ([::]).
+You can modify this by changing the value on the `dispatcher.toml` configuration.
 
 The SCION daemon is assumed to be at the default address, but this can be
 overridden using an environment variable:
