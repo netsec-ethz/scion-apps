@@ -51,28 +51,28 @@ sudo apt install scion-apps-*
 
 ### Running:
 
-All of these applications require a running SCION endhost stack, i.e. a running
-SCION dispatcher and SCION daemon.
+All of these applications require a running SCION endhost stack, i.e. a running SCION daemon and depending on the environment a running SCION dispatcher. The SCION dispatcher is needed if you plan to use your SCION application on a port outside the defined `dispatched_ports` range or with legacy versions of the BR (previous versions to 0.12.0 [release](https://github.com/scionproto/scion/releases)).
 Please refer to the [SCIONLab tutorials](https://docs.scionlab.org) to get
 started.
 
 
 #### Environment
 
-The dispatcher and sciond sockets are assumed to be at default locations, but
-this can be overridden using environment variables:
+The SCION dispatcher listens for incoming packets on the unspecified IPv6 address ([::]).
+You can modify this by changing the value on the `dispatcher.toml` configuration.
 
-		SCION_DISPATCHER_SOCKET: /run/shm/dispatcher/default.sock
+The SCION daemon is assumed to be at the default address, but this can be
+overridden using an environment variable:
+
 		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
 
 This is convenient for the normal use case of running the endhost stack for a
-single SCION AS.
-When running multiple local ASes, e.g. during development, the address of the
-sciond corresponding to the desired AS needs to be specified in the
-`SCION_DAEMON_ADDRESS` environment variable.
-In this case, the different sciond addresses can be found in their
-corresponding `sd.toml` configuration files in the `gen/ASx`
-directory, or summarized in the file `gen/sciond_addresses.json`.
+single SCION AS. When running multiple local ASes, e.g. during development, the
+address of the SCION daemon corresponding to the desired AS needs to be
+specified in the `SCION_DAEMON_ADDRESS` environment variable.
+In this case, the different daemon addresses can be found in their corresponding
+`sd.toml` configuration files in the `gen/ASx` directory, or summarized in the
+file `gen/sciond_addresses.json`.
 
 
 #### Hostnames
