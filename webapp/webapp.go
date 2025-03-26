@@ -399,6 +399,7 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 	appSel := r.PostFormValue("apps")
 	continuous, _ := strconv.ParseBool(r.PostFormValue("continuous"))
 	interval, _ := strconv.Atoi(r.PostFormValue("interval"))
+	count, _ := strconv.Atoi(r.PostFormValue("count"))
 	if appSel == "" {
 		fmt.Fprint(w, "Unknown SCION client app. Is one selected?")
 		return
@@ -423,7 +424,8 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		if !contCmdActive {
 			// run continuous goroutine
 			contCmdActive = true
-			go continuousCmd(t)
+			log.Warn("Launching continuousCmd", "count", count)
+			go continuousCmd(t, count)
 		} else {
 			// continuous goroutine running?
 			if continuous {
@@ -436,14 +438,18 @@ func commandHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// single run
-		executeCommand(w, r)
+		pathStr := r.PostFormValue("pathStr")
+		executeCommand(w, r, pathStr)
 	}
 }
 
 // Could either be bwtest, echo or traceroute
-func continuousCmd(t contCmd) {
+func continuousCmd(t contCmd, count int) {
 	log.Info(fmt.Sprintf("Starting continuous %s...", t))
+	pathIdx := 0
+	attempts := 0
 	defer func() {
+		log.Warn("Ending continuousCmd", "count", count)
 		log.Info(fmt.Sprintf("Ending continuous %s...", t))
 	}()
 	for contCmdActive {
@@ -453,9 +459,16 @@ func continuousCmd(t contCmd) {
 			contCmdActive = false
 			break
 		}
+
 		r := contCmdRequest
+		thePath := ""
+		pathStr := r.PostFormValue("pathStr")
+		paths := strings.Split(pathStr, ",")
+		if pathIdx >= 0 && pathIdx < len(paths) {
+			thePath = paths[pathIdx]
+		}
 		start := time.Now()
-		executeCommand(nil, r)
+		executeCommand(nil, r, thePath)
 
 		// block on cmd output finish
 		<-contCmdChanDone
@@ -469,14 +482,23 @@ func continuousCmd(t contCmd) {
 		}
 		log.Info(fmt.Sprintf("Test took %d ms, sleeping for remaining interval: %d ms",
 			elapsed.Nanoseconds()/1e6, remaining.Nanoseconds()/1e6))
+		if pathIdx >= (len(paths) - 1) { // iterate all paths given
+			pathIdx = 0
+			attempts++
+		} else {
+			pathIdx++
+		}
+		if count > 0 && attempts >= count {
+			log.Info("Continuous count reached ", "count", count, "attempts", attempts)
+			contCmdActive = false
+		}
 		time.Sleep(remaining)
 	}
 }
 
-func executeCommand(w http.ResponseWriter, r *http.Request) {
+func executeCommand(w http.ResponseWriter, r *http.Request, pathStr string) {
 	r.ParseForm()
 	appSel := r.PostFormValue("apps")
-	pathStr := r.PostFormValue("pathStr")
 	d, addlOpt := parseRequest2CmdItem(r, appSel)
 	command := parseCmdItem2Cmd(d, appSel, pathStr)
 	if addlOpt != "" {
@@ -651,7 +673,7 @@ func writeCmdOutput(w http.ResponseWriter, reader io.Reader, stdin io.WriteClose
 	}
 
 	if appSel == "traceroute" {
-		// parse traceroute data/error
+		// parse scmp traceroute data/error
 		d, ok := d.(model.TracerouteItem)
 		if !ok {
 			log.Error("Parsing error, CmdItem category doesn't match its name")

@@ -17,7 +17,14 @@ var iaLabels;
 var iaLocations = [];
 var iaGeoLoc;
 var g = {};
-var jPathColors = [];
+var jPathsAvailable = {};
+
+var STAT = {
+    LAST : 0,
+    AVG : 1,
+    MIN : 2,
+    MAX : 3,
+}
 
 function setupDebug(src, dst) {
     var src = $('#ia_cli').val();
@@ -40,12 +47,136 @@ function path_colors(n) {
 }
 
 function getPathColor(hops) {
-    var idx = jPathColors.indexOf(hops + '');
-    if (idx < 0) {
+    if (!jPathsAvailable[hops]) {
         return cMissingPath;
     } else {
-        return path_colors(idx);
+        return jPathsAvailable[hops].color;
     }
+}
+
+/**
+ * Updates statistics.
+ */
+function updateStats(fStat, oldStat) {
+    var newStat = {}
+    newStat.Last = fStat;
+    newStat.Num = oldStat ? (oldStat.Num + 1) : 1;
+    newStat.Avg = oldStat ? (((oldStat.Avg * oldStat.Num) + fStat) / newStat.Num)
+            : fStat;
+    newStat.Min = oldStat ? Math.min(fStat, oldStat.Min) : fStat;
+    newStat.Max = oldStat ? Math.max(fStat, oldStat.Max) : fStat;
+    return newStat;
+}
+
+function getPathLatencyLast(hops) {
+    return getPathLatency(hops, STAT.LAST);
+}
+
+function getPathLatencyAvg(hops) {
+    return getPathLatency(hops, STAT.AVG);
+}
+
+function getPathLatencyMin(hops) {
+    return getPathLatency(hops, STAT.MIN);
+}
+
+function getPathLatencyMax(hops) {
+    return getPathLatency(hops, STAT.MAX);
+}
+
+function getLatencyStat(latency, type) {
+    switch (type) {
+    case STAT.LAST:
+        return latency.Last;
+    case STAT.AVG:
+        return latency.Avg;
+    case STAT.MIN:
+        return latency.Min;
+    case STAT.MAX:
+        return latency.Max;
+    }
+}
+
+function formatLatency(lat) {
+    // ignore 1ms negative margin of error
+    if (lat > -1 && lat < 0) {
+        return 0;
+    } else {
+        return parseFloat(lat).toFixed(0);
+    }
+}
+
+/**
+ * Returns array of interface and full path latency stats.
+ */
+function getPathLatency(hops, type) {
+    var path = {};
+    if (jPathsAvailable[hops]) {
+        path = jPathsAvailable[hops];
+    }
+    var latencies = [];
+    for (var i = 0; i < path.interfaces.length; i++) {
+        if (path.interfaces[i].latency) {
+            latencies.push(getLatencyStat(path.interfaces[i].latency, type));
+        } else {
+            latencies.push(undefined);
+        }
+    }
+    if (path.latency) {
+        latencies.push(getLatencyStat(path.latency, type));
+    } else {
+        latencies.push(undefined);
+    }
+    return latencies;
+}
+
+function setEchoLatency(hops, latency) {
+    var path = {};
+    if (jPathsAvailable[hops]) {
+        path = jPathsAvailable[hops];
+    }
+    if (latency > 0) {
+        path.latency = updateStats(latency, path.latency);
+        jPathsAvailable[hops] = path;
+    }
+    return path;
+}
+
+function setTracerouteLatency(hops, interfaces) {
+    var path = {};
+    if (jPathsAvailable[hops]) {
+        path = jPathsAvailable[hops];
+    }
+    for (var i = 0; i < interfaces.length; i++) {
+        var if_ = interfaces[i];
+        if (i < interfaces.length - 1) {
+            path.interfaces[i].addr = if_.HopAddr;
+            if (if_.RespTime1 > 0) {
+                path.interfaces[i].latency = updateStats(if_.RespTime1,
+                        path.interfaces[i].latency);
+            }
+            if (if_.RespTime2 > 0) {
+                path.interfaces[i].latency = updateStats(if_.RespTime2,
+                        path.interfaces[i].latency);
+            }
+            if (if_.RespTime3 > 0) {
+                path.interfaces[i].latency = updateStats(if_.RespTime3,
+                        path.interfaces[i].latency);
+            }
+        } else {
+            if (if_.RespTime1 > 0) {
+                path.latency = updateStats(if_.RespTime1, path.latency);
+            }
+            if (if_.RespTime2 > 0) {
+                path.latency = updateStats(if_.RespTime2, path.latency);
+            }
+            if (if_.RespTime3 > 0) {
+                path.latency = updateStats(if_.RespTime3, path.latency);
+            }
+        }
+    }
+    jPathsAvailable[hops] = path;
+    return path;
 }
 
 function isConfigComplete(data, textStatus, jqXHR) {
@@ -388,17 +519,27 @@ function get_path_html(paths, csegs, usegs, dsegs, show_segs) {
         var exp = new Date(entry.Expiry);
         if_ = entry.Hops;
         var hops = if_.length / 2;
-        var hcolor = getPathColor(formatPathJson(paths, parseInt(p)));
+
+        var pathStr = formatPathJson(paths, parseInt(p));
+        var hcolor = getPathColor(pathStr);
         var style = `style='background-color: ${hcolor}; '`;
-        html += `<li seg-type='PATH' seg-num=${p}><a href='#'>
-            <span ${style} class='path-text badge'>PATH ${parseInt(p)+1}</span>
-            </a>
-            <span class='badge'>${hops}</span>
-            <ul>
-            <li><a href='#'>MTU: ${entry.MTU}</a>
-            <li><a href='#'>Expires: ${exp.toLocaleString()}</a>`;
+        var latencies = getPathLatencyLast(pathStr);
+        var latencyPath = latencies[latencies.length - 1];
+        var latPathStr = latencyPath ? formatLatency(latencyPath) : '';
+        html += `<li seg-type='PATH' seg-num=${p} path='${pathStr}'>
+                <a ${style} class='path-text' href='#'>
+                <span style='color: white;'>PATH ${parseInt(p)+1}</span>
+                </a> 
+                <span class='badge'>${hops}</span> 
+                <span id='path-lat-${p}' class='latency-text' 
+                style='font-weight: bold;'>${latPathStr}</span>
+                <ul>
+                <li><a href='#'>MTU: ${entry.MTU}</a>
+                <li><a href='#'>Expires: ${exp.toLocaleString()}</a>`;
         for (i in if_) {
-            html += `<li><a href='#'>${if_[i].IA} (${if_[i].IfID})</a>`;
+            var latIfStr = latencies[i] ? formatLatency(latencies[i]) : '';
+            html += `<li><a href='#'>${if_[i].IA} (${if_[i].IfID})</a>
+                <span id='path-lat-${p}-${i}' class='latency-text' >${latIfStr}</span>`;
         }
         html += `</ul>`;
     }
@@ -662,6 +803,39 @@ function get_nonseg_links(paths, lType) {
     return hops;
 }
 
+function addAvailablePaths(paths) {
+    Object.keys(jPathsAvailable).forEach(function(key) {
+        jPathsAvailable[key].listIdx = undefined; // reset
+    });
+    if (!paths) {
+        return;
+    }
+    for (var idx = 0; idx < paths.length; idx++) {
+        var hops = formatPathJson(paths, idx, 'PATH');
+        if (!jPathsAvailable[hops]) {
+            jPathsAvailable[hops] = {};
+        }
+        // update path preserving old values
+        var path = jPathsAvailable[hops];
+        var pathLen = Object.keys(jPathsAvailable).length;
+        path.interfaces = [];
+        var ifs = paths[idx].Hops;
+        for (var i = 0; i < ifs.length; i++) {
+            var if_ = {};
+            if_.ifid = ifs[i].IfID;
+            if_.isdas = ifs[i].IA;
+            path.interfaces.push(if_);
+        }
+        path.expTime = new Date(paths[idx].Expiry);
+        path.mtu = paths[idx].MTU;
+        if (!path.color) {
+            path.color = path_colors(pathLen - 1);
+        }
+        path.listIdx = idx;
+        jPathsAvailable[hops] = path;
+    }
+}
+
 function requestPaths() {
     // make sure to get path topo after IAs are loaded
     $("#as-error").empty();
@@ -689,12 +863,7 @@ function requestPaths() {
             resDown = resSegs.down_segments;
 
             // store incoming paths
-            for (var idx = 0; idx < resPath.if_lists.length; idx++) {
-                var hops = formatPathString(resPath, idx, 'PATH');
-                if (!jPathColors.includes(hops)) {
-                    jPathColors.push(hops);
-                }
-            }
+            addAvailablePaths(data.paths);
 
             jTopo = get_json_path_links(resPath, resCore, resUp, resDown);
             $('#path-info').html(
@@ -713,6 +882,11 @@ function requestPaths() {
                 ajaxConfig(); // ajaxConfig => loadPathData
             } else {
                 loadPathData(g.src, g.dst);
+            }
+
+            // auto survey latency if none exists
+            if (!$('#path-lat-0').text()) {
+                surveyEchoBackground();
             }
 
             // path info label switches

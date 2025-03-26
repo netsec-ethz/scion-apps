@@ -327,6 +327,19 @@ function update() {
     });
     markerPath.exit().remove();
 
+    svgPath.selectAll("text.latency").remove();
+    var markerText = pathsg.selectAll("path.latency").data(markerLinks)
+    markerText.enter().append("text").attr("dy", ".35em").attr("text-anchor",
+            "middle").style("font-size", "12px").style("fill", "purple").attr(
+            "class", function(d) {
+                return "latency " + d.type;
+            }).attr("id", function(d) {
+        return d.id;
+    }).text(function(d) {
+        return d.latency ? formatLatency(d.latency) : '';
+    });
+    markerText.exit().remove();
+
     var node = circlesg.selectAll(".node").data(realGraphNodes, function(d) {
         return d.name;
     })
@@ -399,6 +412,13 @@ function update() {
         path.attr("d", linkStraight);
         markerPath.attr("d", linkArc);
         node.attr("transform", nodeTransform);
+
+        markerText.attr("x", function(d) {
+            return ((d.source.x + d.target.x) / 2);
+        }).attr("y", function(d) {
+            return ((d.source.y + d.target.y) / 2);
+        });
+
     });
 
     colaPath.start(50, 100, 200);
@@ -591,7 +611,7 @@ function addFixedLabel(label, x, y, lastLabel) {
 /*
  * Post-rendering method to draw path arcs for the given path and color.
  */
-function drawPath(res, path, color) {
+function drawPath(res, path, color, lats) {
     // get the index of the routes to render
     var routes = [];
     if (path < 0) {
@@ -624,19 +644,43 @@ function drawPath(res, path, color) {
     graphPath.links = graphPath.links.filter(function(link) {
         return !link.path;
     });
+    var fullLat = fullPathLatencies(lats);
     for (var i = 0; i < path_ids.length - 1; i++) {
         // prevent src == dst links from being formed
         if (path_ids[i] != path_ids[i + 1]) {
-            graphPath.links.push({
+            var linkLat = undefined;
+            if (fullLat) {
+                // report latency difference between inter-AS links
+                linkLat = lats ? (lats[i + 1] - lats[i]) : undefined;
+            }
+            var link = {
                 "color" : color,
                 "path" : true,
                 "source" : graphPath["ids"][path_ids[i]],
                 "target" : graphPath["ids"][path_ids[i + 1]],
-                "type" : "PARENT"
-            });
+                "type" : "PARENT",
+                "latency" : linkLat,
+                "id" : "path-lat-diff-" + path + "-" + i, // TODO
+            };
+            graphPath.links.push(link);
         }
     }
     update();
+}
+
+/**
+ * Interrogate latencies for missing values.
+ */
+function fullPathLatencies(lats) {
+    if (!lats) {
+        return false;
+    }
+    for (var i = 0; i < lats.length; i++) {
+        if (!lats[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /*
