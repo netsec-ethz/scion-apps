@@ -76,7 +76,7 @@ func (s *FabridServer) HandleFabridPacket(fabridOption *extension.FabridOption,
 		fmt.Println("Failed to fetch path key. Does your local IP differ from your SD?\nError:", err)
 		return err
 	}
-	_, err = crypto.VerifyPathValidator(fabridOption,
+	_, _, err = crypto.VerifyPathValidator(fabridOption,
 		s.tmpBuffer, s.pathKey.Key[:])
 	if err != nil {
 		fmt.Println("Failed to verify FABRID packet. Error:", err)

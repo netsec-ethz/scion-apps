@@ -50,7 +50,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive)
+	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive, "")
 	check(err)
 	serverAddr, err := pan.ResolveUDPAddr(context.TODO(), *serverAddrStr)
 	check(err)

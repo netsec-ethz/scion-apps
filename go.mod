@@ -4,6 +4,8 @@ go 1.21.10
 
 toolchain go1.21.11
 
+replace github.com/scionproto/scion => github.com/netsec-ethz/scion v0.6.1-0.20250410094849-bbacd7f940bc
+
 require (
 	github.com/creack/pty v1.1.17
 	github.com/gorilla/handlers v1.5.1
@@ -14,7 +16,7 @@ require (
 	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403
 	github.com/pelletier/go-toml v1.9.5
 	github.com/quic-go/quic-go v0.43.1
-	github.com/scionproto/scion v0.11.1-0.20240610170620-50b971ca2d4b
+	github.com/scionproto/scion v0.12.0
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.23.0

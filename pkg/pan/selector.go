@@ -358,6 +358,7 @@ func convertInterfaces(interfaces []PathInterface) []snet.PathInterface {
 	snetInterfaces := make([]snet.PathInterface, len(interfaces))
 	for i, pathInterface := range interfaces {
 		snetInterfaces[i] = snet.PathInterface{
+			//nolint
 			ID: common.IFIDType(pathInterface.IfID),
 			IA: addr.IA(pathInterface.IA),
 		}
@@ -368,12 +369,12 @@ func convertInterfaces(interfaces []PathInterface) []snet.PathInterface {
 func (s *FabridSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-
 	s.fabridConfig = snetpath.FabridConfig{
 		LocalIA:         addr.IA(local.IA),
 		LocalAddr:       local.IP.String(),
 		DestinationIA:   addr.IA(remote.IA),
 		DestinationAddr: remote.IP.String(),
+		ValidationRatio: 16,
 	}
 
 	fabridPaths := []*Path{}
@@ -395,12 +396,11 @@ func (s *FabridSelector) Initialize(local, remote UDPAddr, paths []*Path) {
 			continue
 		}
 		fabridPath, err := snetpath.NewFABRIDDataplanePath(scionPath, hopIntfs,
-			pols.Policies(), &s.fabridConfig)
+			pols.Policies(), &s.fabridConfig, host().fabridKeys())
 		if err != nil {
-			return
+			continue
 		}
 		p.ForwardingPath.dataplanePath = fabridPath
-		fabridPath.RegisterDRKeyFetcher(host().fabridKeys())
 
 		fabridPaths = append(fabridPaths, p)
 	}

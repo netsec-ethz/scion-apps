@@ -295,7 +295,7 @@ func main() {
 	if !serverCCAddr.IsValid() {
 		usageErr("server address needs to be specified with -s")
 	}
-	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive, fabridQuery)
 	checkUsageErr(err)
 
 	// use default packet size when within same AS

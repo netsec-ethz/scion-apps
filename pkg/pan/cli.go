@@ -17,6 +17,8 @@ package pan
 import (
 	"fmt"
 	"strings"
+
+	"github.com/scionproto/scion/private/path/fabridquery"
 )
 
 var (
@@ -42,7 +44,7 @@ var (
 //   - an option --preference <preference>, sorting order for paths.
 //     Comma-separated list of available sorting options.
 //   - an option --sequence <sequence>, describing a hop-predicate sequence filter
-func PolicyFromCommandline(sequence string, preference string, interactive bool) (Policy, error) {
+func PolicyFromCommandline(sequence string, preference string, interactive bool, fabridQuery string) (Policy, error) {
 	chain := PolicyChain{}
 	if sequence != "" {
 		seq, err := NewSequence(sequence)
@@ -61,6 +63,15 @@ func PolicyFromCommandline(sequence string, preference string, interactive bool)
 				return nil, fmt.Errorf("unknown preference sorting policy '%s'", preferences[i])
 			}
 		}
+	}
+	if fabridQuery != "" {
+		query, err := fabridquery.ParseFabridQuery(fabridQuery)
+		if err != nil {
+			return nil, err
+		}
+		chain = append(chain, &FabridPolicySelection{
+			FabridQuery: query,
+		})
 	}
 	if interactive {
 		chain = append(chain, &InteractiveSelection{
