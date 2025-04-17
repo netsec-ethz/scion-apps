@@ -151,7 +151,7 @@ func main() {
 		golog.Panicf("Error creating ssh client: %v", err)
 	}
 
-	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive)
+	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive, "")
 	if err != nil {
 		golog.Fatal(err)
 	}

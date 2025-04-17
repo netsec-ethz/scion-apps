@@ -137,7 +137,7 @@ func (c *dialedConn) WriteVia(path *Path, b []byte) (int, error) {
 
 func (c *dialedConn) Read(b []byte) (int, error) {
 	for {
-		n, remote, _, err := c.baseUDPConn.readMsg(b)
+		n, remote, _, _, _, err := c.baseUDPConn.readMsg(b)
 		if err != nil {
 			return n, err
 		}
@@ -150,7 +150,7 @@ func (c *dialedConn) Read(b []byte) (int, error) {
 
 func (c *dialedConn) ReadVia(b []byte) (int, *Path, error) {
 	for {
-		n, remote, fwPath, err := c.baseUDPConn.readMsg(b)
+		n, remote, fwPath, _, _, err := c.baseUDPConn.readMsg(b)
 		if err != nil {
 			return n, nil, err
 		}

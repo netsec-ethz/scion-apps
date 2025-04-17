@@ -103,7 +103,7 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 
-	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive, "")
 	if err != nil {
 		log.Fatal(err)
 	}

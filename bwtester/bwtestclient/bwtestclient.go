@@ -30,6 +30,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/scionproto/scion/private/path/fabridquery"
+
 	"github.com/netsec-ethz/scion-apps/bwtester/bwtest"
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -267,6 +269,7 @@ func main() {
 		interactive  bool
 		sequence     string
 		preference   string
+		fabridQuery  string
 	)
 
 	flag.Usage = printUsage
@@ -279,6 +282,7 @@ func main() {
 	flag.StringVar(&preference, "preference", "", "Preference sorting order for paths. "+
 		"Comma-separated list of available sorting options: "+
 		strings.Join(pan.AvailablePreferencePolicies, "|"))
+	flag.StringVar(&fabridQuery, "fabridquery", "", "Query for FABRID policies")
 
 	flag.Parse()
 	flagset := make(map[string]bool)
@@ -291,7 +295,7 @@ func main() {
 	if !serverCCAddr.IsValid() {
 		usageErr("server address needs to be specified with -s")
 	}
-	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive, fabridQuery)
 	checkUsageErr(err)
 
 	// use default packet size when within same AS
@@ -320,7 +324,7 @@ func main() {
 	fmt.Printf("server->client: %d seconds, %d bytes, %d packets\n",
 		int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
 
-	clientRes, serverRes, err := runBwtest(local.Get(), serverCCAddr, policy, clientBwp, serverBwp)
+	clientRes, serverRes, err := runBwtest(local.Get(), serverCCAddr, policy, clientBwp, serverBwp, fabridQuery)
 	bwtest.Check(err)
 
 	fmt.Println("\nS->C results")
@@ -330,8 +334,7 @@ func main() {
 }
 
 // runBwtest runs the bandwidth test with the given parameters against the server at serverCCAddr.
-func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
-	clientBwp, serverBwp bwtest.Parameters) (clientRes, serverRes bwtest.Result, err error) {
+func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy, clientBwp, serverBwp bwtest.Parameters, fabridQuery string) (clientRes, serverRes bwtest.Result, err error) {
 
 	// Control channel connection
 	ccSelector := pan.NewDefaultSelector()
@@ -345,7 +348,16 @@ func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 	serverDCAddr := serverCCAddr.WithPort(serverCCAddr.Port + 1)
 
 	// Data channel connection
-	dcConn, err := pan.DialUDP(context.Background(), dcLocal, serverDCAddr, policy, nil)
+	var selector pan.Selector
+	if fabridQuery != "" {
+		query, err := fabridquery.ParseFabridQuery(fabridQuery)
+		if err != nil {
+			return bwtest.Result{}, bwtest.Result{}, err
+		}
+		selector = pan.NewFabridSelector(query, context.Background())
+	}
+
+	dcConn, err := pan.DialUDP(context.Background(), dcLocal, serverDCAddr, policy, selector)
 	if err != nil {
 		return
 	}

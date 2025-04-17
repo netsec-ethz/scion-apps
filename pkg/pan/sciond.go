@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/drkey"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
@@ -146,6 +147,7 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			LinkType:     snetMetadata.LinkType,
 			InternalHops: snetMetadata.InternalHops,
 			Notes:        snetMetadata.Notes,
+			FabridInfo:   snetMetadata.FabridInfo,
 		}
 		underlay := p.UnderlayNextHop().AddrPort()
 		paths[i] = &Path{
@@ -161,6 +163,14 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 		}
 	}
 	return paths, nil
+}
+
+func (h *hostContext) drkeyGetHostHostKey(ctx context.Context, meta drkey.HostHostMeta) (drkey.HostHostKey, error) {
+	return h.sciond.DRKeyGetHostHostKey(ctx, meta)
+}
+
+func (h *hostContext) fabridKeys() func(ctx context.Context, meta drkey.FabridKeysMeta) (drkey.FabridKeysResponse, error) {
+	return h.sciond.FabridKeys
 }
 
 func convertPathInterfaceSlice(spis []snet.PathInterface) []PathInterface {

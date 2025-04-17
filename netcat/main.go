@@ -127,7 +127,7 @@ func main() {
 		}
 	} else {
 		remoteAddr := tail[0]
-		policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+		policy, err := pan.PolicyFromCommandline(sequence, preference, interactive, "")
 		if err != nil {
 			log.Fatal(err)
 		}

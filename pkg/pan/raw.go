@@ -110,7 +110,7 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 // readMsg is a helper for reading a single packet.
 // Internally invokes the configured SCMP handler.
 // Ignores non-UDP packets.
-func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
+func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, *slayers.HopByHopExtn, *slayers.EndToEndExtn, error) {
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
 	if c.readBuffer == nil {
@@ -124,7 +124,7 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 		var lastHop net.UDPAddr
 		err := c.raw.ReadFrom(&pkt, &lastHop)
 		if err != nil {
-			return 0, UDPAddr{}, ForwardingPath{}, err
+			return 0, UDPAddr{}, ForwardingPath{}, nil, nil, err
 		}
 		udp, ok := pkt.Payload.(snet.UDPPayload)
 		if !ok {
@@ -144,7 +144,7 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 			underlay:      underlay,
 		}
 		n := copy(b, udp.Payload)
-		return n, remote, fw, nil
+		return n, remote, fw, pkt.HbhExtension, pkt.E2eExtension, nil
 	}
 }
 
