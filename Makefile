@@ -25,6 +25,7 @@ build: scion-bat \
 	example-helloworld \
 	example-helloquic \
 	example-shttp-client example-shttp-server example-shttp-fileserver example-shttp-proxy \
+	example-shttp3-server \
 	example-sgrpc-server example-sgrpc-client
 
 clean:
@@ -121,6 +122,10 @@ example-shttp-fileserver:
 .PHONY: example-shttp-proxy
 example-shttp-proxy:
 	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp/proxy
+
+.PHONY: example-shttp3-server
+example-shttp3-server:
+	cd _examples && go build -tags=$(TAGS) -o ../$(BIN)/$@ ./shttp3/server
 
 .PHONY: example-sgrpc-server
 example-sgrpc-server:
