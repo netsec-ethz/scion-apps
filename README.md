@@ -103,6 +103,8 @@ The directory _examples contains examples for the usage of the SCION libraries.
   Example for using gRPC over SCION/QUIC with the PAN library.
 * [_examples/shttp](_examples/shttp/README.md):
   Examples for using HTTP over SCION/QUIC, examples for servers, proxies, and clients.
+* [_examples/shttp3](_examples/shttp3/README.md):
+  Example for using HTTP/3 over SCION/QUIC.
 
 ## bat
 
