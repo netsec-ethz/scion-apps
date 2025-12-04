@@ -1,6 +1,8 @@
 # Configuration for golangci-lint for scion-apps.
 # See https://github.com/golangci/golangci-lint#config-file
 
+version: 2
+
 linters:
   enable:
     # enabled by default:
@@ -21,9 +23,7 @@ linters:
     - durationcheck
     - errname
     - errorlint
-    - exportloopref
-    - gci
-    - gofmt
+    #- exportloopref  # Deprecated - loop variables properly scoped in Go 1.22+
     #- ifshort
     - importas
     - makezero
@@ -32,17 +32,20 @@ linters:
     - nilnil
     - nolintlint
     - prealloc
-    - stylecheck
+    #- stylecheck  # Removed in v2.x
     - thelper
     - wastedassign
-    - tenv
+    #- tenv  # Removed in v2.x
+  enable-formatters:
+    - gci
+    - gofmt
 
 issues:
   # XXX exclude some linters where there are too many issues to fix now
   exclude-rules:
     - path: webapp/
       linters:
-        - stylecheck
+        #- stylecheck  # Removed in v2.x
         - staticcheck
         - errcheck
   # Bat is mostly copied third-party code that we don't care to fix
