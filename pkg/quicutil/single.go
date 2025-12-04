@@ -27,6 +27,16 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
+// quicConnection is an interface that abstracts over quic.Conn and pan.QUICConn.
+// This allows SingleStream to work with both raw QUIC connections and PAN-wrapped connections.
+type quicConnection interface {
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
+	OpenUniStream() (*quic.SendStream, error)
+	AcceptUniStream(context.Context) (*quic.ReceiveStream, error)
+	CloseWithError(quic.ApplicationErrorCode, string) error
+}
+
 var (
 	// SingleStreamProto is a quic application layer protocol that transports
 	// an opaque, bi-directional data stream using quic. This is intended as a
@@ -72,15 +82,15 @@ func (l SingleStreamListener) Accept() (net.Conn, error) {
 //   - on the listener side: quic.Listener wrapped in SingleStreamListener, which
 //     returns SingleStream from Accept.
 type SingleStream struct {
-	Connection    quic.Connection
-	sendStream    quic.SendStream
-	receiveStream quic.ReceiveStream
+	Connection    quicConnection
+	sendStream    *quic.SendStream
+	receiveStream *quic.ReceiveStream
 	readDeadline  time.Time
 	mutex         sync.Mutex // mutex protects receiveStream for await
 	onceOK        sync.Once
 }
 
-func NewSingleStream(connection quic.Connection) (*SingleStream, error) {
+func NewSingleStream(connection quicConnection) (*SingleStream, error) {
 	sendStream, err := connection.OpenUniStream()
 	if err != nil {
 		return nil, err
@@ -102,13 +112,13 @@ func (s *SingleStream) GetPath() *pan.Path {
 		// for retrieving path information.
 		return nil
 	}
-	quicSession, ok := s.Connection.(*pan.QUICSession)
+	quicConn, ok := s.Connection.(*pan.QUICConn)
 	if !ok {
 		// XXX(JordiSubira): To be refactored when proper support
 		// for retrieving path information.
 		return nil
 	}
-	return quicSession.Conn.GetPath()
+	return quicConn.UConn.GetPath()
 }
 
 func (s *SingleStream) RemoteAddr() net.Addr {

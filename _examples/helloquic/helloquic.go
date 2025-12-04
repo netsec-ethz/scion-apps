@@ -80,7 +80,7 @@ func runServer(listen netip.AddrPort) error {
 	}
 }
 
-func workSession(session quic.Connection) error {
+func workSession(session *quic.Conn) error {
 	for {
 		stream, err := session.AcceptStream(context.Background())
 		if err != nil {
