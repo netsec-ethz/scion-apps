@@ -1,19 +1,9 @@
-# Configuration for golangci-lint for scion-apps.
-# See https://github.com/golangci/golangci-lint#config-file
-
+version: "2"
+run:
+  build-tags:
+    - integration
 linters:
   enable:
-    # enabled by default:
-    #- deadcode
-    #- errcheck
-    #- gosimple
-    #- govet
-    #- ineffassign
-    #- staticcheck
-    #- structcheck
-    #- typecheck
-    #- unused
-    #- varcheck
     - asciicheck
     - bidichk
     - contextcheck
@@ -21,10 +11,6 @@ linters:
     - durationcheck
     - errname
     - errorlint
-    - exportloopref
-    - gci
-    - gofmt
-    #- ifshort
     - importas
     - makezero
     - misspell
@@ -32,19 +18,34 @@ linters:
     - nilnil
     - nolintlint
     - prealloc
-    - stylecheck
+    - staticcheck
     - thelper
     - wastedassign
-    - tenv
-
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    staticcheck:
+      checks:
+        - all
+        - "-QF1001" # disable "Apply De Morgan's law".
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
 issues:
   max-same-issues: 0
-
-linters-settings:
-  gci:
-    local-prefixes: examples
-  exhaustive:
-    default-signifies-exhaustive: true
-
-run:
-  build-tags: integration
+formatters:
+  enable:
+    - gci
+    - gofmt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(examples)
+  exclusions:
+    generated: lax

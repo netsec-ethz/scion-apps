@@ -128,7 +128,7 @@ func runClient(address string, count int) error {
 		if err != nil {
 			return err
 		}
-		_, err = stream.Write([]byte(fmt.Sprintf("hi dude, %d", i)))
+		_, err = fmt.Fprintf(stream, "hi dude, %d", i)
 		if err != nil {
 			return err
 		}
