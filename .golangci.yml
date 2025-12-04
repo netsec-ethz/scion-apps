@@ -1,21 +1,9 @@
-# Configuration for golangci-lint for scion-apps.
-# See https://github.com/golangci/golangci-lint#config-file
-
-version: 2
-
+version: "2"
+run:
+  build-tags:
+    - integration
 linters:
   enable:
-    # enabled by default:
-    #- deadcode
-    #- errcheck
-    #- gosimple
-    #- govet
-    #- ineffassign
-    #- staticcheck
-    #- structcheck
-    #- typecheck
-    #- unused
-    #- varcheck
     - asciicheck
     - bidichk
     - contextcheck
@@ -23,8 +11,6 @@ linters:
     - durationcheck
     - errname
     - errorlint
-    #- exportloopref  # Deprecated - loop variables properly scoped in Go 1.22+
-    #- ifshort
     - importas
     - makezero
     - misspell
@@ -32,38 +18,63 @@ linters:
     - nilnil
     - nolintlint
     - prealloc
-    #- stylecheck  # Removed in v2.x
+    - staticcheck
     - thelper
     - wastedassign
-    #- tenv  # Removed in v2.x
-  enable-formatters:
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    staticcheck:
+      checks:
+        - all
+        - "-QF1001" # disable "Apply De Morgan's law".
+        # The use of Go ideomatic identifiers is a recommendation, not a law.
+        - "-ST1003" # disable "Poorly chosen identifier".
+        - "-QF1008" # disable "Omit embedded fields from selector expression".
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - staticcheck
+        path: webapp/
+    paths:
+      - bat/*/
+      - bwtester/*/
+      # - webapp/*/
+      # - ssh/*/
+      # - skip/*/
+      # - netcat/*/
+      # - web-gateway/*/
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-same-issues: 0
+formatters:
+  enable:
     - gci
     - gofmt
-
-issues:
-  # XXX exclude some linters where there are too many issues to fix now
-  exclude-rules:
-    - path: webapp/
-      linters:
-        #- stylecheck  # Removed in v2.x
-        - staticcheck
-        - errcheck
-  # Bat is mostly copied third-party code that we don't care to fix
-  # Modifications are only (?) in bat/bat.go
-  exclude-dirs:
-    - bat/*/
-  exclude-files:
-    - bat/color.go
-    - bat/bench.go
-    - bat/pb.go
-    - bat/http.go
-  max-same-issues: 0
-
-linters-settings:
-  gci:
-    local-prefixes: github.com/netsec-ethz/scion-apps
-  exhaustive:
-    default-signifies-exhaustive: true
-
-run:
-  build-tags: integration
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/netsec-ethz/scion-apps)
+  exclusions:
+    generated: lax
+    paths:
+      - bat/color.go
+      - bat/bench.go
+      - bat/pb.go
+      - bat/http.go
+      - bat/*/
+      - third_party$
+      - builtin$
+      - examples$
