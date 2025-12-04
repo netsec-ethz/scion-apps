@@ -1,8 +1,6 @@
 module examples
 
-go 1.23
-
-toolchain go1.24.11
+go 1.23.0
 
 require (
 	github.com/golang/protobuf v1.5.4
