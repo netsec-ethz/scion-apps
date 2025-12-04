@@ -31,7 +31,7 @@ var (
 func selectorByName(name string) (pan.Selector, error) {
 	switch name {
 	case "default":
-		return nil, nil
+		return pan.NewDefaultSelector(), nil
 	case "ping":
 		// Set Pinging Selector with active probing on four paths
 		// Note: this would ideally be configurable
