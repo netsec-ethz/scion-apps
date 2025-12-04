@@ -44,3 +44,6 @@ bin/
 
 # IntelliJ IDEA workspace
 .idea/
+
+# Symlink to SCION gen directory (I personally use this for integration tests)
+gen
