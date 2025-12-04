@@ -1,8 +1,6 @@
 module github.com/netsec-ethz/scion-apps
 
-go 1.22.7
-
-toolchain go1.22.10
+go 1.23
 
 require (
 	github.com/creack/pty v1.1.17
