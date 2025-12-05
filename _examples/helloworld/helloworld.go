@@ -85,7 +85,7 @@ func runClient(address string, count int) error {
 	defer conn.Close()
 
 	for i := 0; i < count; i++ {
-		nBytes, err := conn.Write([]byte(fmt.Sprintf("hello world %s", time.Now().Format("15:04:05.0"))))
+		nBytes, err := fmt.Fprintf(conn, "hello world %s", time.Now().Format("15:04:05.0"))
 		if err != nil {
 			return err
 		}

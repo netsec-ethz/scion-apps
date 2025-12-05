@@ -71,7 +71,7 @@ func PromptAcceptHostKey(hostname string, remote net.Addr, publicKey string) boo
 	for {
 		fmt.Printf("Key fingerprint SHA256 is: %s do you recognize it? (y/n) ", publicKey)
 		var answer string
-		fmt.Scanln(&answer)
+		_, _ = fmt.Scanln(&answer)
 		answer = strings.ToLower(answer)
 		if strings.HasPrefix(answer, "y") {
 			fmt.Printf("Alright, adding %s to the list of known hosts\n", publicKey)

@@ -193,7 +193,7 @@ func closeAll(closers []io.Closer) error {
 func replacePattern(pattern string, replacement string, args []string) []string {
 	ret := make([]string, len(args))
 	for i, arg := range args {
-		ret[i] = strings.Replace(arg, pattern, replacement, -1)
+		ret[i] = strings.ReplaceAll(arg, pattern, replacement)
 	}
 	return ret
 }

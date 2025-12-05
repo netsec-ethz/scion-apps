@@ -175,7 +175,7 @@ func (s *pathStatsDB) oldestDownNotification(p *Path) time.Time {
 	if p.Metadata != nil {
 		for _, pi := range p.Metadata.Interfaces {
 			if v, ok := s.interfaces[pi]; ok && v.IsNotifiedDown != t0 {
-				if oldest == t0 || v.IsNotifiedDown.Before(oldest) {
+				if oldest.Equal(t0) || v.IsNotifiedDown.Before(oldest) {
 					oldest = v.IsNotifiedDown
 				}
 			}
