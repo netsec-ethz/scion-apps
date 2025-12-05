@@ -29,7 +29,7 @@ import (
 
 // DefaultTransport is the default RoundTripper that can be used for HTTP/3
 // over SCION.
-var DefaultTransport = &http3.RoundTripper{
+var DefaultTransport = &http3.Transport{
 	Dial: (&Dialer{
 		Policy: nil,
 	}).Dial,
@@ -40,12 +40,12 @@ var DefaultTransport = &http3.RoundTripper{
 type Dialer struct {
 	Local    netip.AddrPort
 	Policy   pan.Policy
-	sessions []*pan.QUICEarlySession
+	sessions []*pan.QUICConn
 }
 
 // Dial dials a QUIC connection over SCION.
 func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
-	cfg *quic.Config) (quic.EarlyConnection, error) {
+	cfg *quic.Config) (*quic.Conn, error) {
 
 	remote, err := pan.ResolveUDPAddr(ctx, addr)
 	if err != nil {
@@ -56,12 +56,12 @@ func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 		return nil, err
 	}
 	d.sessions = append(d.sessions, session)
-	return session, nil
+	return session.Conn, nil
 }
 
 func (d *Dialer) SetPolicy(policy pan.Policy) {
 	d.Policy = policy
 	for _, s := range d.sessions {
-		s.Conn.SetPolicy(policy)
+		s.UnderlayConn.SetPolicy(policy)
 	}
 }

@@ -101,7 +101,7 @@ func forwardTLS(hosts map[string]struct{}) error {
 
 // forwardTLS forwards traffic for sess to the corresponding TCP/IP host
 // identified by SNI.
-func forwardTLSSession(hosts map[string]struct{}, sess quic.Connection) {
+func forwardTLSSession(hosts map[string]struct{}, sess *quic.Conn) {
 	clientConn, err := quicutil.NewSingleStream(sess)
 	if err != nil {
 		return

@@ -23,28 +23,16 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-// QUICSession is a wrapper around quic.Connection that always closes the
-// underlying conn when closing the session.
-type QUICSession struct {
-	quic.Connection
-	Conn Conn
+// QUICConn is a wrapper around quic.Conn that always closes the
+// underlying conn when closing the connection.
+type QUICConn struct {
+	*quic.Conn
+	UnderlayConn Conn
 }
 
-func (s *QUICSession) CloseWithError(code quic.ApplicationErrorCode, desc string) error {
-	err := s.Connection.CloseWithError(code, desc)
-	s.Conn.Close()
-	return err
-}
-
-// QUICEarlySession is a wrapper around quic.EarlyConnection, analogous to closerSession
-type QUICEarlySession struct {
-	quic.EarlyConnection
-	Conn Conn
-}
-
-func (s *QUICEarlySession) CloseWithError(code quic.ApplicationErrorCode, desc string) error {
-	err := s.EarlyConnection.CloseWithError(code, desc)
-	s.Conn.Close()
+func (s *QUICConn) CloseWithError(code quic.ApplicationErrorCode, desc string) error {
+	err := s.Conn.CloseWithError(code, desc)
+	s.UnderlayConn.Close()
 	return err
 }
 
@@ -60,7 +48,7 @@ func DialQUIC(
 	tlsConf *tls.Config,
 	quicConf *quic.Config,
 	connOptions ...ConnOptions,
-) (*QUICSession, error) {
+) (*QUICConn, error) {
 
 	conn, err := DialUDP(ctx, local, remote, connOptions...)
 	if err != nil {
@@ -89,7 +77,7 @@ func DialQUIC(
 		pconn.Close()
 		return nil, err
 	}
-	return &QUICSession{session, conn}, nil
+	return &QUICConn{Conn: session, UnderlayConn: conn}, nil
 }
 
 // DialQUICEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialQUIC.
@@ -101,7 +89,7 @@ func DialQUICEarly(
 	tlsConf *tls.Config,
 	quicConf *quic.Config,
 	connOptions ...ConnOptions,
-) (*QUICEarlySession, error) {
+) (*QUICConn, error) {
 
 	conn, err := DialUDP(ctx, local, remote, connOptions...)
 	if err != nil {
@@ -116,7 +104,7 @@ func DialQUICEarly(
 	if err != nil {
 		return nil, err
 	}
-	return &QUICEarlySession{session, conn}, nil
+	return &QUICConn{Conn: session, UnderlayConn: conn}, nil
 }
 
 // connectedPacketConn wraps a Conn into a PacketConn interface.

@@ -68,7 +68,7 @@ type Dialer struct {
 	Local      netip.AddrPort
 	QuicConfig *quic.Config
 	Policy     pan.Policy
-	sessions   []*pan.QUICSession
+	sessions   []*pan.QUICConn
 }
 
 // DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
@@ -95,7 +95,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 func (d *Dialer) SetPolicy(policy pan.Policy) {
 	d.Policy = policy
 	for _, s := range d.sessions {
-		s.Conn.SetPolicy(policy)
+		s.UnderlayConn.SetPolicy(policy)
 	}
 }
 
