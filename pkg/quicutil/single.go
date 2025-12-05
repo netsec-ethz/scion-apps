@@ -118,7 +118,7 @@ func (s *SingleStream) GetPath() *pan.Path {
 		// for retrieving path information.
 		return nil
 	}
-	return quicConn.UConn.GetPath()
+	return quicConn.UnderlayConn.GetPath()
 }
 
 func (s *SingleStream) RemoteAddr() net.Addr {

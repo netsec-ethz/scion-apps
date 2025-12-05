@@ -95,7 +95,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 func (d *Dialer) SetPolicy(policy pan.Policy) {
 	d.Policy = policy
 	for _, s := range d.sessions {
-		s.UConn.SetPolicy(policy)
+		s.UnderlayConn.SetPolicy(policy)
 	}
 }
 

@@ -62,6 +62,6 @@ func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 func (d *Dialer) SetPolicy(policy pan.Policy) {
 	d.Policy = policy
 	for _, s := range d.sessions {
-		s.UConn.SetPolicy(policy)
+		s.UnderlayConn.SetPolicy(policy)
 	}
 }

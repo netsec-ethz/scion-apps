@@ -27,12 +27,12 @@ import (
 // underlying conn when closing the connection.
 type QUICConn struct {
 	*quic.Conn
-	UConn Conn
+	UnderlayConn Conn
 }
 
 func (s *QUICConn) CloseWithError(code quic.ApplicationErrorCode, desc string) error {
 	err := s.Conn.CloseWithError(code, desc)
-	s.UConn.Close()
+	s.UnderlayConn.Close()
 	return err
 }
 
@@ -77,7 +77,7 @@ func DialQUIC(
 		pconn.Close()
 		return nil, err
 	}
-	return &QUICConn{Conn: session, UConn: conn}, nil
+	return &QUICConn{Conn: session, UnderlayConn: conn}, nil
 }
 
 // DialQUICEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialQUIC.
@@ -104,7 +104,7 @@ func DialQUICEarly(
 	if err != nil {
 		return nil, err
 	}
-	return &QUICConn{Conn: session, UConn: conn}, nil
+	return &QUICConn{Conn: session, UnderlayConn: conn}, nil
 }
 
 // connectedPacketConn wraps a Conn into a PacketConn interface.
