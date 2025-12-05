@@ -11,7 +11,7 @@ require (
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403
 	github.com/pelletier/go-toml v1.9.5
-	github.com/quic-go/quic-go v0.54.0
+	github.com/quic-go/quic-go v0.54.1
 	github.com/scionproto/scion v0.12.1-0.20241223103250-0b42cbc42486
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.9.0
