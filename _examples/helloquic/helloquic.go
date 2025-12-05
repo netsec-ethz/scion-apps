@@ -72,8 +72,11 @@ func runServer(listen netip.AddrPort) error {
 		fmt.Println("New session", session.RemoteAddr())
 		go func() {
 			err := workSession(session)
-			var errApplication *quic.ApplicationError
-			if err != nil && !(errors.As(err, &errApplication) && errApplication.ErrorCode == 0) {
+			var (
+				errApplication *quic.ApplicationError
+				errTransport *quic.TransportError
+			)
+			if err != nil && !(errors.As(err, &errApplication) && errApplication.ErrorCode == 0) && !(errors.As(err, &errTransport) && errTransport.ErrorCode == 0) {
 				fmt.Println("Error in session", session.RemoteAddr(), err)
 			}
 		}()
