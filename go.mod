@@ -1,6 +1,6 @@
 module github.com/netsec-ethz/scion-apps
 
-go 1.23.0
+go 1.24
 
 require (
 	github.com/creack/pty v1.1.17
@@ -11,12 +11,12 @@ require (
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
 	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403
 	github.com/pelletier/go-toml v1.9.5
-	github.com/quic-go/quic-go v0.54.1
+	github.com/quic-go/quic-go v0.57.0
 	github.com/scionproto/scion v0.12.1-0.20241223103250-0b42cbc42486
 	github.com/smartystreets/goconvey v1.8.1
-	github.com/stretchr/testify v1.9.0
-	golang.org/x/crypto v0.31.0
-	golang.org/x/term v0.27.0
+	github.com/stretchr/testify v1.11.1
+	golang.org/x/crypto v0.41.0
+	golang.org/x/term v0.34.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 
@@ -53,22 +53,18 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.14.0 // indirect
-	github.com/quic-go/qpack v0.5.1 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/smarty/assertions v1.16.0 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
-	golang.org/x/mod v0.18.0 // indirect
-	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.22.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240509183442-62759503f434 // indirect
 	google.golang.org/grpc v1.63.2 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
