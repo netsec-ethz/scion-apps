@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan/internal/ping"
 )
@@ -124,12 +125,14 @@ type PingingSelector struct {
 	Interval time.Duration
 	// Timeout for the individual pings. Must be positive and less than Interval.
 	Timeout time.Duration
+	// ASCtx is the AS context for looking up paths.
+	ASCtx ASContext
 
 	mutex   sync.Mutex
 	paths   []*Path
 	current int
-	local   scionAddr
-	remote  scionAddr
+	local   SCIONAddr
+	remote  SCIONAddr
 
 	numActive    int64
 	pingerCtx    context.Context
@@ -186,10 +189,6 @@ func (s *PingingSelector) ensureRunning() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	host, err := getHost()
-	if err != nil {
-		return
-	}
 	if s.local.IA == s.remote.IA {
 		return
 	}
@@ -198,13 +197,19 @@ func (s *PingingSelector) ensureRunning() {
 	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
 	local := s.local.snetUDPAddr()
-	pinger, err := ping.NewPinger(s.pingerCtx, host.topology, local)
+	pinger, err := ping.NewPinger(s.pingerCtx, s.ASCtx.Topology(), local)
 	if err != nil {
 		return
 	}
 	s.pinger = pinger
-	go s.pinger.Drain(s.pingerCtx)
-	go s.run()
+	go func() {
+		defer log.HandlePanic()
+		s.pinger.Drain(s.pingerCtx)
+	}()
+	go func() {
+		defer log.HandlePanic()
+		s.run()
+	}()
 }
 
 func (s *PingingSelector) run() {
@@ -270,7 +275,8 @@ func (s *PingingSelector) sendPings(paths []*Path, sequenceNo uint16) {
 
 func (s *PingingSelector) handlePingReply(reply ping.Reply,
 	expectedReplies map[PathFingerprint]struct{},
-	expectedSequenceNo uint16) {
+	expectedSequenceNo uint16,
+) {
 	if reply.Error != nil {
 		// handle NotifyPathDown.
 		// The Pinger is not using the normal scmp handler in raw.go, so we have to
@@ -282,13 +288,13 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		switch e := reply.Error.(type) { //nolint:errorlint
 		case ping.InternalConnectivityDownError:
 			pi := PathInterface{
-				IA:   IA(e.IA),
+				IA:   e.IA,
 				IfID: IfID(e.Egress),
 			}
 			stats.NotifyPathDown(pf, pi)
 		case ping.ExternalInterfaceDownError:
 			pi := PathInterface{
-				IA:   IA(e.IA),
+				IA:   e.IA,
 				IfID: IfID(e.Interface),
 			}
 			stats.NotifyPathDown(pf, pi)
@@ -299,8 +305,9 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 	if reply.Source.Host.Type() != addr.HostTypeIP {
 		return // ignore replies from non-IP addresses
 	}
-	src := scionAddr{
-		IA: IA(reply.Source.IA),
+
+	src := SCIONAddr{
+		IA: reply.Source.IA,
 		IP: reply.Source.Host.IP(),
 	}
 	if src != s.remote || reply.Reply.SeqNumber != expectedSequenceNo {

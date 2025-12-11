@@ -27,7 +27,7 @@ import (
 
 // UDPAddr is an address for a SCION/UDP end point.
 type UDPAddr struct {
-	IA   IA
+	IA   addr.IA
 	IP   netip.Addr
 	Port uint16
 }
@@ -60,8 +60,8 @@ func (a UDPAddr) WithPort(port uint16) UDPAddr {
 	return UDPAddr{IA: a.IA, IP: a.IP, Port: port}
 }
 
-func (a UDPAddr) scionAddr() scionAddr {
-	return scionAddr{IA: a.IA, IP: a.IP}
+func (a UDPAddr) scionAddr() SCIONAddr {
+	return SCIONAddr{IA: a.IA, IP: a.IP}
 }
 
 // Set implements flag.Value
@@ -82,7 +82,7 @@ func ParseUDPAddr(s string) (UDPAddr, error) {
 		panic("snet.ParseUDPAddr returned invalid IP")
 	}
 	return UDPAddr{
-		IA:   IA(addr.IA),
+		IA:   addr.IA,
 		IP:   ip.Unmap(),
 		Port: uint16(addr.Host.Port),
 	}, nil
@@ -98,64 +98,30 @@ func MustParseUDPAddr(s string) UDPAddr {
 	return addr
 }
 
-type IA addr.IA
-
-// IsZero reports whether ia is the zero value of the IA type.
-func (ia IA) IsZero() bool {
-	return ia == 0
-}
-
-// IsWildcard reports whether ia has a wildcard part (isd or as, or both).
-func (ia IA) IsWildcard() bool {
-	return addr.IA(ia).IsWildcard()
-}
-
-func (ia IA) String() string {
-	return addr.IA(ia).String()
-}
-
-// ParseIA parses an IA from a string of the format 'ia-as'.
-func ParseIA(s string) (IA, error) {
-	ia, err := addr.ParseIA(s)
-	return IA(ia), err
-}
-
-// MustParseIA calls ParseIA and panics on error. This is
-// intended for testing.
-func MustParseIA(s string) IA {
-	ia, err := ParseIA(s)
-	if err != nil {
-		panic(err)
-	}
-	return ia
-}
-
-// scionAddr is a SCION/IP host address.
+// SCIONAddr is a SCION/IP host address.
 // Not exported for now as it's not used in the API for now. Might be
 // useful for applicications later.
-type scionAddr struct {
-	IA IA
+type SCIONAddr struct {
+	IA addr.IA
 	IP netip.Addr
 }
 
-func (a scionAddr) String() string {
+func (a SCIONAddr) String() string {
 	return fmt.Sprintf("%s,%s", a.IA, a.IP)
 }
 
-func (a scionAddr) WithPort(port uint16) UDPAddr {
+func (a SCIONAddr) WithPort(port uint16) UDPAddr {
 	return UDPAddr{IA: a.IA, IP: a.IP, Port: port}
 }
 
-func (a scionAddr) snetUDPAddr() *snet.UDPAddr {
+func (a SCIONAddr) snetUDPAddr() *snet.UDPAddr {
 	return &snet.UDPAddr{
-		IA:   addr.IA(a.IA),
+		IA:   a.IA,
 		Host: net.UDPAddrFromAddrPort(netip.AddrPortFrom(a.IP, 0)),
 	}
 }
 
-var (
-	addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),(\[[^\]]+\]|[^\[\]]+)$`)
-)
+var addrRegexp = regexp.MustCompile(`^(\d+-[\d:A-Fa-f]+),(\[[^\]]+\]|[^\[\]]+)$`)
 
 const (
 	addrRegexpIaIndex = 1
@@ -163,21 +129,21 @@ const (
 )
 
 // parseSCIONAddr converts an SCION address string to a SCION address.
-func parseSCIONAddr(address string) (scionAddr, error) {
+func parseSCIONAddr(address string) (SCIONAddr, error) {
 	parts := addrRegexp.FindStringSubmatch(address)
 	if parts == nil {
-		return scionAddr{}, parseSCIONAddrError{in: address, msg: "unable to parse SCION address"}
+		return SCIONAddr{}, parseSCIONAddrError{in: address, msg: "unable to parse SCION address"}
 	}
-	ia, err := ParseIA(parts[addrRegexpIaIndex])
+	ia, err := addr.ParseIA(parts[addrRegexpIaIndex])
 	if err != nil {
-		return scionAddr{}, parseSCIONAddrError{in: address, msg: "invalid IA", cause: err}
+		return SCIONAddr{}, parseSCIONAddrError{in: address, msg: "invalid IA", cause: err}
 	}
 	l3Trimmed := strings.Trim(parts[addrRegexpL3Index], "[]")
 	ip, err := netip.ParseAddr(l3Trimmed)
 	if err != nil {
-		return scionAddr{}, parseSCIONAddrError{in: address, msg: "invalid IP", cause: err}
+		return SCIONAddr{}, parseSCIONAddrError{in: address, msg: "invalid IP", cause: err}
 	}
-	return scionAddr{IA: ia, IP: ip}, nil
+	return SCIONAddr{IA: ia, IP: ip}, nil
 }
 
 type parseSCIONAddrError struct {
@@ -198,7 +164,7 @@ func (err parseSCIONAddrError) Unwrap() error {
 }
 
 // mustParseSCIONAddr calls parseSCIONAddr and panics on error.
-func mustParseSCIONAddr(s string) scionAddr {
+func mustParseSCIONAddr(s string) SCIONAddr {
 	addr, err := parseSCIONAddr(s)
 	if err != nil {
 		panic(err)
@@ -206,8 +172,8 @@ func mustParseSCIONAddr(s string) scionAddr {
 	return addr
 }
 
-var (
-	hostPortRegexp = regexp.MustCompile(`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(?:\[[^\]]+\]|[^\[\]:]+))):(\d+)$`)
+var hostPortRegexp = regexp.MustCompile(
+	`^((?:[-.\da-zA-Z]+)|(?:\d+-[\d:A-Fa-f]+,(?:\[[^\]]+\]|[^\[\]:]+))):(\d+)$`,
 )
 
 const (

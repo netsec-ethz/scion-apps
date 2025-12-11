@@ -19,21 +19,16 @@ import (
 	"crypto/tls"
 	"net"
 	"net/netip"
+	"runtime"
 
 	"github.com/quic-go/quic-go"
 )
 
-// QUICConn is a wrapper around quic.Conn that always closes the
-// underlying conn when closing the connection.
-type QUICConn struct {
-	*quic.Conn
-	UnderlayConn Conn
-}
-
-func (s *QUICConn) CloseWithError(code quic.ApplicationErrorCode, desc string) error {
-	err := s.Conn.CloseWithError(code, desc)
-	s.UnderlayConn.Close()
-	return err
+// QUICSession is a wrapper around quic.Connection that always closes the
+// underlying conn when closing the session.
+type QUICSession struct {
+	QUIC *quic.Conn
+	Conn Conn
 }
 
 // DialQUIC establishes a new QUIC connection to a server at the remote address.
@@ -42,15 +37,15 @@ func (s *QUICConn) CloseWithError(code quic.ApplicationErrorCode, desc string) e
 // The tls.Config must define an application protocol (using NextProtos).
 func DialQUIC(
 	ctx context.Context,
+	asCtx ASContext,
 	local netip.AddrPort,
 	remote UDPAddr,
 	host string,
 	tlsConf *tls.Config,
 	quicConf *quic.Config,
 	connOptions ...ConnOptions,
-) (*QUICConn, error) {
-
-	conn, err := DialUDP(ctx, local, remote, connOptions...)
+) (*QUICSession, error) {
+	conn, err := DialUDP(ctx, asCtx, local, remote, connOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -77,21 +72,24 @@ func DialQUIC(
 		pconn.Close()
 		return nil, err
 	}
-	return &QUICConn{Conn: session, UnderlayConn: conn}, nil
+	runtime.AddCleanup(session, func(pconn connectedPacketConn) {
+		pconn.Close()
+	}, pconn)
+	return &QUICSession{QUIC: session, Conn: conn}, nil
 }
 
 // DialQUICEarly establishes a new 0-RTT QUIC connection to a server. Analogous to DialQUIC.
 func DialQUICEarly(
 	ctx context.Context,
+	asCtx ASContext,
 	local netip.AddrPort,
 	remote UDPAddr,
 	host string,
 	tlsConf *tls.Config,
 	quicConf *quic.Config,
 	connOptions ...ConnOptions,
-) (*QUICConn, error) {
-
-	conn, err := DialUDP(ctx, local, remote, connOptions...)
+) (*QUICSession, error) {
+	conn, err := DialUDP(ctx, asCtx, local, remote, connOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,9 +100,13 @@ func DialQUICEarly(
 	defer unsilenceLog()
 	session, err := quic.DialEarly(ctx, pconn, remote, tlsConf, quicConf)
 	if err != nil {
+		pconn.Close()
 		return nil, err
 	}
-	return &QUICConn{Conn: session, UnderlayConn: conn}, nil
+	runtime.AddCleanup(session, func(pconn connectedPacketConn) {
+		pconn.Close()
+	}, pconn)
+	return &QUICSession{QUIC: session, Conn: conn}, nil
 }
 
 // connectedPacketConn wraps a Conn into a PacketConn interface.

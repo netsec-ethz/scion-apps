@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +27,7 @@ func TestNotifyPathDown(t *testing.T) {
 
 	pf := PathFingerprint("x")
 	pi := PathInterface{
-		IA:   MustParseIA("1-ff00:0:110"),
+		IA:   addr.MustParseIA("1-ff00:0:110"),
 		IfID: 5,
 	}
 

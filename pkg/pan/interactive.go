@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 type InteractiveSelectionType int
@@ -29,7 +31,7 @@ type InteractiveSelectionType int
 // destination IA
 type InteractiveSelection struct {
 	Prompter Prompter
-	choices  map[IA][]PathFingerprint
+	choices  map[addr.IA][]PathFingerprint
 }
 
 func (p *InteractiveSelection) Filter(paths []*Path) []*Path {
@@ -39,7 +41,7 @@ func (p *InteractiveSelection) Filter(paths []*Path) []*Path {
 		chosenPaths := p.Prompter.Prompt(paths, dstIA)
 		choice = pathFingerprints(chosenPaths)
 		if p.choices == nil {
-			p.choices = make(map[IA][]PathFingerprint)
+			p.choices = make(map[addr.IA][]PathFingerprint)
 		}
 		p.choices[dstIA] = choice
 	}
@@ -48,20 +50,18 @@ func (p *InteractiveSelection) Filter(paths []*Path) []*Path {
 
 // Prompter is used by InteractiveSelection to prompt a user for path
 type Prompter interface {
-	Prompt(paths []*Path, remote IA) []*Path
+	Prompt(paths []*Path, remote addr.IA) []*Path
 }
 
-var (
-	// commandlinePrompterMutex asserts that only one CommandlinePrompter is prompting at
-	// any time
-	commandlinePrompterMutex sync.Mutex
-)
+// commandlinePrompterMutex asserts that only one CommandlinePrompter is prompting at
+// any time
+var commandlinePrompterMutex sync.Mutex
 
 // CommandlinePrompter is a Prompter for InteractiveSelection, prompting the user for textual
 // path selection input on stdin/out.
 type CommandlinePrompter struct{}
 
-func (p CommandlinePrompter) Prompt(paths []*Path, remote IA) []*Path {
+func (p CommandlinePrompter) Prompt(paths []*Path, remote addr.IA) []*Path {
 	commandlinePrompterMutex.Lock()
 	defer commandlinePrompterMutex.Unlock()
 

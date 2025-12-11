@@ -7,6 +7,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/netsec-ethz/scion-apps v0.6.0
 	github.com/quic-go/quic-go v0.58.0
+	github.com/scionproto/scion v0.14.0
 	google.golang.org/grpc v1.78.0
 )
 
@@ -27,7 +28,8 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.4 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
-	github.com/scionproto/scion v0.14.0 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	go.uber.org/atomic v1.11.0 // indirect

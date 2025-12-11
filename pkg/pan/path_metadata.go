@@ -20,13 +20,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
 type IfID uint64
 
 type PathInterface struct {
-	IA   IA
+	IA   addr.IA
 	IfID IfID
 }
 
@@ -77,8 +78,10 @@ type PathMetadata struct {
 	Notes []string
 }
 
-type GeoCoordinates = snet.GeoCoordinates
-type LinkType = snet.LinkType
+type (
+	GeoCoordinates = snet.GeoCoordinates
+	LinkType       = snet.LinkType
+)
 
 func (pm *PathMetadata) Copy() *PathMetadata {
 	if pm == nil {

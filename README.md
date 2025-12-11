@@ -64,12 +64,12 @@ You can modify this by changing the value on the `dispatcher.toml` configuration
 The SCION daemon is assumed to be at the default address, but this can be
 overridden using an environment variable:
 
-		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
+		SCION_DAEMON: 127.0.0.1:30255
 
 This is convenient for the normal use case of running the endhost stack for a
 single SCION AS. When running multiple local ASes, e.g. during development, the
 address of the SCION daemon corresponding to the desired AS needs to be
-specified in the `SCION_DAEMON_ADDRESS` environment variable.
+specified in the `SCION_DAEMON` environment variable.
 In this case, the different daemon addresses can be found in their corresponding
 `sd.toml` configuration files in the `gen/ASx` directory, or summarized in the
 file `gen/sciond_addresses.json`.

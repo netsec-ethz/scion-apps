@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/slayers/path"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
@@ -28,8 +29,8 @@ import (
 
 // TODO: revisit: pointer or value type? what goes where? should ForwardingPath be exported?
 type Path struct {
-	Source         IA
-	Destination    IA
+	Source         addr.IA
+	Destination    addr.IA
 	ForwardingPath ForwardingPath
 	Metadata       *PathMetadata // optional
 	Fingerprint    PathFingerprint
@@ -40,7 +41,7 @@ func (p *Path) String() string {
 	if p.Metadata != nil {
 		return p.Metadata.fmtInterfaces()
 	} else {
-		return fmt.Sprintf("%s %s %s", p.Source, p.Destination, p.Fingerprint)
+		return fmt.Sprintf("%s %s %s", p.Source, p.Fingerprint, p.Destination)
 	}
 }
 
@@ -68,6 +69,13 @@ type ForwardingPath struct {
 	underlay netip.AddrPort
 }
 
+func NewForwardingPath(dp snet.DataplanePath, underlay netip.AddrPort) ForwardingPath {
+	return ForwardingPath{
+		dataplanePath: dp,
+		underlay:      underlay,
+	}
+}
+
 func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 	var raw []byte
 	switch dataplanePath := p.dataplanePath.(type) {
@@ -79,14 +87,18 @@ func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 				return forwardingPathInfo{}, err
 			}
 		default:
-			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawReplyPath", dataplanePath.Path.Type())
+			return forwardingPathInfo{}, fmt.Errorf(
+				"unsupported path type %v inside RawReplyPath", dataplanePath.Path.Type(),
+			)
 		}
 	case snet.RawPath:
 		switch dataplanePath.PathType {
 		case scion.PathType:
 			raw = dataplanePath.Raw
 		default:
-			return forwardingPathInfo{}, fmt.Errorf("unsupported path type %v inside RawPath", dataplanePath.PathType)
+			return forwardingPathInfo{}, fmt.Errorf(
+				"unsupported path type %v inside RawPath", dataplanePath.PathType,
+			)
 		}
 	case snetpath.SCION:
 		raw = dataplanePath.Raw
@@ -106,7 +118,7 @@ func (p ForwardingPath) forwardingPathInfo() (forwardingPathInfo, error) {
 // reversePathFromForwardingPath creates a Path for the return direction from the information
 // on a received packet.
 // The created Path includes fingerprint and expiry information.
-func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, error) {
+func reversePathFromForwardingPath(src, dst addr.IA, fwPath ForwardingPath) (*Path, error) {
 	// FIXME: inefficient, decoding twice! Change this to decode and then both
 	// reverse and extract fw info
 	rp, ok := fwPath.dataplanePath.(snet.RawPath)
@@ -160,7 +172,7 @@ func expiryFromDecoded(sp scion.Decoded) time.Time {
 	ret := maxTime
 	hop := 0
 	for i, info := range sp.InfoFields {
-		seglen := int(sp.Base.PathMeta.SegLen[i])
+		seglen := int(sp.PathMeta.SegLen[i])
 		for h := 0; h < seglen; h++ {
 			exp := hopExpiry(info, sp.HopFields[hop])
 			if exp.Before(ret) {
@@ -194,7 +206,7 @@ func interfaceIDsFromDecoded(sp scion.Decoded) []IfID {
 
 	hop := 0
 	for i, info := range sp.InfoFields {
-		seglen := int(sp.Base.PathMeta.SegLen[i])
+		seglen := int(sp.PathMeta.SegLen[i])
 		for h := 0; h < seglen; h++ {
 			if h > 0 || (info.Peer && i == 1) {
 				ifIDs = append(ifIDs, first(sp.HopFields[hop], info.ConsDir))
@@ -225,7 +237,7 @@ type pathSequence struct {
 	InterfaceIDs []IfID
 }
 
-func pathSequenceFromInterfaces(interfaces []PathInterface) pathSequence {
+func PathSequenceFromInterfaces(interfaces []PathInterface) pathSequence {
 	ifIDs := make([]IfID, len(interfaces))
 	for i, iface := range interfaces {
 		ifIDs[i] = iface.IfID
@@ -243,9 +255,12 @@ func (s pathSequence) Fingerprint() PathFingerprint {
 	}
 	b := &strings.Builder{}
 	fmt.Fprintf(b, "%d", s.InterfaceIDs[0])
-	for _, ifID := range s.InterfaceIDs[1:] {
-		fmt.Fprintf(b, " %d", ifID)
+	for i := 1; i < len(s.InterfaceIDs)-1; i += 2 {
+		inIntf := s.InterfaceIDs[i]
+		outIntf := s.InterfaceIDs[i+1]
+		fmt.Fprintf(b, ">%d %d", inIntf, outIntf)
 	}
+	fmt.Fprintf(b, ">%d", s.InterfaceIDs[len(s.InterfaceIDs)-1])
 	return PathFingerprint(b.String())
 }
 

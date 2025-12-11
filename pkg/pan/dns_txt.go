@@ -30,15 +30,15 @@ type dnsTXTResolver interface {
 	LookupTXT(context.Context, string) ([]string, error)
 }
 
-var _ resolver = &dnsResolver{}
+var _ Resolver = &dnsResolver{}
 
 const scionAddrTXTTag = "scion="
 
 // Resolve the name via DNS to return one scionAddr or an error.
-func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr scionAddr, err error) {
+func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr SCIONAddr, err error) {
 	addresses, err := d.queryTXTRecord(ctx, name)
 	if err != nil {
-		return scionAddr{}, err
+		return SCIONAddr{}, err
 	}
 	var perr error
 	for _, addr := range addresses {
@@ -47,12 +47,16 @@ func (d *dnsResolver) Resolve(ctx context.Context, name string) (saddr scionAddr
 			return saddr, nil
 		}
 	}
-	return scionAddr{}, fmt.Errorf("error parsing TXT SCION address records: %w", perr)
+	return SCIONAddr{}, fmt.Errorf("error parsing TXT SCION address records: %w", perr)
 }
 
 // queryTXTRecord queries the DNS for DNS TXT record(s) specifying the SCION address(es) for host.
-// Returns either at least one address, or else an error, of type HostNotFoundError if no matching record was found.
-func (d *dnsResolver) queryTXTRecord(ctx context.Context, host string) (addresses []string, err error) {
+// Returns either at least one address, or else an error, of type HostNotFoundError if no matching
+// record was found.
+func (d *dnsResolver) queryTXTRecord(
+	ctx context.Context,
+	host string,
+) (addresses []string, err error) {
 	if d.res == nil {
 		return addresses, fmt.Errorf("invalid DNS resolver: %v", d.res)
 	}

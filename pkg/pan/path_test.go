@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/slayers/path/scion"
 	"github.com/scionproto/scion/pkg/snet"
 	snetpath "github.com/scionproto/scion/pkg/snet/path"
@@ -25,9 +26,9 @@ import (
 )
 
 func TestPathString(t *testing.T) {
-	asA := MustParseIA("1-ff00:0:a")
-	asB := MustParseIA("1-ff00:0:b")
-	asC := MustParseIA("1-ff00:0:c")
+	asA := addr.MustParseIA("1-ff00:0:a")
+	asB := addr.MustParseIA("1-ff00:0:b")
+	asC := addr.MustParseIA("1-ff00:0:c")
 
 	ifA1 := PathInterface{IA: asA, IfID: 1}
 	ifB1 := PathInterface{IA: asB, IfID: 11}
@@ -44,7 +45,7 @@ func TestPathString(t *testing.T) {
 		{
 			name:       "no metadata",
 			interfaces: nil,
-			expected:   "0-0 0-0 " + testFingerprint,
+			expected:   "0-0 " + testFingerprint + " 0-0",
 		},
 		{
 			name:       "empty",
@@ -155,9 +156,9 @@ func TestDataplaneLen(t *testing.T) {
 func TestInterfacesFromDecoded(t *testing.T) {
 	// Not a great test case...
 	rawPath := []byte("\x00\x00\x20\x80\x00\x00\x01\x11\x00\x00\x01\x00\x01\x00\x02\x22\x00\x00" +
-		"\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00\x02\x01\x02\x03" +
-		"\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x01\x00\x00\x01\x02" +
-		"\x03\x04\x05\x06")
+		"\x01\x00\x00\x3f\x00\x01\x00\x00\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x03\x00\x02\x01\x02" +
+		"\x03\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x01\x00\x00" +
+		"\x01\x02\x03\x04\x05\x06")
 
 	sp := scion.Decoded{}
 	err := sp.DecodeFromBytes(rawPath)
@@ -172,9 +173,9 @@ func TestInterfacesFromDecoded(t *testing.T) {
 func TestLowerLatency(t *testing.T) {
 	unknown := time.Duration(0)
 
-	asA := MustParseIA("1-0:0:1")
-	asB := MustParseIA("1-0:0:2")
-	asC := MustParseIA("1-0:0:3")
+	asA := addr.MustParseIA("1-0:0:1")
+	asB := addr.MustParseIA("1-0:0:2")
+	asC := addr.MustParseIA("1-0:0:3")
 
 	ifA1 := PathInterface{IA: asA, IfID: 1}
 	ifB1 := PathInterface{IA: asB, IfID: 1}
