@@ -25,7 +25,6 @@ import (
 var (
 	resolveEtcHosts      resolver = &hostsfileResolver{"/etc/hosts"}
 	resolveEtcScionHosts resolver = &hostsfileResolver{"/etc/scion/hosts"}
-	resolveRains         resolver = nil
 	resolveDNSTxt        resolver = &dnsResolver{net.DefaultResolver}
 )
 
@@ -59,20 +58,18 @@ func resolveUDPAddrAt(ctx context.Context, address string, resolver resolver) (U
 //
 //   - /etc/hosts
 //   - /etc/scion/hosts
-//   - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
 //   - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 func defaultResolver() resolver {
 	return resolverList{
 		resolveEtcHosts,
 		resolveEtcScionHosts,
-		resolveRains,
 		resolveDNSTxt,
 	}
 }
 
 // resolver is the interface to resolve a host name to a SCION host address.
 // Currently, this is implemented for reading the system hosts file, a SCION specific hosts file,
-// RAINS, and DNS TXT records for SCION of the format "scion=ia,ip"
+// and DNS TXT records for SCION of the format "scion=ia,ip"
 type resolver interface {
 	// Resolve finds an address for the name.
 	// Returns a HostNotFoundError if the name was not found, but otherwise no
@@ -88,10 +85,6 @@ func (resolvers resolverList) Resolve(ctx context.Context, name string) (scionAd
 	var errHostNotFound HostNotFoundError
 	var rerr error
 	for _, resolver := range resolvers {
-		if resolver == nil {
-			// skip RAINS resolver when disabled
-			continue
-		}
 		// check ctx to avoid unnecessary calls with already expired context
 		if err := ctx.Err(); err != nil {
 			rerr = err

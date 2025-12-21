@@ -105,7 +105,6 @@ import (
 //
 //   - /etc/hosts
 //   - /etc/scion/hosts
-//   - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
 //   - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 //
 // Returns HostNotFoundError if none of the sources did resolve the hostname.

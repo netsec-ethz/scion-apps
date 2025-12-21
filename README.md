@@ -76,20 +76,14 @@ file `gen/sciond_addresses.json`.
 
 
 #### Hostnames
-Hostnames are resolved by scanning `/etc/hosts`, `/etc/scion/hosts` and by a RAINS lookup.
-
-Hosts can be added to `/etc/hosts`, or `/etc/scion/hosts` by adding lines like this:
+Hostnames are resolved by scanning `/etc/hosts` and `/etc/scion/hosts`.
+Hosts can be added by adding lines like this:
 
 ```
 # The following lines are SCION hosts
 17-ffaa:1:10,[10.0.8.100] server1
 18-ffaa:0:11,[10.0.8.120] server2
 ```
-
-The RAINS resolver address can be configured in `/etc/scion/rains.cfg`.
-This configuration file needs to contain the SCION address of the RAINS
-resolver, in the form `<ISD>-<AS>,[<IP>]`.
-
 
 ## _examples
 

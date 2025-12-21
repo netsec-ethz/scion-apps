@@ -9,7 +9,6 @@ require (
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
-	github.com/netsec-ethz/rains v0.5.1-0.20240619143424-8e9ef27f2403
 	github.com/pelletier/go-toml v1.9.5
 	github.com/quic-go/quic-go v0.54.1
 	github.com/scionproto/scion v0.12.1-0.20241223103250-0b42cbc42486
@@ -26,7 +25,6 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
-	github.com/britram/borat v0.0.0-20181011130314-f891bcfcfb9b // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dchest/cmac v1.0.0 // indirect

@@ -49,7 +49,6 @@ Webapp is a go application designed to operate a web server for purposes of visu
 
 ## Future Features
 * **Latency Tests**: *(in development)* SCION ping and traceroute results would be listed next to available paths or overlaid on path graphs allowing easy examination of performance.
-* **Name Resolution**: Integration with the SCION name resolution service (RAINS), would optionally show human-readable hostnames rather than IA numbers.
 * **Geolocation**: Dynamic locations provided by ASes issuing beacons with geolocation would be more accurate and complete than the current static geolocation data on the global paths map.
 * **Web sockets**: Data between the go web-server and the browser is requested by AJAX and polling from the browser. Implementing websockets would avoid timing issues polling for updated graph data from the web-server and reduce browser load.
 
