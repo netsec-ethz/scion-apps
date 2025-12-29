@@ -65,10 +65,11 @@ func NewTransport(quicCfg *quic.Config, policy pan.Policy) (*http.Transport, *Di
 // Dialer dials an insecure, single-stream QUIC connection over SCION (just pretend it's TCP).
 // This is the Dialer used for shttp.DefaultTransport.
 type Dialer struct {
+	ASContext  pan.ASContext
 	Local      netip.AddrPort
 	QuicConfig *quic.Config
 	Policy     pan.Policy
-	sessions   []*pan.QUICConn
+	sessions   []*pan.QUICSession
 }
 
 // DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
@@ -84,7 +85,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		return nil, err
 	}
 
-	session, err := pan.DialQUIC(ctx, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
+	session, err := pan.DialQUIC(ctx, d.ASContext, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 func (d *Dialer) SetPolicy(policy pan.Policy) {
 	d.Policy = policy
 	for _, s := range d.sessions {
-		s.UnderlayConn.SetPolicy(policy)
+		s.Conn.SetPolicy(policy)
 	}
 }
 

@@ -47,6 +47,8 @@ var (
 	interactive bool
 	sequence    string
 	preference  string
+
+	asCtx pan.ASContext
 )
 
 func printUsage() {
@@ -112,6 +114,8 @@ func main() {
 	if repeatDuring && commandString == "" {
 		log.Fatalf("-K flag requires -c flag!")
 	}
+
+	asCtx = pan.MustLoadDefaultASContext()
 
 	var conns chan io.ReadWriteCloser
 

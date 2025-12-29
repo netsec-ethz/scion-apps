@@ -31,6 +31,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -160,10 +161,17 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 	}
 }
 
-func listen(laddr netip.AddrPort) (*pan.QUICListener, error) {
+func listen(laddr netip.AddrPort) (*quic.EarlyListener, error) {
+	asCtx := pan.MustLoadDefaultASContext()
+
+	localAddr := &snet.UDPAddr{
+		IA:   asCtx.IA(),
+		Host: net.UDPAddrFromAddrPort(laddr),
+	}
+
 	tlsCfg := &tls.Config{
 		NextProtos:   []string{quicutil.SingleStreamProto},
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
-	return pan.ListenQUIC(context.Background(), laddr, tlsCfg, nil)
+	return pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
 }

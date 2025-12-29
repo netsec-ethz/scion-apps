@@ -17,6 +17,7 @@ package quicutil
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -61,16 +62,24 @@ var (
 // SingleStream connections from Accept. This allows to use quic in contexts
 // where a (TCP-)net.Listener is expected.
 type SingleStreamListener struct {
-	*pan.QUICListener
+	QUICListener *quic.EarlyListener
 }
 
-func (l SingleStreamListener) Accept() (net.Conn, error) {
+func (l *SingleStreamListener) Accept() (net.Conn, error) {
 	ctx := context.Background()
-	connection, err := l.Listener.Accept(ctx)
+	connection, err := l.QUICListener.Accept(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return NewSingleStream(connection)
+}
+
+func (l *SingleStreamListener) Close() error {
+	return l.QUICListener.Close()
+}
+
+func (l *SingleStreamListener) Addr() net.Addr {
+	return l.QUICListener.Addr()
 }
 
 // SingleStream implements an opaque, bi-directional data stream using QUIC,
@@ -83,6 +92,7 @@ func (l SingleStreamListener) Accept() (net.Conn, error) {
 //     returns SingleStream from Accept.
 type SingleStream struct {
 	Connection    quicConnection
+	panSession    *pan.QUICSession // set if created from QUICSession for GetPath() support
 	sendStream    *quic.SendStream
 	receiveStream *quic.ReceiveStream
 	readDeadline  time.Time
@@ -90,13 +100,29 @@ type SingleStream struct {
 	onceOK        sync.Once
 }
 
-func NewSingleStream(connection quicConnection) (*SingleStream, error) {
-	sendStream, err := connection.OpenUniStream()
+// NewSingleStream creates a SingleStream from either a quicConnection or a *pan.QUICSession.
+// If a *pan.QUICSession is passed, GetPath() will be available.
+func NewSingleStream(conn interface{}) (*SingleStream, error) {
+	var qconn quicConnection
+	var sess *pan.QUICSession
+
+	switch c := conn.(type) {
+	case *pan.QUICSession:
+		qconn = c.QUIC
+		sess = c
+	case quicConnection:
+		qconn = c
+	default:
+		return nil, fmt.Errorf("NewSingleStream: expected *pan.QUICSession or quicConnection, got %T", conn)
+	}
+
+	sendStream, err := qconn.OpenUniStream()
 	if err != nil {
 		return nil, err
 	}
 	return &SingleStream{
-		Connection:    connection,
+		Connection:    qconn,
+		panSession:    sess,
 		sendStream:    sendStream,
 		receiveStream: nil,
 	}, nil
@@ -107,18 +133,12 @@ func (s *SingleStream) LocalAddr() net.Addr {
 }
 
 func (s *SingleStream) GetPath() *pan.Path {
-	if s.Connection == nil {
+	if s.panSession == nil {
 		// XXX(JordiSubira): To be refactored when proper support
 		// for retrieving path information.
 		return nil
 	}
-	quicConn, ok := s.Connection.(*pan.QUICConn)
-	if !ok {
-		// XXX(JordiSubira): To be refactored when proper support
-		// for retrieving path information.
-		return nil
-	}
-	return quicConn.UnderlayConn.GetPath()
+	return s.panSession.Conn.GetPath()
 }
 
 func (s *SingleStream) RemoteAddr() net.Addr {

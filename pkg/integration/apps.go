@@ -88,7 +88,7 @@ func (sai *ScionAppsIntegration) StartServer(ctx context.Context,
 	cmd := exec.CommandContext(ctx, sai.serverCmd, args...)
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciondAddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("SCION_DAEMON=%s", sciondAddr))
 
 	id := fmt.Sprintf("server_%s", addr.FormatIA(dst.IA, addr.WithFileSeparator()))
 	stdoutLog := sai.openLogFile(id, ".log")
@@ -143,7 +143,7 @@ func (sai *ScionAppsIntegration) StartClient(ctx context.Context,
 	cmd := exec.CommandContext(ctx, sai.clientCmd, args...)
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("SCION_DAEMON_ADDRESS=%s", sciondAddr))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("SCION_DAEMON=%s", sciondAddr))
 
 	id := fmt.Sprintf("client_%s", clientID(src, dst))
 	stdoutLog := sai.openLogFile(id, ".log")

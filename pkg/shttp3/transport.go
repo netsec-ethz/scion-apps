@@ -38,9 +38,10 @@ var DefaultTransport = &http3.Transport{
 // Dialer dials a QUIC connection over SCION.
 // This is the Dialer used for shttp3.DefaultTransport.
 type Dialer struct {
-	Local    netip.AddrPort
-	Policy   pan.Policy
-	sessions []*pan.QUICConn
+	ASContext pan.ASContext
+	Local     netip.AddrPort
+	Policy    pan.Policy
+	sessions  []*pan.QUICSession
 }
 
 // Dial dials a QUIC connection over SCION.
@@ -51,17 +52,17 @@ func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 	if err != nil {
 		return nil, err
 	}
-	session, err := pan.DialQUICEarly(ctx, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
+	session, err := pan.DialQUICEarly(ctx, d.ASContext, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}
 	d.sessions = append(d.sessions, session)
-	return session.Conn, nil
+	return session.QUIC, nil
 }
 
 func (d *Dialer) SetPolicy(policy pan.Policy) {
 	d.Policy = policy
 	for _, s := range d.sessions {
-		s.UnderlayConn.SetPolicy(policy)
+		s.Conn.SetPolicy(policy)
 	}
 }

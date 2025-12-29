@@ -13,14 +13,14 @@ To test the server and client, run the SCION tiny test topology.
 Open a shell and run the server in the AS `1-ff00:0:111`:
 ```bash
 # Server in 1-ff00:0:111
-SCION_DAEMON_ADDRESS="127.0.0.20:30255" \
+SCION_DAEMON="127.0.0.20:30255" \
 go run server/main.go --server-address 127.0.0.1:5000
 ```
 
 Open a shell and run the client in the AS `1-ff00:0:112` and send a message to the server:
 ```bash
 # Client in 1-ff00:0:112
-SCION_DAEMON_ADDRESS="127.0.0.28:30255" \
+SCION_DAEMON="127.0.0.28:30255" \
 go run client/main.go --server-address "1-ff00:0:111,127.0.0.1:5000" --message "gRPC over SCION/QUIC"
 ```
 

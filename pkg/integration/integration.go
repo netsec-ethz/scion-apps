@@ -234,7 +234,7 @@ func defaultLocalIPAddress(sciondAddress string) (net.IP, error) {
 func connSciond(ctx context.Context, sciondAddress string) (daemon.Connector, error) {
 	sciondConn, err := daemon.NewService(sciondAddress).Connect(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", sciondAddress, err)
+		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON): %w", sciondAddress, err)
 	}
 	return sciondConn, nil
 }

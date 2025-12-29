@@ -80,8 +80,10 @@ func main() {
 	port := flag.Uint("p", 40002, "Server Port")
 	flag.Parse()
 
+	asCtx := pan.MustLoadDefaultASContext()
+
 	local := netip.AddrPortFrom(netip.Addr{}, uint16(*port))
-	conn, err := pan.ListenUDP(context.Background(), local)
+	conn, err := pan.ListenUDP(context.Background(), asCtx, local, nil)
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)

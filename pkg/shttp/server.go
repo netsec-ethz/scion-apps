@@ -20,6 +20,9 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
+
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
@@ -92,9 +95,17 @@ func listen(addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	quicListener, err := pan.ListenQUIC(context.Background(), laddr, tlsCfg, nil)
+
+	asCtx := pan.MustLoadDefaultASContext()
+
+	localAddr := &snet.UDPAddr{
+		IA:   asCtx.IA(),
+		Host: net.UDPAddrFromAddrPort(laddr),
+	}
+
+	quicListener, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
 	if err != nil {
 		return nil, err
 	}
-	return quicutil.SingleStreamListener{QUICListener: quicListener}, nil
+	return &quicutil.SingleStreamListener{QUICListener: quicListener}, nil
 }

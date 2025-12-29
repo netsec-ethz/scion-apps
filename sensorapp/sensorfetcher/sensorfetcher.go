@@ -50,11 +50,13 @@ func main() {
 		os.Exit(2)
 	}
 
+	asCtx := pan.MustLoadDefaultASContext()
+
 	policy, err := pan.PolicyFromCommandline(*sequence, *preference, *interactive)
 	check(err)
 	serverAddr, err := pan.ResolveUDPAddr(context.TODO(), *serverAddrStr)
 	check(err)
-	conn, err := pan.DialUDP(context.Background(), netip.AddrPort{}, serverAddr, pan.WithPolicy(policy))
+	conn, err := pan.DialUDP(context.Background(), asCtx, netip.AddrPort{}, serverAddr, pan.WithPolicy(policy))
 	check(err)
 
 	receivePacketBuffer := make([]byte, 2500)
