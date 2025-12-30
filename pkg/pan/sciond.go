@@ -17,6 +17,7 @@ package pan
 import (
 	"context"
 	"fmt"
+	golog "log"
 	"net/netip"
 	"sync/atomic"
 	"time"
@@ -54,6 +55,22 @@ type ASContext interface {
 const (
 	initTimeout = 1 * time.Second
 )
+
+// MustLoadDefaultASContext loads the ASContext from the environment by
+// connecting to the local SCIOND and initializes the default path pool.
+// If loading fails, it fatals.
+//
+// This is a convenience function for simple applications and will be
+// obsolete once the new client API is in place.
+func MustLoadDefaultASContext() ASContext {
+	asCtx, err := LoadASContext(context.Background())
+	if err != nil {
+		golog.Fatalf("Failed to load AS context: %v", err)
+	}
+	PathPoolInit(asCtx, DefaultPathPoolConfig())
+
+	return asCtx
+}
 
 func LoadASContext(ctx context.Context) (ASContext, error) {
 	var scionEnv flag.SCIONEnvironment
