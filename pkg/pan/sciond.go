@@ -34,6 +34,7 @@ import (
 type hostContext struct {
 	ia            IA
 	sciond        daemon.Connector
+	topology      snet.Topology
 	hostInLocalAS net.IP
 }
 
@@ -88,9 +89,22 @@ func initHostContext() (hostContext, error) {
 	if err != nil {
 		return hostContext{}, err
 	}
+	start, end, err := sciondConn.PortRange(ctx)
+	if err != nil {
+		return hostContext{}, err
+	}
+	topology := snet.Topology{
+		LocalIA: localIA,
+		PortRange: snet.TopologyPortRange{
+			Start: start,
+			End:   end,
+		},
+	}
+
 	return hostContext{
 		ia:            IA(localIA),
 		sciond:        sciondConn,
+		topology:      topology,
 		hostInLocalAS: hostInLocalAS,
 	}, nil
 }

@@ -53,6 +53,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
+	//nolint:staticcheck
 	grpcDial, err := grpc.DialContext(ctx, *ServerAddr,
 		grpc.WithContextDialer(NewPanQuicDialer(tlsCfg)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
