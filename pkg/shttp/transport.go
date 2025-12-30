@@ -105,6 +105,9 @@ var scionAddrURLRegexp = regexp.MustCompile(
 // MangleSCIONAddrURL mangles a SCION address in the host part of a URL-ish
 // string so that it can be safely used as a URL, i.e. it can be parsed by
 // net/url.Parse
+//
+// Deprecated: This workaround relies on behavior affected by CVE-2025-47912
+// and will not be supported after Go 1.24.8.
 func MangleSCIONAddrURL(url string) string {
 	match := scionAddrURLRegexp.FindStringSubmatch(url)
 	if len(match) == 0 {

@@ -176,6 +176,7 @@ func main() {
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
 		*URL = "http://" + *URL
 	}
+	//nolint:staticcheck
 	u, err := url.Parse(shttp.MangleSCIONAddrURL(*URL))
 	if err != nil {
 		log.Fatal(err)
@@ -200,6 +201,7 @@ func main() {
 	}
 	// Proxy Support
 	if proxy != "" {
+		//nolint:staticcheck
 		purl, err := url.Parse(shttp.MangleSCIONAddrURL(proxy))
 		if err != nil {
 			log.Fatal("Proxy Url parse err", err)

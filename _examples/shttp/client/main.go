@@ -44,6 +44,7 @@ func main() {
 	// Make a get request
 	start := time.Now()
 	query := fmt.Sprintf("http://%s/hello", *serverAddrStr)
+	//nolint:staticcheck
 	resp, err := c.Get(shttp.MangleSCIONAddrURL(query))
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
@@ -60,6 +61,7 @@ func main() {
 	start = time.Now()
 	query = fmt.Sprintf("http://%s/form", *serverAddrStr)
 	resp, err = c.Post(
+		//nolint:staticcheck
 		shttp.MangleSCIONAddrURL(query),
 		"application/x-www-form-urlencoded",
 		strings.NewReader("surname=threepwood&firstname=guybrush"),

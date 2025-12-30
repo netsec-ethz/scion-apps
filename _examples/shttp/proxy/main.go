@@ -25,6 +25,7 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
+	//nolint:staticcheck
 	remoteMangled := shttp.MangleSCIONAddrURL(*remote)
 	remoteURL, err := url.Parse(remoteMangled)
 	if err != nil {
