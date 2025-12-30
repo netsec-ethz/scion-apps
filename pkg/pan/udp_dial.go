@@ -63,6 +63,10 @@ func DialUDP(
 ) (Conn, error) {
 	o := applyConnOpts(opts)
 
+	// Fill in wildcard address with the default local IP.
+	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
+		local = netip.AddrPortFrom(asCtx.LocalAddr(), local.Port())
+	}
 	sn := snet.SCIONNetwork{
 		Topology:    asCtx.Topology(),
 		SCMPHandler: o.scmpHandler,

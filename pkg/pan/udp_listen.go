@@ -66,6 +66,10 @@ func ListenUDP(ctx context.Context,
 	if selector == nil {
 		selector = NewDefaultReplySelector()
 	}
+	// Fill in wildcard address with the default local IP.
+	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
+		local = netip.AddrPortFrom(asCtx.LocalAddr(), local.Port())
+	}
 	stats.subscribe(selector)
 	sn := snet.SCIONNetwork{
 		// TODO(lukedirtwalker): Do we need something that refreshes interfaces,
