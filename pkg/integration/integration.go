@@ -200,12 +200,19 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 
 // hostAddr gets _a_ host address, the same way pan does, for a given IA
 func hostAddr(ia addr.IA) *snet.UDPAddr {
-	daemon, err := getSCIONDAddress(ia)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	sciondAddress, err := getSCIONDAddress(ia)
 	if err != nil {
 		log.Error("Failed to get sciond address", "err", err)
 		return nil
 	}
-	hostIP, err := defaultLocalIPAddress(daemon)
+	sciondConn, err := connSciond(ctx, sciondAddress)
+	if err != nil {
+		log.Error("Failed to get sciond address", "err", err)
+		return nil
+	}
+	hostIP, err := addrutil.DefaultLocalIP(ctx, daemon.TopoQuerier{Connector: sciondConn})
 	if err != nil {
 		log.Error("Failed to get valid host IP", "err", err)
 		return nil
@@ -217,35 +224,12 @@ func getSCIONDAddress(ia addr.IA) (addr string, err error) {
 	return sintegration.GetSCIONDAddress(sintegration.GenFile(sintegration.SCIONDAddressesFile), ia)
 }
 
-func defaultLocalIPAddress(sciondAddress string) (net.IP, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	sciondConn, err := connSciond(ctx, sciondAddress)
-	if err != nil {
-		return nil, err
-	}
-	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
-	if err != nil {
-		return nil, err
-	}
-	return addrutil.ResolveLocal(hostInLocalAS)
-}
-
 func connSciond(ctx context.Context, sciondAddress string) (daemon.Connector, error) {
 	sciondConn, err := daemon.NewService(sciondAddress).Connect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON): %w", sciondAddress, err)
 	}
 	return sciondConn, nil
-}
-
-// findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
-func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net.IP, error) {
-	bsAddr, err := daemon.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
-	if err != nil {
-		return nil, err
-	}
-	return bsAddr.IP, nil
 }
 
 func iaIPtoString(addr *snet.UDPAddr) string {
