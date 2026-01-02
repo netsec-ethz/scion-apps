@@ -28,7 +28,7 @@ var (
 	AvailablePathSelectors = []string{"default", "ping", "round-robin", "random"}
 )
 
-func selectorByName(name string) (pan.Selector, error) {
+func selectorByName(name string, asCtx pan.ASContext) (pan.Selector, error) {
 	switch name {
 	case "default":
 		return pan.NewDefaultSelector(), nil
@@ -38,6 +38,7 @@ func selectorByName(name string) (pan.Selector, error) {
 		selector := &pan.PingingSelector{
 			Interval: 2 * time.Second,
 			Timeout:  time.Second,
+			ASCtx:    asCtx,
 		}
 		selector.SetActive(4)
 		return selector, nil

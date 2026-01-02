@@ -15,7 +15,6 @@
 package pan
 
 import (
-	"fmt"
 	"net"
 	"net/netip"
 	"sync"
@@ -193,35 +192,5 @@ func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 			"SCMP error encountered", "type", scmp.Type(),
 			"code", scmp.Code(), "host", pkt.Source.Host, "source", pkt.Source.IA)
 		return nil
-	}
-}
-
-type SCMPError struct {
-	typeCode slayers.SCMPTypeCode
-	// ErrorIA is the source IA of the SCMP error message
-	ErrorIA addr.IA
-	// ErrorIP is the source IP of the SCMP error message
-	ErrorIP netip.Addr
-	// TODO: include quote information (pkt destinition, path, ...)
-}
-
-func (e SCMPError) Error() string {
-	return fmt.Sprintf("SCMP %s from %s,%s", e.typeCode.String(), e.ErrorIA, e.ErrorIP)
-}
-
-func (e SCMPError) Temporary() bool {
-	switch e.typeCode.Type() {
-	case slayers.SCMPTypeDestinationUnreachable:
-		return false
-	case slayers.SCMPTypePacketTooBig:
-		return false
-	case slayers.SCMPTypeParameterProblem:
-		return false
-	case slayers.SCMPTypeExternalInterfaceDown:
-		return true
-	case slayers.SCMPTypeInternalConnectivityDown:
-		return true
-	default:
-		panic("invalid error code")
 	}
 }

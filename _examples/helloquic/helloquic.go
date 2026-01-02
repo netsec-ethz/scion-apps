@@ -125,6 +125,7 @@ func runClient(asCtx pan.ASContext, address string, count int) error {
 	selector := &pan.PingingSelector{
 		Interval: 2 * time.Second,
 		Timeout:  time.Second,
+		ASCtx:    asCtx,
 	}
 	selector.SetActive(2)
 	session, err := pan.DialQUIC(context.Background(), asCtx, netip.AddrPort{}, addr, "", tlsCfg, &quic.Config{}, pan.WithSelector(selector))

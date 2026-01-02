@@ -52,7 +52,13 @@ func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 	if err != nil {
 		return nil, err
 	}
-	session, err := pan.DialQUICEarly(ctx, d.ASContext, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
+
+	asCtx := d.ASContext
+	if asCtx == nil {
+		asCtx = pan.MustLoadDefaultASContext()
+	}
+
+	session, err := pan.DialQUICEarly(ctx, asCtx, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}

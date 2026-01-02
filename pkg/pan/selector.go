@@ -195,6 +195,9 @@ func (s *PingingSelector) ensureRunning() {
 	if s.pinger != nil {
 		return
 	}
+	if s.ASCtx == nil {
+		panic("PingingSelector requires ASCtx to be set")
+	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
 	local := s.local.snetUDPAddr()
 	pinger, err := ping.NewPinger(s.pingerCtx, s.ASCtx.Topology(), local)
