@@ -91,7 +91,8 @@ func main() {
 	kingpin.Flag("bind", "Address to bind on").Default("localhost:8888").TCPVar(&bindAddress)
 	kingpin.Parse()
 
-	transport, dialer := shttp.NewTransport(nil, nil)
+	asCtx := pan.MustLoadDefaultASContext()
+	transport, dialer := shttp.NewTransport(asCtx, nil, nil)
 
 	proxy := &proxyHandler{
 		transport: transport,

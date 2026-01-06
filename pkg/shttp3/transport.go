@@ -27,12 +27,15 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
-// DefaultTransport is the default RoundTripper that can be used for HTTP/3
+// NewDefaultTransport creates a new RoundTripper that can be used for HTTP/3
 // over SCION.
-var DefaultTransport = &http3.Transport{
-	Dial: (&Dialer{
-		Policy: nil,
-	}).Dial,
+func NewDefaultTransport(asCtx pan.ASContext) *http3.Transport {
+	return &http3.Transport{
+		Dial: (&Dialer{
+			ASContext: asCtx,
+			Policy:    nil,
+		}).Dial,
+	}
 }
 
 // Dialer dials a QUIC connection over SCION.
@@ -45,6 +48,7 @@ type Dialer struct {
 }
 
 // Dial dials a QUIC connection over SCION.
+// Note: The Dialer must have its ASContext field set before calling this method.
 func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 	cfg *quic.Config) (*quic.Conn, error) {
 
@@ -53,12 +57,7 @@ func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 		return nil, err
 	}
 
-	asCtx := d.ASContext
-	if asCtx == nil {
-		asCtx = pan.MustLoadDefaultASContext() //nolint:contextcheck
-	}
-
-	session, err := pan.DialQUICEarly(ctx, asCtx, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
+	session, err := pan.DialQUICEarly(ctx, d.ASContext, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}

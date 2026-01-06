@@ -176,7 +176,7 @@ func main() {
 		}
 
 		local := netip.AddrPortFrom(netip.Addr{}, uint16(port))
-		err = sshClient.StartTunnel(local, localForward[1])
+		err = sshClient.StartTunnel(asCtx, local, localForward[1])
 		if err != nil {
 			golog.Panicf("Error starting tunnel: %v", err)
 		}

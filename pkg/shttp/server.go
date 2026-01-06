@@ -30,28 +30,31 @@ import (
 // Server wraps a http.Server making it work with SCION
 type Server struct {
 	*http.Server
+	ASContext pan.ASContext
 }
 
 // ListenAndServe listens for HTTP connections on the SCION address addr and calls Serve
-// with handler to handle requests
-func ListenAndServe(addr string, handler http.Handler) error {
+// with handler to handle requests.
+func ListenAndServe(asCtx pan.ASContext, addr string, handler http.Handler) error {
 	s := &Server{
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: handler,
 		},
+		ASContext: asCtx,
 	}
 	return s.ListenAndServe()
 }
 
-// ListenAndServe listens for HTTPS connections on the SCION address addr and calls Serve
-// with handler to handle requests
-func ListenAndServeTLS(addr, certFile, keyFile string, handler http.Handler) error {
+// ListenAndServeTLS listens for HTTPS connections on the SCION address addr and calls Serve
+// with handler to handle requests.
+func ListenAndServeTLS(asCtx pan.ASContext, addr, certFile, keyFile string, handler http.Handler) error {
 	s := &Server{
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: handler,
 		},
+		ASContext: asCtx,
 	}
 	return s.ListenAndServeTLS(certFile, keyFile)
 }
@@ -67,9 +70,10 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 }
 
 // ListenAndServe listens for QUIC connections on srv.Addr and
-// calls Serve to handle incoming requests
+// calls Serve to handle incoming requests.
+// Note: The Server must have its ASContext field set before calling this method.
 func (srv *Server) ListenAndServe() error {
-	listener, err := listen(srv.Addr)
+	listener, err := srv.listen()
 	if err != nil {
 		return err
 	}
@@ -77,8 +81,11 @@ func (srv *Server) ListenAndServe() error {
 	return srv.Server.Serve(listener)
 }
 
+// ListenAndServeTLS listens for QUIC connections on srv.Addr and
+// calls ServeTLS to handle incoming requests.
+// Note: The Server must have its ASContext field set before calling this method.
 func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
-	listener, err := listen(srv.Addr)
+	listener, err := srv.listen()
 	if err != nil {
 		return err
 	}
@@ -86,24 +93,22 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	return srv.Server.ServeTLS(listener, certFile, keyFile)
 }
 
-func listen(addr string) (net.Listener, error) {
+func (srv *Server) listen() (net.Listener, error) {
 	tlsCfg := &tls.Config{
 		NextProtos:   []string{quicutil.SingleStreamProto},
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
-	laddr, err := pan.ParseOptionalIPPort(addr)
+	laddr, err := pan.ParseOptionalIPPort(srv.Addr)
 	if err != nil {
 		return nil, err
 	}
 
-	asCtx := pan.MustLoadDefaultASContext()
-
 	localAddr := &snet.UDPAddr{
-		IA:   asCtx.IA(),
+		IA:   srv.ASContext.IA(),
 		Host: net.UDPAddrFromAddrPort(laddr),
 	}
 
-	quicListener, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
+	quicListener, err := pan.ListenQUIC(context.Background(), srv.ASContext, localAddr, tlsCfg, &quic.Config{}, nil)
 	if err != nil {
 		return nil, err
 	}

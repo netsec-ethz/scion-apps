@@ -197,12 +197,10 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 // StartTunnel creates a new tunnel to the given address, forwarding all
 // connections on the given port over the server to the given address. If the
 // given address is a SCION address, QUIC is used; else TCP.
-func (client *Client) StartTunnel(local netip.AddrPort, addr string) error {
+// The asCtx parameter is required when the address is a SCION address.
+func (client *Client) StartTunnel(asCtx pan.ASContext, local netip.AddrPort, addr string) error {
 	var localListener net.Listener
 	if strings.Contains(addr, ",") {
-		// Initialize SCION AS context
-		asCtx := pan.MustLoadDefaultASContext()
-
 		tlsConf := &tls.Config{
 			NextProtos: []string{quicutil.SingleStreamProto},
 		}

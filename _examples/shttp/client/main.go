@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -36,9 +37,11 @@ func main() {
 		os.Exit(2)
 	}
 
+	asCtx := pan.MustLoadDefaultASContext()
+
 	// Create a standard client with our custom Transport/Dialer
 	c := &http.Client{
-		Transport: shttp.DefaultTransport,
+		Transport: shttp.NewDefaultTransport(asCtx),
 	}
 
 	// Make a get request

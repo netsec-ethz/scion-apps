@@ -30,21 +30,24 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 )
 
-// DefaultTransport is the default RoundTripper that can be used for HTTP over
+// NewDefaultTransport creates a new RoundTripper that can be used for HTTP over
 // SCION/QUIC.
 // This is equivalent to net/http.DefaultTransport with DialContext overridden
 // to use shttp.Dialer, which dials connections over SCION/QUIC.
-var DefaultTransport = &http.Transport{
-	Proxy: http.ProxyFromEnvironment,
-	DialContext: (&Dialer{
-		QuicConfig: nil,
-		Policy:     nil,
-	}).DialContext,
-	ForceAttemptHTTP2:     true,
-	MaxIdleConns:          100,
-	IdleConnTimeout:       90 * time.Second,
-	TLSHandshakeTimeout:   10 * time.Second,
-	ExpectContinueTimeout: 1 * time.Second,
+func NewDefaultTransport(asCtx pan.ASContext) *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&Dialer{
+			ASContext:  asCtx,
+			QuicConfig: nil,
+			Policy:     nil,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 }
 
 // NewTransport creates a new RoundTripper that can be used for HTTP over
@@ -52,12 +55,13 @@ var DefaultTransport = &http.Transport{
 // This equivalent to net/http.DefaultTransport with an overridden DialContext.
 // Both the Transport and the Dialer are returned, as the Dialer is not otherwise
 // accessible from the Transport.
-func NewTransport(quicCfg *quic.Config, policy pan.Policy) (*http.Transport, *Dialer) {
+func NewTransport(asCtx pan.ASContext, quicCfg *quic.Config, policy pan.Policy) (*http.Transport, *Dialer) {
 	dialer := &Dialer{
+		ASContext:  asCtx,
 		QuicConfig: quicCfg,
 		Policy:     policy,
 	}
-	transport := DefaultTransport.Clone()
+	transport := NewDefaultTransport(asCtx)
 	transport.DialContext = dialer.DialContext
 	return transport, dialer
 }
@@ -74,6 +78,7 @@ type Dialer struct {
 
 // DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
 // as the DialContext function in net/http.Transport.
+// Note: The Dialer must have its ASContext field set before calling this method.
 func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	tlsCfg := &tls.Config{
 		NextProtos:         []string{quicutil.SingleStreamProto},
@@ -85,12 +90,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		return nil, err
 	}
 
-	asCtx := d.ASContext
-	if asCtx == nil {
-		asCtx = pan.MustLoadDefaultASContext() //nolint:contextcheck
-	}
-
-	session, err := pan.DialQUIC(ctx, asCtx, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
+	session, err := pan.DialQUIC(ctx, d.ASContext, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}
