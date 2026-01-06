@@ -43,9 +43,10 @@ func DefaultPathPoolConfig() PathPoolConfig {
 	}
 }
 
-func NewPathPool(pathSource PathSource, config PathPoolConfig) *PathPool {
+func NewPathPool(pathSource PathSource, stats *pathStatsDB, config PathPoolConfig) *PathPool {
 	p := &PathPool{
 		pathSource: pathSource,
+		stats:      stats,
 		entries:    make(map[addr.IA]pathPoolDst),
 		config:     config,
 	}
@@ -60,6 +61,7 @@ func NewPathPool(pathSource PathSource, config PathPoolConfig) *PathPool {
 
 type PathPool struct {
 	pathSource   PathSource
+	stats        *pathStatsDB
 	refresher    refresher
 	entriesMutex sync.RWMutex
 	entries      map[addr.IA]pathPoolDst
@@ -87,13 +89,13 @@ func (p *PathPool) subscribe(
 	if err != nil {
 		return nil, err
 	}
-	stats.subscribe(s)
+	p.stats.subscribe(s)
 	return paths, nil
 }
 
 func (p *PathPool) unsubscribe(dstIA addr.IA, s pathPoolSubscriber) {
 	p.refresher.unsubscribe(dstIA, s)
-	stats.unsubscribe(s)
+	p.stats.unsubscribe(s)
 }
 
 // paths returns paths to dstIA. This _may_ query paths, unless they have recently been queried.
@@ -113,7 +115,7 @@ func (p *PathPool) paths(ctx context.Context, dstIA addr.IA) ([]*Path, bool, err
 	return paths, true, nil
 }
 
-// queryPaths returns paths to dstIA. Unconditionally requests paths from sciond.
+// QueryPaths returns paths to dstIA. Unconditionally requests paths from sciond.
 func (p *PathPool) QueryPaths(ctx context.Context, dstIA addr.IA) ([]*Path, error) {
 	paths, err := p.pathSource.Paths(ctx, dstIA)
 	if err != nil {

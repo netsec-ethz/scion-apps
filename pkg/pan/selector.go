@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/snet"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan/internal/ping"
 )
@@ -36,7 +37,7 @@ type Selector interface {
 	// Initialize the selector for a connection with the initial list of paths,
 	// filtered/ordered by the Policy.
 	// Invoked once during the creation of a Conn.
-	Initialize(local, remote UDPAddr, paths []*Path)
+	Initialize(local, remote UDPAddr, paths []*Path, asCtx ASContext)
 	// Refresh updates the paths. This is called whenever the Policy is changed or
 	// when paths were about to expire and are refreshed from the SCION daemon.
 	// The set and order of paths may differ from previous invocations.
@@ -57,6 +58,7 @@ type Selector interface {
 // affected by down notifications.
 type DefaultSelector struct {
 	mutex   sync.Mutex
+	stats   *pathStatsDB
 	paths   []*Path
 	current int
 }
@@ -75,10 +77,13 @@ func (s *DefaultSelector) Path(_ context.Context) *Path {
 	return s.paths[s.current]
 }
 
-func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path) {
+func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path, asCtx ASContext) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	if asCtx != nil {
+		s.stats = asCtx.Stats()
+	}
 	s.paths = paths
 	s.current = 0
 }
@@ -105,9 +110,12 @@ func (s *DefaultSelector) PathDown(pf PathFingerprint, pi PathInterface) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	if s.stats == nil {
+		return
+	}
 	if current := s.paths[s.current]; isInterfaceOnPath(current, pi) || pf == current.Fingerprint {
 		fmt.Println("down:", s.current, len(s.paths))
-		better := stats.FirstMoreAlive(current, s.paths)
+		better := s.stats.FirstMoreAlive(current, s.paths)
 		if better >= 0 {
 			// Try next path. Note that this will keep cycling if we get down notifications
 			s.current = better
@@ -125,14 +133,14 @@ type PingingSelector struct {
 	Interval time.Duration
 	// Timeout for the individual pings. Must be positive and less than Interval.
 	Timeout time.Duration
-	// ASCtx is the AS context for looking up paths.
-	ASCtx ASContext
 
-	mutex   sync.Mutex
-	paths   []*Path
-	current int
-	local   SCIONAddr
-	remote  SCIONAddr
+	mutex    sync.Mutex
+	stats    *pathStatsDB
+	topology snet.Topology
+	paths    []*Path
+	current  int
+	local    SCIONAddr
+	remote   SCIONAddr
 
 	numActive    int64
 	pingerCtx    context.Context
@@ -156,14 +164,16 @@ func (s *PingingSelector) Path(_ context.Context) *Path {
 	return s.paths[s.current]
 }
 
-func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path) {
+func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path, asCtx ASContext) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	s.stats = asCtx.Stats()
+	s.topology = asCtx.Topology()
 	s.local = local.scionAddr()
 	s.remote = remote.scionAddr()
 	s.paths = paths
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	s.current = s.stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) Refresh(paths []*Path) {
@@ -171,7 +181,7 @@ func (s *PingingSelector) Refresh(paths []*Path) {
 	defer s.mutex.Unlock()
 
 	s.paths = paths
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	s.current = s.stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) PathDown(pf PathFingerprint, pi PathInterface) {
@@ -182,7 +192,7 @@ func (s *PingingSelector) reselectPath() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	s.current = s.stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) ensureRunning() {
@@ -195,12 +205,12 @@ func (s *PingingSelector) ensureRunning() {
 	if s.pinger != nil {
 		return
 	}
-	if s.ASCtx == nil {
-		panic("PingingSelector requires ASCtx to be set")
+	if s.stats == nil {
+		panic("PingingSelector requires Initialize to be called first")
 	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
 	local := s.local.snetUDPAddr()
-	pinger, err := ping.NewPinger(s.pingerCtx, s.ASCtx.Topology(), local)
+	pinger, err := ping.NewPinger(s.pingerCtx, s.topology, local)
 	if err != nil {
 		return
 	}
@@ -256,7 +266,7 @@ func (s *PingingSelector) run() {
 				continue // already handled above
 			}
 			for pf := range replyPending {
-				stats.RecordLatency(s.remote, pf, s.Timeout)
+				s.stats.RecordLatency(s.remote, pf, s.Timeout)
 				delete(replyPending, pf)
 			}
 			s.reselectPath()
@@ -294,13 +304,13 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 				IA:   e.IA,
 				IfID: IfID(e.Egress),
 			}
-			stats.NotifyPathDown(pf, pi)
+			s.stats.NotifyPathDown(pf, pi)
 		case ping.ExternalInterfaceDownError:
 			pi := PathInterface{
 				IA:   e.IA,
 				IfID: IfID(e.Interface),
 			}
-			stats.NotifyPathDown(pf, pi)
+			s.stats.NotifyPathDown(pf, pi)
 		}
 		return
 	}
@@ -323,7 +333,7 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 	if _, expected := expectedReplies[pf]; !expected {
 		return
 	}
-	stats.RecordLatency(s.remote, pf, reply.RTT())
+	s.stats.RecordLatency(s.remote, pf, reply.RTT())
 	delete(expectedReplies, pf)
 }
 

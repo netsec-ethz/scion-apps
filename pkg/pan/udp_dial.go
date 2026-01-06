@@ -61,7 +61,7 @@ func DialUDP(
 	remote UDPAddr,
 	opts ...ConnOptions,
 ) (Conn, error) {
-	o := applyConnOpts(opts)
+	o := applyConnOpts(asCtx.Stats(), opts)
 
 	// Fill in wildcard address with the default local IP.
 	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
@@ -83,7 +83,7 @@ func DialUDP(
 	}
 	var subscriber *pathRefreshSubscriber
 	if remote.IA != localUDPAddr.IA {
-		subscriber, err = openPathRefreshSubscriber(ctx, asCtx.PathPool(), localUDPAddr, remote, o.policy, o.selector)
+		subscriber, err = openPathRefreshSubscriber(ctx, asCtx.PathPool(), localUDPAddr, remote, asCtx, o.policy, o.selector)
 		if err != nil {
 			return nil, err
 		}
@@ -134,9 +134,9 @@ type connOptions struct {
 	policy      Policy
 }
 
-func applyConnOpts(opts []ConnOptions) connOptions {
+func applyConnOpts(stats *pathStatsDB, opts []ConnOptions) connOptions {
 	o := connOptions{
-		scmpHandler: DefaultSCMPHandler{},
+		scmpHandler: DefaultSCMPHandler{Stats: stats},
 		selector:    NewDefaultSelector(),
 	}
 	for _, opt := range opts {
@@ -247,7 +247,7 @@ type pathRefreshSubscriber struct {
 	target   Selector
 }
 
-func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remote UDPAddr, policy Policy,
+func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remote UDPAddr, asCtx ASContext, policy Policy,
 	target Selector,
 ) (*pathRefreshSubscriber, error) {
 	s := &pathRefreshSubscriber{
@@ -260,7 +260,7 @@ func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remot
 	if err != nil {
 		return nil, err
 	}
-	s.target.Initialize(local, remote, filtered(s.policy, paths))
+	s.target.Initialize(local, remote, filtered(s.policy, paths), asCtx)
 	return s, nil
 }
 

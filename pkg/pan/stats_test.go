@@ -23,7 +23,7 @@ import (
 )
 
 func TestNotifyPathDown(t *testing.T) {
-	stats = newPathStatsDB()
+	stats := newPathStatsDB()
 
 	pf := PathFingerprint("x")
 	pi := PathInterface{
@@ -57,7 +57,7 @@ func (s *dummyPathDownSubscriber) PathDown(_ PathFingerprint, _ PathInterface) {
 }
 
 func TestRecordLatency(t *testing.T) {
-	stats = newPathStatsDB()
+	stats := newPathStatsDB()
 
 	dst := mustParseSCIONAddr("1-ff00:0:110,192.0.2.1")
 	p := PathFingerprint("x")

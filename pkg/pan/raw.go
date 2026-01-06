@@ -152,7 +152,9 @@ func (c *baseUDPConn) Close() error {
 	return c.raw.Close()
 }
 
-type DefaultSCMPHandler struct{}
+type DefaultSCMPHandler struct {
+	Stats *pathStatsDB
+}
 
 func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 	scmp := pkt.Payload.(snet.SCMPPayload)
@@ -168,7 +170,9 @@ func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 			return nil //nolint:nilerr
 		}
 		// FIXME: can block _all_ connections, call async (or internally async)
-		stats.NotifyPathDown(pf, pi)
+		if h.Stats != nil {
+			h.Stats.NotifyPathDown(pf, pi)
+		}
 		return nil
 	case slayers.SCMPTypeInternalConnectivityDown:
 		msg := pkt.Payload.(snet.SCMPInternalConnectivityDown)
@@ -180,7 +184,9 @@ func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 		if err != nil {
 			return nil //nolint:nilerr
 		}
-		stats.NotifyPathDown(pf, pi)
+		if h.Stats != nil {
+			h.Stats.NotifyPathDown(pf, pi)
+		}
 		return nil
 	// Packet too big errors can happen when QUIC probes for the MTU.
 	case slayers.SCMPTypePacketTooBig:

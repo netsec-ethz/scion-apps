@@ -39,7 +39,7 @@ func dialSCION(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	sel, err := selectorByName(selector, asCtx)
+	sel, err := selectorByName(selector)
 	if err != nil {
 		return nil, err
 	}

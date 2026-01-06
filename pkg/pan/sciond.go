@@ -37,6 +37,7 @@ type hostContext struct {
 	addr        netip.Addr
 	pathQuerier *PathQuerier
 	pool        *PathPool
+	stats       *pathStatsDB
 }
 
 type ASContext interface {
@@ -48,6 +49,8 @@ type ASContext interface {
 	LocalAddr() netip.Addr
 	// PathPool returns the path pool for this context.
 	PathPool() *PathPool
+	// Stats returns the path statistics database for this context.
+	Stats() *pathStatsDB
 }
 
 const (
@@ -117,10 +120,14 @@ func LoadASContext(ctx context.Context) (ASContext, error) {
 	// Create path querier for fetching paths from SCIOND
 	pathQuerier := NewPathQuerier(localIA, sciondConn, interfaces)
 
+	// Create stats database for path statistics
+	stats := newPathStatsDB()
+
 	hc := &hostContext{
 		ia:          localIA,
 		addr:        localAddr,
 		pathQuerier: pathQuerier,
+		stats:       &stats,
 		topology: snet.Topology{
 			LocalIA: localIA,
 			PortRange: snet.TopologyPortRange{
@@ -131,7 +138,7 @@ func LoadASContext(ctx context.Context) (ASContext, error) {
 		},
 	}
 	// Create path pool with pathQuerier as the PathSource.
-	hc.pool = NewPathPool(pathQuerier, DefaultPathPoolConfig())
+	hc.pool = NewPathPool(pathQuerier, hc.stats, DefaultPathPoolConfig())
 
 	return hc, nil
 }
@@ -150,4 +157,8 @@ func (h *hostContext) LocalAddr() netip.Addr {
 
 func (h *hostContext) PathPool() *PathPool {
 	return h.pool
+}
+
+func (h *hostContext) Stats() *pathStatsDB {
+	return h.stats
 }

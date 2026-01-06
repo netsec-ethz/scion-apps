@@ -36,7 +36,7 @@ type ReplySelector interface {
 	Path(remote UDPAddr) *Path
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
-	Initialize(local UDPAddr)
+	Initialize(local UDPAddr, asCtx ASContext)
 	// Record a path used by the remote for a packet received.
 	// Invoked whenever a packet is received.
 	// The path is reversed, i.e. it's the path from here to remote.
@@ -70,12 +70,12 @@ func ListenUDP(ctx context.Context,
 	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
 		local = netip.AddrPortFrom(asCtx.LocalAddr(), local.Port())
 	}
-	stats.subscribe(selector)
+	asCtx.Stats().subscribe(selector)
 	sn := snet.SCIONNetwork{
 		// TODO(lukedirtwalker): Do we need something that refreshes interfaces,
 		// because we don't fetch paths here?
 		Topology:    asCtx.Topology(),
-		SCMPHandler: DefaultSCMPHandler{},
+		SCMPHandler: DefaultSCMPHandler{Stats: asCtx.Stats()},
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
@@ -87,7 +87,7 @@ func ListenUDP(ctx context.Context,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
-	selector.Initialize(localUDPAddr)
+	selector.Initialize(localUDPAddr, asCtx)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", localUDPAddr)
@@ -99,6 +99,7 @@ func ListenUDP(ctx context.Context,
 		},
 		local:    localUDPAddr,
 		selector: selector,
+		stats:    asCtx.Stats(),
 	}, nil
 }
 
@@ -107,6 +108,7 @@ type listenConn struct {
 
 	local    UDPAddr
 	selector ReplySelector
+	stats    *pathStatsDB
 }
 
 func (c *listenConn) LocalAddr() net.Addr {
@@ -148,7 +150,7 @@ func (c *listenConn) WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error) 
 }
 
 func (c *listenConn) Close() error {
-	stats.unsubscribe(c.selector)
+	c.stats.unsubscribe(c.selector)
 	// FIXME: multierror!
 	_ = c.selector.Close()
 	return c.baseUDPConn.Close()
@@ -165,7 +167,7 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 	}
 }
 
-func (s *DefaultReplySelector) Initialize(local UDPAddr) {
+func (s *DefaultReplySelector) Initialize(local UDPAddr, asCtx ASContext) {
 }
 
 func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {

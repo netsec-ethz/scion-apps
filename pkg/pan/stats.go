@@ -21,12 +21,6 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 )
 
-var stats pathStatsDB
-
-func init() {
-	stats = newPathStatsDB()
-}
-
 type PathStats struct {
 	// Was notified down at the recorded time (0 for never notified down)
 	IsNotifiedDown time.Time
