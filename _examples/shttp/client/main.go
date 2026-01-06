@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -37,11 +38,14 @@ func main() {
 		os.Exit(2)
 	}
 
-	asCtx := pan.MustLoadDefaultASContext()
+	p, err := pan.New(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Create a standard client with our custom Transport/Dialer
 	c := &http.Client{
-		Transport: shttp.NewDefaultTransport(asCtx),
+		Transport: shttp.NewDefaultTransport(p),
 	}
 
 	// Make a get request

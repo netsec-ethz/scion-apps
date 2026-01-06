@@ -45,8 +45,11 @@ func main() {
 	hosts := kingpin.Arg("hosts", "Hostnames for hosts to proxy").Required().Strings()
 	kingpin.Parse()
 
-	// Initialize SCION AS context once
-	asCtx := pan.MustLoadDefaultASContext()
+	// Initialize SCION PAN once
+	p, err := pan.New(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Proxy HTTP:
 	mux := http.NewServeMux()
@@ -76,7 +79,7 @@ func main() {
 		mux,
 	)
 	go func() {
-		log.Fatalf("%s", shttp.ListenAndServe(asCtx, ":80", loggedMux))
+		log.Fatalf("%s", shttp.ListenAndServe(p, ":80", loggedMux))
 	}()
 
 	// For HTTPS, forward the entire TLS traffic data
@@ -84,13 +87,13 @@ func main() {
 	for _, h := range *hosts {
 		hostSet[h] = struct{}{}
 	}
-	log.Fatalf("%s", forwardTLS(asCtx, hostSet))
+	log.Fatalf("%s", forwardTLS(p, hostSet))
 }
 
 // forwardTLS listens on 443 and forwards each sessions to the corresponding
 // TCP/IP host identified by SNI
-func forwardTLS(asCtx pan.ASContext, hosts map[string]struct{}) error {
-	listener, err := listen(asCtx, netip.AddrPortFrom(netip.Addr{}, 443))
+func forwardTLS(p *pan.PAN, hosts map[string]struct{}) error {
+	listener, err := listen(p, netip.AddrPortFrom(netip.Addr{}, 443))
 	if err != nil {
 		return err
 	}
@@ -164,9 +167,9 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 	}
 }
 
-func listen(asCtx pan.ASContext, laddr netip.AddrPort) (*quic.EarlyListener, error) {
+func listen(p *pan.PAN, laddr netip.AddrPort) (*quic.EarlyListener, error) {
 	localAddr := &snet.UDPAddr{
-		IA:   asCtx.IA(),
+		IA:   p.IA(),
 		Host: net.UDPAddrFromAddrPort(laddr),
 	}
 
@@ -174,5 +177,5 @@ func listen(asCtx pan.ASContext, laddr netip.AddrPort) (*quic.EarlyListener, err
 		NextProtos:   []string{quicutil.SingleStreamProto},
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
-	return pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
+	return p.ListenQUIC(context.Background(), localAddr, tlsCfg, &quic.Config{}, nil)
 }

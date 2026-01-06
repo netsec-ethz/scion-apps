@@ -28,13 +28,13 @@ import (
 // Server wraps a http3.Server making it work with SCION
 type Server struct {
 	*http3.Server
-	ASContext pan.ASContext
+	PAN *pan.PAN
 }
 
 // ListenAndServe listens on the SCION/UDP address addr and calls the handler
 // for HTTP/3 requests on incoming connections. http.DefaultServeMux is used
 // when handler is nil.
-func ListenAndServe(asCtx pan.ASContext, addr string, certFile, keyFile string, handler http.Handler) error {
+func ListenAndServe(p *pan.PAN, addr string, certFile, keyFile string, handler http.Handler) error {
 	var err error
 	certs := make([]tls.Certificate, 1)
 	certs[0], err = tls.LoadX509KeyPair(certFile, keyFile)
@@ -49,21 +49,21 @@ func ListenAndServe(asCtx pan.ASContext, addr string, certFile, keyFile string, 
 				Certificates: certs,
 			},
 		},
-		ASContext: asCtx,
+		PAN: p,
 	}
 	return s.ListenAndServe()
 }
 
 // ListenAndServe listens on the UDP address s.Addr and calls s.Handler to
 // handle HTTP/3 requests on incoming connections.
-// Note: The Server must have its ASContext field set before calling this method.
+// Note: The Server must have its PAN field set before calling this method.
 func (s *Server) ListenAndServe() error {
 	laddr, err := pan.ParseOptionalIPPort(s.Addr)
 	if err != nil {
 		return err
 	}
 
-	sconn, err := pan.ListenUDP(context.Background(), s.ASContext, laddr, nil)
+	sconn, err := s.PAN.ListenUDP(context.Background(), laddr, nil)
 	if err != nil {
 		return err
 	}

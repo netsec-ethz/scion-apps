@@ -86,9 +86,12 @@ func main() {
 		golog.Panicf("Error creating ssh server: %v", err)
 	}
 
-	asCtx := pan.MustLoadDefaultASContext()
+	p, err := pan.New(context.Background())
+	if err != nil {
+		golog.Fatalf("Error creating pan client: %v", err)
+	}
 
-	sshServer.SetASContext(asCtx)
+	sshServer.SetPAN(p)
 
 	port, err := strconv.ParseUint(conf.Port, 10, 16)
 	if err != nil {
@@ -102,10 +105,10 @@ func main() {
 		NextProtos:   []string{quicutil.SingleStreamProto},
 	}
 	localAddr := &snet.UDPAddr{
-		IA:   asCtx.IA(),
+		IA:   p.IA(),
 		Host: net.UDPAddrFromAddrPort(local),
 	}
-	ql, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsConf, &quic.Config{}, nil)
+	ql, err := p.ListenQUIC(context.Background(), localAddr, tlsConf, &quic.Config{}, nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}

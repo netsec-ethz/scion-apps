@@ -21,6 +21,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"flag"
@@ -130,13 +131,16 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Initialize SCION AS context and transport
-	asCtx := pan.MustLoadDefaultASContext()
+	// Initialize SCION PAN and transport
+	p, err := pan.New(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defaultSetting.Transport, _ = shttp.NewTransport(asCtx, nil, policy)
+	defaultSetting.Transport, _ = shttp.NewTransport(p, nil, policy)
 
 	args := flag.Args()
 	if len(args) > 0 {

@@ -54,21 +54,20 @@ type Conn interface {
 // a path among this set for each Write operation.
 // If the policy is nil, all paths are allowed.
 // If the selector is nil, a DefaultSelector is used.
-func DialUDP(
+func (p *PAN) DialUDP(
 	ctx context.Context,
-	asCtx ASContext,
 	local netip.AddrPort,
 	remote UDPAddr,
 	opts ...ConnOptions,
 ) (Conn, error) {
-	o := applyConnOpts(asCtx.Stats(), opts)
+	o := applyConnOpts(p.stats, opts)
 
 	// Fill in wildcard address with the default local IP.
 	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
-		local = netip.AddrPortFrom(asCtx.LocalAddr(), local.Port())
+		local = netip.AddrPortFrom(p.addr, local.Port())
 	}
 	sn := snet.SCIONNetwork{
-		Topology:    asCtx.Topology(),
+		Topology:    p.topology,
 		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
@@ -77,13 +76,13 @@ func DialUDP(
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   asCtx.IA(),
+		IA:   p.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
 	var subscriber *pathRefreshSubscriber
 	if remote.IA != localUDPAddr.IA {
-		subscriber, err = openPathRefreshSubscriber(ctx, asCtx.PathPool(), localUDPAddr, remote, asCtx, o.policy, o.selector)
+		subscriber, err = openPathRefreshSubscriber(ctx, p.pool, localUDPAddr, remote, p, o.policy, o.selector)
 		if err != nil {
 			return nil, err
 		}
@@ -247,7 +246,7 @@ type pathRefreshSubscriber struct {
 	target   Selector
 }
 
-func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remote UDPAddr, asCtx ASContext, policy Policy,
+func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remote UDPAddr, p *PAN, policy Policy,
 	target Selector,
 ) (*pathRefreshSubscriber, error) {
 	s := &pathRefreshSubscriber{
@@ -260,7 +259,7 @@ func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remot
 	if err != nil {
 		return nil, err
 	}
-	s.target.Initialize(local, remote, filtered(s.policy, paths), asCtx)
+	s.target.Initialize(local, remote, filtered(s.policy, paths), p)
 	return s, nil
 }
 

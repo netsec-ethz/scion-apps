@@ -30,31 +30,31 @@ import (
 // Server wraps a http.Server making it work with SCION
 type Server struct {
 	*http.Server
-	ASContext pan.ASContext
+	PAN *pan.PAN
 }
 
 // ListenAndServe listens for HTTP connections on the SCION address addr and calls Serve
 // with handler to handle requests.
-func ListenAndServe(asCtx pan.ASContext, addr string, handler http.Handler) error {
+func ListenAndServe(p *pan.PAN, addr string, handler http.Handler) error {
 	s := &Server{
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: handler,
 		},
-		ASContext: asCtx,
+		PAN: p,
 	}
 	return s.ListenAndServe()
 }
 
 // ListenAndServeTLS listens for HTTPS connections on the SCION address addr and calls Serve
 // with handler to handle requests.
-func ListenAndServeTLS(asCtx pan.ASContext, addr, certFile, keyFile string, handler http.Handler) error {
+func ListenAndServeTLS(p *pan.PAN, addr, certFile, keyFile string, handler http.Handler) error {
 	s := &Server{
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: handler,
 		},
-		ASContext: asCtx,
+		PAN: p,
 	}
 	return s.ListenAndServeTLS(certFile, keyFile)
 }
@@ -71,7 +71,7 @@ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 
 // ListenAndServe listens for QUIC connections on srv.Addr and
 // calls Serve to handle incoming requests.
-// Note: The Server must have its ASContext field set before calling this method.
+// Note: The Server must have its PAN field set before calling this method.
 func (srv *Server) ListenAndServe() error {
 	listener, err := srv.listen()
 	if err != nil {
@@ -83,7 +83,7 @@ func (srv *Server) ListenAndServe() error {
 
 // ListenAndServeTLS listens for QUIC connections on srv.Addr and
 // calls ServeTLS to handle incoming requests.
-// Note: The Server must have its ASContext field set before calling this method.
+// Note: The Server must have its PAN field set before calling this method.
 func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	listener, err := srv.listen()
 	if err != nil {
@@ -104,11 +104,11 @@ func (srv *Server) listen() (net.Listener, error) {
 	}
 
 	localAddr := &snet.UDPAddr{
-		IA:   srv.ASContext.IA(),
+		IA:   srv.PAN.IA(),
 		Host: net.UDPAddrFromAddrPort(laddr),
 	}
 
-	quicListener, err := pan.ListenQUIC(context.Background(), srv.ASContext, localAddr, tlsCfg, &quic.Config{}, nil)
+	quicListener, err := srv.PAN.ListenQUIC(context.Background(), localAddr, tlsCfg, &quic.Config{}, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -58,7 +58,7 @@ func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := pan.DialUDP(context.Background(), asCtx, netip.AddrPort{}, remoteAddr, pan.WithPolicy(policy))
+	conn, err := p.DialUDP(context.Background(), netip.AddrPort{}, remoteAddr, pan.WithPolicy(policy))
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +68,8 @@ func DoDialUDP(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 
 // DoListenUDP listens on a UDP socket
 func DoListenUDP(port uint16) (chan io.ReadWriteCloser, error) {
-	conn, err := pan.ListenUDP(
+	conn, err := p.ListenUDP(
 		context.Background(),
-		asCtx,
 		netip.AddrPortFrom(netip.Addr{}, port),
 		nil,
 	)

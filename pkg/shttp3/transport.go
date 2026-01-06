@@ -29,11 +29,11 @@ import (
 
 // NewDefaultTransport creates a new RoundTripper that can be used for HTTP/3
 // over SCION.
-func NewDefaultTransport(asCtx pan.ASContext) *http3.Transport {
+func NewDefaultTransport(p *pan.PAN) *http3.Transport {
 	return &http3.Transport{
 		Dial: (&Dialer{
-			ASContext: asCtx,
-			Policy:    nil,
+			PAN:    p,
+			Policy: nil,
 		}).Dial,
 	}
 }
@@ -41,14 +41,14 @@ func NewDefaultTransport(asCtx pan.ASContext) *http3.Transport {
 // Dialer dials a QUIC connection over SCION.
 // This is the Dialer used for shttp3.DefaultTransport.
 type Dialer struct {
-	ASContext pan.ASContext
-	Local     netip.AddrPort
-	Policy    pan.Policy
-	sessions  []*pan.QUICSession
+	PAN      *pan.PAN
+	Local    netip.AddrPort
+	Policy   pan.Policy
+	sessions []*pan.QUICSession
 }
 
 // Dial dials a QUIC connection over SCION.
-// Note: The Dialer must have its ASContext field set before calling this method.
+// Note: The Dialer must have its PAN field set before calling this method.
 func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 	cfg *quic.Config) (*quic.Conn, error) {
 
@@ -57,7 +57,7 @@ func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 		return nil, err
 	}
 
-	session, err := pan.DialQUICEarly(ctx, d.ASContext, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
+	session, err := d.PAN.DialQUICEarly(ctx, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}

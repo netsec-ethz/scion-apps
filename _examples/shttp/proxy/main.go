@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -27,8 +28,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Initialize SCION AS context if needed for either listening or dialing over SCION
-	var asCtx pan.ASContext
+	// Initialize SCION PAN context if needed for either listening or dialing over SCION
+	p, err := pan.New(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 	//nolint:staticcheck
 	remoteMangled := shttp.MangleSCIONAddrURL(*remote)
 
@@ -38,7 +42,7 @@ func main() {
 	}
 	proxy := httputil.NewSingleHostReverseProxy(remoteURL)
 	if remoteMangled != *remote {
-		proxy.Transport = shttp.NewDefaultTransport(asCtx)
+		proxy.Transport = shttp.NewDefaultTransport(p)
 		log.Printf("Proxy to SCION remote %s\n", remoteURL)
 	} else {
 		log.Printf("Proxy to IP/TCP remote %s\n", remoteURL)
@@ -50,7 +54,7 @@ func main() {
 		log.Printf("Listen on SCION %s\n", local)
 		// ListenAndServe does not support listening on a complete SCION Address,
 		// Consequently, we only use the port (as seen in the server example)
-		log.Fatal(shttp.ListenAndServe(asCtx, local, handler))
+		log.Fatal(shttp.ListenAndServe(p, local, handler))
 	} else {
 		log.Printf("Listen on IP/TCP %s\n", local)
 		log.Fatal(http.ListenAndServe(local, handler))

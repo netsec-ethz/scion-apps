@@ -126,9 +126,9 @@ func (e HostNotFoundError) Error() string {
 
 // QueryPaths queries paths to a particular destination AS.
 //
-// Deprecated: Use Client.QueryPaths instead. This standalone function is deprecated
-// because it requires implicit global state. Create a Client with NewClient and use
+// Deprecated: Use PAN.QueryPaths instead. This standalone function is deprecated
+// because it requires implicit global state. Create a PAN with New and use
 // its QueryPaths method.
 func QueryPaths(ctx context.Context, dst addr.IA) ([]*Path, error) {
-	return nil, fmt.Errorf("QueryPaths is deprecated; use Client.QueryPaths instead")
+	return nil, fmt.Errorf("QueryPaths is deprecated; use PAN.QueryPaths instead")
 }

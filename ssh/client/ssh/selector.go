@@ -68,7 +68,7 @@ func (s *roundRobinSelector) Path(_ context.Context) *pan.Path {
 	return p
 }
 
-func (s *roundRobinSelector) Initialize(local, remote pan.UDPAddr, paths []*pan.Path, _ pan.ASContext) {
+func (s *roundRobinSelector) Initialize(local, remote pan.UDPAddr, paths []*pan.Path, _ *pan.PAN) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.paths = paths
@@ -107,7 +107,7 @@ func (s *randomSelector) Path(_ context.Context) *pan.Path {
 	return p
 }
 
-func (s *randomSelector) Initialize(local, remote pan.UDPAddr, paths []*pan.Path, _ pan.ASContext) {
+func (s *randomSelector) Initialize(local, remote pan.UDPAddr, paths []*pan.Path, _ *pan.PAN) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.paths = paths

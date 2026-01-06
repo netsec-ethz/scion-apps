@@ -36,12 +36,11 @@ var (
 // DoListenQUIC listens on a QUIC socket
 func DoListenQUIC(port uint16) (chan io.ReadWriteCloser, error) {
 	localAddr := &snet.UDPAddr{
-		IA:   asCtx.IA(),
-		Host: net.UDPAddrFromAddrPort(netip.AddrPortFrom(asCtx.LocalAddr(), port)),
+		IA:   p.IA(),
+		Host: net.UDPAddrFromAddrPort(netip.AddrPortFrom(p.LocalAddr(), port)),
 	}
-	quicListener, err := pan.ListenQUIC(
+	quicListener, err := p.ListenQUIC(
 		context.Background(),
-		asCtx,
 		localAddr,
 		&tls.Config{
 			Certificates: quicutil.MustGenerateSelfSignedCert(),
@@ -77,9 +76,8 @@ func DoDialQUIC(remote string, policy pan.Policy) (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	sess, err := pan.DialQUIC(
+	sess, err := p.DialQUIC(
 		context.Background(),
-		asCtx,
 		netip.AddrPort{},
 		remoteAddr,
 		pan.MangleSCIONAddr(remote),

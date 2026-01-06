@@ -37,7 +37,7 @@ type Selector interface {
 	// Initialize the selector for a connection with the initial list of paths,
 	// filtered/ordered by the Policy.
 	// Invoked once during the creation of a Conn.
-	Initialize(local, remote UDPAddr, paths []*Path, asCtx ASContext)
+	Initialize(local, remote UDPAddr, paths []*Path, p *PAN)
 	// Refresh updates the paths. This is called whenever the Policy is changed or
 	// when paths were about to expire and are refreshed from the SCION daemon.
 	// The set and order of paths may differ from previous invocations.
@@ -77,12 +77,12 @@ func (s *DefaultSelector) Path(_ context.Context) *Path {
 	return s.paths[s.current]
 }
 
-func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path, asCtx ASContext) {
+func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path, p *PAN) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if asCtx != nil {
-		s.stats = asCtx.Stats()
+	if p != nil {
+		s.stats = p.stats
 	}
 	s.paths = paths
 	s.current = 0
@@ -164,12 +164,12 @@ func (s *PingingSelector) Path(_ context.Context) *Path {
 	return s.paths[s.current]
 }
 
-func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path, asCtx ASContext) {
+func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path, p *PAN) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.stats = asCtx.Stats()
-	s.topology = asCtx.Topology()
+	s.stats = p.stats
+	s.topology = p.topology
 	s.local = local.scionAddr()
 	s.remote = remote.scionAddr()
 	s.paths = paths

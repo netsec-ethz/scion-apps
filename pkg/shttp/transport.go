@@ -34,11 +34,11 @@ import (
 // SCION/QUIC.
 // This is equivalent to net/http.DefaultTransport with DialContext overridden
 // to use shttp.Dialer, which dials connections over SCION/QUIC.
-func NewDefaultTransport(asCtx pan.ASContext) *http.Transport {
+func NewDefaultTransport(p *pan.PAN) *http.Transport {
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&Dialer{
-			ASContext:  asCtx,
+			PAN:        p,
 			QuicConfig: nil,
 			Policy:     nil,
 		}).DialContext,
@@ -55,13 +55,13 @@ func NewDefaultTransport(asCtx pan.ASContext) *http.Transport {
 // This equivalent to net/http.DefaultTransport with an overridden DialContext.
 // Both the Transport and the Dialer are returned, as the Dialer is not otherwise
 // accessible from the Transport.
-func NewTransport(asCtx pan.ASContext, quicCfg *quic.Config, policy pan.Policy) (*http.Transport, *Dialer) {
+func NewTransport(p *pan.PAN, quicCfg *quic.Config, policy pan.Policy) (*http.Transport, *Dialer) {
 	dialer := &Dialer{
-		ASContext:  asCtx,
+		PAN:        p,
 		QuicConfig: quicCfg,
 		Policy:     policy,
 	}
-	transport := NewDefaultTransport(asCtx)
+	transport := NewDefaultTransport(p)
 	transport.DialContext = dialer.DialContext
 	return transport, dialer
 }
@@ -69,7 +69,7 @@ func NewTransport(asCtx pan.ASContext, quicCfg *quic.Config, policy pan.Policy) 
 // Dialer dials an insecure, single-stream QUIC connection over SCION (just pretend it's TCP).
 // This is the Dialer used for shttp.DefaultTransport.
 type Dialer struct {
-	ASContext  pan.ASContext
+	PAN        *pan.PAN
 	Local      netip.AddrPort
 	QuicConfig *quic.Config
 	Policy     pan.Policy
@@ -78,7 +78,7 @@ type Dialer struct {
 
 // DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
 // as the DialContext function in net/http.Transport.
-// Note: The Dialer must have its ASContext field set before calling this method.
+// Note: The Dialer must have its PAN field set before calling this method.
 func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	tlsCfg := &tls.Config{
 		NextProtos:         []string{quicutil.SingleStreamProto},
@@ -90,7 +90,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 		return nil, err
 	}
 
-	session, err := pan.DialQUIC(ctx, d.ASContext, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
+	session, err := d.PAN.DialQUIC(ctx, d.Local, remote, addr, tlsCfg, d.QuicConfig, pan.WithPolicy(d.Policy))
 	if err != nil {
 		return nil, err
 	}

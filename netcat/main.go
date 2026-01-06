@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -48,7 +49,7 @@ var (
 	sequence    string
 	preference  string
 
-	asCtx pan.ASContext
+	p *pan.PAN
 )
 
 func printUsage() {
@@ -115,7 +116,11 @@ func main() {
 		log.Fatalf("-K flag requires -c flag!")
 	}
 
-	asCtx = pan.MustLoadDefaultASContext()
+	var err error
+	p, err = pan.New(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var conns chan io.ReadWriteCloser
 

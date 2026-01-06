@@ -39,7 +39,7 @@ type Server struct {
 
 	channelHandlers map[string]channelHandlerFunction
 
-	asCtx pan.ASContext
+	p *pan.PAN
 }
 
 // Create creates a new unconnected Server object.
@@ -74,14 +74,14 @@ func Create(config *serverconfig.ServerConfig, version string) (*Server, error) 
 	return server, nil
 }
 
-// SetASContext sets the AS context for the server
-func (s *Server) SetASContext(asCtx pan.ASContext) {
-	s.asCtx = asCtx
+// SetPAN sets the pan client for the server
+func (s *Server) SetPAN(p *pan.PAN) {
+	s.p = p
 }
 
-// handleSCIONQUICTunnelWrapper wraps handleSCIONQUICTunnel to provide asCtx
+// handleSCIONQUICTunnelWrapper wraps handleSCIONQUICTunnel to provide the pan client
 func (s *Server) handleSCIONQUICTunnelWrapper(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
-	return handleSCIONQUICTunnel(s.asCtx, perms, newChannel)
+	return handleSCIONQUICTunnel(s.p, perms, newChannel)
 }
 
 func (s *Server) handleChannels(perms *ssh.Permissions, chans <-chan ssh.NewChannel) {

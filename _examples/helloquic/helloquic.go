@@ -45,27 +45,30 @@ func main() {
 		check(fmt.Errorf("either specify -listen for server or -remote for client"))
 	}
 
-	asCtx := pan.MustLoadDefaultASContext()
+	p, err := pan.New(context.Background())
+	if err != nil {
+		check(err)
+	}
 
 	if listen.Get().Port() > 0 {
-		err = runServer(asCtx, listen.Get())
+		err = runServer(p, listen.Get())
 		check(err)
 	} else {
-		err = runClient(asCtx, *remoteAddr, int(*count))
+		err = runClient(p, *remoteAddr, int(*count))
 		check(err)
 	}
 }
 
-func runServer(asCtx pan.ASContext, listen netip.AddrPort) error {
+func runServer(p *pan.PAN, listen netip.AddrPort) error {
 	tlsCfg := &tls.Config{
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{"hello-quic"},
 	}
 	localAddr := &snet.UDPAddr{
-		IA:   asCtx.IA(),
+		IA:   p.IA(),
 		Host: net.UDPAddrFromAddrPort(listen),
 	}
-	listener, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
+	listener, err := pan.ListenQUIC(context.Background(), p, localAddr, tlsCfg, &quic.Config{}, nil)
 	if err != nil {
 		return err
 	}
@@ -112,7 +115,7 @@ func workSession(session *quic.Conn) error {
 	}
 }
 
-func runClient(asCtx pan.ASContext, address string, count int) error {
+func runClient(p *pan.PAN, address string, count int) error {
 	addr, err := pan.ResolveUDPAddr(context.TODO(), address)
 	if err != nil {
 		return err
@@ -125,10 +128,10 @@ func runClient(asCtx pan.ASContext, address string, count int) error {
 	selector := &pan.PingingSelector{
 		Interval: 2 * time.Second,
 		Timeout:  time.Second,
-		ASCtx:    asCtx,
+		PAN:      p,
 	}
 	selector.SetActive(2)
-	session, err := pan.DialQUIC(context.Background(), asCtx, netip.AddrPort{}, addr, "", tlsCfg, &quic.Config{}, pan.WithSelector(selector))
+	session, err := pan.DialQUIC(context.Background(), p, netip.AddrPort{}, addr, "", tlsCfg, &quic.Config{}, pan.WithSelector(selector))
 	if err != nil {
 		return err
 	}

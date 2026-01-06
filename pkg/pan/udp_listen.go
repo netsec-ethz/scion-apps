@@ -36,7 +36,7 @@ type ReplySelector interface {
 	Path(remote UDPAddr) *Path
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
-	Initialize(local UDPAddr, asCtx ASContext)
+	Initialize(local UDPAddr, p *PAN)
 	// Record a path used by the remote for a packet received.
 	// Invoked whenever a packet is received.
 	// The path is reversed, i.e. it's the path from here to remote.
@@ -58,8 +58,13 @@ type ListenConn interface {
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
 }
 
-func ListenUDP(ctx context.Context,
-	asCtx ASContext,
+// ListenUDP opens a SCION/UDP socket, listening on the local address.
+// If the local address, or either its IP or port, are left unspecified, they
+// will be automatically chosen.
+//
+// The selector controls which path is used for reply packets. If nil, a
+// DefaultReplySelector is used.
+func (p *PAN) ListenUDP(ctx context.Context,
 	local netip.AddrPort,
 	selector ReplySelector,
 ) (ListenConn, error) {
@@ -68,14 +73,14 @@ func ListenUDP(ctx context.Context,
 	}
 	// Fill in wildcard address with the default local IP.
 	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
-		local = netip.AddrPortFrom(asCtx.LocalAddr(), local.Port())
+		local = netip.AddrPortFrom(p.addr, local.Port())
 	}
-	asCtx.Stats().subscribe(selector)
+	p.stats.subscribe(selector)
 	sn := snet.SCIONNetwork{
 		// TODO(lukedirtwalker): Do we need something that refreshes interfaces,
 		// because we don't fetch paths here?
-		Topology:    asCtx.Topology(),
-		SCMPHandler: DefaultSCMPHandler{Stats: asCtx.Stats()},
+		Topology:    p.topology,
+		SCMPHandler: DefaultSCMPHandler{Stats: p.stats},
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
@@ -83,11 +88,11 @@ func ListenUDP(ctx context.Context,
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   asCtx.IA(),
+		IA:   p.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
-	selector.Initialize(localUDPAddr, asCtx)
+	selector.Initialize(localUDPAddr, p)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", localUDPAddr)
@@ -99,7 +104,7 @@ func ListenUDP(ctx context.Context,
 		},
 		local:    localUDPAddr,
 		selector: selector,
-		stats:    asCtx.Stats(),
+		stats:    p.stats,
 	}, nil
 }
 
@@ -167,7 +172,7 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 	}
 }
 
-func (s *DefaultReplySelector) Initialize(local UDPAddr, asCtx ASContext) {
+func (s *DefaultReplySelector) Initialize(local UDPAddr, p *PAN) {
 }
 
 func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {

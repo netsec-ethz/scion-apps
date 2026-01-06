@@ -38,7 +38,10 @@ var (
 func main() {
 	flag.Parse()
 
-	asCtx := pan.MustLoadDefaultASContext()
+	p, err := pan.New(context.Background())
+	if err != nil {
+		log.Fatalf("failed to create PAN: %v", err)
+	}
 
 	addr, err := netip.ParseAddrPort(*ServerAddr)
 	if err != nil {
@@ -55,10 +58,10 @@ func main() {
 	}
 
 	localAddr := &snet.UDPAddr{
-		IA:   asCtx.IA(),
+		IA:   p.IA(),
 		Host: net.UDPAddrFromAddrPort(addr),
 	}
-	quicListener, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
+	quicListener, err := pan.ListenQUIC(context.Background(), p, localAddr, tlsCfg, &quic.Config{}, nil)
 	if err != nil {
 		log.Fatalf("failed to listen SCION QUIC on %s: %v", *ServerAddr, err)
 	}

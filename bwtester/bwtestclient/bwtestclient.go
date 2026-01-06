@@ -292,7 +292,8 @@ func main() {
 		usageErr("server address needs to be specified with -s")
 	}
 
-	asCtx := pan.MustLoadDefaultASContext()
+	p, err := pan.New(context.Background())
+	bwtest.Check(err)
 
 	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
 	checkUsageErr(err)
@@ -323,7 +324,7 @@ func main() {
 	fmt.Printf("server->client: %d seconds, %d bytes, %d packets\n",
 		int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
 
-	clientRes, serverRes, err := runBwtest(asCtx, local.Get(), serverCCAddr, policy, clientBwp, serverBwp)
+	clientRes, serverRes, err := runBwtest(p, local.Get(), serverCCAddr, policy, clientBwp, serverBwp)
 	bwtest.Check(err)
 
 	fmt.Println("\nS->C results")
@@ -333,12 +334,12 @@ func main() {
 }
 
 // runBwtest runs the bandwidth test with the given parameters against the server at serverCCAddr.
-func runBwtest(asCtx pan.ASContext, local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
+func runBwtest(p *pan.PAN, local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
 	clientBwp, serverBwp bwtest.Parameters) (clientRes, serverRes bwtest.Result, err error) {
 
 	// Control channel connection
 	ccSelector := pan.NewDefaultSelector()
-	ccConn, err := pan.DialUDP(context.Background(), asCtx, local, serverCCAddr, pan.WithPolicy(policy), pan.WithSelector(ccSelector))
+	ccConn, err := p.DialUDP(context.Background(), local, serverCCAddr, pan.WithPolicy(policy), pan.WithSelector(ccSelector))
 	if err != nil {
 		return
 	}
@@ -348,7 +349,7 @@ func runBwtest(asCtx pan.ASContext, local netip.AddrPort, serverCCAddr pan.UDPAd
 	serverDCAddr := serverCCAddr.WithPort(serverCCAddr.Port + 1)
 
 	// Data channel connection
-	dcConn, err := pan.DialUDP(context.Background(), asCtx, dcLocal, serverDCAddr, pan.WithPolicy(policy))
+	dcConn, err := p.DialUDP(context.Background(), dcLocal, serverDCAddr, pan.WithPolicy(policy))
 	if err != nil {
 		return
 	}

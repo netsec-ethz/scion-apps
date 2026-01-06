@@ -71,7 +71,7 @@ func handleTCPTunnel(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 	return nil
 }
 
-func handleSCIONQUICTunnel(asCtx pan.ASContext, perms *ssh.Permissions, newChannel ssh.NewChannel) error {
+func handleSCIONQUICTunnel(p *pan.PAN, perms *ssh.Permissions, newChannel ssh.NewChannel) error {
 	extraData := newChannel.ExtraData()
 	addressLen := binary.BigEndian.Uint32(extraData[0:4])
 	address := string(extraData[4 : addressLen+4])
@@ -92,7 +92,7 @@ func handleSCIONQUICTunnel(asCtx pan.ASContext, perms *ssh.Permissions, newChann
 		NextProtos:         []string{quicutil.SingleStreamProto},
 		InsecureSkipVerify: true,
 	}
-	sess, err := pan.DialQUIC(ctx, asCtx, netip.AddrPort{}, remote, "", tlsConf, &quic.Config{})
+	sess, err := p.DialQUIC(ctx, netip.AddrPort{}, remote, "", tlsConf, &quic.Config{})
 	if err != nil {
 		return fmt.Errorf("could not open remote connection: %w", err)
 	}

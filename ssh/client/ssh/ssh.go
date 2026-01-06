@@ -116,8 +116,8 @@ func Create(username string, config *clientconfig.ClientConfig, passAuthHandler 
 }
 
 // Connect connects the Client to the given address.
-func (client *Client) Connect(ctx context.Context, asCtx pan.ASContext, addr string, policy pan.Policy, selector string) error {
-	goClient, err := dialSCION(ctx, asCtx, addr, policy, selector, client.config)
+func (client *Client) Connect(ctx context.Context, p *pan.PAN, addr string, policy pan.Policy, selector string) error {
+	goClient, err := dialSCION(ctx, p, addr, policy, selector, client.config)
 	if err != nil {
 		return err
 	}
@@ -197,18 +197,18 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 // StartTunnel creates a new tunnel to the given address, forwarding all
 // connections on the given port over the server to the given address. If the
 // given address is a SCION address, QUIC is used; else TCP.
-// The asCtx parameter is required when the address is a SCION address.
-func (client *Client) StartTunnel(asCtx pan.ASContext, local netip.AddrPort, addr string) error {
+// The p parameter is required when the address is a SCION address.
+func (client *Client) StartTunnel(p *pan.PAN, local netip.AddrPort, addr string) error {
 	var localListener net.Listener
 	if strings.Contains(addr, ",") {
 		tlsConf := &tls.Config{
 			NextProtos: []string{quicutil.SingleStreamProto},
 		}
 		localAddr := &snet.UDPAddr{
-			IA:   asCtx.IA(),
+			IA:   p.IA(),
 			Host: net.UDPAddrFromAddrPort(local),
 		}
-		ql, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsConf, &quic.Config{}, nil)
+		ql, err := p.ListenQUIC(context.Background(), localAddr, tlsConf, &quic.Config{}, nil)
 		if err != nil {
 			return err
 		}
