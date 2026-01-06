@@ -23,10 +23,9 @@ import (
 	"github.com/scionproto/scion/pkg/log"
 )
 
-// pool is the *global* path pool.
-// - share cache between multiple connections
-// - centrally refresh paths before expiration
-var pool PathPool
+type PathSource interface {
+	Paths(ctx context.Context, dst addr.IA) ([]*Path, error)
+}
 
 type PathPoolConfig struct {
 	RefreshMinInterval time.Duration
@@ -44,21 +43,23 @@ func DefaultPathPoolConfig() PathPoolConfig {
 	}
 }
 
-func PathPoolInit(asCtx ASContext, config PathPoolConfig) *PathPool {
-	pool.config = config
-	pool.refresher = makeRefresher(&pool)
-	pool.entries = make(map[addr.IA]pathPoolDst)
-	pool.asCtx = asCtx
+func NewPathPool(pathSource PathSource, config PathPoolConfig) *PathPool {
+	p := &PathPool{
+		pathSource: pathSource,
+		entries:    make(map[addr.IA]pathPoolDst),
+		config:     config,
+	}
+	p.refresher = makeRefresher(p)
 	// note: start refresher, but won't do anything until paths are added to the pool
 	go func() {
 		defer log.HandlePanic()
-		pool.refresher.run()
+		p.refresher.run()
 	}()
-	return &pool
+	return p
 }
 
 type PathPool struct {
-	asCtx        ASContext
+	pathSource   PathSource
 	refresher    refresher
 	entriesMutex sync.RWMutex
 	entries      map[addr.IA]pathPoolDst
@@ -114,7 +115,7 @@ func (p *PathPool) paths(ctx context.Context, dstIA addr.IA) ([]*Path, bool, err
 
 // queryPaths returns paths to dstIA. Unconditionally requests paths from sciond.
 func (p *PathPool) QueryPaths(ctx context.Context, dstIA addr.IA) ([]*Path, error) {
-	paths, err := p.asCtx.Paths(ctx, dstIA)
+	paths, err := p.pathSource.Paths(ctx, dstIA)
 	if err != nil {
 		return nil, err
 	}

@@ -83,7 +83,7 @@ func DialUDP(
 	}
 	var subscriber *pathRefreshSubscriber
 	if remote.IA != localUDPAddr.IA {
-		subscriber, err = openPathRefreshSubscriber(ctx, localUDPAddr, remote, o.policy, o.selector)
+		subscriber, err = openPathRefreshSubscriber(ctx, asCtx.PathPool(), localUDPAddr, remote, o.policy, o.selector)
 		if err != nil {
 			return nil, err
 		}
@@ -237,19 +237,21 @@ func (c *dialedConn) Close() error {
 	return c.baseUDPConn.Close()
 }
 
-// pathRefreshSubscriber is the glue between a connection and the global path
+// pathRefreshSubscriber is the glue between a connection and the path
 // pool. It gets the paths to dst and sets the filtered path set on the
 // target Selector.
 type pathRefreshSubscriber struct {
+	pool     *PathPool
 	remoteIA addr.IA
 	policy   Policy
 	target   Selector
 }
 
-func openPathRefreshSubscriber(ctx context.Context, local, remote UDPAddr, policy Policy,
+func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remote UDPAddr, policy Policy,
 	target Selector,
 ) (*pathRefreshSubscriber, error) {
 	s := &pathRefreshSubscriber{
+		pool:     pool,
 		remoteIA: remote.IA,
 		policy:   policy,
 		target:   target,
@@ -263,13 +265,13 @@ func openPathRefreshSubscriber(ctx context.Context, local, remote UDPAddr, polic
 }
 
 func (s *pathRefreshSubscriber) Close() error {
-	pool.unsubscribe(s.remoteIA, s)
+	s.pool.unsubscribe(s.remoteIA, s)
 	return nil
 }
 
 func (s *pathRefreshSubscriber) setPolicy(policy Policy) {
 	s.policy = policy
-	paths := pool.cachedPaths(s.remoteIA)
+	paths := s.pool.cachedPaths(s.remoteIA)
 	s.target.Refresh(filtered(s.policy, paths))
 }
 

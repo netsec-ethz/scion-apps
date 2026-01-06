@@ -19,7 +19,6 @@ import (
 	"fmt"
 	golog "log"
 	"net/netip"
-	"sync/atomic"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
@@ -33,12 +32,11 @@ import (
 // hostContext contains the information needed to connect to the host's local SCION stack,
 // i.e. the connection to sciond.
 type hostContext struct {
-	ia       addr.IA
-	scionD   daemon.Connector
-	topology snet.Topology
-	addr     netip.Addr
-
-	interfaces *atomic.Pointer[map[uint16]netip.AddrPort]
+	ia          addr.IA
+	topology    snet.Topology
+	addr        netip.Addr
+	pathQuerier *PathQuerier
+	pool        *PathPool
 }
 
 type ASContext interface {
@@ -46,10 +44,10 @@ type ASContext interface {
 	IA() addr.IA
 	// Topology returns the local AS topology.
 	Topology() snet.Topology
-	// Paths returns the available paths to the given destination IA.
-	Paths(ctx context.Context, dst addr.IA) ([]*Path, error)
 	// LocalAddr returns the local IP address to use.
 	LocalAddr() netip.Addr
+	// PathPool returns the path pool for this context.
+	PathPool() *PathPool
 }
 
 const (
@@ -67,8 +65,6 @@ func MustLoadDefaultASContext() ASContext {
 	if err != nil {
 		golog.Fatalf("Failed to load AS context: %v", err)
 	}
-	PathPoolInit(asCtx, DefaultPathPoolConfig())
-
 	return asCtx
 }
 
@@ -117,30 +113,27 @@ func LoadASContext(ctx context.Context) (ASContext, error) {
 		}
 	}
 	localAddr = localAddr.Unmap()
-	hc := hostContext{
-		ia:         localIA,
-		scionD:     sciondConn,
-		addr:       localAddr,
-		interfaces: &atomic.Pointer[map[uint16]netip.AddrPort]{},
-	}
-	hc.interfaces.Store(&interfaces)
-	hc.topology = snet.Topology{
-		LocalIA: localIA,
-		PortRange: snet.TopologyPortRange{
-			Start: start,
-			End:   end,
-		},
-		Interface: func(ifID uint16) (netip.AddrPort, bool) {
-			m := hc.interfaces.Load()
-			if m == nil {
-				return netip.AddrPort{}, false
-			}
-			a, ok := (*m)[ifID]
-			return a, ok
-		},
-	}
 
-	return &hc, nil
+	// Create path querier for fetching paths from SCIOND
+	pathQuerier := NewPathQuerier(localIA, sciondConn, interfaces)
+
+	hc := &hostContext{
+		ia:          localIA,
+		addr:        localAddr,
+		pathQuerier: pathQuerier,
+		topology: snet.Topology{
+			LocalIA: localIA,
+			PortRange: snet.TopologyPortRange{
+				Start: start,
+				End:   end,
+			},
+			Interface: pathQuerier.Interface,
+		},
+	}
+	// Create path pool with pathQuerier as the PathSource.
+	hc.pool = NewPathPool(pathQuerier, DefaultPathPoolConfig())
+
+	return hc, nil
 }
 
 func (h *hostContext) IA() addr.IA {
@@ -155,55 +148,6 @@ func (h *hostContext) LocalAddr() netip.Addr {
 	return h.addr
 }
 
-func (h *hostContext) Paths(ctx context.Context, dst addr.IA) ([]*Path, error) {
-	flags := daemon.PathReqFlags{Refresh: false, Hidden: false}
-	snetPaths, err := h.scionD.Paths(ctx, dst, 0, flags)
-	if err != nil {
-		return nil, err
-	}
-	// when querying paths we also reload the interfaces, to make sure we have
-	// correct information about them.
-	interfaces, err := h.scionD.Interfaces(ctx)
-	if err != nil {
-		return nil, err
-	}
-	h.interfaces.Store(&interfaces)
-	paths := make([]*Path, len(snetPaths))
-	for i, p := range snetPaths {
-		snetMetadata := p.Metadata()
-		metadata := &PathMetadata{
-			Interfaces:   convertPathInterfaceSlice(snetMetadata.Interfaces),
-			MTU:          snetMetadata.MTU,
-			Latency:      snetMetadata.Latency,
-			Bandwidth:    snetMetadata.Bandwidth,
-			Geo:          snetMetadata.Geo,
-			LinkType:     snetMetadata.LinkType,
-			InternalHops: snetMetadata.InternalHops,
-			Notes:        snetMetadata.Notes,
-		}
-		underlay := p.UnderlayNextHop().AddrPort()
-		paths[i] = &Path{
-			Source:      h.ia,
-			Destination: dst,
-			Metadata:    metadata,
-			Fingerprint: PathSequenceFromInterfaces(metadata.Interfaces).Fingerprint(),
-			Expiry:      snetMetadata.Expiry,
-			ForwardingPath: ForwardingPath{
-				dataplanePath: p.Dataplane(),
-				underlay:      underlay,
-			},
-		}
-	}
-	return paths, nil
-}
-
-func convertPathInterfaceSlice(spis []snet.PathInterface) []PathInterface {
-	pis := make([]PathInterface, len(spis))
-	for i, spi := range spis {
-		pis[i] = PathInterface{
-			IA:   spi.IA,
-			IfID: IfID(spi.ID),
-		}
-	}
-	return pis
+func (h *hostContext) PathPool() *PathPool {
+	return h.pool
 }
