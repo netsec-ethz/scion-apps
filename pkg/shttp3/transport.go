@@ -55,7 +55,7 @@ func (d *Dialer) Dial(ctx context.Context, addr string, tlsCfg *tls.Config,
 
 	asCtx := d.ASContext
 	if asCtx == nil {
-		asCtx = pan.MustLoadDefaultASContext()
+		asCtx = pan.MustLoadDefaultASContext() //nolint:contextcheck
 	}
 
 	session, err := pan.DialQUICEarly(ctx, asCtx, d.Local, remote, addr, tlsCfg, cfg, pan.WithPolicy(d.Policy))
