@@ -16,32 +16,40 @@ package pan
 
 import (
 	"context"
+	"maps"
 	"math/rand"
+	"slices"
 	"sync"
 	"time"
+
+	"github.com/scionproto/scion/pkg/addr"
+)
+
+const (
+	refreshIntervalForSubscribersWithoutPath = 6 * time.Second
 )
 
 type refreshee interface {
-	refresh(dst IA, paths []*Path)
+	refresh(dst addr.IA, paths []*Path)
 }
 
 type refresher struct {
 	subscribersMutex sync.Mutex
-	subscribers      map[IA][]refreshee
+	subscribers      map[addr.IA][]refreshee
 	newSubscription  chan bool
-	pool             *pathPool
+	pool             *PathPool
 }
 
-func makeRefresher(pool *pathPool) refresher {
+func makeRefresher(pool *PathPool) refresher {
 	return refresher{
 		pool:            pool,
-		subscribers:     make(map[IA][]refreshee),
+		subscribers:     make(map[addr.IA][]refreshee),
 		newSubscription: make(chan bool),
 	}
 }
 
 // subscribe for paths to dst.
-func (r *refresher) subscribe(ctx context.Context, dst IA, s refreshee) ([]*Path, error) {
+func (r *refresher) subscribe(ctx context.Context, dst addr.IA, s refreshee) ([]*Path, error) {
 	// BUG: oops, this will not inform subscribers of updated paths. Need to explicily check here
 	paths, _, err := r.pool.paths(ctx, dst)
 	if err != nil {
@@ -60,7 +68,7 @@ func (r *refresher) subscribe(ctx context.Context, dst IA, s refreshee) ([]*Path
 	return paths, nil
 }
 
-func (r *refresher) unsubscribe(ia IA, s refreshee) {
+func (r *refresher) unsubscribe(ia addr.IA, s refreshee) {
 	r.subscribersMutex.Lock()
 	defer r.subscribersMutex.Unlock()
 
@@ -82,6 +90,9 @@ func (r *refresher) unsubscribe(ia IA, s refreshee) {
 
 func (r *refresher) run() {
 	refreshTimer := time.NewTimer(0)
+	refreshTimerForSubscribersWithoutPath := time.NewTicker(
+		refreshIntervalForSubscribersWithoutPath,
+	)
 	<-refreshTimer.C
 	var prevRefresh time.Time
 	for {
@@ -100,19 +111,40 @@ func (r *refresher) run() {
 			prevRefresh = time.Now()
 			nextRefresh := r.untilNextRefresh(prevRefresh)
 			refreshTimer.Reset(nextRefresh)
+		case <-refreshTimerForSubscribersWithoutPath.C:
+			r.refreshSubscribersWithoutPath()
 		}
 	}
 }
 
 func (r *refresher) refresh() {
-	// when a refresh is triggered, we batch all
-	r.subscribersMutex.Lock()
-	refreshIAs := make([]IA, 0, len(r.subscribers))
-	for dstIA := range r.subscribers {
-		refreshIAs = append(refreshIAs, dstIA)
-	}
-	r.subscribersMutex.Unlock()
+	r.refreshIAs(r.subscribersToRefresh(false))
+}
 
+func (r *refresher) refreshSubscribersWithoutPath() {
+	r.refreshIAs(r.subscribersToRefresh(true))
+}
+
+func (r *refresher) subscribersToRefresh(onlySubscribersWithoutPath bool) []addr.IA {
+	r.subscribersMutex.Lock()
+	defer r.subscribersMutex.Unlock()
+
+	keys := slices.Collect(maps.Keys(r.subscribers))
+	if !onlySubscribersWithoutPath {
+		return keys
+	}
+
+	// Filter to only subscribers without cached paths
+	result := keys[:0]
+	for _, dstIA := range keys {
+		if len(r.pool.cachedPaths(dstIA)) == 0 {
+			result = append(result, dstIA)
+		}
+	}
+	return result
+}
+
+func (r *refresher) refreshIAs(refreshIAs []addr.IA) {
 	for _, dstIA := range refreshIAs {
 		paths, areFresh, err := r.pool.paths(context.Background(), dstIA)
 		if err != nil || !areFresh {
@@ -139,11 +171,13 @@ func (r *refresher) nextRefresh(prevRefresh time.Time) time.Time {
 	if len(r.subscribers) == 0 {
 		return maxTime
 	}
-	nextRefresh := prevRefresh.Add(pathRefreshInterval)
+
+	nextRefresh := prevRefresh.Add(r.pool.config.RefreshInterval)
 
 	expiry := r.pool.earliestPathExpiry()
-	randOffset := time.Duration(rand.Intn(10)) * time.Second // avoid everbody refreshing simultaneously
-	expiryRefresh := expiry.Add(-pathRefreshLeadTime + randOffset)
+	// avoid everbody refreshing simultaneously
+	randOffset := time.Duration(rand.Intn(10)) * time.Second
+	expiryRefresh := expiry.Add(-r.pool.config.RefreshLeadTime + randOffset)
 
 	if expiryRefresh.Before(nextRefresh) {
 		nextRefresh = expiryRefresh
@@ -152,7 +186,7 @@ func (r *refresher) nextRefresh(prevRefresh time.Time) time.Time {
 	// if there are still paths that expire very soon (or have already expired),
 	// we still wait a little bit until the next refresh. Otherwise, failing
 	// refresh of an expired path would make us refresh continuously.
-	earliestAllowed := prevRefresh.Add(pathRefreshMinInterval)
+	earliestAllowed := prevRefresh.Add(r.pool.config.RefreshMinInterval)
 	if nextRefresh.Before(earliestAllowed) {
 		return earliestAllowed
 	}

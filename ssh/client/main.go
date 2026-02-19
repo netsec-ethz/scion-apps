@@ -156,10 +156,15 @@ func main() {
 		golog.Fatal(err)
 	}
 
+	p, err := pan.New(context.Background())
+	if err != nil {
+		golog.Fatalf("Error creating pan client: %v", err)
+	}
+
 	serverAddress := fmt.Sprintf("%s:%v", conf.HostAddress, conf.Port)
 
 	ctx := context.Background()
-	err = sshClient.Connect(ctx, serverAddress, policy, *pathSelector)
+	err = sshClient.Connect(ctx, p, serverAddress, policy, *pathSelector)
 	if err != nil {
 		golog.Panicf("Error connecting: %v", err)
 	}
@@ -174,7 +179,7 @@ func main() {
 		}
 
 		local := netip.AddrPortFrom(netip.Addr{}, uint16(port))
-		err = sshClient.StartTunnel(local, localForward[1])
+		err = sshClient.StartTunnel(p, local, localForward[1])
 		if err != nil {
 			golog.Panicf("Error starting tunnel: %v", err)
 		}

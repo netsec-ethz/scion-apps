@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -53,25 +54,20 @@ type Conn interface {
 // a path among this set for each Write operation.
 // If the policy is nil, all paths are allowed.
 // If the selector is nil, a DefaultSelector is used.
-func DialUDP(
+func (p *PAN) DialUDP(
 	ctx context.Context,
 	local netip.AddrPort,
 	remote UDPAddr,
 	opts ...ConnOptions,
 ) (Conn, error) {
-	o := applyConnOpts(opts)
+	o := applyConnOpts(p.stats, opts)
 
-	host, err := getHost()
-	if err != nil {
-		return nil, err
-	}
-
-	local, err = defaultLocalAddr(local)
-	if err != nil {
-		return nil, err
+	// Fill in wildcard address with the default local IP.
+	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
+		local = netip.AddrPortFrom(p.addr, local.Port())
 	}
 	sn := snet.SCIONNetwork{
-		Topology:    host.sciond,
+		Topology:    p.topology,
 		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
@@ -80,13 +76,13 @@ func DialUDP(
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   host.ia,
+		IA:   p.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
 	var subscriber *pathRefreshSubscriber
 	if remote.IA != localUDPAddr.IA {
-		subscriber, err = openPathRefreshSubscriber(ctx, localUDPAddr, remote, o.policy, o.selector)
+		subscriber, err = openPathRefreshSubscriber(ctx, p.pool, localUDPAddr, remote, p, o.policy, o.selector)
 		if err != nil {
 			return nil, err
 		}
@@ -137,9 +133,9 @@ type connOptions struct {
 	policy      Policy
 }
 
-func applyConnOpts(opts []ConnOptions) connOptions {
+func applyConnOpts(stats *pathStatsDB, opts []ConnOptions) connOptions {
 	o := connOptions{
-		scmpHandler: DefaultSCMPHandler{},
+		scmpHandler: DefaultSCMPHandler{Stats: stats},
 		selector:    NewDefaultSelector(),
 	}
 	for _, opt := range opts {
@@ -193,16 +189,16 @@ func (c *dialedConn) WriteWithCtx(ctx context.Context, b []byte) (int, error) {
 			return 0, errNoPathTo(c.remote.IA)
 		}
 	}
-	return c.baseUDPConn.writeMsg(c.local, c.remote, path, b)
+	return c.writeMsg(c.local, c.remote, path, b)
 }
 
 func (c *dialedConn) WriteVia(path *Path, b []byte) (int, error) {
-	return c.baseUDPConn.writeMsg(c.local, c.remote, path, b)
+	return c.writeMsg(c.local, c.remote, path, b)
 }
 
 func (c *dialedConn) Read(b []byte) (int, error) {
 	for {
-		n, remote, _, err := c.baseUDPConn.readMsg(b)
+		n, remote, _, err := c.readMsg(b)
 		if err != nil {
 			return n, err
 		}
@@ -215,7 +211,7 @@ func (c *dialedConn) Read(b []byte) (int, error) {
 
 func (c *dialedConn) ReadVia(b []byte) (int, *Path, error) {
 	for {
-		n, remote, fwPath, err := c.baseUDPConn.readMsg(b)
+		n, remote, fwPath, err := c.readMsg(b)
 		if err != nil {
 			return n, nil, err
 		}
@@ -240,19 +236,21 @@ func (c *dialedConn) Close() error {
 	return c.baseUDPConn.Close()
 }
 
-// pathRefreshSubscriber is the glue between a connection and the global path
+// pathRefreshSubscriber is the glue between a connection and the path
 // pool. It gets the paths to dst and sets the filtered path set on the
 // target Selector.
 type pathRefreshSubscriber struct {
-	remoteIA IA
+	pool     *PathPool
+	remoteIA addr.IA
 	policy   Policy
 	target   Selector
 }
 
-func openPathRefreshSubscriber(ctx context.Context, local, remote UDPAddr, policy Policy,
-	target Selector) (*pathRefreshSubscriber, error) {
-
+func openPathRefreshSubscriber(ctx context.Context, pool *PathPool, local, remote UDPAddr, p *PAN, policy Policy,
+	target Selector,
+) (*pathRefreshSubscriber, error) {
 	s := &pathRefreshSubscriber{
+		pool:     pool,
 		remoteIA: remote.IA,
 		policy:   policy,
 		target:   target,
@@ -261,22 +259,22 @@ func openPathRefreshSubscriber(ctx context.Context, local, remote UDPAddr, polic
 	if err != nil {
 		return nil, err
 	}
-	s.target.Initialize(local, remote, filtered(s.policy, paths))
+	s.target.Initialize(local, remote, filtered(s.policy, paths), p)
 	return s, nil
 }
 
 func (s *pathRefreshSubscriber) Close() error {
-	pool.unsubscribe(s.remoteIA, s)
+	s.pool.unsubscribe(s.remoteIA, s)
 	return nil
 }
 
 func (s *pathRefreshSubscriber) setPolicy(policy Policy) {
 	s.policy = policy
-	paths := pool.cachedPaths(s.remoteIA)
+	paths := s.pool.cachedPaths(s.remoteIA)
 	s.target.Refresh(filtered(s.policy, paths))
 }
 
-func (s *pathRefreshSubscriber) refresh(dst IA, paths []*Path) {
+func (s *pathRefreshSubscriber) refresh(dst addr.IA, paths []*Path) {
 	s.target.Refresh(filtered(s.policy, paths))
 }
 

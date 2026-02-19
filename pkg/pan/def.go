@@ -18,11 +18,13 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 var ErrNoPath = errors.New("no path")
 
-func errNoPathTo(ia IA) error {
+func errNoPathTo(ia addr.IA) error {
 	return fmt.Errorf("%w to %s", ErrNoPath, ia)
 }
 
@@ -48,5 +50,7 @@ const (
 )
 
 // maxTime is the maximum usable time value (https://stackoverflow.com/a/32620397)
-var maxTime = time.Unix(1<<63-62135596801, 999999999)
-var maxDuration = time.Duration(1<<63 - 1)
+var (
+	maxTime     = time.Unix(1<<63-62135596801, 999999999)
+	maxDuration = time.Duration(1<<63 - 1)
+)

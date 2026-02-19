@@ -59,12 +59,12 @@ recorded paths to try routing around temporarily broken paths.
 The SCION daemon is assumed to be at the default address, but this can be
 overridden using an environment variable:
 
-	SCION_DAEMON_ADDRESS: 127.0.0.1:30255
+	SCION_DAEMON: 127.0.0.1:30255
 
 This is convenient for the normal use case of running the endhost stack for a
 single SCION AS. When running multiple local ASes, e.g. during development, the
 address of the SCION daemon corresponding to the desired AS needs to be
-specified in the SCION_DAEMON_ADDRESS environment variable.
+specified in the SCION_DAEMON environment variable.
 
 # Wildcard IP Addresses
 
@@ -95,22 +95,23 @@ package pan
 import (
 	"context"
 	"fmt"
+
+	"github.com/scionproto/scion/pkg/addr"
 )
 
 // ResolveUDPAddr parses the address and resolves the hostname.
 // The address can be of the form of a SCION address (i.e. of the form "ISD-AS,[IP]:port")
 // or in the form of "hostname:port".
-// If the address is in the form of a hostname, the the following sources will
+// If the address is in the form of a hostname, the following sources will
 // be used to resolve a name, in the given order of precedence.
 //
 //   - /etc/hosts
 //   - /etc/scion/hosts
-//   - RAINS, if a server is configured in /etc/scion/rains.cfg. Disabled if built with !norains.
 //   - DNS TXT records using the local DNS resolver (depending on OS config, see "Name Resolution" in net package docs)
 //
 // Returns HostNotFoundError if none of the sources did resolve the hostname.
 func ResolveUDPAddr(ctx context.Context, address string) (UDPAddr, error) {
-	return resolveUDPAddrAt(ctx, address, defaultResolver())
+	return ResolveUDPAddrAt(ctx, address, defaultResolver())
 }
 
 // HostNotFoundError is returned by ResolveUDPAddr when the name was not found, but
@@ -123,8 +124,11 @@ func (e HostNotFoundError) Error() string {
 	return fmt.Sprintf("host not found: '%s'", e.Host)
 }
 
-// Query paths to a particular destination AS.
-func QueryPaths(ctx context.Context, dst IA) ([]*Path, error) {
-	paths, _, err := (&pool).paths(ctx, dst)
-	return paths, err
+// QueryPaths queries paths to a particular destination AS.
+//
+// Deprecated: Use PAN.QueryPaths instead. This standalone function is deprecated
+// because it requires implicit global state. Create a PAN with New and use
+// its QueryPaths method.
+func QueryPaths(ctx context.Context, dst addr.IA) ([]*Path, error) {
+	return nil, fmt.Errorf("QueryPaths is deprecated; use PAN.QueryPaths instead")
 }

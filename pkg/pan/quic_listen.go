@@ -18,9 +18,9 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"net/netip"
 
 	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 // QUICListener is a wrapper around a quic.Listener that also holds the underlying
@@ -40,26 +40,25 @@ func (l *QUICListener) Close() error {
 // ListenQUIC listens for QUIC connections on a SCION/UDP port.
 //
 // See note on wildcard addresses in the package documentation.
-func ListenQUIC(
+func (p *PAN) ListenQUIC(
 	ctx context.Context,
-	local netip.AddrPort,
+	listen *snet.UDPAddr,
 	tlsConf *tls.Config,
 	quicConfig *quic.Config,
-	listenConnOptions ...ListenConnOptions,
-) (*QUICListener, error) {
-
-	conn, err := ListenUDP(ctx, local, listenConnOptions...)
+	selector ReplySelector,
+) (*quic.EarlyListener, error) {
+	conn, err := p.ListenUDP(ctx, listen.Host.AddrPort(), selector)
 	if err != nil {
 		return nil, err
 	}
-	// HACK: we silence the log here to shut up quic-go's warning about trying to
-	// set receive buffer size (it's not a UDPConn, we know).
-	silenceLog()
-	defer unsilenceLog()
-	listener, err := quic.Listen(conn, tlsConf, quicConfig)
+
+	listener, err := quic.ListenEarly(
+		conn,
+		tlsConf,
+		quicConfig)
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
-	return &QUICListener{Listener: listener, Conn: conn}, nil
+	return listener, nil
 }

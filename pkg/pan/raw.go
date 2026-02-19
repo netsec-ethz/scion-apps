@@ -15,13 +15,13 @@
 package pan
 
 import (
-	"fmt"
 	"net"
 	"net/netip"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/private/common"
 	"github.com/scionproto/scion/pkg/slayers"
 	"github.com/scionproto/scion/pkg/snet"
@@ -84,11 +84,11 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 		Bytes: c.writeBuffer,
 		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
-				IA:   addr.IA(src.IA),
+				IA:   src.IA,
 				Host: addr.HostIP(src.IP),
 			},
 			Destination: snet.SCIONAddress{
-				IA:   addr.IA(dst.IA),
+				IA:   dst.IA,
 				Host: addr.HostIP(dst.IP),
 			},
 			Path: dataplanePath,
@@ -134,7 +134,7 @@ func (c *baseUDPConn) readMsg(b []byte) (int, UDPAddr, ForwardingPath, error) {
 			continue // ignore non-IP destination
 		}
 		remote := UDPAddr{
-			IA:   IA(pkt.Source.IA),
+			IA:   pkt.Source.IA,
 			IP:   pkt.Source.Host.IP(),
 			Port: udp.SrcPort,
 		}
@@ -152,7 +152,9 @@ func (c *baseUDPConn) Close() error {
 	return c.raw.Close()
 }
 
-type DefaultSCMPHandler struct{}
+type DefaultSCMPHandler struct {
+	Stats *pathStatsDB
+}
 
 func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 	scmp := pkt.Payload.(snet.SCMPPayload)
@@ -160,7 +162,7 @@ func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 	case slayers.SCMPTypeExternalInterfaceDown:
 		msg := pkt.Payload.(snet.SCMPExternalInterfaceDown)
 		pi := PathInterface{
-			IA:   IA(msg.IA),
+			IA:   msg.IA,
 			IfID: IfID(msg.Interface),
 		}
 		pf, err := reversePathFingerprint(pkt.Path.(snet.RawPath))
@@ -168,59 +170,33 @@ func (h DefaultSCMPHandler) Handle(pkt *snet.Packet) error {
 			return nil //nolint:nilerr
 		}
 		// FIXME: can block _all_ connections, call async (or internally async)
-		stats.NotifyPathDown(pf, pi)
+		if h.Stats != nil {
+			h.Stats.NotifyPathDown(pf, pi)
+		}
 		return nil
 	case slayers.SCMPTypeInternalConnectivityDown:
 		msg := pkt.Payload.(snet.SCMPInternalConnectivityDown)
 		pi := PathInterface{
-			IA:   IA(msg.IA),
+			IA:   msg.IA,
 			IfID: IfID(msg.Egress),
 		}
 		pf, err := reversePathFingerprint(pkt.Path.(snet.RawPath))
 		if err != nil {
 			return nil //nolint:nilerr
 		}
-		stats.NotifyPathDown(pf, pi)
+		if h.Stats != nil {
+			h.Stats.NotifyPathDown(pf, pi)
+		}
+		return nil
+	// Packet too big errors can happen when QUIC probes for the MTU.
+	case slayers.SCMPTypePacketTooBig:
+		msg := pkt.Payload.(snet.SCMPPacketTooBig)
+		log.Info("SCMP PacketTooBig", "scmp", scmp, "mtu", msg.MTU)
 		return nil
 	default:
-		ip := netip.Addr{}
-		if pkt.Source.Host.Type() == addr.HostTypeIP {
-			ip = pkt.Source.Host.IP()
-		}
-		return SCMPError{
-			typeCode: slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
-			ErrorIA:  IA(pkt.Source.IA),
-			ErrorIP:  ip,
-		}
-	}
-}
-
-type SCMPError struct {
-	typeCode slayers.SCMPTypeCode
-	// ErrorIA is the source IA of the SCMP error message
-	ErrorIA IA
-	// ErrorIP is the source IP of the SCMP error message
-	ErrorIP netip.Addr
-	// TODO: include quote information (pkt destinition, path, ...)
-}
-
-func (e SCMPError) Error() string {
-	return fmt.Sprintf("SCMP %s from %s,%s", e.typeCode.String(), e.ErrorIA, e.ErrorIP)
-}
-
-func (e SCMPError) Temporary() bool {
-	switch e.typeCode.Type() {
-	case slayers.SCMPTypeDestinationUnreachable:
-		return false
-	case slayers.SCMPTypePacketTooBig:
-		return false
-	case slayers.SCMPTypeParameterProblem:
-		return false
-	case slayers.SCMPTypeExternalInterfaceDown:
-		return true
-	case slayers.SCMPTypeInternalConnectivityDown:
-		return true
-	default:
-		panic("invalid error code")
+		log.Info(
+			"SCMP error encountered", "type", scmp.Type(),
+			"code", scmp.Code(), "host", pkt.Source.Host, "source", pkt.Source.IA)
+		return nil
 	}
 }

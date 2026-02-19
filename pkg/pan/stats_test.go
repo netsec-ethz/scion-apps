@@ -18,15 +18,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNotifyPathDown(t *testing.T) {
-	stats = newPathStatsDB()
+	stats := newPathStatsDB()
 
 	pf := PathFingerprint("x")
 	pi := PathInterface{
-		IA:   MustParseIA("1-ff00:0:110"),
+		IA:   addr.MustParseIA("1-ff00:0:110"),
 		IfID: 5,
 	}
 
@@ -56,7 +57,7 @@ func (s *dummyPathDownSubscriber) PathDown(_ PathFingerprint, _ PathInterface) {
 }
 
 func TestRecordLatency(t *testing.T) {
-	stats = newPathStatsDB()
+	stats := newPathStatsDB()
 
 	dst := mustParseSCIONAddr("1-ff00:0:110,192.0.2.1")
 	p := PathFingerprint("x")

@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
+	"github.com/scionproto/scion/pkg/snet"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan/internal/ping"
 )
@@ -35,7 +37,7 @@ type Selector interface {
 	// Initialize the selector for a connection with the initial list of paths,
 	// filtered/ordered by the Policy.
 	// Invoked once during the creation of a Conn.
-	Initialize(local, remote UDPAddr, paths []*Path)
+	Initialize(local, remote UDPAddr, paths []*Path, p *PAN)
 	// Refresh updates the paths. This is called whenever the Policy is changed or
 	// when paths were about to expire and are refreshed from the SCION daemon.
 	// The set and order of paths may differ from previous invocations.
@@ -56,6 +58,7 @@ type Selector interface {
 // affected by down notifications.
 type DefaultSelector struct {
 	mutex   sync.Mutex
+	stats   *pathStatsDB
 	paths   []*Path
 	current int
 }
@@ -74,10 +77,13 @@ func (s *DefaultSelector) Path(_ context.Context) *Path {
 	return s.paths[s.current]
 }
 
-func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path) {
+func (s *DefaultSelector) Initialize(local, remote UDPAddr, paths []*Path, p *PAN) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	if p != nil {
+		s.stats = p.stats
+	}
 	s.paths = paths
 	s.current = 0
 }
@@ -104,9 +110,12 @@ func (s *DefaultSelector) PathDown(pf PathFingerprint, pi PathInterface) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	if s.stats == nil {
+		return
+	}
 	if current := s.paths[s.current]; isInterfaceOnPath(current, pi) || pf == current.Fingerprint {
 		fmt.Println("down:", s.current, len(s.paths))
-		better := stats.FirstMoreAlive(current, s.paths)
+		better := s.stats.FirstMoreAlive(current, s.paths)
 		if better >= 0 {
 			// Try next path. Note that this will keep cycling if we get down notifications
 			s.current = better
@@ -125,11 +134,13 @@ type PingingSelector struct {
 	// Timeout for the individual pings. Must be positive and less than Interval.
 	Timeout time.Duration
 
-	mutex   sync.Mutex
-	paths   []*Path
-	current int
-	local   scionAddr
-	remote  scionAddr
+	mutex    sync.Mutex
+	stats    *pathStatsDB
+	topology snet.Topology
+	paths    []*Path
+	current  int
+	local    SCIONAddr
+	remote   SCIONAddr
 
 	numActive    int64
 	pingerCtx    context.Context
@@ -153,14 +164,16 @@ func (s *PingingSelector) Path(_ context.Context) *Path {
 	return s.paths[s.current]
 }
 
-func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path) {
+func (s *PingingSelector) Initialize(local, remote UDPAddr, paths []*Path, p *PAN) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	s.stats = p.stats
+	s.topology = p.topology
 	s.local = local.scionAddr()
 	s.remote = remote.scionAddr()
 	s.paths = paths
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	s.current = s.stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) Refresh(paths []*Path) {
@@ -168,7 +181,7 @@ func (s *PingingSelector) Refresh(paths []*Path) {
 	defer s.mutex.Unlock()
 
 	s.paths = paths
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	s.current = s.stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) PathDown(pf PathFingerprint, pi PathInterface) {
@@ -179,32 +192,37 @@ func (s *PingingSelector) reselectPath() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.current = stats.LowestLatency(s.remote, s.paths)
+	s.current = s.stats.LowestLatency(s.remote, s.paths)
 }
 
 func (s *PingingSelector) ensureRunning() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	host, err := getHost()
-	if err != nil {
-		return
-	}
 	if s.local.IA == s.remote.IA {
 		return
 	}
 	if s.pinger != nil {
 		return
 	}
+	if s.stats == nil {
+		panic("PingingSelector requires Initialize to be called first")
+	}
 	s.pingerCtx, s.pingerCancel = context.WithCancel(context.Background())
 	local := s.local.snetUDPAddr()
-	pinger, err := ping.NewPinger(s.pingerCtx, host.sciond, local)
+	pinger, err := ping.NewPinger(s.pingerCtx, s.topology, local)
 	if err != nil {
 		return
 	}
 	s.pinger = pinger
-	go s.pinger.Drain(s.pingerCtx)
-	go s.run()
+	go func() {
+		defer log.HandlePanic()
+		s.pinger.Drain(s.pingerCtx)
+	}()
+	go func() {
+		defer log.HandlePanic()
+		s.run()
+	}()
 }
 
 func (s *PingingSelector) run() {
@@ -248,7 +266,7 @@ func (s *PingingSelector) run() {
 				continue // already handled above
 			}
 			for pf := range replyPending {
-				stats.RecordLatency(s.remote, pf, s.Timeout)
+				s.stats.RecordLatency(s.remote, pf, s.Timeout)
 				delete(replyPending, pf)
 			}
 			s.reselectPath()
@@ -270,7 +288,8 @@ func (s *PingingSelector) sendPings(paths []*Path, sequenceNo uint16) {
 
 func (s *PingingSelector) handlePingReply(reply ping.Reply,
 	expectedReplies map[PathFingerprint]struct{},
-	expectedSequenceNo uint16) {
+	expectedSequenceNo uint16,
+) {
 	if reply.Error != nil {
 		// handle NotifyPathDown.
 		// The Pinger is not using the normal scmp handler in raw.go, so we have to
@@ -282,16 +301,16 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 		switch e := reply.Error.(type) { //nolint:errorlint
 		case ping.InternalConnectivityDownError:
 			pi := PathInterface{
-				IA:   IA(e.IA),
+				IA:   e.IA,
 				IfID: IfID(e.Egress),
 			}
-			stats.NotifyPathDown(pf, pi)
+			s.stats.NotifyPathDown(pf, pi)
 		case ping.ExternalInterfaceDownError:
 			pi := PathInterface{
-				IA:   IA(e.IA),
+				IA:   e.IA,
 				IfID: IfID(e.Interface),
 			}
-			stats.NotifyPathDown(pf, pi)
+			s.stats.NotifyPathDown(pf, pi)
 		}
 		return
 	}
@@ -299,8 +318,9 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 	if reply.Source.Host.Type() != addr.HostTypeIP {
 		return // ignore replies from non-IP addresses
 	}
-	src := scionAddr{
-		IA: IA(reply.Source.IA),
+
+	src := SCIONAddr{
+		IA: reply.Source.IA,
 		IP: reply.Source.Host.IP(),
 	}
 	if src != s.remote || reply.Reply.SeqNumber != expectedSequenceNo {
@@ -313,7 +333,7 @@ func (s *PingingSelector) handlePingReply(reply ping.Reply,
 	if _, expected := expectedReplies[pf]; !expected {
 		return
 	}
-	stats.RecordLatency(s.remote, pf, reply.RTT())
+	s.stats.RecordLatency(s.remote, pf, reply.RTT())
 	delete(expectedReplies, pf)
 }
 

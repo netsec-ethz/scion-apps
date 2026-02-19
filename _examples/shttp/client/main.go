@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -36,14 +38,20 @@ func main() {
 		os.Exit(2)
 	}
 
+	p, err := pan.New(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Create a standard client with our custom Transport/Dialer
 	c := &http.Client{
-		Transport: shttp.DefaultTransport,
+		Transport: shttp.NewDefaultTransport(p),
 	}
 
 	// Make a get request
 	start := time.Now()
 	query := fmt.Sprintf("http://%s/hello", *serverAddrStr)
+	//nolint:staticcheck
 	resp, err := c.Get(shttp.MangleSCIONAddrURL(query))
 	if err != nil {
 		log.Fatal("GET request failed: ", err)
@@ -60,6 +68,7 @@ func main() {
 	start = time.Now()
 	query = fmt.Sprintf("http://%s/form", *serverAddrStr)
 	resp, err = c.Post(
+		//nolint:staticcheck
 		shttp.MangleSCIONAddrURL(query),
 		"application/x-www-form-urlencoded",
 		strings.NewReader("surname=threepwood&firstname=guybrush"),

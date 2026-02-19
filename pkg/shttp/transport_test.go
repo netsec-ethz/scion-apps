@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	scionaddr "github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -98,8 +99,7 @@ func TestRoundTripper(t *testing.T) {
 			port, err := strconv.Atoi(portStr)
 			require.NoError(t, err)
 			require.Equal(t, hostStr, "host")
-			hostIA, err := pan.ParseIA("1-ff00:0:1")
-			require.NoError(t, err)
+			hostIA := scionaddr.MustParseIA("1-ff00:0:1")
 			hostIP := netip.MustParseAddr("192.0.2.1")
 			remote := pan.UDPAddr{IA: hostIA, IP: hostIP, Port: uint16(port)}
 			assert.Equal(t, expected, remote.String())

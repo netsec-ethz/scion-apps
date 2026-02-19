@@ -33,10 +33,10 @@ var errBadDstAddress error = errors.New("dst address not a UDPAddr")
 type ReplySelector interface {
 	// Path selects the path for the next packet to remote.
 	// Invoked for each packet sent with WriteTo.
-	Path(ctx context.Context, remote UDPAddr) *Path
+	Path(remote UDPAddr) *Path
 	// Initialize the selector.
 	// Invoked once during the creation of a ListenConn.
-	Initialize(local UDPAddr)
+	Initialize(local UDPAddr, p *PAN)
 	// Record a path used by the remote for a packet received.
 	// Invoked whenever a packet is received.
 	// The path is reversed, i.e. it's the path from here to remote.
@@ -53,37 +53,34 @@ type ListenConn interface {
 	// ReadFromVia reads a message and returns the (return-)path via which the
 	// message was received.
 	ReadFromVia(b []byte) (int, UDPAddr, *Path, error)
-	// WriteToWithCtx writes a message to the remote address using a path from
-	// the path selector. ctx is passed to the path selector where it can
-	// provide additional user-defined information, e.g., whether the packet is
-	// urgent or not.
-	WriteToWithCtx(ctx context.Context, b []byte, dst net.Addr) (n int, err error)
 	// WriteToVia writes a message to the remote address via the given path.
 	// This bypasses selector used for WriteTo.
 	WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error)
 }
 
-func ListenUDP(
-	ctx context.Context,
+// ListenUDP opens a SCION/UDP socket, listening on the local address.
+// If the local address, or either its IP or port, are left unspecified, they
+// will be automatically chosen.
+//
+// The selector controls which path is used for reply packets. If nil, a
+// DefaultReplySelector is used.
+func (p *PAN) ListenUDP(ctx context.Context,
 	local netip.AddrPort,
-	opts ...ListenConnOptions,
+	selector ReplySelector,
 ) (ListenConn, error) {
-	o := apply(opts)
-
-	host, err := getHost()
-	if err != nil {
-		return nil, err
+	if selector == nil {
+		selector = NewDefaultReplySelector()
 	}
-
-	local, err = defaultLocalAddr(local)
-	if err != nil {
-		return nil, err
+	// Fill in wildcard address with the default local IP.
+	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
+		local = netip.AddrPortFrom(p.addr, local.Port())
 	}
-
-	stats.subscribe(o.selector)
+	p.stats.subscribe(selector)
 	sn := snet.SCIONNetwork{
-		Topology:    host.sciond,
-		SCMPHandler: o.scmpHandler,
+		// TODO(lukedirtwalker): Do we need something that refreshes interfaces,
+		// because we don't fetch paths here?
+		Topology:    p.topology,
+		SCMPHandler: DefaultSCMPHandler{Stats: p.stats},
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
 	if err != nil {
@@ -91,11 +88,11 @@ func ListenUDP(
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   host.ia,
+		IA:   p.ia,
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
-	o.selector.Initialize(localUDPAddr)
+	selector.Initialize(localUDPAddr, p)
 
 	if len(os.Getenv("SCION_GO_INTEGRATION")) > 0 {
 		fmt.Printf("Listening addr=%s\n", localUDPAddr)
@@ -106,48 +103,9 @@ func ListenUDP(
 			raw: conn,
 		},
 		local:    localUDPAddr,
-		selector: o.selector,
+		selector: selector,
+		stats:    p.stats,
 	}, nil
-}
-
-type ListenConnOptions func(*listenConnOptions)
-
-// WithListenSCMPHandler sets the SCMP handler for the ListenConn.
-func WithListenSCMPHandler(handler snet.SCMPHandler) ListenConnOptions {
-	return func(o *listenConnOptions) {
-		if handler == nil {
-			panic("nil SCMP handler not allowed")
-		}
-		o.scmpHandler = handler
-	}
-}
-
-// WithReplySelector sets the reply path selector for the ListenConn.
-func WithReplySelector(selector ReplySelector) ListenConnOptions {
-	return func(o *listenConnOptions) {
-		if selector == nil {
-			panic("nil selector not allowed")
-		}
-		o.selector = selector
-	}
-}
-
-type listenConnOptions struct {
-	scmpHandler snet.SCMPHandler
-	selector    ReplySelector
-}
-
-func apply(opts []ListenConnOptions) listenConnOptions {
-	o := listenConnOptions{
-		scmpHandler: DefaultSCMPHandler{},
-		selector:    NewDefaultReplySelector(),
-	}
-	for _, opt := range opts {
-		if opt != nil {
-			opt(&o)
-		}
-	}
-	return o
 }
 
 type listenConn struct {
@@ -155,6 +113,7 @@ type listenConn struct {
 
 	local    UDPAddr
 	selector ReplySelector
+	stats    *pathStatsDB
 }
 
 func (c *listenConn) LocalAddr() net.Addr {
@@ -167,7 +126,7 @@ func (c *listenConn) ReadFrom(b []byte) (int, net.Addr, error) {
 }
 
 func (c *listenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
-	n, remote, fwPath, err := c.baseUDPConn.readMsg(b)
+	n, remote, fwPath, err := c.readMsg(b)
 	if err != nil {
 		return n, UDPAddr{}, nil, err
 	}
@@ -177,17 +136,13 @@ func (c *listenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
 }
 
 func (c *listenConn) WriteTo(b []byte, dst net.Addr) (int, error) {
-	return c.WriteToWithCtx(context.TODO(), b, dst)
-}
-
-func (c *listenConn) WriteToWithCtx(ctx context.Context, b []byte, dst net.Addr) (n int, err error) {
 	sdst, ok := dst.(UDPAddr)
 	if !ok {
 		return 0, errBadDstAddress
 	}
 	var path *Path
 	if c.local.IA != sdst.IA {
-		path = c.selector.Path(ctx, sdst)
+		path = c.selector.Path(sdst)
 		if path == nil {
 			return 0, errNoPathTo(sdst.IA)
 		}
@@ -196,11 +151,11 @@ func (c *listenConn) WriteToWithCtx(ctx context.Context, b []byte, dst net.Addr)
 }
 
 func (c *listenConn) WriteToVia(b []byte, dst UDPAddr, path *Path) (int, error) {
-	return c.baseUDPConn.writeMsg(c.local, dst, path, b)
+	return c.writeMsg(c.local, dst, path, b)
 }
 
 func (c *listenConn) Close() error {
-	stats.unsubscribe(c.selector)
+	c.stats.unsubscribe(c.selector)
 	// FIXME: multierror!
 	_ = c.selector.Close()
 	return c.baseUDPConn.Close()
@@ -217,10 +172,10 @@ func NewDefaultReplySelector() *DefaultReplySelector {
 	}
 }
 
-func (s *DefaultReplySelector) Initialize(local UDPAddr) {
+func (s *DefaultReplySelector) Initialize(local UDPAddr, p *PAN) {
 }
 
-func (s *DefaultReplySelector) Path(_ context.Context, remote UDPAddr) *Path {
+func (s *DefaultReplySelector) Path(remote UDPAddr) *Path {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	r, ok := s.remotes[remote]

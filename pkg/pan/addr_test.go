@@ -19,14 +19,15 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
 
 func TestUDPAddrIsValid(t *testing.T) {
-	ia := pan.MustParseIA("1-ff00:0:0")
-	iaWildcard := pan.MustParseIA("1-0")
+	ia := addr.MustParseIA("1-ff00:0:0")
+	iaWildcard := addr.MustParseIA("1-0")
 	ip := netip.MustParseAddr("127.0.0.1")
 	cases := []struct {
 		addr    pan.UDPAddr

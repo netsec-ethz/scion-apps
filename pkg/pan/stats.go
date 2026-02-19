@@ -17,13 +17,9 @@ package pan
 import (
 	"sync"
 	"time"
+
+	"github.com/scionproto/scion/pkg/log"
 )
-
-var stats pathStatsDB
-
-func init() {
-	stats = newPathStatsDB()
-}
 
 type PathStats struct {
 	// Was notified down at the recorded time (0 for never notified down)
@@ -59,7 +55,7 @@ type pathStatsDB struct {
 	// consecutive (unordered?) interface IDs.
 	interfaces map[PathInterface]PathInterfaceStats
 	// TODO: cleanup of this map on connection end, reference counted handle?
-	destinations map[scionAddr]DestinationStats
+	destinations map[SCIONAddr]DestinationStats
 
 	notifier pathDownNotifier
 }
@@ -68,11 +64,11 @@ func newPathStatsDB() pathStatsDB {
 	return pathStatsDB{
 		paths:        make(map[PathFingerprint]PathStats),
 		interfaces:   make(map[PathInterface]PathInterfaceStats),
-		destinations: make(map[scionAddr]DestinationStats),
+		destinations: make(map[SCIONAddr]DestinationStats),
 	}
 }
 
-func (s *pathStatsDB) RecordLatency(dst scionAddr, p PathFingerprint, latency time.Duration) {
+func (s *pathStatsDB) RecordLatency(dst SCIONAddr, p PathFingerprint, latency time.Duration) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -90,7 +86,7 @@ func (s *pathStatsDB) RecordLatency(dst scionAddr, p PathFingerprint, latency ti
 // recorded down notification for the corresponding path are ignored. Paths
 // with no recorded latency value, or with down notifications, are treated with
 // least priority.
-func (s *pathStatsDB) LowestLatency(dst scionAddr, paths []*Path) int {
+func (s *pathStatsDB) LowestLatency(dst SCIONAddr, paths []*Path) int {
 	if len(paths) == 0 {
 		return -1
 	}
@@ -130,7 +126,7 @@ func (s *pathStatsDB) FirstMoreAlive(p *Path, paths []*Path) int {
 	defer s.mutex.RUnlock()
 
 	for i, pc := range paths {
-		if s.IsMoreAlive(pc, p) {
+		if s.isMoreAliveLocked(pc, p) {
 			return i
 		}
 	}
@@ -144,10 +140,14 @@ func (s *pathStatsDB) FirstMoreAlive(p *Path, paths []*Path) int {
 func (s *pathStatsDB) IsMoreAlive(a, b *Path) bool {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+	return s.isMoreAliveLocked(a, b)
+}
 
+func (s *pathStatsDB) isMoreAliveLocked(a, b *Path) bool {
 	newestA := s.newestDownNotification(a)
 	oldestB := s.oldestDownNotification(b)
-	return newestA.Before(oldestB.Add(-pathDownNotificationTimeout)) // XXX: what is this value, what does it mean?
+	// XXX: what is this value, what does it mean?
+	return newestA.Before(oldestB.Add(-pathDownNotificationTimeout))
 }
 
 // newestDownNotification returns the time of the newest relevant down
@@ -258,6 +258,7 @@ func (n *pathDownNotifier) run() {
 	n.notifications = notifications
 
 	go func() {
+		defer log.HandlePanic()
 		for notification := range notifications {
 			n.notify(notification.Fingerprint, notification.Interface)
 		}

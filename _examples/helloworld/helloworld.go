@@ -39,17 +39,22 @@ func main() {
 		check(fmt.Errorf("either specify -listen for server or -remote for client"))
 	}
 
+	p, err := pan.New(context.Background())
+	if err != nil {
+		check(err)
+	}
+
 	if listen.Get().Port() > 0 {
-		err = runServer(listen.Get())
+		err = runServer(p, listen.Get())
 		check(err)
 	} else {
-		err = runClient(*remoteAddr, int(*count))
+		err = runClient(p, *remoteAddr, int(*count))
 		check(err)
 	}
 }
 
-func runServer(listen netip.AddrPort) error {
-	conn, err := pan.ListenUDP(context.Background(), listen)
+func runServer(p *pan.PAN, listen netip.AddrPort) error {
+	conn, err := pan.ListenUDP(context.Background(), p, listen, nil)
 	if err != nil {
 		return err
 	}
@@ -73,12 +78,12 @@ func runServer(listen netip.AddrPort) error {
 	}
 }
 
-func runClient(address string, count int) error {
+func runClient(p *pan.PAN, address string, count int) error {
 	addr, err := pan.ResolveUDPAddr(context.TODO(), address)
 	if err != nil {
 		return err
 	}
-	conn, err := pan.DialUDP(context.Background(), netip.AddrPort{}, addr)
+	conn, err := pan.DialUDP(context.Background(), p, netip.AddrPort{}, addr)
 	if err != nil {
 		return err
 	}

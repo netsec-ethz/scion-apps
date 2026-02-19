@@ -18,11 +18,14 @@ import (
 	"context"
 	"crypto/tls"
 	golog "log"
+	"net"
 	"net/netip"
 	"os"
 	"strconv"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -83,6 +86,13 @@ func main() {
 		golog.Panicf("Error creating ssh server: %v", err)
 	}
 
+	p, err := pan.New(context.Background())
+	if err != nil {
+		golog.Fatalf("Error creating pan client: %v", err)
+	}
+
+	sshServer.SetPAN(p)
+
 	port, err := strconv.ParseUint(conf.Port, 10, 16)
 	if err != nil {
 		golog.Panicf("Can't parse port %v: %v", conf.Port, err)
@@ -94,11 +104,15 @@ func main() {
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{quicutil.SingleStreamProto},
 	}
-	ql, err := pan.ListenQUIC(context.Background(), local, tlsConf, nil)
+	localAddr := &snet.UDPAddr{
+		IA:   p.IA(),
+		Host: net.UDPAddrFromAddrPort(local),
+	}
+	ql, err := p.ListenQUIC(context.Background(), localAddr, tlsConf, &quic.Config{}, nil)
 	if err != nil {
 		golog.Panicf("Failed to listen (%v)", err)
 	}
-	listener := quicutil.SingleStreamListener{QUICListener: ql}
+	listener := &quicutil.SingleStreamListener{QUICListener: ql}
 
 	log.Debug("Starting to wait for connections")
 	for {

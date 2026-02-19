@@ -29,6 +29,7 @@ import (
 
 // dialSCION starts a client connection to the given SSH server over SCION using QUIC.
 func dialSCION(ctx context.Context,
+	p *pan.PAN,
 	addr string,
 	policy pan.Policy,
 	selector string,
@@ -49,7 +50,7 @@ func dialSCION(ctx context.Context,
 	quicConf := &quic.Config{
 		KeepAlivePeriod: 15 * time.Second,
 	}
-	sess, err := pan.DialQUIC(ctx, netip.AddrPort{}, remote, "", tlsConf, quicConf, pan.WithPolicy(policy), pan.WithSelector(sel))
+	sess, err := p.DialQUIC(ctx, netip.AddrPort{}, remote, "", tlsConf, quicConf, pan.WithPolicy(policy), pan.WithSelector(sel))
 	if err != nil {
 		return nil, err
 	}

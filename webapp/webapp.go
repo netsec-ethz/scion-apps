@@ -487,7 +487,7 @@ func executeCommand(w http.ResponseWriter, r *http.Request) {
 	log.Info("Executing:", "command", strings.Join(command, " "))
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Dir = getClientCwd(appSel)
-	cmd.Env = append(os.Environ(), "SCION_DAEMON_ADDRESS="+asCfg[myIA].Sciond)
+	cmd.Env = append(os.Environ(), "SCION_DAEMON="+asCfg[myIA].Sciond)
 
 	log.Info("Chosen Path:", "pathStr", pathStr)
 

@@ -24,7 +24,7 @@ var (
 	ServerAddr = flag.String("server-addr", "1-ff00:0:111,127.0.0.1:5000", "Address of the echo server")
 )
 
-func NewPanQuicDialer(tlsCfg *tls.Config) func(context.Context, string) (net.Conn, error) {
+func NewPanQuicDialer(p *pan.PAN, tlsCfg *tls.Config) func(context.Context, string) (net.Conn, error) {
 	dialer := func(ctx context.Context, addr string) (net.Conn, error) {
 		panAddr, err := pan.ResolveUDPAddr(ctx, addr)
 		if err != nil {
@@ -32,7 +32,7 @@ func NewPanQuicDialer(tlsCfg *tls.Config) func(context.Context, string) (net.Con
 		}
 
 		clientQuicConfig := &quic.Config{KeepAlivePeriod: 15 * time.Second}
-		session, err := pan.DialQUIC(ctx, netip.AddrPort{}, panAddr, "", tlsCfg, clientQuicConfig)
+		session, err := pan.DialQUIC(ctx, p, netip.AddrPort{}, panAddr, "", tlsCfg, clientQuicConfig)
 		if err != nil {
 			return nil, fmt.Errorf("did not dial: %w", err)
 		}
@@ -45,16 +45,22 @@ func NewPanQuicDialer(tlsCfg *tls.Config) func(context.Context, string) (net.Con
 func main() {
 	flag.Parse()
 
+	p, err := pan.New(context.Background())
+	if err != nil {
+		log.Fatalf("failed to create PAN: %v", err)
+	}
+
 	tlsCfg := &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         []string{"echo_service"},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	dialCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	grpcDial, err := grpc.DialContext(ctx, *ServerAddr,
-		grpc.WithContextDialer(NewPanQuicDialer(tlsCfg)),
+	//nolint:staticcheck
+	grpcDial, err := grpc.DialContext(dialCtx, *ServerAddr,
+		grpc.WithContextDialer(NewPanQuicDialer(p, tlsCfg)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -66,7 +72,7 @@ func main() {
 	req := &pb.EchoRequest{
 		Msg: *Message,
 	}
-	resp, err := c.Echo(ctx, req)
+	resp, err := c.Echo(dialCtx, req)
 	if err != nil {
 		log.Fatalf("gRPC did not connect: %v", err)
 	}

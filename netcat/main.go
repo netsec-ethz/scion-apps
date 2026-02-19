@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -47,6 +48,8 @@ var (
 	interactive bool
 	sequence    string
 	preference  string
+
+	p *pan.PAN
 )
 
 func printUsage() {
@@ -111,6 +114,12 @@ func main() {
 	}
 	if repeatDuring && commandString == "" {
 		log.Fatalf("-K flag requires -c flag!")
+	}
+
+	var err error
+	p, err = pan.New(context.Background())
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	var conns chan io.ReadWriteCloser

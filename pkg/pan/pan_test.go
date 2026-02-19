@@ -18,11 +18,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestErrNoPathTo(t *testing.T) {
-	ia := MustParseIA("1-ff00:0:1")
+	ia := addr.MustParseIA("1-ff00:0:1")
 	err := errNoPathTo(ia)
 	assert.Equal(t, err.Error(), "no path to 1-ff00:0:1")
 	assert.True(t, errors.Is(err, ErrNoPath))

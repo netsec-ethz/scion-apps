@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -172,6 +173,7 @@ func TestSortStablePartialOrder(t *testing.T) {
 		})
 	}
 }
+
 func TestPinnedPolicy(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -296,9 +298,9 @@ func fingerprintsFromTestdataPaths(paths []*Path) []PathFingerprint {
 // works correctly. We do not need to extensively test the sequence
 // language itself here.
 func TestSequencePolicy(t *testing.T) {
-	asA := MustParseIA("1-ff00:0:a")
-	asB := MustParseIA("1-ff00:0:b")
-	asC := MustParseIA("1-ff00:0:c")
+	asA := addr.MustParseIA("1-ff00:0:a")
+	asB := addr.MustParseIA("1-ff00:0:b")
+	asC := addr.MustParseIA("1-ff00:0:c")
 	pAB := &Path{
 		Metadata: &PathMetadata{
 			Interfaces: []PathInterface{
@@ -368,9 +370,9 @@ func TestSequencePolicy(t *testing.T) {
 // works correctly. We do not need to extensively test the sequence
 // language itself here.
 func TestACLPolicy(t *testing.T) {
-	asA := MustParseIA("1-ff00:0:a")
-	asB := MustParseIA("1-ff00:0:b")
-	asC := MustParseIA("1-ff00:0:c")
+	asA := addr.MustParseIA("1-ff00:0:a")
+	asB := addr.MustParseIA("1-ff00:0:b")
+	asC := addr.MustParseIA("1-ff00:0:c")
 	pAB := &Path{
 		Metadata: &PathMetadata{
 			Interfaces: []PathInterface{
