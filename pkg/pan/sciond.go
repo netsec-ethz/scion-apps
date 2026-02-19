@@ -17,141 +17,157 @@ package pan
 import (
 	"context"
 	"fmt"
-	"net"
+	golog "log"
 	"net/netip"
-	"os"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/log"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
+	"github.com/scionproto/scion/private/app/flag"
 )
 
 // hostContext contains the information needed to connect to the host's local SCION stack,
 // i.e. the connection to sciond.
 type hostContext struct {
-	ia            IA
-	sciond        daemon.Connector
-	hostInLocalAS net.IP
+	ia       addr.IA
+	scionD   daemon.Connector
+	topology snet.Topology
+	addr     netip.Addr
+
+	interfaces *atomic.Pointer[map[uint16]netip.AddrPort]
+}
+
+type ASContext interface {
+	// IA returns the local ISD-AS.
+	IA() addr.IA
+	// Topology returns the local AS topology.
+	Topology() snet.Topology
+	// Paths returns the available paths to the given destination IA.
+	Paths(ctx context.Context, dst addr.IA) ([]*Path, error)
+	// LocalAddr returns the local IP address to use.
+	LocalAddr() netip.Addr
 }
 
 const (
 	initTimeout = 1 * time.Second
 )
 
-// HostContextError is returned by the API if the SCION host context initialization
-// failed. This error most likely appears if the SCION daemon is not running or
-// can't be reached.
-type HostContextError struct {
-	Cause error
-}
-
-func (e HostContextError) Error() string {
-	return fmt.Sprintf("error initializing SCION host context: '%v'", e.Cause)
-}
-
-var singletonHostContext hostContext
-var initOnce = sync.OnceValue(mustInitHostContext)
-
-// host initialises and returns the singleton hostContext.
-func getHost() (*hostContext, error) {
-	err := initOnce()
+// MustLoadDefaultASContext loads the ASContext from the environment by
+// connecting to the local SCIOND and initializes the default path pool.
+// If loading fails, it fatals.
+//
+// This is a convenience function for simple applications and will be
+// obsolete once the new client API is in place.
+func MustLoadDefaultASContext() ASContext {
+	asCtx, err := LoadASContext(context.Background())
 	if err != nil {
-		return nil, err
+		golog.Fatalf("Failed to load AS context: %v", err)
 	}
-	return &singletonHostContext, nil
+	PathPoolInit(asCtx, DefaultPathPoolConfig())
+
+	return asCtx
 }
 
-func mustInitHostContext() error {
-	hostCtx, err := initHostContext()
-	if err != nil {
-		return HostContextError{Cause: err}
+func LoadASContext(ctx context.Context) (ASContext, error) {
+	var scionEnv flag.SCIONEnvironment
+	if err := scionEnv.LoadExternalVars(); err != nil {
+		return nil, fmt.Errorf("unable to load SCION environment: %w", err)
 	}
-	singletonHostContext = hostCtx
-	return nil
-}
-
-func initHostContext() (hostContext, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), initTimeout)
+	log.FromCtx(ctx).Debug("SCION environment loaded", "daemon", scionEnv.Daemon(),
+		"local", scionEnv.Local(),
+	)
+	ctx, cancel := context.WithTimeout(ctx, initTimeout)
 	defer cancel()
-	sciondConn, err := findSciond(ctx)
+	sciondConn, err := daemon.NewService(scionEnv.Daemon()).Connect(ctx)
 	if err != nil {
-		return hostContext{}, err
+		return nil, fmt.Errorf(
+			"unable to connect to SCIOND at %s (override with SCION_DAEMON): %w",
+			scionEnv.Daemon(), err,
+		)
 	}
 	localIA, err := sciondConn.LocalIA(ctx)
 	if err != nil {
-		return hostContext{}, err
+		return nil, fmt.Errorf("unable to get local ISD-AS from SCIOND: %w", err)
 	}
-	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
+	start, end, err := sciondConn.PortRange(ctx)
 	if err != nil {
-		return hostContext{}, err
+		return nil, fmt.Errorf("unable to get port range from SCIOND: %w", err)
 	}
-	return hostContext{
-		ia:            IA(localIA),
-		sciond:        sciondConn,
-		hostInLocalAS: hostInLocalAS,
-	}, nil
-}
-
-func findSciond(ctx context.Context) (daemon.Connector, error) {
-	address, ok := os.LookupEnv("SCION_DAEMON_ADDRESS")
-	if !ok {
-		address = daemon.DefaultAPIAddress
-	}
-	sciondConn, err := daemon.NewService(address).Connect(ctx)
+	interfaces, err := sciondConn.Interfaces(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to SCIOND at %s (override with SCION_DAEMON_ADDRESS): %w", address, err)
+		return nil, fmt.Errorf("unable to get interfaces from SCIOND: %w", err)
 	}
-	return sciondConn, nil
-}
-
-// findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
-func findAnyHostInLocalAS(ctx context.Context, sciondConn daemon.Connector) (net.IP, error) {
-	addr, err := daemon.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
-	if err != nil {
-		return nil, err
-	}
-	return addr.IP, nil
-}
-
-// defaultLocalIP returns _a_ IP of this host in the local AS.
-//
-// The purpose of this function is to workaround not being able to bind to
-// wildcard addresses in snet.
-// See note on wildcard addresses in the package documentation.
-func defaultLocalIP() (netip.Addr, error) {
-	host, err := getHost()
-	if err != nil {
-		return netip.Addr{}, err
-	}
-	stdIP, err := addrutil.ResolveLocal(host.hostInLocalAS)
-	ip, ok := netip.AddrFromSlice(stdIP)
-	if err != nil || !ok {
-		return netip.Addr{}, fmt.Errorf("unable to resolve default local address %w", err)
-	}
-	return ip.Unmap(), nil
-}
-
-// defaultLocalAddr fills in a missing or unspecified IP field with defaultLocalIP.
-func defaultLocalAddr(local netip.AddrPort) (netip.AddrPort, error) {
-	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
-		localIP, err := defaultLocalIP()
+	localAddr := scionEnv.Local()
+	if !scionEnv.Local().IsValid() {
+		localIP, err := addrutil.DefaultLocalIP(ctx, daemon.TopoQuerier{Connector: sciondConn})
 		if err != nil {
-			return netip.AddrPort{}, err
+			return nil, fmt.Errorf("unable to determine local IP: %w", err)
 		}
-		local = netip.AddrPortFrom(localIP, local.Port())
+		var ok bool
+		localAddr, ok = netip.AddrFromSlice(localIP)
+		if !ok {
+			return nil, fmt.Errorf(
+				"unable to convert local IP to netip.Addr: %v",
+				localIP,
+			)
+		}
 	}
-	return local, nil
+	localAddr = localAddr.Unmap()
+	hc := hostContext{
+		ia:         localIA,
+		scionD:     sciondConn,
+		addr:       localAddr,
+		interfaces: &atomic.Pointer[map[uint16]netip.AddrPort]{},
+	}
+	hc.interfaces.Store(&interfaces)
+	hc.topology = snet.Topology{
+		LocalIA: localIA,
+		PortRange: snet.TopologyPortRange{
+			Start: start,
+			End:   end,
+		},
+		Interface: func(ifID uint16) (netip.AddrPort, bool) {
+			m := hc.interfaces.Load()
+			if m == nil {
+				return netip.AddrPort{}, false
+			}
+			a, ok := (*m)[ifID]
+			return a, ok
+		},
+	}
+
+	return &hc, nil
 }
 
-func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
+func (h *hostContext) IA() addr.IA {
+	return h.ia
+}
+
+func (h *hostContext) Topology() snet.Topology {
+	return h.topology
+}
+
+func (h *hostContext) LocalAddr() netip.Addr {
+	return h.addr
+}
+
+func (h *hostContext) Paths(ctx context.Context, dst addr.IA) ([]*Path, error) {
 	flags := daemon.PathReqFlags{Refresh: false, Hidden: false}
-	snetPaths, err := h.sciond.Paths(ctx, addr.IA(dst), 0, flags)
+	snetPaths, err := h.scionD.Paths(ctx, dst, 0, flags)
 	if err != nil {
 		return nil, err
 	}
+	// when querying paths we also reload the interfaces, to make sure we have
+	// correct information about them.
+	interfaces, err := h.scionD.Interfaces(ctx)
+	if err != nil {
+		return nil, err
+	}
+	h.interfaces.Store(&interfaces)
 	paths := make([]*Path, len(snetPaths))
 	for i, p := range snetPaths {
 		snetMetadata := p.Metadata()
@@ -170,7 +186,7 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 			Source:      h.ia,
 			Destination: dst,
 			Metadata:    metadata,
-			Fingerprint: pathSequenceFromInterfaces(metadata.Interfaces).Fingerprint(),
+			Fingerprint: PathSequenceFromInterfaces(metadata.Interfaces).Fingerprint(),
 			Expiry:      snetMetadata.Expiry,
 			ForwardingPath: ForwardingPath{
 				dataplanePath: p.Dataplane(),
@@ -185,7 +201,7 @@ func convertPathInterfaceSlice(spis []snet.PathInterface) []PathInterface {
 	pis := make([]PathInterface, len(spis))
 	for i, spi := range spis {
 		pis[i] = PathInterface{
-			IA:   IA(spi.IA),
+			IA:   spi.IA,
 			IfID: IfID(spi.ID),
 		}
 	}

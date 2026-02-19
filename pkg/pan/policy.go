@@ -194,7 +194,7 @@ func (p snetPathWrapper) Metadata() *snet.PathMetadata {
 	pis := make([]snet.PathInterface, len(p.wrapped.Metadata.Interfaces))
 	for i, spi := range p.wrapped.Metadata.Interfaces {
 		pis[i] = snet.PathInterface{
-			IA: addr.IA(spi.IA),
+			IA: spi.IA,
 			ID: iface.ID(spi.IfID),
 		}
 	}

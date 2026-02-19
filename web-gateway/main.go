@@ -31,6 +31,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -43,6 +44,9 @@ func main() {
 		" (similar to HSTS directives) if not already present").String()
 	hosts := kingpin.Arg("hosts", "Hostnames for hosts to proxy").Required().Strings()
 	kingpin.Parse()
+
+	// Initialize SCION AS context once
+	asCtx := pan.MustLoadDefaultASContext()
 
 	// Proxy HTTP:
 	mux := http.NewServeMux()
@@ -72,7 +76,7 @@ func main() {
 		mux,
 	)
 	go func() {
-		log.Fatalf("%s", shttp.ListenAndServe(":80", loggedMux))
+		log.Fatalf("%s", shttp.ListenAndServe(asCtx, ":80", loggedMux))
 	}()
 
 	// For HTTPS, forward the entire TLS traffic data
@@ -80,13 +84,13 @@ func main() {
 	for _, h := range *hosts {
 		hostSet[h] = struct{}{}
 	}
-	log.Fatalf("%s", forwardTLS(hostSet))
+	log.Fatalf("%s", forwardTLS(asCtx, hostSet))
 }
 
 // forwardTLS listens on 443 and forwards each sessions to the corresponding
 // TCP/IP host identified by SNI
-func forwardTLS(hosts map[string]struct{}) error {
-	listener, err := listen(netip.AddrPortFrom(netip.Addr{}, 443))
+func forwardTLS(asCtx pan.ASContext, hosts map[string]struct{}) error {
+	listener, err := listen(asCtx, netip.AddrPortFrom(netip.Addr{}, 443))
 	if err != nil {
 		return err
 	}
@@ -160,10 +164,15 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 	}
 }
 
-func listen(laddr netip.AddrPort) (*pan.QUICListener, error) {
+func listen(asCtx pan.ASContext, laddr netip.AddrPort) (*quic.EarlyListener, error) {
+	localAddr := &snet.UDPAddr{
+		IA:   asCtx.IA(),
+		Host: net.UDPAddrFromAddrPort(laddr),
+	}
+
 	tlsCfg := &tls.Config{
 		NextProtos:   []string{quicutil.SingleStreamProto},
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 	}
-	return pan.ListenQUIC(context.Background(), laddr, tlsCfg, nil)
+	return pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
 }

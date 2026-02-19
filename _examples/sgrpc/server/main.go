@@ -5,10 +5,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"log"
+	"net"
 	"net/netip"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
+	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 	"google.golang.org/grpc"
 
 	pb "examples/sgrpc/proto"
@@ -35,6 +38,8 @@ var (
 func main() {
 	flag.Parse()
 
+	asCtx := pan.MustLoadDefaultASContext()
+
 	addr, err := netip.ParseAddrPort(*ServerAddr)
 	if err != nil {
 		log.Fatalf("failed to parse server address")
@@ -49,14 +54,18 @@ func main() {
 		NextProtos:   []string{"echo_service"},
 	}
 
-	quicListener, err := pan.ListenQUIC(context.Background(), addr, tlsCfg, nil)
+	localAddr := &snet.UDPAddr{
+		IA:   asCtx.IA(),
+		Host: net.UDPAddrFromAddrPort(addr),
+	}
+	quicListener, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
 	if err != nil {
 		log.Fatalf("failed to listen SCION QUIC on %s: %v", *ServerAddr, err)
 	}
 	lis := quicutil.SingleStreamListener{QUICListener: quicListener}
 	log.Println("listen on", quicListener.Addr())
 
-	if err := grpcServer.Serve(lis); err != nil {
+	if err := grpcServer.Serve(&lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }

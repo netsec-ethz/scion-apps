@@ -20,9 +20,11 @@ import (
 	"sync"
 )
 
-var logSilencerMutex sync.Mutex
-var logSilencerCount int32
-var logSilencerOriginal io.Writer
+var (
+	logSilencerMutex    sync.Mutex
+	logSilencerCount    int32
+	logSilencerOriginal io.Writer
+)
 
 // silenceLog redirects the log.Default writer to a black hole.
 // It can be reenabled by calling unsilenceLog.

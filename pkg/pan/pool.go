@@ -18,24 +18,51 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/log"
 )
 
 // pool is the *global* path pool.
 // - share cache between multiple connections
 // - centrally refresh paths before expiration
-var pool pathPool
+var pool PathPool
 
-func init() {
-	pool.refresher = makeRefresher(&pool)
-	pool.entries = make(map[IA]pathPoolDst)
-	// note: start refresher, but won't do anything until paths are added to the pool
-	go pool.refresher.run()
+type PathPoolConfig struct {
+	RefreshMinInterval time.Duration
+	RefreshInterval    time.Duration
+	RefreshLeadTime    time.Duration
+	PruneLeadTime      time.Duration
 }
 
-type pathPool struct {
+func DefaultPathPoolConfig() PathPoolConfig {
+	return PathPoolConfig{
+		RefreshMinInterval: pathRefreshMinInterval,
+		RefreshInterval:    pathRefreshInterval,
+		RefreshLeadTime:    pathRefreshLeadTime,
+		PruneLeadTime:      pathPruneLeadTime,
+	}
+}
+
+func PathPoolInit(asCtx ASContext, config PathPoolConfig) *PathPool {
+	pool.config = config
+	pool.refresher = makeRefresher(&pool)
+	pool.entries = make(map[addr.IA]pathPoolDst)
+	pool.asCtx = asCtx
+	// note: start refresher, but won't do anything until paths are added to the pool
+	go func() {
+		defer log.HandlePanic()
+		pool.refresher.run()
+	}()
+	return &pool
+}
+
+type PathPool struct {
+	asCtx        ASContext
 	refresher    refresher
 	entriesMutex sync.RWMutex
-	entries      map[IA]pathPoolDst
+	entries      map[addr.IA]pathPoolDst
+	config       PathPoolConfig
 }
 
 // pathPoolDst is path pool entry for one destination IA
@@ -50,9 +77,11 @@ type pathPoolSubscriber interface {
 	pathDownNotifyee
 }
 
-func (p *pathPool) subscribe(ctx context.Context, dstIA IA,
-	s pathPoolSubscriber) ([]*Path, error) {
-
+func (p *PathPool) subscribe(
+	ctx context.Context,
+	dstIA addr.IA,
+	s pathPoolSubscriber,
+) ([]*Path, error) {
 	paths, err := p.refresher.subscribe(ctx, dstIA, s)
 	if err != nil {
 		return nil, err
@@ -61,22 +90,22 @@ func (p *pathPool) subscribe(ctx context.Context, dstIA IA,
 	return paths, nil
 }
 
-func (p *pathPool) unsubscribe(dstIA IA, s pathPoolSubscriber) {
+func (p *PathPool) unsubscribe(dstIA addr.IA, s pathPoolSubscriber) {
 	p.refresher.unsubscribe(dstIA, s)
 	stats.unsubscribe(s)
 }
 
 // paths returns paths to dstIA. This _may_ query paths, unless they have recently been queried.
-func (p *pathPool) paths(ctx context.Context, dstIA IA) ([]*Path, bool, error) {
+func (p *PathPool) paths(ctx context.Context, dstIA addr.IA) ([]*Path, bool, error) {
 	p.entriesMutex.RLock()
 	entry, ok := p.entries[dstIA]
 	p.entriesMutex.RUnlock()
 
-	if ok && !shouldQuery(time.Now(), entry.earliestExpiry, entry.lastQuery) {
+	if ok && time.Since(entry.lastQuery) < p.config.RefreshMinInterval {
 		return append([]*Path{}, entry.paths...), false, nil
 	}
 
-	paths, err := p.queryPaths(ctx, dstIA)
+	paths, err := p.QueryPaths(ctx, dstIA)
 	if err != nil {
 		return nil, false, err
 	}
@@ -84,31 +113,27 @@ func (p *pathPool) paths(ctx context.Context, dstIA IA) ([]*Path, bool, error) {
 }
 
 // queryPaths returns paths to dstIA. Unconditionally requests paths from sciond.
-func (p *pathPool) queryPaths(ctx context.Context, dstIA IA) ([]*Path, error) {
-	host, err := getHost()
-	if err != nil {
-		return nil, err
-	}
-	paths, err := host.queryPaths(ctx, dstIA)
+func (p *PathPool) QueryPaths(ctx context.Context, dstIA addr.IA) ([]*Path, error) {
+	paths, err := p.asCtx.Paths(ctx, dstIA)
 	if err != nil {
 		return nil, err
 	}
 	p.entriesMutex.Lock()
 	defer p.entriesMutex.Unlock()
 	entry := p.entries[dstIA]
-	entry.update(paths)
+	entry.update(paths, p.config.PruneLeadTime)
 	p.entries[dstIA] = entry
 	return append([]*Path{}, paths...), nil
 }
 
 // cachedPaths returns paths to dstIA. Always returns the cached paths, never queries paths.
-func (p *pathPool) cachedPaths(dst IA) []*Path {
+func (p *PathPool) cachedPaths(dstIA addr.IA) []*Path {
 	p.entriesMutex.RLock()
 	defer p.entriesMutex.RUnlock()
-	return append([]*Path{}, p.entries[dst].paths...)
+	return append([]*Path{}, p.entries[dstIA].paths...)
 }
 
-func (e *pathPoolDst) update(paths []*Path) {
+func (e *pathPoolDst) update(paths []*Path, pathPruneLeadTime time.Duration) {
 	now := time.Now()
 	expiryDropTime := now.Add(-pathPruneLeadTime)
 
@@ -130,7 +155,7 @@ func (e *pathPoolDst) update(paths []*Path) {
 	e.paths = paths
 }
 
-func (p *pathPool) earliestPathExpiry() time.Time {
+func (p *PathPool) earliestPathExpiry() time.Time {
 	p.entriesMutex.RLock()
 	defer p.entriesMutex.RUnlock()
 	if len(p.entries) == 0 {
@@ -157,10 +182,4 @@ func earliestPathExpiry(paths []*Path) time.Time {
 		}
 	}
 	return ret
-}
-
-func shouldQuery(now, expiry, lastQuery time.Time) bool {
-	earliestAllowedRefresh := lastQuery.Add(pathRefreshMinInterval)
-	timeForRefresh := expiry.Add(-pathRefreshLeadTime)
-	return now.After(earliestAllowedRefresh) && now.After(timeForRefresh)
 }

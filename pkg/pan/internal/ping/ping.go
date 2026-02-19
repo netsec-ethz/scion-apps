@@ -53,7 +53,6 @@ func NewPinger(ctx context.Context,
 	topo snet.Topology,
 	local *snet.UDPAddr,
 ) (*Pinger, error) {
-
 	replies := make(chan Reply, 10)
 	scmpHandler := &scmpHandler{
 		replies: replies,
@@ -86,8 +85,8 @@ func NewPinger(ctx context.Context,
 }
 
 func (p *Pinger) Send(ctx context.Context, remote *snet.UDPAddr,
-	sequence uint16, size int) error {
-
+	sequence uint16, size int,
+) error {
 	// we need to have at least 8 bytes to store the request time in the
 	// payload.
 	if size < 8 {
@@ -222,15 +221,14 @@ func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, 
 	if _, ok := remote.Path.(path.Empty); (remote.Path == nil || ok) && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
-	localIP, ok := netip.AddrFromSlice(local.Host.IP)
-	if !ok {
-		return nil, serrors.New("invalid local IP", "local", local.Host.IP)
-	}
 	remoteIP, ok := netip.AddrFromSlice(remote.Host.IP)
 	if !ok {
-		return nil, serrors.New("invalid remote IP", "remote", remote.Host.IP)
+		return nil, serrors.New("invalid remote IP address")
 	}
-
+	localIP, ok := netip.AddrFromSlice(local.Host.IP)
+	if !ok {
+		return nil, serrors.New("invalid local IP address")
+	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{

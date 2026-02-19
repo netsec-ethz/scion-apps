@@ -23,6 +23,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/ssh/server/serverconfig"
 	"github.com/netsec-ethz/scion-apps/ssh/utils"
 )
@@ -37,6 +38,8 @@ type Server struct {
 	configuration *ssh.ServerConfig
 
 	channelHandlers map[string]channelHandlerFunction
+
+	asCtx pan.ASContext
 }
 
 // Create creates a new unconnected Server object.
@@ -66,9 +69,19 @@ func Create(config *serverconfig.ServerConfig, version string) (*Server, error) 
 
 	server.channelHandlers["session"] = handleSession
 	server.channelHandlers["direct-tcpip"] = handleTCPTunnel
-	server.channelHandlers["direct-scionquic"] = handleSCIONQUICTunnel
+	server.channelHandlers["direct-scionquic"] = server.handleSCIONQUICTunnelWrapper
 
 	return server, nil
+}
+
+// SetASContext sets the AS context for the server
+func (s *Server) SetASContext(asCtx pan.ASContext) {
+	s.asCtx = asCtx
+}
+
+// handleSCIONQUICTunnelWrapper wraps handleSCIONQUICTunnel to provide asCtx
+func (s *Server) handleSCIONQUICTunnelWrapper(perms *ssh.Permissions, newChannel ssh.NewChannel) error {
+	return handleSCIONQUICTunnel(s.asCtx, perms, newChannel)
 }
 
 func (s *Server) handleChannels(perms *ssh.Permissions, chans <-chan ssh.NewChannel) {

@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
 	"os"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 )
 
 func main() {
@@ -43,21 +45,27 @@ func main() {
 		check(fmt.Errorf("either specify -listen for server or -remote for client"))
 	}
 
+	asCtx := pan.MustLoadDefaultASContext()
+
 	if listen.Get().Port() > 0 {
-		err = runServer(listen.Get())
+		err = runServer(asCtx, listen.Get())
 		check(err)
 	} else {
-		err = runClient(*remoteAddr, int(*count))
+		err = runClient(asCtx, *remoteAddr, int(*count))
 		check(err)
 	}
 }
 
-func runServer(listen netip.AddrPort) error {
+func runServer(asCtx pan.ASContext, listen netip.AddrPort) error {
 	tlsCfg := &tls.Config{
 		Certificates: quicutil.MustGenerateSelfSignedCert(),
 		NextProtos:   []string{"hello-quic"},
 	}
-	listener, err := pan.ListenQUIC(context.Background(), listen, tlsCfg, nil)
+	localAddr := &snet.UDPAddr{
+		IA:   asCtx.IA(),
+		Host: net.UDPAddrFromAddrPort(listen),
+	}
+	listener, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsCfg, &quic.Config{}, nil)
 	if err != nil {
 		return err
 	}
@@ -104,7 +112,7 @@ func workSession(session *quic.Conn) error {
 	}
 }
 
-func runClient(address string, count int) error {
+func runClient(asCtx pan.ASContext, address string, count int) error {
 	addr, err := pan.ResolveUDPAddr(context.TODO(), address)
 	if err != nil {
 		return err
@@ -117,14 +125,15 @@ func runClient(address string, count int) error {
 	selector := &pan.PingingSelector{
 		Interval: 2 * time.Second,
 		Timeout:  time.Second,
+		ASCtx:    asCtx,
 	}
 	selector.SetActive(2)
-	session, err := pan.DialQUIC(context.Background(), netip.AddrPort{}, addr, "", tlsCfg, nil, pan.WithSelector(selector))
+	session, err := pan.DialQUIC(context.Background(), asCtx, netip.AddrPort{}, addr, "", tlsCfg, &quic.Config{}, pan.WithSelector(selector))
 	if err != nil {
 		return err
 	}
 	for i := 0; i < count; i++ {
-		stream, err := session.OpenStream()
+		stream, err := session.QUIC.OpenStream()
 		if err != nil {
 			return err
 		}
@@ -139,7 +148,7 @@ func runClient(address string, count int) error {
 		}
 		fmt.Printf("%s\n", reply)
 	}
-	return session.CloseWithError(quic.ApplicationErrorCode(0), "")
+	return session.QUIC.CloseWithError(quic.ApplicationErrorCode(0), "")
 }
 
 // Check just ensures the error is nil, or complains and quits

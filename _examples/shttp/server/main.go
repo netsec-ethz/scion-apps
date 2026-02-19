@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/gorilla/handlers"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -31,6 +32,8 @@ func main() {
 	certFile := flag.String("cert", "", "Path to TLS server certificate for optional https")
 	keyFile := flag.String("key", "", "Path to TLS server key for optional https")
 	flag.Parse()
+
+	asCtx := pan.MustLoadDefaultASContext()
 
 	m := http.NewServeMux()
 
@@ -91,7 +94,7 @@ func main() {
 
 	handler := handlers.LoggingHandler(os.Stdout, m)
 	if *certFile != "" && *keyFile != "" {
-		go func() { log.Fatal(shttp.ListenAndServeTLS(":443", *certFile, *keyFile, handler)) }()
+		go func() { log.Fatal(shttp.ListenAndServeTLS(asCtx, ":443", *certFile, *keyFile, handler)) }()
 	}
-	log.Fatal(shttp.ListenAndServe(":80", handler))
+	log.Fatal(shttp.ListenAndServe(asCtx, ":80", handler))
 }

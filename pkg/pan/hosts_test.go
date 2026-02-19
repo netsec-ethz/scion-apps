@@ -20,10 +20,11 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/stretchr/testify/assert"
 )
 
-const hostsTestFile = "hosts_test_file"
+const hostsTestFile = "testdata/hosts_test_file"
 
 func TestCount(t *testing.T) {
 	hosts, err := loadHostsFile(hostsTestFile)
@@ -40,18 +41,18 @@ func TestHostsfileResolver(t *testing.T) {
 	cases := []struct {
 		name      string
 		assertErr assert.ErrorAssertionFunc
-		expected  scionAddr
+		expected  SCIONAddr
 	}{
 		{"host1.1", assert.NoError, mustParse("17-ffaa:0:1,[192.168.1.1]")},
 		{"host1.2", assert.NoError, mustParse("17-ffaa:0:1,[192.168.1.1]")},
 		{"host2", assert.NoError, mustParse("18-ffaa:1:2,[10.0.8.10]")},
 		{"host3", assert.NoError, mustParse("17-ffaa:0:1,[192.168.1.1]")},
 		{"host4", assert.NoError, mustParse("20-ffaa:c0ff:ee12,[::ff1:ce00:dead:10cc:baad:f00d]")},
-		{"commented", assertErrHostNotFound, scionAddr{}},
-		{"dummy1", assertErrHostNotFound, scionAddr{}},
-		{"dummy2", assertErrHostNotFound, scionAddr{}},
-		{"dummy3", assertErrHostNotFound, scionAddr{}},
-		{"foobar", assertErrHostNotFound, scionAddr{}},
+		{"commented", assertErrHostNotFound, SCIONAddr{}},
+		{"dummy1", assertErrHostNotFound, SCIONAddr{}},
+		{"dummy2", assertErrHostNotFound, SCIONAddr{}},
+		{"dummy3", assertErrHostNotFound, SCIONAddr{}},
+		{"foobar", assertErrHostNotFound, SCIONAddr{}},
 	}
 	for _, c := range cases {
 		actual, err := resolver.Resolve(context.TODO(), c.name)
@@ -69,12 +70,13 @@ func TestHostsfileResolverNonexisting(t *testing.T) {
 }
 
 func TestResolverList(t *testing.T) {
-	primary := map[string]scionAddr{
+	primary := map[string]SCIONAddr{
 		"foo": mustParse("1-ff00:0:f00,[192.0.2.1]"),
 		"bar": mustParse("1-ff00:0:ba3,[192.0.2.1]"),
 	}
-	secondary := map[string]scionAddr{
-		"bar": mustParse("1-ff00:0:ba3,[2001:db8:ffff:ffff:ffff:ffff:baad:f00d]"), // shadowed by bar in primary
+	secondary := map[string]SCIONAddr{
+		// shadowed by bar in primary
+		"bar": mustParse("1-ff00:0:ba3,[2001:db8:ffff:ffff:ffff:ffff:baad:f00d]"),
 		"baz": mustParse("1-ff00:0:ba5,[192.0.2.1]"),
 	}
 	resolver := resolverList{
@@ -85,12 +87,12 @@ func TestResolverList(t *testing.T) {
 	cases := []struct {
 		name      string
 		assertErr assert.ErrorAssertionFunc
-		expected  scionAddr
+		expected  SCIONAddr
 	}{
 		{"foo", assert.NoError, mustParse("1-ff00:0:f00,[192.0.2.1]")},
 		{"bar", assert.NoError, mustParse("1-ff00:0:ba3,[192.0.2.1]")},
 		{"baz", assert.NoError, mustParse("1-ff00:0:ba5,[192.0.2.1]")},
-		{"boo", assertErrHostNotFound, scionAddr{}},
+		{"boo", assertErrHostNotFound, SCIONAddr{}},
 	}
 	for _, c := range cases {
 		actual, err := resolver.Resolve(context.TODO(), c.name)
@@ -105,20 +107,20 @@ func assertErrHostNotFound(t assert.TestingT, err error, msgAndArgs ...interface
 }
 
 type dummyResolver struct {
-	hosts map[string]scionAddr
+	hosts map[string]SCIONAddr
 }
 
-var _ resolver = &dummyResolver{}
+var _ Resolver = &dummyResolver{}
 
-func (r dummyResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
+func (r dummyResolver) Resolve(ctx context.Context, name string) (SCIONAddr, error) {
 	if h, ok := r.hosts[name]; ok {
 		return h, nil
 	} else {
-		return scionAddr{}, HostNotFoundError{Host: name}
+		return SCIONAddr{}, HostNotFoundError{Host: name}
 	}
 }
 
-func mustParse(address string) scionAddr {
+func mustParse(address string) SCIONAddr {
 	a, err := parseSCIONAddr(address)
 	if err != nil {
 		panic(fmt.Sprintf("test input must parse %s", err))
@@ -130,27 +132,33 @@ func TestParseSCIONAddr(t *testing.T) {
 	cases := []struct {
 		input     string
 		assertErr assert.ErrorAssertionFunc
-		expected  scionAddr
+		expected  SCIONAddr
 	}{
 		{
 			input:     "1-ff00:0:0,[1.1.1.1]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("1.1.1.1")},
+			expected: SCIONAddr{
+				IA: addr.MustParseIA("1-ff00:0:0"),
+				IP: netip.MustParseAddr("1.1.1.1"),
+			},
 		},
 		{
 			input:     "1-ff00:0:0,1.1.1.1",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("1.1.1.1")},
+			expected: SCIONAddr{
+				IA: addr.MustParseIA("1-ff00:0:0"),
+				IP: netip.MustParseAddr("1.1.1.1"),
+			},
 		},
 		{
 			input:     "1-ff00:0:0,[::]",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("::")},
+			expected:  SCIONAddr{IA: addr.MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("::")},
 		},
 		{
 			input:     "1-ff00:0:0,::",
 			assertErr: assert.NoError,
-			expected:  scionAddr{IA: MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("::")},
+			expected:  SCIONAddr{IA: addr.MustParseIA("1-ff00:0:0"), IP: netip.MustParseAddr("::")},
 		},
 		{input: "1-ff00:0:0,[[::]]", assertErr: assert.Error},
 		{input: "1-ff00:0:0,::]", assertErr: assert.Error},
@@ -163,7 +171,6 @@ func TestParseSCIONAddr(t *testing.T) {
 		}
 		assert.Equal(t, c.expected, actual, "bad result for input '%s'", c.input)
 	}
-
 }
 
 func TestSplitHostPort(t *testing.T) {

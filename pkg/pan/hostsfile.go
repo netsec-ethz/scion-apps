@@ -22,7 +22,7 @@ import (
 	"strings"
 )
 
-type hostsTable map[string]scionAddr
+type hostsTable map[string]SCIONAddr
 
 // hostsfileResolver is an implementation of the resolver interface, backed
 // by an /etc/hosts-like file.
@@ -30,18 +30,18 @@ type hostsfileResolver struct {
 	path string
 }
 
-func (r *hostsfileResolver) Resolve(ctx context.Context, name string) (scionAddr, error) {
+func (r *hostsfileResolver) Resolve(ctx context.Context, name string) (SCIONAddr, error) {
 	// Note: obviously not perfectly elegant to parse the entire file for
 	// every query. However, properly caching this and still always provide
 	// fresh results after changes to the hosts file seems like a bigger task and
 	// for now that would be overkill.
 	table, err := loadHostsFile(r.path)
 	if err != nil {
-		return scionAddr{}, fmt.Errorf("error loading %s: %w", r.path, err)
+		return SCIONAddr{}, fmt.Errorf("error loading %s: %w", r.path, err)
 	}
 	addr, ok := table[name]
 	if !ok {
-		return scionAddr{}, HostNotFoundError{name}
+		return SCIONAddr{}, HostNotFoundError{name}
 	}
 	return addr, nil
 }

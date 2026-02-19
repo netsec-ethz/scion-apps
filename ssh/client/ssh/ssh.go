@@ -29,6 +29,8 @@ import (
 	"sync"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/quic-go/quic-go"
+	"github.com/scionproto/scion/pkg/snet"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
@@ -114,8 +116,8 @@ func Create(username string, config *clientconfig.ClientConfig, passAuthHandler 
 }
 
 // Connect connects the Client to the given address.
-func (client *Client) Connect(ctx context.Context, addr string, policy pan.Policy, selector string) error {
-	goClient, err := dialSCION(ctx, addr, policy, selector, client.config)
+func (client *Client) Connect(ctx context.Context, asCtx pan.ASContext, addr string, policy pan.Policy, selector string) error {
+	goClient, err := dialSCION(ctx, asCtx, addr, policy, selector, client.config)
 	if err != nil {
 		return err
 	}
@@ -195,17 +197,22 @@ func (client *Client) forward(addr string, localConn net.Conn) error {
 // StartTunnel creates a new tunnel to the given address, forwarding all
 // connections on the given port over the server to the given address. If the
 // given address is a SCION address, QUIC is used; else TCP.
-func (client *Client) StartTunnel(local netip.AddrPort, addr string) error {
+// The asCtx parameter is required when the address is a SCION address.
+func (client *Client) StartTunnel(asCtx pan.ASContext, local netip.AddrPort, addr string) error {
 	var localListener net.Listener
 	if strings.Contains(addr, ",") {
 		tlsConf := &tls.Config{
 			NextProtos: []string{quicutil.SingleStreamProto},
 		}
-		ql, err := pan.ListenQUIC(context.Background(), local, tlsConf, nil)
+		localAddr := &snet.UDPAddr{
+			IA:   asCtx.IA(),
+			Host: net.UDPAddrFromAddrPort(local),
+		}
+		ql, err := pan.ListenQUIC(context.Background(), asCtx, localAddr, tlsConf, &quic.Config{}, nil)
 		if err != nil {
 			return err
 		}
-		localListener = quicutil.SingleStreamListener{QUICListener: ql}
+		localListener = &quicutil.SingleStreamListener{QUICListener: ql}
 	} else {
 		// That's right, TCP listen on UDPAddr. XXX replace with netip.AddrPort once available
 		tl, err := net.Listen("tcp", local.String())

@@ -15,7 +15,7 @@ bat <method> <url>
 
 The scheme defaults to HTTPS -- HTTP is not supported. The method defaults to GET in case there is no data to be sent and to POST otherwise.
 
-URLs can use SCION addresses or hostnames. Hostnames are resolved by scanning the `/etc/hosts` file or by a RAINS lookup (if configured) -- see the toplevel README.
+URLs can use SCION addresses or hostnames. Hostnames are resolved by scanning the `/etc/hosts` file -- see the toplevel README.
 
 ### Examples
 

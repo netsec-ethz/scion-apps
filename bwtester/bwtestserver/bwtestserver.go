@@ -38,11 +38,13 @@ func main() {
 	kingpin.Flag("listen", "Address to listen on").Default(":40002").SetValue(&listen)
 	kingpin.Parse()
 
-	err := runServer(listen.Get())
+	asCtx := pan.MustLoadDefaultASContext()
+
+	err := runServer(asCtx, listen.Get())
 	bwtest.Check(err)
 }
 
-func runServer(listen netip.AddrPort) error {
+func runServer(asCtx pan.ASContext, listen netip.AddrPort) error {
 	receivePacketBuffer := make([]byte, 2500)
 
 	var currentBwtest string
@@ -51,9 +53,8 @@ func runServer(listen netip.AddrPort) error {
 
 	results := make(resultsMap)
 
-	ctx := context.Background()
 	ccSelector := pan.NewDefaultReplySelector()
-	ccConn, err := pan.ListenUDP(context.Background(), listen, pan.WithReplySelector(ccSelector))
+	ccConn, err := pan.ListenUDP(context.Background(), asCtx, listen, ccSelector)
 	if err != nil {
 		return err
 	}
@@ -102,8 +103,8 @@ func runServer(listen netip.AddrPort) error {
 			if err != nil {
 				continue
 			}
-			path := ccSelector.Path(ctx, clientCCAddr.(pan.UDPAddr))
-			finishTime, err := startBwtestBackground(serverCCAddr, clientCCAddr.(pan.UDPAddr), path,
+			path := ccSelector.Path(clientCCAddr.(pan.UDPAddr))
+			finishTime, err := startBwtestBackground(asCtx, serverCCAddr, clientCCAddr.(pan.UDPAddr), path,
 				clientBwp, serverBwp, currentResult)
 			if err != nil {
 				// Ask the client to try again in 1 second
@@ -134,7 +135,7 @@ func runServer(listen netip.AddrPort) error {
 
 // startBwtestBackground starts a bandwidth test, in the background.
 // Returns the expected finish time of the test, or any error during the setup.
-func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
+func startBwtestBackground(asCtx pan.ASContext, serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 	path *pan.Path, clientBwp, serverBwp bwtest.Parameters, res chan<- bwtest.Result) (time.Time, error) {
 
 	// Data Connection addresses:
@@ -144,7 +145,7 @@ func startBwtestBackground(serverCCAddr pan.UDPAddr, clientCCAddr pan.UDPAddr,
 
 	// Open Data Connection
 	dcSelector := initializedReplySelector(clientDCAddr, path)
-	dcConn, err := listenConnected(serverDCAddr, clientDCAddr, dcSelector)
+	dcConn, err := listenConnected(asCtx, serverDCAddr, clientDCAddr, dcSelector)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -287,8 +288,8 @@ func (r resultsMap) purgeExpired() {
 	}
 }
 
-func listenConnected(local netip.AddrPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
-	conn, err := pan.ListenUDP(context.Background(), local, pan.WithReplySelector(selector))
+func listenConnected(asCtx pan.ASContext, local netip.AddrPort, remote pan.UDPAddr, selector pan.ReplySelector) (net.Conn, error) {
+	conn, err := pan.ListenUDP(context.Background(), asCtx, local, selector)
 	return connectedPacketConn{
 		ListenConn: conn,
 		remote:     remote,

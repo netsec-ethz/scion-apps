@@ -26,18 +26,18 @@ func TestDNSResolver(t *testing.T) {
 	cases := []struct {
 		name      string
 		assertErr assert.ErrorAssertionFunc
-		expected  scionAddr
+		expected  SCIONAddr
 	}{
 		{"example.com", assert.NoError, mustParse("1-ff00:0:f00,[192.0.2.1]")},
 		{"example.net", assert.NoError, mustParse("1-ff00:0:ba5,[192.0.2.38]")},
-		{"example.org", assert.Error, scionAddr{}},
-		{"noia.example.org", assert.Error, scionAddr{}},
-		{"noip.example.org", assert.Error, scionAddr{}},
-		{"trailing.example.org", assert.Error, scionAddr{}},
-		{"example.edu", assertErrHostNotFound, scionAddr{}},
-		{"empty.example.edu", assertErrHostNotFound, scionAddr{}},
-		{"dummy4", assertErrHostNotFound, scionAddr{}},
-		{"barbaz", assertErrHostNotFound, scionAddr{}},
+		{"example.org", assert.Error, SCIONAddr{}},
+		{"noia.example.org", assert.Error, SCIONAddr{}},
+		{"noip.example.org", assert.Error, SCIONAddr{}},
+		{"trailing.example.org", assert.Error, SCIONAddr{}},
+		{"example.edu", assertErrHostNotFound, SCIONAddr{}},
+		{"empty.example.edu", assertErrHostNotFound, SCIONAddr{}},
+		{"dummy4", assertErrHostNotFound, SCIONAddr{}},
+		{"barbaz", assertErrHostNotFound, SCIONAddr{}},
 	}
 	var m mockResolver
 	resolver := &dnsResolver{res: &m}

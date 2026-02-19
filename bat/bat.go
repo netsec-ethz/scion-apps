@@ -102,12 +102,6 @@ func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
 	flag.Usage = usage
 	flag.Parse()
-
-	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defaultSetting.Transport, _ = shttp.NewTransport(nil, policy)
 }
 
 func parsePrintOption(s string) {
@@ -131,14 +125,22 @@ func parsePrintOption(s string) {
 }
 
 func main() {
+	if ver {
+		fmt.Println("Version:", version)
+		os.Exit(2)
+	}
+
+	// Initialize SCION AS context and transport
+	asCtx := pan.MustLoadDefaultASContext()
+	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defaultSetting.Transport, _ = shttp.NewTransport(asCtx, nil, policy)
 
 	args := flag.Args()
 	if len(args) > 0 {
 		args = filter(args)
-	}
-	if ver {
-		fmt.Println("Version:", version)
-		os.Exit(2)
 	}
 	parsePrintOption(printV)
 	if printOption&printReqBody != printReqBody {
@@ -176,6 +178,7 @@ func main() {
 	if !strings.HasPrefix(*URL, "http://") && !strings.HasPrefix(*URL, "https://") {
 		*URL = "http://" + *URL
 	}
+	//nolint:staticcheck
 	u, err := url.Parse(shttp.MangleSCIONAddrURL(*URL))
 	if err != nil {
 		log.Fatal(err)
@@ -200,6 +203,7 @@ func main() {
 	}
 	// Proxy Support
 	if proxy != "" {
+		//nolint:staticcheck
 		purl, err := url.Parse(shttp.MangleSCIONAddrURL(proxy))
 		if err != nil {
 			log.Fatal("Proxy Url parse err", err)

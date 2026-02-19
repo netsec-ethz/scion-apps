@@ -26,8 +26,7 @@ client := &http.Client{
 resp, err := client.Get("http://server:8080/download")
 ```
 
-Hostnames are resolved by parsing the `/etc/hosts` file or by a RAINS lookup
-(see [Hostnames](../../README.md#Hostnames)).
+Hostnames are resolved by parsing the `/etc/hosts` file (see [Hostnames](../../README.md#Hostnames)).
 URLs potentially containing raw SCION addresses must be *mangled* before
 passing into the client (or any other place where they might be parsed as URL).
 ```Go

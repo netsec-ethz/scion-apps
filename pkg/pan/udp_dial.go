@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -55,23 +56,19 @@ type Conn interface {
 // If the selector is nil, a DefaultSelector is used.
 func DialUDP(
 	ctx context.Context,
+	asCtx ASContext,
 	local netip.AddrPort,
 	remote UDPAddr,
 	opts ...ConnOptions,
 ) (Conn, error) {
 	o := applyConnOpts(opts)
 
-	host, err := getHost()
-	if err != nil {
-		return nil, err
-	}
-
-	local, err = defaultLocalAddr(local)
-	if err != nil {
-		return nil, err
+	// Fill in wildcard address with the default local IP.
+	if !local.Addr().IsValid() || local.Addr().IsUnspecified() {
+		local = netip.AddrPortFrom(asCtx.LocalAddr(), local.Port())
 	}
 	sn := snet.SCIONNetwork{
-		Topology:    host.sciond,
+		Topology:    asCtx.Topology(),
 		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
@@ -80,7 +77,7 @@ func DialUDP(
 	}
 	ipport := conn.LocalAddr().(*net.UDPAddr).AddrPort()
 	localUDPAddr := UDPAddr{
-		IA:   host.ia,
+		IA:   asCtx.IA(),
 		IP:   ipport.Addr(),
 		Port: ipport.Port(),
 	}
@@ -193,16 +190,16 @@ func (c *dialedConn) WriteWithCtx(ctx context.Context, b []byte) (int, error) {
 			return 0, errNoPathTo(c.remote.IA)
 		}
 	}
-	return c.baseUDPConn.writeMsg(c.local, c.remote, path, b)
+	return c.writeMsg(c.local, c.remote, path, b)
 }
 
 func (c *dialedConn) WriteVia(path *Path, b []byte) (int, error) {
-	return c.baseUDPConn.writeMsg(c.local, c.remote, path, b)
+	return c.writeMsg(c.local, c.remote, path, b)
 }
 
 func (c *dialedConn) Read(b []byte) (int, error) {
 	for {
-		n, remote, _, err := c.baseUDPConn.readMsg(b)
+		n, remote, _, err := c.readMsg(b)
 		if err != nil {
 			return n, err
 		}
@@ -215,7 +212,7 @@ func (c *dialedConn) Read(b []byte) (int, error) {
 
 func (c *dialedConn) ReadVia(b []byte) (int, *Path, error) {
 	for {
-		n, remote, fwPath, err := c.baseUDPConn.readMsg(b)
+		n, remote, fwPath, err := c.readMsg(b)
 		if err != nil {
 			return n, nil, err
 		}
@@ -244,14 +241,14 @@ func (c *dialedConn) Close() error {
 // pool. It gets the paths to dst and sets the filtered path set on the
 // target Selector.
 type pathRefreshSubscriber struct {
-	remoteIA IA
+	remoteIA addr.IA
 	policy   Policy
 	target   Selector
 }
 
 func openPathRefreshSubscriber(ctx context.Context, local, remote UDPAddr, policy Policy,
-	target Selector) (*pathRefreshSubscriber, error) {
-
+	target Selector,
+) (*pathRefreshSubscriber, error) {
 	s := &pathRefreshSubscriber{
 		remoteIA: remote.IA,
 		policy:   policy,
@@ -276,7 +273,7 @@ func (s *pathRefreshSubscriber) setPolicy(policy Policy) {
 	s.target.Refresh(filtered(s.policy, paths))
 }
 
-func (s *pathRefreshSubscriber) refresh(dst IA, paths []*Path) {
+func (s *pathRefreshSubscriber) refresh(dst addr.IA, paths []*Path) {
 	s.target.Refresh(filtered(s.policy, paths))
 }
 

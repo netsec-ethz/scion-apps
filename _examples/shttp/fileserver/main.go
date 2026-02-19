@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/gorilla/handlers"
+	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
 )
 
@@ -32,6 +33,8 @@ func main() {
 	strictSCION := flag.String("strict", "", "Sets the `Strict-SCION` header value; "+
 		"directives similar as in the HSTS header are to be defined by this flag")
 	flag.Parse()
+
+	asCtx := pan.MustLoadDefaultASContext()
 
 	handler := handlers.LoggingHandler(
 		os.Stdout,
@@ -47,7 +50,7 @@ func main() {
 		}(http.FileServer(http.Dir(""))),
 	)
 	if *certFile != "" && *keyFile != "" {
-		go func() { log.Fatal(shttp.ListenAndServeTLS(":443", *certFile, *keyFile, handler)) }()
+		go func() { log.Fatal(shttp.ListenAndServeTLS(asCtx, ":443", *certFile, *keyFile, handler)) }()
 	}
-	log.Fatal(shttp.ListenAndServe(":80", handler))
+	log.Fatal(shttp.ListenAndServe(asCtx, ":80", handler))
 }

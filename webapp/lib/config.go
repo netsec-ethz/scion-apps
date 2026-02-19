@@ -195,7 +195,7 @@ func getSDFromSDTomlFile(path string) string {
 		}
 	}
 	log.Info(fmt.Sprintf("sciond address could not be read from toml file %s", path))
-	if sd, ok := os.LookupEnv("SCION_DAEMON_ADDRESS"); ok {
+	if sd, ok := os.LookupEnv("SCION_DAEMON"); ok {
 		return sd
 	}
 	return daemon.DefaultAPIAddress

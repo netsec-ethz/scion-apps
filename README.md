@@ -64,32 +64,26 @@ You can modify this by changing the value on the `dispatcher.toml` configuration
 The SCION daemon is assumed to be at the default address, but this can be
 overridden using an environment variable:
 
-		SCION_DAEMON_ADDRESS: 127.0.0.1:30255
+		SCION_DAEMON: 127.0.0.1:30255
 
 This is convenient for the normal use case of running the endhost stack for a
 single SCION AS. When running multiple local ASes, e.g. during development, the
 address of the SCION daemon corresponding to the desired AS needs to be
-specified in the `SCION_DAEMON_ADDRESS` environment variable.
+specified in the `SCION_DAEMON` environment variable.
 In this case, the different daemon addresses can be found in their corresponding
 `sd.toml` configuration files in the `gen/ASx` directory, or summarized in the
 file `gen/sciond_addresses.json`.
 
 
 #### Hostnames
-Hostnames are resolved by scanning `/etc/hosts`, `/etc/scion/hosts` and by a RAINS lookup.
-
-Hosts can be added to `/etc/hosts`, or `/etc/scion/hosts` by adding lines like this:
+Hostnames are resolved by scanning `/etc/hosts` and `/etc/scion/hosts`.
+Hosts can be added by adding lines like this:
 
 ```
 # The following lines are SCION hosts
 17-ffaa:1:10,[10.0.8.100] server1
 18-ffaa:0:11,[10.0.8.120] server2
 ```
-
-The RAINS resolver address can be configured in `/etc/scion/rains.cfg`.
-This configuration file needs to contain the SCION address of the RAINS
-resolver, in the form `<ISD>-<AS>,[<IP>]`.
-
 
 ## _examples
 
