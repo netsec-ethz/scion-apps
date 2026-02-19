@@ -17,6 +17,7 @@ package pan
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/netip"
 
@@ -73,6 +74,7 @@ func DialQUIC(
 
 	session, err := quic.Dial(ctx, pconn, remote, tlsConf, quicConf)
 	if err != nil {
+		err := fmt.Errorf("failed to establish QUIC session, over path %v: %w", conn.GetPath(), err)
 		// Close the underlying connection if the QUIC session could not be established.
 		pconn.Close()
 		return nil, err
