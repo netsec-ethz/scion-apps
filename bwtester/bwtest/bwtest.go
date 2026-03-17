@@ -43,6 +43,10 @@ const (
 	MaxPacketSize int64 = 66000
 	// Make sure the port number is a port the server application can connect to
 	MinPort uint16 = 1024
+
+	// Multiplier to convert a unit of Hummingbird bandwidth into bits per second (bps).
+	// For now, the BR implementation assumes a static value of 64, for all ASes and BRs.
+	HummBwToBps = 64
 )
 
 type Parameters struct {

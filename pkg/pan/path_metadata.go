@@ -16,6 +16,7 @@ package pan
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"strings"
 	"time"
@@ -75,24 +76,30 @@ type PathMetadata struct {
 	// Notes contains the notes added by ASes on the path, in the order of occurrence.
 	// Entry i is the note of AS i on the path.
 	Notes []string
+
+	// DiscoveryInformation contains control and discovery service addresses
+	// advertised for ASes on the path.
+	DiscoveryInformation map[IA]DiscoveryInformation
 }
 
 type GeoCoordinates = snet.GeoCoordinates
 type LinkType = snet.LinkType
+type DiscoveryInformation = snet.DiscoveryInformation
 
 func (pm *PathMetadata) Copy() *PathMetadata {
 	if pm == nil {
 		return nil
 	}
 	return &PathMetadata{
-		Interfaces:   append(pm.Interfaces[:0:0], pm.Interfaces...),
-		MTU:          pm.MTU,
-		Latency:      append(pm.Latency[:0:0], pm.Latency...),
-		Bandwidth:    append(pm.Bandwidth[:0:0], pm.Bandwidth...),
-		Geo:          append(pm.Geo[:0:0], pm.Geo...),
-		LinkType:     append(pm.LinkType[:0:0], pm.LinkType...),
-		InternalHops: append(pm.InternalHops[:0:0], pm.InternalHops...),
-		Notes:        append(pm.Notes[:0:0], pm.Notes...),
+		Interfaces:           append(pm.Interfaces[:0:0], pm.Interfaces...),
+		MTU:                  pm.MTU,
+		Latency:              append(pm.Latency[:0:0], pm.Latency...),
+		Bandwidth:            append(pm.Bandwidth[:0:0], pm.Bandwidth...),
+		Geo:                  append(pm.Geo[:0:0], pm.Geo...),
+		LinkType:             append(pm.LinkType[:0:0], pm.LinkType...),
+		InternalHops:         append(pm.InternalHops[:0:0], pm.InternalHops...),
+		Notes:                append(pm.Notes[:0:0], pm.Notes...),
+		DiscoveryInformation: maps.Clone(pm.DiscoveryInformation),
 	}
 }
 

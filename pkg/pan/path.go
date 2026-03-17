@@ -36,6 +36,37 @@ type Path struct {
 	Expiry         time.Time
 }
 
+func (p *Path) Dataplane() snet.DataplanePath {
+	if p == nil {
+		return nil
+	}
+	return p.ForwardingPath.dataplanePath
+}
+
+func (p *Path) UnderlayNextHop() netip.AddrPort {
+	if p == nil {
+		return netip.AddrPort{}
+	}
+	return p.ForwardingPath.underlay
+}
+
+func (p *Path) CloneWithDataplanePath(dataplanePath snet.DataplanePath) *Path {
+	if p == nil {
+		return nil
+	}
+	return &Path{
+		Source:      p.Source,
+		Destination: p.Destination,
+		ForwardingPath: ForwardingPath{
+			dataplanePath: dataplanePath,
+			underlay:      p.ForwardingPath.underlay,
+		},
+		Metadata:    p.Metadata.Copy(),
+		Fingerprint: p.Fingerprint,
+		Expiry:      p.Expiry,
+	}
+}
+
 func (p *Path) String() string {
 	if p.Metadata != nil {
 		return p.Metadata.fmtInterfaces()
@@ -111,7 +142,7 @@ func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, e
 	// reverse and extract fw info
 	rp, ok := fwPath.dataplanePath.(snet.RawPath)
 	if !ok {
-		panic(fmt.Sprintf("cannot reverse path type %T", fwPath.dataplanePath))
+		return nil, nil
 	}
 	if len(rp.Raw) == 0 {
 		return (*Path)(nil), nil

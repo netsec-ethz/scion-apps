@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	daemontypes "github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/snet"
 	"github.com/scionproto/scion/pkg/snet/addrutil"
 )
@@ -153,7 +154,7 @@ func defaultLocalAddr(local netip.AddrPort) (netip.AddrPort, error) {
 }
 
 func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
-	flags := daemon.PathReqFlags{Refresh: false, Hidden: false}
+	flags := daemontypes.PathReqFlags{Refresh: false, Hidden: false}
 	snetPaths, err := h.sciond.Paths(ctx, addr.IA(dst), 0, flags)
 	if err != nil {
 		return nil, err
@@ -162,14 +163,15 @@ func (h *hostContext) queryPaths(ctx context.Context, dst IA) ([]*Path, error) {
 	for i, p := range snetPaths {
 		snetMetadata := p.Metadata()
 		metadata := &PathMetadata{
-			Interfaces:   convertPathInterfaceSlice(snetMetadata.Interfaces),
-			MTU:          snetMetadata.MTU,
-			Latency:      snetMetadata.Latency,
-			Bandwidth:    snetMetadata.Bandwidth,
-			Geo:          snetMetadata.Geo,
-			LinkType:     snetMetadata.LinkType,
-			InternalHops: snetMetadata.InternalHops,
-			Notes:        snetMetadata.Notes,
+			Interfaces:           convertPathInterfaceSlice(snetMetadata.Interfaces),
+			MTU:                  snetMetadata.MTU,
+			Latency:              snetMetadata.Latency,
+			Bandwidth:            snetMetadata.Bandwidth,
+			Geo:                  snetMetadata.Geo,
+			LinkType:             snetMetadata.LinkType,
+			InternalHops:         snetMetadata.InternalHops,
+			Notes:                snetMetadata.Notes,
+			DiscoveryInformation: convertDiscoveryInformation(snetMetadata.DiscoveryInformation),
 		}
 		underlay := p.UnderlayNextHop().AddrPort()
 		paths[i] = &Path{
@@ -196,4 +198,17 @@ func convertPathInterfaceSlice(spis []snet.PathInterface) []PathInterface {
 		}
 	}
 	return pis
+}
+
+func convertDiscoveryInformation(
+	discovery map[addr.IA]snet.DiscoveryInformation,
+) map[IA]DiscoveryInformation {
+	if discovery == nil {
+		return nil
+	}
+	out := make(map[IA]DiscoveryInformation, len(discovery))
+	for ia, info := range discovery {
+		out[IA(ia)] = info
+	}
+	return out
 }

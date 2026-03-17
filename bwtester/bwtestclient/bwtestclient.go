@@ -21,6 +21,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"net/netip"
@@ -264,6 +265,7 @@ func main() {
 		serverCCAddr pan.UDPAddr
 		clientBwpStr string
 		serverBwpStr string
+		hummingbird  string
 		interactive  bool
 		sequence     string
 		preference   string
@@ -274,6 +276,7 @@ func main() {
 	flag.Var(&serverCCAddr, "s", "Server SCION Address")
 	flag.StringVar(&serverBwpStr, "sc", DefaultBwtestParameters, "Server->Client test parameter")
 	flag.StringVar(&clientBwpStr, "cs", DefaultBwtestParameters, "Client->Server test parameter")
+	flag.StringVar(&hummingbird, "hummingbird", "", "Enable Hummingbird with BW,dur (e.g. '3,5s')")
 	flag.BoolVar(&interactive, "i", false, "Interactive path selection, prompt to choose path")
 	flag.StringVar(&sequence, "sequence", "", "Sequence of space separated hop predicates to specify path")
 	flag.StringVar(&preference, "preference", "", "Preference sorting order for paths. "+
@@ -292,6 +295,8 @@ func main() {
 		usageErr("server address needs to be specified with -s")
 	}
 	policy, err := pan.PolicyFromCommandline(sequence, preference, interactive)
+	checkUsageErr(err)
+	hbConfig, err := parseHummingbirdFlag(hummingbird)
 	checkUsageErr(err)
 
 	// use default packet size when within same AS
@@ -319,8 +324,11 @@ func main() {
 		int(clientBwp.BwtestDuration/time.Second), clientBwp.PacketSize, clientBwp.NumPackets)
 	fmt.Printf("server->client: %d seconds, %d bytes, %d packets\n",
 		int(serverBwp.BwtestDuration/time.Second), serverBwp.PacketSize, serverBwp.NumPackets)
+	if hbConfig != nil {
+		fmt.Printf("hummingbird: bw=%d dur=%ds\n", hbConfig.Bw, hbConfig.Duration)
+	}
 
-	clientRes, serverRes, err := runBwtest(local.Get(), serverCCAddr, policy, clientBwp, serverBwp)
+	clientRes, serverRes, err := runBwtest(local.Get(), serverCCAddr, policy, clientBwp, serverBwp, hbConfig)
 	bwtest.Check(err)
 
 	fmt.Println("\nS->C results")
@@ -331,7 +339,7 @@ func main() {
 
 // runBwtest runs the bandwidth test with the given parameters against the server at serverCCAddr.
 func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy,
-	clientBwp, serverBwp bwtest.Parameters) (clientRes, serverRes bwtest.Result, err error) {
+	clientBwp, serverBwp bwtest.Parameters, hbConfig *hummingbirdConfig) (clientRes, serverRes bwtest.Result, err error) {
 
 	// Control channel connection
 	ccSelector := pan.NewDefaultSelector()
@@ -353,6 +361,10 @@ func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 	// DC ports are passed in the request
 	clientBwp.Port = clientDCAddr.Port
 	serverBwp.Port = serverDCAddr.Port
+	if hbConfig != nil && serverCCAddr.IA == clientDCAddr.IA {
+		err = fmt.Errorf("Hummingbird requires an inter-AS destination")
+		return
+	}
 
 	// Start receiver before even sending the request so it will be ready.
 	receiveRes := make(chan bwtest.Result, 1)
@@ -376,14 +388,36 @@ func runBwtest(local netip.AddrPort, serverCCAddr pan.UDPAddr, policy pan.Policy
 		dcConn.Close()
 		return
 	}
+	selectedPath := ccSelector.Path(context.Background())
 
 	// Pin DC to path used for request
 	if serverDCAddr.IA != clientDCAddr.IA {
-		dcConn.SetPolicy(pan.Pinned{ccSelector.Path(context.Background()).Fingerprint})
+		if selectedPath == nil {
+			err = fmt.Errorf("no path selected for inter-AS data channel")
+			dcConn.Close()
+			return
+		}
+		dcConn.SetPolicy(pan.Pinned{selectedPath.Fingerprint})
+	}
+
+	var dataWriter io.Writer = dcConn
+	if hbConfig != nil {
+		hbPath, hbErr := buildHummingbirdPath(
+			context.Background(),
+			selectedPath,
+			clientDCAddr.IP,
+			hbConfig,
+		)
+		if hbErr != nil {
+			err = hbErr
+			dcConn.Close()
+			return
+		}
+		dataWriter = &hummingbirdWriter{conn: dcConn, path: hbPath}
 	}
 
 	// Start blasting client->server
-	err = bwtest.HandleDCConnSend(clientBwp, dcConn)
+	err = bwtest.HandleDCConnSend(clientBwp, dataWriter)
 	if err != nil && !errors.Is(err, os.ErrDeadlineExceeded) {
 		dcConn.Close()
 		return
