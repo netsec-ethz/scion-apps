@@ -299,8 +299,8 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, 
 	sjsonInfo, _ := json.Marshal(svcirs)
 	log.Debug("AsTopoHandler:", "sjsonInfo", string(sjsonInfo))
 
-	fmt.Fprintf(w, fmt.Sprintf(`{"as_info":%s,"if_info":%s,"svc_info":%s}`,
-		ajsonInfo, ijsonInfo, sjsonInfo))
+	fmt.Fprintf(w, `{"as_info":%s,"if_info":%s,"svc_info":%s}`,
+		(ajsonInfo), ijsonInfo, sjsonInfo)
 }
 
 // TrcHandler handles requests for all local trust root data.
