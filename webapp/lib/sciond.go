@@ -246,7 +246,7 @@ func getPathsJSON(sciondConn daemon.Connector, dstIA addr.IA) ([]byte, error) {
 	rPaths := make([]Path, 0, len(paths))
 	for _, path := range paths {
 		rpath := Path{
-			Fingerprint: snet.Fingerprint(path).String()[:16],
+			Fingerprint: snet.Fingerprint(path.Metadata().Interfaces).String()[:16],
 			Expiry:      path.Metadata().Expiry,
 			MTU:         path.Metadata().MTU,
 		}
