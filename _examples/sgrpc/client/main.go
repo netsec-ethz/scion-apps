@@ -61,6 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to dial gRPC: %v", err)
 	}
+	defer grpcConn.Close()
 
 	c := pb.NewEchoServiceClient(grpcConn)
 
