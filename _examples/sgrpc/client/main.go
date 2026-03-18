@@ -53,15 +53,17 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	grpcDial, err := grpc.DialContext(ctx, *ServerAddr,
+	grpcConn, err := grpc.NewClient(
+		"passthrough:///"+*ServerAddr, // Specify passthrough to avoid trying DNS.
 		grpc.WithContextDialer(NewPanQuicDialer(tlsCfg)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		log.Fatalf("failed to dial gRPC: %v", err)
 	}
+	defer grpcConn.Close()
 
-	c := pb.NewEchoServiceClient(grpcDial)
+	c := pb.NewEchoServiceClient(grpcConn)
 
 	req := &pb.EchoRequest{
 		Msg: *Message,

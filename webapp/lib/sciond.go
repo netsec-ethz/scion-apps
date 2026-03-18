@@ -246,7 +246,7 @@ func getPathsJSON(sciondConn daemon.Connector, dstIA addr.IA) ([]byte, error) {
 	rPaths := make([]Path, 0, len(paths))
 	for _, path := range paths {
 		rpath := Path{
-			Fingerprint: snet.Fingerprint(path).String()[:16],
+			Fingerprint: snet.Fingerprint(path.Metadata().Interfaces).String()[:16],
 			Expiry:      path.Metadata().Expiry,
 			MTU:         path.Metadata().MTU,
 		}
@@ -299,8 +299,8 @@ func AsTopoHandler(w http.ResponseWriter, r *http.Request, options *CmdOptions, 
 	sjsonInfo, _ := json.Marshal(svcirs)
 	log.Debug("AsTopoHandler:", "sjsonInfo", string(sjsonInfo))
 
-	fmt.Fprintf(w, fmt.Sprintf(`{"as_info":%s,"if_info":%s,"svc_info":%s}`,
-		ajsonInfo, ijsonInfo, sjsonInfo))
+	fmt.Fprintf(w, `{"as_info":%s,"if_info":%s,"svc_info":%s}`,
+		ajsonInfo, ijsonInfo, sjsonInfo)
 }
 
 // TrcHandler handles requests for all local trust root data.

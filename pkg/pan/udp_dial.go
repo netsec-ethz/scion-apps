@@ -71,7 +71,7 @@ func DialUDP(
 		return nil, err
 	}
 	sn := snet.SCIONNetwork{
-		Topology:    host.sciond,
+		Topology:    host.topology,
 		SCMPHandler: o.scmpHandler,
 	}
 	conn, err := sn.OpenRaw(ctx, net.UDPAddrFromAddrPort(local))
