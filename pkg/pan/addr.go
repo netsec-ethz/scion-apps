@@ -235,6 +235,22 @@ func MangleSCIONAddr(address string) string {
 		return address
 	}
 
+	// XXX(juagargi):
+	// The URL scheme proposed in https://docs.scion.org/en/latest/dev/design/uri.html no longer
+	// works with the Go (>=1.25) standard library url.Parse function.
+	// There is no good solution at the moment that allows writing a SCION address as part of
+	// a URL. Here are the options according to RFC 3986. For more information, TAL at
+	// https://www.rfc-editor.org/rfc/rfc3986.html#section-3.2.2
+	//
+	// 1. IP-literal: IP addresses between [], only of type IPv6 or IPvFuture.
+	// 		E.g. [::1] or [v1.scion-1-ff00:0:110,::1]
+	//		IPvFuture does not work in url.Parse
+	// 2. Registered name. E.g. scion-1-ff00-0-110-6-00000000000000000000000000000001:8080
+	//		This is no longer an address, but a registered name that is usually translated via DNS.
+	//		It is now ambiguous to use the that host address in the URL, as it may refer to a
+	//		valid entry, in e.g. /etc/hosts, that would be translated to a possibly different
+	//		address.
+
 	// Turn this into [IA,IP]:port format. This is a valid host in a URI, as per
 	// the "IP-literal" case in RFC 3986, §3.2.2.
 	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
