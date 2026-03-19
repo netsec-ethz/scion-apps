@@ -116,8 +116,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdhx/f4=
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
-github.com/netsec-ethz/rains v0.5.1-scion.0.14.0 h1:44zZbZfLBjn5hsyAVeRKAk8mqAlTKazlEfsHQZW+iN0=
-github.com/netsec-ethz/rains v0.5.1-scion.0.14.0/go.mod h1:KUZcGWwTKAZ5IYWXA7TKECeQGeWEJ5yCOelwf13HFu4=
+github.com/netsec-ethz/rains v0.5.2-scion.0.14.0.a201cf565 h1:2LN0BSseAyOyVunrzynoBdeTU0UCDKXe6D4xp2bsQac=
+github.com/netsec-ethz/rains v0.5.2-scion.0.14.0.a201cf565/go.mod h1:O9xZ6R0I5G5Td7LzxqRD8h4w2pHTKEdewN1TPjkdgew=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/opentracing/opentracing-go v1.2.0 h1:uEJPy/1a5RIPAJ0Ov+OIO8OxWu77jEv+1B0VhjKrZUs=
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=

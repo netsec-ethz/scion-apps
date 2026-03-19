@@ -9,10 +9,10 @@ require (
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/msteinert/pam v0.0.0-20190215180659-f29b9f28d6f9
-	github.com/netsec-ethz/rains v0.5.1-scion.0.14.0
+	github.com/netsec-ethz/rains v0.5.2-scion.0.14.0.a201cf565
 	github.com/pelletier/go-toml v1.9.5
 	github.com/quic-go/quic-go v0.57.0
-	github.com/scionproto/scion v0.14.0
+	github.com/scionproto/scion v0.14.1-0.20260206144937-a201cf565470
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.45.0
