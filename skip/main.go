@@ -130,7 +130,7 @@ func main() {
 }
 
 func handlePathUsageRequest(w http.ResponseWriter, req *http.Request) {
-	data := make([]*PathUsage, 0)
+	data := make([]*PathUsage, 0, len(pathStats.data))
 	for _, v := range pathStats.data {
 		data = append(data, v)
 	}

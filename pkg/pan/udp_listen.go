@@ -172,6 +172,9 @@ func (c *listenConn) ReadFromVia(b []byte) (int, UDPAddr, *Path, error) {
 		return n, UDPAddr{}, nil, err
 	}
 	path, err := reversePathFromForwardingPath(remote.IA, c.local.IA, fwPath)
+	if errors.Is(err, ErrNoReversePath) {
+		err = nil
+	}
 	c.selector.Record(remote, path)
 	return n, remote, path, err
 }

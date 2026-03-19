@@ -52,6 +52,7 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 		for _, urlPattern := range urlPatterns {
 			mangled := MangleSCIONAddrURL(fmt.Sprintf(urlPattern, tc.HostPort))
 			expected := fmt.Sprintf(urlPattern, tc.Expected)
+			t.Logf("URL = %s", mangled)
 			if mangled != expected {
 				t.Fatalf("MangleSCIONAddrURL returned different result, actual='%s', expected='%s'", mangled, expected)
 			}

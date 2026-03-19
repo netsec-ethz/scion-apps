@@ -253,8 +253,9 @@ func (db *hostKeyDB) parseLine(line []byte, filename string, linenum int) error 
 }
 
 func newHostnameMatcher(pattern string) (matcher, error) {
-	var hps hostPatterns                            //nolint:prealloc
-	for _, p := range strings.Split(pattern, "#") { //Fixme(milan): using random character
+	patterns := strings.Split(pattern, "#") //Fixme(milan): using random character
+	hps := make(hostPatterns, 0, len(patterns))
+	for _, p := range patterns {
 		if len(p) == 0 {
 			continue
 		}

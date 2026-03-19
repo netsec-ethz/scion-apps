@@ -111,10 +111,10 @@ func reversePathFromForwardingPath(src, dst IA, fwPath ForwardingPath) (*Path, e
 	// reverse and extract fw info
 	rp, ok := fwPath.dataplanePath.(snet.RawPath)
 	if !ok {
-		panic(fmt.Sprintf("cannot reverse path type %T", fwPath.dataplanePath))
+		return nil, ErrNoReversePath
 	}
 	if len(rp.Raw) == 0 {
-		return (*Path)(nil), nil
+		return nil, ErrNoReversePath
 	}
 	revPath, err := snet.DefaultReplyPather{}.ReplyPath(rp)
 	if err != nil {
