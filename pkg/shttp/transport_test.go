@@ -39,11 +39,11 @@ func TestMangleSCIONAddrURL(t *testing.T) {
 	}{
 		{"foo", "foo"},
 		{"foo:80", "foo:80"},
-		{"1-ff00:0:110,127.0.0.1", "[1-ff00:0:110,127.0.0.1]"},
-		{"1-ff00:0:110,127.0.0.1:80", "[1-ff00:0:110,127.0.0.1]:80"},
-		{"1-ff00:0:110,::1", "[1-ff00:0:110,::1]"},
-		{"1-ff00:0:110,[::1]", "[1-ff00:0:110,::1]"},
-		{"1-ff00:0:110,[::1]:80", "[1-ff00:0:110,::1]:80"},
+		{"1-ff00:0:110,127.0.0.1", "scion4-1-ff00-0-110_127-0-0-1"},
+		{"1-ff00:0:110,127.0.0.1:80", "scion4-1-ff00-0-110_127-0-0-1:80"},
+		{"1-ff00:0:110,::1", "scion6-1-ff00-0-110_--1"},
+		{"1-ff00:0:110,[::1]", "scion6-1-ff00-0-110_--1"},
+		{"1-ff00:0:110,[::1]:80", "scion6-1-ff00-0-110_--1:80"},
 	}
 
 	urlPatterns := hostURLPatterns()
@@ -72,11 +72,10 @@ func TestRoundTripper(t *testing.T) {
 	}{
 		{"host", "1-ff00:0:1,192.0.2.1:443"},
 		{"host:80", "1-ff00:0:1,192.0.2.1:80"},
-		{"1-ff00:0:110,127.0.0.1", "1-ff00:0:110,127.0.0.1:443"},
-		{"1-ff00:0:110,127.0.0.1:80", "1-ff00:0:110,127.0.0.1:80"},
-		{"1-ff00:0:110,::1", "1-ff00:0:110,[::1]:443"},
-		{"1-ff00:0:110,[::1]", "1-ff00:0:110,[::1]:443"},
-		{"1-ff00:0:110,[::1]:80", "1-ff00:0:110,[::1]:80"},
+		{"scion4-1-ff00-0-110_127-0-0-1", "1-ff00:0:110,127.0.0.1:443"},
+		{"scion4-1-ff00-0-110_127-0-0-1:80", "1-ff00:0:110,127.0.0.1:80"},
+		{"scion6-1-ff00-0-110_--1", "1-ff00:0:110,[::1]:443"},
+		{"scion6-1-ff00-0-110_--1:80", "1-ff00:0:110,[::1]:80"},
 	}
 
 	urlPatterns := hostURLPatterns()
@@ -86,11 +85,12 @@ func TestRoundTripper(t *testing.T) {
 	// checks wether the address can be successfully unmangled and resolved.
 	// expected will be set in the test loop, below
 	var expected string
-	testDial := func(ctx context.Context, network, addr string) (net.Conn, error) {
+	testDial := func(ctx context.Context, network, mangledAddr string) (net.Conn, error) {
 		// The actual Dialer.DialContext does
 		//  remote, err := pan.ResolveUDPAddr(pan.UnmangleSCIONAddr(addr))
 		// We mock pan.ResolveUDPAddr here; don't want to rely on hosts files etc
 		// for this test.
+		addr := pan.UnmangleSCIONAddr(mangledAddr)
 		if strings.HasPrefix(addr, "host") {
 			_, err := pan.ParseUDPAddr(addr)
 			require.Error(t, err)
@@ -105,6 +105,7 @@ func TestRoundTripper(t *testing.T) {
 			remote := pan.UDPAddr{IA: hostIA, IP: hostIP, Port: uint16(port)}
 			assert.Equal(t, expected, remote.String())
 		} else {
+			// addr is a SCION-mangled host:port.
 			remote, err := pan.ParseUDPAddr(addr)
 			require.NoError(t, err)
 			assert.Equal(t, expected, remote.String())

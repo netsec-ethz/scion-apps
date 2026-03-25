@@ -38,6 +38,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.0 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/scionproto/scion v0.14.1-0.20260206144937-a201cf565470 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
