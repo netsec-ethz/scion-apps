@@ -34,6 +34,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/scionproto/scion/pkg/addr"
 	"github.com/scionproto/scion/pkg/daemon"
+	"github.com/scionproto/scion/pkg/daemon/types"
 	"github.com/scionproto/scion/pkg/segment/iface"
 	"github.com/scionproto/scion/pkg/snet"
 
@@ -238,7 +239,7 @@ func removeAllDir(dirName string) {
 
 func getPathsJSON(sciondConn daemon.Connector, dstIA addr.IA) ([]byte, error) {
 	ctx := context.Background()
-	paths, err := sciondConn.Paths(ctx, dstIA, 0, daemon.PathReqFlags{})
+	paths, err := sciondConn.Paths(ctx, dstIA, 0, types.PathReqFlags{})
 	if err != nil {
 		return nil, err
 	}

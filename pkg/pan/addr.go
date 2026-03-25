@@ -19,9 +19,11 @@ import (
 	"net"
 	"net/netip"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/pkg/addr"
+	"github.com/scionproto/scion/pkg/connect"
 	"github.com/scionproto/scion/pkg/snet"
 )
 
@@ -71,21 +73,25 @@ func (a *UDPAddr) Set(s string) error {
 	return err
 }
 
+func UDPAddrFromSnetUdp(s *snet.UDPAddr) UDPAddr {
+	ip, ok := netip.AddrFromSlice(s.Host.IP)
+	if !ok {
+		panic("snet.ParseUDPAddr returned invalid IP")
+	}
+	return UDPAddr{
+		IA:   IA(s.IA),
+		IP:   ip.Unmap(),
+		Port: uint16(s.Host.Port),
+	}
+}
+
 // ParseUDPAddr converts an address string to a SCION address.
 func ParseUDPAddr(s string) (UDPAddr, error) {
 	addr, err := snet.ParseUDPAddr(s)
 	if err != nil {
 		return UDPAddr{}, err
 	}
-	ip, ok := netip.AddrFromSlice(addr.Host.IP)
-	if !ok {
-		panic("snet.ParseUDPAddr returned invalid IP")
-	}
-	return UDPAddr{
-		IA:   IA(addr.IA),
-		IP:   ip.Unmap(),
-		Port: uint16(addr.Host.Port),
-	}, nil
+	return UDPAddrFromSnetUdp(addr), nil
 }
 
 // MustParseUDPAddr calls ParseUDPAddr and panics on error. This is
@@ -228,18 +234,129 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 }
 
 // MangleSCIONAddr mangles a SCION address string (if it is one) so it can be
-// safely used in the host part of a URL.
+// safely used in the host part of a URL. It relies on the scionproto's connect.Baseurl function.
+// Examples:
+//   - "1-ff00:0:110,10.0.0.1:31000" -> "scion4-1-ff00-0-110_10-0-0-1:31000"
+//   - "1-ff00:0:110,[::1]:31000"    -> "scion6-1-ff00-0-110_--1:31000"
+//   - "1-ff00:0:110,CS"             -> "scion-1-ff00-0-110_CS"
 func MangleSCIONAddr(address string) string {
-	raddr, err := snet.ParseUDPAddr(address)
-	if err != nil {
+	var a net.Addr
+	if raddr, err := snet.ParseUDPAddr(address); err == nil {
+		// A scion UDP address.
+		a = raddr
+	} else if svcAddr, err := parseSvcAddr(address); err == nil {
+		// A scion SVC address.
+		a = svcAddr
+	} else {
+		// Anything else.
 		return address
 	}
 
-	// Turn this into [IA,IP]:port format. This is a valid host in a URI, as per
-	// the "IP-literal" case in RFC 3986, §3.2.2.
-	mangledAddr := fmt.Sprintf("[%s,%s]", raddr.IA, raddr.Host.IP)
-	if raddr.Host.Port != 0 {
-		mangledAddr += fmt.Sprintf(":%d", raddr.Host.Port)
+	// Rely on BaseUrl to mangle the address.
+	mangled := connect.BaseUrl(a)[8:] // remove the "https://" part.
+	// BaseUrl always returns the form https://mangled-host-address:port.
+	parts := strings.Split(mangled, ":")
+	if len(parts) != 2 {
+		// This should never happen.
+		return mangled
 	}
-	return mangledAddr
+	if parts[1] == "0" {
+		// Remove the not-provided port.
+		mangled = mangled[:len(mangled)-2]
+	}
+
+	return mangled
+}
+
+var mangledScionHostPort = regexp.MustCompile(`^scion(\d?)-(.+)$`)
+
+// UnmangleSCIONAddr turns a scion-mangled URL like scion4-1-ff00-0-110_10-0-0-1:31000 into
+// a valid snet.UDPAddr like that from 1-ff00:0:110,10.0.0.1:31000.
+// This function is necessary if any dialer receives a mangled host-port, such as in the
+// Dialer.DialContext function of pkg/shttp
+func UnmangleSCIONAddr(mangled string) string {
+	match := mangledScionHostPort.FindStringSubmatch(mangled)
+	if len(match) != 3 {
+		// This is not a scion-mangled host:port.
+		return mangled
+	}
+	ipType := match[1]
+	encodedAddr := match[2]
+
+	scionAddr := snet.UDPAddr{}
+	// Replace _ to , in the mangled address.
+	encodedAddr = strings.ReplaceAll(encodedAddr, "_", ",")
+	// Split the inter and intra AS addresses.
+	parts := strings.Split(encodedAddr, ",")
+	if len(parts) != 2 {
+		// Not a scion-mangled intra-AS address.
+		return mangled
+	}
+
+	// Inter-AS part.
+	interASAddr := parts[0]
+	idx := strings.Index(interASAddr, "-")
+	if idx < 0 || idx >= len(interASAddr) {
+		// Not an ISD-AS address.
+		return mangled
+	}
+	interASAddr = interASAddr[0:idx+1] + strings.ReplaceAll(interASAddr[idx+1:], "-", ":")
+	ia, err := addr.ParseIA(interASAddr)
+	if err != nil {
+		return mangled
+	}
+	scionAddr.IA = ia
+
+	// Intra-AS part. Split host and port.
+	parts = strings.Split(parts[1], ":")
+	if len(parts) == 0 || len(parts) > 2 {
+		// Not a host:port.
+		return mangled
+	}
+	host := parts[0]
+	port := 0
+	if len(parts) == 2 {
+		port, err = strconv.Atoi(parts[1])
+		if err != nil {
+			// Not a numeric port in host:port.
+			return mangled
+		}
+	}
+
+	// Type of intra-AS address:
+	switch ipType {
+	case "4":
+		host = strings.ReplaceAll(host, "-", ".")
+	case "6":
+		host = strings.ReplaceAll(host, "-", ":")
+	default:
+		// Not a valid scion-mangled intra-AS address.
+		return mangled
+	}
+
+	ipAddr, err := net.ResolveIPAddr("ip", host)
+	if err != nil {
+		return mangled
+	}
+	scionAddr.Host = &net.UDPAddr{
+		IP:   ipAddr.IP,
+		Port: port,
+	}
+
+	return scionAddr.String()
+}
+
+// parseSvcAddr parses scion service addresses such as "1-ff00:0:110,CS".
+func parseSvcAddr(address string) (*snet.SVCAddr, error) {
+	a, err := addr.ParseAddr(address)
+	if err != nil {
+		return nil, err
+	}
+	if a.Host.Type() != addr.HostTypeSVC {
+		return nil, fmt.Errorf("not a SVC but %s", a.Host.Type())
+	}
+	return &snet.SVCAddr{
+		IA:  a.IA,
+		SVC: a.Host.SVC(),
+	}, nil
 }

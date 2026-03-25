@@ -10,8 +10,9 @@ as a (native) binary on localhost.
 This mechanism does not let us dynamically look up whether a name refers to
 a SCION address. We identify SCION addresses as either:
   * the host name of a SCION host from `/etc/hosts` or `/etc/scion/hosts`
-  * a mangled SCION address in the form `<ISD>-<AS id with
-    underscores>-<host>`, e.g. `http://17-ffaa_0_1101-129.132.121.164/`
+  * a PAN-mangled SCION address in the form `scion4-<IA with dashes>_<IPv4 with dashes>`
+    or `scion6-<IA with dashes>_<IPv6 with dashes>`, e.g.
+    `http://scion4-17-ffaa-0-1101_129-132-121-164/`
 
 ## Installation
 
@@ -34,7 +35,7 @@ repository's main README and the [SCIONLab tutorials](https://docs.scionlab.org)
 Start `bin/scion-skip` and keep it running in the background.
 
 Enter SCION addresses in the URL bar of your browser, mangled as described above:
-  * [http://17-ffaa_0_1101-129.132.121.164/](http://17-ffaa_0_1101-129.132.121.164/)
+  * [http://scion4-17-ffaa-0-1101_129-132-121-164/](http://scion4-17-ffaa-0-1101_129-132-121-164/)
   * [http://www.scionlab.org](http://www.scionlab.org), assuming there is an
     entry for `www.scionlab.org` in `/etc/scion/hosts`.
 
