@@ -20,7 +20,10 @@ import (
 	"time"
 )
 
-var ErrNoPath = errors.New("no path")
+var (
+	ErrNoPath        = errors.New("no path")
+	ErrNoReversePath = errors.New("no reverse path")
+)
 
 func errNoPathTo(ia IA) error {
 	return fmt.Errorf("%w to %s", ErrNoPath, ia)

@@ -73,11 +73,14 @@ type Dialer struct {
 
 // DialContext dials an insecure, single-stream QUIC connection over SCION. This can be used
 // as the DialContext function in net/http.Transport.
-func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+func (d *Dialer) DialContext(ctx context.Context, network, mangledAddr string) (net.Conn, error) {
 	tlsCfg := &tls.Config{
 		NextProtos:         []string{quicutil.SingleStreamProto},
 		InsecureSkipVerify: true,
 	}
+
+	// Unmangle the address.
+	addr := pan.UnmangleSCIONAddr(mangledAddr)
 
 	remote, err := pan.ResolveUDPAddr(ctx, addr)
 	if err != nil {

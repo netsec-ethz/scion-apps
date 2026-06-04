@@ -19,7 +19,10 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/scionproto/scion/pkg/connect"
+	"github.com/scionproto/scion/pkg/snet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 )
@@ -44,4 +47,57 @@ func TestUDPAddrIsValid(t *testing.T) {
 		withPort := c.addr.WithPort(8888)
 		assert.Equal(t, c.isValid, withPort.IsValid(), fmt.Sprintf("%s IsValid?", withPort))
 	}
+}
+
+// TestConformanceOfBaseUrl checks that connect.BaseUrl from scionproto always prepends
+// "https://" to the result.
+func TestConformanceOfBaseUrl(t *testing.T) {
+	testCases := []string{
+		"1-ff00:0:110,10.0.0.1",
+		"1-ff00:0:110,[::1]",
+		"1-ff00:0:110,10.0.0.1:31000",
+		"1-ff00:0:110,[::1]:31000",
+	}
+	for _, tc := range testCases {
+		addr := mustParseUDPAddr(tc)
+		s := connect.BaseUrl(addr)
+		require.GreaterOrEqual(t, len(s), 8)
+		require.Equal(t, "https://", s[0:8])
+	}
+}
+
+func TestMangleScionAddr(t *testing.T) {
+	testCases := []struct {
+		addr     string
+		expected string
+	}{
+		{
+			addr:     "1-ff00:0:110,10.0.0.1:31000",
+			expected: "scion4-1-ff00-0-110_10-0-0-1:31000",
+		},
+		{
+			addr:     "1-ff00:0:110,[::1]:31000",
+			expected: "scion6-1-ff00-0-110_--1:31000",
+		},
+	}
+	for _, tc := range testCases {
+		mangled := pan.MangleSCIONAddr(tc.addr)
+		require.Equal(t, tc.expected, mangled)
+		// Unmangle it.
+		unmangled := pan.UnmangleSCIONAddr(mangled)
+		// Check the unmangled resolves to the expected address.
+		gotAddr, err := pan.ParseUDPAddr(unmangled)
+		require.NoError(t, err)
+		expectAddr, err := pan.ParseUDPAddr(tc.addr)
+		require.NoError(t, err)
+		require.Equal(t, expectAddr, gotAddr)
+	}
+}
+
+func mustParseUDPAddr(s string) *snet.UDPAddr {
+	addr, err := snet.ParseUDPAddr(s)
+	if err != nil {
+		panic(err)
+	}
+	return addr
 }

@@ -31,7 +31,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,16 +44,6 @@ import (
 	"github.com/netsec-ethz/scion-apps/pkg/pan"
 	"github.com/netsec-ethz/scion-apps/pkg/quicutil"
 	"github.com/netsec-ethz/scion-apps/pkg/shttp"
-)
-
-var (
-	mungedScionAddr = regexp.MustCompile(`^(\d+)-([_\dA-Fa-f]+)-(.*)$`)
-)
-
-const (
-	mungedScionAddrIAIndex   = 1
-	mungedScionAddrASIndex   = 2
-	mungedScionAddrHostIndex = 3
 )
 
 // This is at the moment just for presentation purposes and needs to be
@@ -130,7 +119,7 @@ func main() {
 }
 
 func handlePathUsageRequest(w http.ResponseWriter, req *http.Request) {
-	data := make([]*PathUsage, 0)
+	data := make([]*PathUsage, 0, len(pathStats.data))
 	for _, v := range pathStats.data {
 		data = append(data, v)
 	}
@@ -198,7 +187,7 @@ func handleRedirectBackOrError(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	hostPort := url.Host + ":0"
+	hostPort := normalizeHostPortForPAN(url.Host + ":0")
 
 	w.Header().Set("Location", url.String())
 	_, err = pan.ResolveUDPAddr(req.Context(), hostPort)
@@ -225,7 +214,7 @@ func handleHostResolutionRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	hostPort := hosts[0] + ":0"
+	hostPort := normalizeHostPortForPAN(hosts[0] + ":0")
 
 	res, err := pan.ResolveUDPAddr(req.Context(), hostPort)
 	if err != nil {
@@ -310,10 +299,6 @@ type proxyHandler struct {
 }
 
 func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	host := demunge(req.Host)
-	req.Host = host
-	req.URL.Host = host
-
 	// TODO(JordiSubira): This code snippet needs to be adapted and polished
 	// to add path usage information for HTTP(no S) connections.
 	//
@@ -377,7 +362,7 @@ type tunnelHandler struct {
 }
 
 func (h *tunnelHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	hostPort := req.Host
+	hostPort := normalizeHostPortForPAN(req.Host)
 	var destConn net.Conn
 	var err error
 	enabled, _ := isSCIONEnabled(req.Context(), hostPort)
@@ -496,19 +481,10 @@ func transfer(dst io.WriteCloser, src io.ReadCloser, pathF func() *pan.Path, dom
 	}
 }
 
-// demunge reverts the host name to a proper SCION address, from the format
-// that had been entered in the browser.
-func demunge(host string) string {
-	parts := mungedScionAddr.FindStringSubmatch(host)
-	if parts != nil {
-		// directly apply mangling as in pan.MangleSCIONAddr
-		return fmt.Sprintf("[%s-%s,%s]",
-			parts[mungedScionAddrIAIndex],
-			strings.ReplaceAll(parts[mungedScionAddrASIndex], "_", ":"),
-			parts[mungedScionAddrHostIndex],
-		)
-	}
-	return host
+// normalizeHostPortForPAN turns a URL host:port into the SCION address format
+// expected by pan.ResolveUDPAddr, leaving non-SCION hosts unchanged.
+func normalizeHostPortForPAN(hostport string) string {
+	return pan.UnmangleSCIONAddr(hostport)
 }
 
 // loadHosts parses /etc/hosts and /etc/scion/hosts looking for SCION host addresses.

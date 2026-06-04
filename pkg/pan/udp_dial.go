@@ -16,6 +16,7 @@ package pan
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 
@@ -223,6 +224,9 @@ func (c *dialedConn) ReadVia(b []byte) (int, *Path, error) {
 			continue // connected! Ignore spurious packets from wrong source
 		}
 		path, err := reversePathFromForwardingPath(c.remote.IA, c.local.IA, fwPath)
+		if errors.Is(err, ErrNoReversePath) {
+			return n, nil, nil
+		}
 		if err != nil {
 			continue // just drop the packet if there is something wrong with the path
 		}
