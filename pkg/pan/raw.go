@@ -68,7 +68,15 @@ func (c *baseUDPConn) writeMsg(src, dst UDPAddr, path *Path, b []byte) (int, err
 	var dataplanePath snet.DataplanePath = snetpath.Empty{}
 	var nextHop netip.AddrPort
 	if src.IA == dst.IA {
-		nextHop = netip.AddrPortFrom(dst.IP, underlay.EndhostPort)
+		host, err := getHost()
+		if err != nil {
+			return 0, err
+		}
+		if dst.Port >= host.topology.PortRange.Start && dst.Port <= host.topology.PortRange.End {
+			nextHop = netip.AddrPortFrom(dst.IP, dst.Port)
+		} else {
+			nextHop = netip.AddrPortFrom(dst.IP, underlay.EndhostPort)
+		}
 	} else {
 		nextHop = path.ForwardingPath.underlay
 		dataplanePath = path.ForwardingPath.dataplanePath
