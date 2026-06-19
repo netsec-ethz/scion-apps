@@ -42,8 +42,6 @@ func ExtractEchoRespData(resp string, d *model.EchoItem, start time.Time) {
 	// store current epoch in ms
 	d.Inserted = time.Now().UnixNano() / 1e6
 
-	log.Info("resp response", "content", resp)
-
 	var data = make(map[string]float32)
 	// -1 if no match for response time, indicating response timeout or packets out of order
 	data["response_time"] = -1

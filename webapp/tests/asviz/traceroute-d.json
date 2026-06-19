@@ -1,0 +1,54 @@
+{
+ "graph": [
+  {
+   "Inserted": 1570192000394,
+   "ActualDuration": 35,
+   "TrHops": [
+    {
+     "HopIa": "1-ff00:0:111",
+     "HopAddr": "127.0.0.17",
+     "IntfID": 41,
+     "RespTime1": 0.558,
+     "RespTime2": 0.439,
+     "RespTime3": 0.41
+    },
+    {
+     "HopIa": "1-ff00:0:110",
+     "HopAddr": "127.0.0.9",
+     "IntfID": 1,
+     "RespTime1": 0.577,
+     "RespTime2": 0.597,
+     "RespTime3": 0.601
+    },
+    {
+     "HopIa": "1-ff00:0:110",
+     "HopAddr": "127.0.0.10",
+     "IntfID": 2,
+     "RespTime1": 0.797,
+     "RespTime2": 0.666,
+     "RespTime3": 0.771
+    },
+    {
+     "HopIa": "1-ff00:0:112",
+     "HopAddr": "127.0.0.25",
+     "IntfID": 1,
+     "RespTime1": 1.18,
+     "RespTime2": 1.922,
+     "RespTime3": 1.322
+    },
+    {
+     "HopIa": "1-ff00:0:112",
+     "HopAddr": "127.0.0.2",
+     "IntfID": -1,
+     "RespTime1": 1.107,
+     "RespTime2": 0.899,
+     "RespTime3": 0.835
+    }
+   ],
+   "CmdOutput": "Available paths to 1-ff00:0:112\n[ 0] Hops: [1-ff00:0:111 41>1 1-ff00:0:110 2>1 1-ff00:0:112] Mtu: 1280\nChoose path: Using path:\n  Hops: [1-ff00:0:111 41>1 1-ff00:0:110 2>1 1-ff00:0:112] Mtu: 1280\n0  1-ff00:0:111,[127.0.0.17] IfID=41  558µs 439µs 410µs\n1  1-ff00:0:110,[127.0.0.9] IfID=1  577µs 597µs 601µs\n2  1-ff00:0:110,[127.0.0.10] IfID=2  797µs 666µs 771µs\n3  1-ff00:0:112,[127.0.0.25] IfID=1  1.18ms 1.922ms 1.322ms\n4  1-ff00:0:112,[127.0.0.2]  1.107ms 899µs 835µs\n",
+   "Error": "",
+   "Path": "Hops: [1-ff00:0:111 41>1 1-ff00:0:110 2>1 1-ff00:0:112] Mtu: 1280"
+  }
+ ],
+ "active": false
+}
