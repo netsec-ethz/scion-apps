@@ -50,3 +50,10 @@ const (
 // maxTime is the maximum usable time value (https://stackoverflow.com/a/32620397)
 var maxTime = time.Unix(1<<63-62135596801, 999999999)
 var maxDuration = time.Duration(1<<63 - 1)
+
+func maxInt(a, b int) int {
+	if a >= b {
+		return a
+	}
+	return b
+}
